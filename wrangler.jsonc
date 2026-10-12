@@ -7,6 +7,16 @@
     "binding": "ASSETS"
   },
 
+  // Cloudflare Access settings, used to verify the signed-in user's token.
+  // ACCESS_TEAM_DOMAIN: "https://<your-team-name>.cloudflareaccess.com"
+  //   (your team name is in the Zero Trust dashboard's settings).
+  // ACCESS_AUD: your Access application's "Application Audience (AUD) Tag",
+  //   shown on the application's page in Zero Trust > Access > Applications.
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://juice-rope.cloudflareaccess.com",
+    "ACCESS_AUD": "394886afbe7412ff61b97c74225154756ade3ab6a67b47d7ee32124b8d414977"
+  },
+
   "d1_databases": [
     {
       "binding": "DB",
