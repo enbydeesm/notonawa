@@ -1,5 +1,13 @@
 {
   "name": "rope-app",
   "compatibility_date": "2026-10-11",
-  "assets": { "directory": "./public" }
+  "assets": { "directory": "./public" },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rope-journal",
+      "database_id": "b1672d04-cd4c-45be-8fa8-bcabf6857bf0"
+    }
+  ]
 }
