@@ -144,3 +144,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+.dev.vars
+
+.wrangler/
+.DS_Store
+.dev.vars
+node_modules/
