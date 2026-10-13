@@ -13,15 +13,24 @@
     "enabled": false
   },
 
-  // Cloudflare Access settings, used to verify the signed-in user's token.
-  // ACCESS_TEAM_DOMAIN: "https://<your-team-name>.cloudflareaccess.com"
-  //   (your team name is in the Zero Trust dashboard's settings).
-  // ACCESS_AUD: your Access application's "Application Audience (AUD) Tag",
-  //   shown on the application's page in Zero Trust > Access > Applications.
+  // Passkeys are tied to RP_ID (the site's domain) for good: moving to a new
+  // domain means everyone adds a new passkey there (with their recovery
+  // code). ORIGIN is the site's address; writes from anywhere else are
+  // refused. Local values are in .dev.vars.
   "vars": {
-    "ACCESS_TEAM_DOMAIN": "https://juice-rope.cloudflareaccess.com",
-    "ACCESS_AUD": "394886afbe7412ff61b97c74225154756ade3ab6a67b47d7ee32124b8d414977"
+    "RP_ID": "rope-app.juice-rope.workers.dev",
+    "ORIGIN": "https://rope-app.juice-rope.workers.dev"
   },
+
+  // Sign-in attempts per IP address per minute. Counted in memory by
+  // Cloudflare; nothing is stored.
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
 
   "d1_databases": [
     {

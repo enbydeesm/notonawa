@@ -39,9 +39,12 @@ live in [considerations.md](considerations.md).
   Worker; everything else is a static file.
 - **D1** (SQLite) database `rope-journal`, binding `DB`. Schema changes only via
   numbered files in `migrations/`.
-- **Cloudflare Access** for sign-in. The Worker verifies the
-  `Cf-Access-Jwt-Assertion` token (`src/auth.js`); `DEV_USER_EMAIL` in
-  `.dev.vars` is used on localhost only.
+- **Passkeys (WebAuthn) for sign-in**, with app sessions in D1, using
+  `@simplewebauthn/server`. Sign-up is invite-only (`scripts/invite.mjs`).
+  `RP_ID` and `ORIGIN` in `wrangler.jsonc` (localhost values in `.dev.vars`):
+  passkeys are tied to `RP_ID` for good, so changing domain means everyone
+  adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
+  `/api/auth/` routes per IP.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
@@ -63,8 +66,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (the pages' CSP lives there); keep the shared headers the same in both.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.
   `src/parse.js`: field parsers. `src/sql.js`: `NOW`.
-- `src/auth/jwt.js`: Access token verification (pure; key lookup passed in).
-  `src/auth/user.js`: `getUser`, `findOrCreateUser`.
+- `src/auth/`: sign-in. `session.js` (pure: tokens, hashes, expiry rules),
+  `cookie.js` (pure: the `__Host-session` cookie), `guard.js` (pure: Origin
+  check, what a recovery session may do, rate-limit key), `parse.js` (pure),
+  `webauthn.js` (the library with our settings), `db.js`, `user.js`
+  (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
+  options|verify`, `/api/auth/recover`, `/api/auth/logout`).
+- `src/account/`: `GET /api/account`, renaming/removing passkeys, ending
+  sessions, replacing the recovery code.
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
@@ -76,21 +85,35 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `db.js`; `routes.js`: `GET /api/tags` most recently used first,
   `DELETE /api/tags/:id`).
 - `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
-  `people.html`, `locations.html`), shared `app.css`, and scripts in
+  `people.html`, `locations.html`, `account.html`), plus `signin.html` and
+  `privacy.html` (built from PRIVACY.md), shared `app.css`, and scripts in
   `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs and
   the + button), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
-  `resource-page.js` (list/edit pages), and `pages/<page>.js` for each page.
+  `resource-page.js` (list/edit pages), `codes.js` and `recovery.js` (pure:
+  typed codes, recovery codes and their login secret), `webauthn-json.js`
+  (pure) and `webauthn.js` (making and using passkeys), `auth-flows.js`
+  (sign-in flows shared by the sign-in and account pages), and
+  `pages/<page>.js` for each page.
   No inline scripts. Ids inside dialogs are prefixed (e.g. `tie-title`) so they
   don't clash with the page underneath.
 - `test/unit/`: pure logic. `test/api/`: requests to the Worker with a real
-  D1. `test/db/`: rules the database enforces itself. `scripts/ui-smoke.mjs`:
-  headless-Chrome walkthrough of every page.
+  D1, signed in by `test/helpers.js` (a session made directly in the
+  database); `test/fake-passkey.js` is a software passkey for the sign-in
+  tests. `test/db/`: rules the database enforces itself.
+  `scripts/ui-smoke.mjs`: headless-Chrome walkthrough of every page, signing
+  up with Chrome's virtual passkey.
 
 ### Commands
 
-- `npm run check`: lint + type check + tests. Run after every change.
+- `npm run check`: lint + type check + tests, and checks `public/privacy.html`
+  matches PRIVACY.md. Run after every change.
+- `node scripts/privacy-html.mjs`: rebuild `public/privacy.html` after
+  editing PRIVACY.md.
+- `node scripts/invite.mjs [--remote]`: make an invite code.
+  `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
+  give one a new recovery code (only when its owner asks).
 - `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database.
 - `npm run dev`: local app. `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
@@ -98,8 +121,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Data rules
 
 - **Scope every query to the signed-in user** with `owner_id = ?` bound to
-  `user.id`. Users are keyed by `users.id`, never by email; email is only used
-  in `getUser` to look up who's signed in.
+  `user.id`. Users are keyed by `users.id`. `users.email` is a leftover that
+  just holds the id (see migration 0003); never read it or put anything in it.
 - **Ownership is also enforced in the database**: triggers reject linking rows
   that belong to different users, and `owner_id` can't change. Errors start
   with `ownership mismatch`, which the Worker turns into "Linked item not found."
@@ -197,3 +220,13 @@ change affects what's collected, stored, readable or kept, update it too.
 - **Never log request bodies or journal content**; `console.error` only for
   unexpected errors.
 - **No third-party scripts, fonts, analytics or trackers.**
+- **A recovery code never leaves the browser.** Send only `loginSecret(code)`
+  (`public/js/recovery.js`); the server stores a SHA-256 of that. Step 4 will
+  derive the encryption key from the code differently, so keep the two
+  derivations apart.
+- **Sensitive account changes need a fresh session** (`isFresh`: signed in in
+  the last 10 minutes): adding or removing a passkey, replacing the recovery
+  code. Throw `NeedsReauth`; the page asks for the passkey again
+  (`withReauth`). New sensitive actions should do the same.
+- **Only hashes of secrets are stored**: session tokens, invite codes,
+  recovery login secrets.

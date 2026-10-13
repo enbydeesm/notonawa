@@ -1,12 +1,9 @@
 # Rope Journal Privacy Policy
 
-> **DRAFT: do not publish yet.** This policy describes how Rope Journal will
-> handle data once the privacy work planned in
-> [considerations.md](considerations.md) ("Planned: privacy and accounts
-> roadmap") is finished. Some of it isn't true of the app today. Publish it
-> only when every step is live, fill in the `[bracketed]` placeholders, and
-> have it reviewed by a lawyer, because the app holds information about
-> people's sex lives, which many privacy laws treat as specially protected.
+> **DRAFT: ** This policy describes how Rope Journal will
+> handle data once the work planned in the privacy and accounts
+> roadmap is finished. Some of it isn't true of the app today, 
+> and some [information] is yet to be filled in.
 
 **Last updated:** [date of publication]
 
@@ -44,9 +41,17 @@ account.
   "My phone") and when it was created and last used. A passkey can't be
   used to identify you outside Rope Journal.
 - **Your sessions.** When you sign in we give your browser a random session
-  token in a cookie. We store a scrambled (hashed) copy of it, when the
-  session started, and when it was last used, so you can see and end your
-  sessions. We don't store your IP address or a description of your device.
+  token in a cookie. We store a scrambled (hashed) copy of it, which passkey
+  you signed in with, when the session started, and when it was last used
+  (to the hour), so you can see and end your sessions. We don't store your IP
+  address or a description of your device.
+- **Your recovery code, scrambled.** The code is made on your device and we
+  never receive it. We store only a scrambled (hashed) value derived from it,
+  which can't be turned back into the code.
+- **Your agreement.** When you confirmed you're 18 or older and agreed to
+  this policy, and which version of it you agreed to.
+- **Your invite.** Accounts are by invite for now. We record that an invite
+  was used, and by which account, but nothing about who it was for.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
@@ -65,7 +70,8 @@ can read it, and some isn't (see the next section).
 
 To deliver the app and protect it from attacks, our hosting provider,
 Cloudflare, briefly processes standard connection information such as your IP
-address. We don't store it, and we don't keep request logs. We don't use
+address, and counts sign-in attempts per IP address for a minute at a time to
+stop people guessing. We don't store it, and we don't keep request logs. We don't use
 analytics, advertising or tracking tools of any kind.
 
 ## What we can and can't read
@@ -225,6 +231,11 @@ using an account protected by a hardware security key. We don't browse users'
 data. We would look at the readable parts of an account only when you ask us
 to (for example to help with a problem), or when the law requires it.
 Encrypted notes and photos can't be read by us under any circumstances.
+
+If you lose every passkey and your recovery code, you can ask us to give your
+account a new recovery code so you can sign in again. We only do this when
+you ask. It restores signing in, not your encrypted notes and photos, which
+still need one of your own passkeys or your own recovery code.
 
 ## Legal requests
 

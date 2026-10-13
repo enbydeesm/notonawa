@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p public/tsconfig.json",
     "test": "vitest run",
     "test:ui": "node scripts/ui-smoke.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test && node scripts/privacy-html.mjs --check"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.0",
@@ -23,5 +23,8 @@
   "allowScripts": {
     "esbuild@0.28.2": true,
     "workerd@1.20261006.1": true
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "14.0.3"
   }
 }

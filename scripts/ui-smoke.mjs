@@ -59,8 +59,19 @@ if (migrate.status !== 0) {
   cleanup();
   process.exit(1);
 }
-children.push(spawn("npx", ["wrangler", "dev", "--persist-to", dbDir, "--port", String(PORT)], { stdio: "ignore" }));
-await waitFor(`${BASE}/api/tags`, "wrangler dev");
+// Sign-up needs an invite.
+const invite = spawnSync("node", ["scripts/invite.mjs", "--persist-to", dbDir, "--quiet"], { encoding: "utf8" });
+if (invite.status !== 0) {
+  console.error(invite.stdout, invite.stderr);
+  cleanup();
+  process.exit(1);
+}
+const INVITE = invite.stdout.trim();
+children.push(spawn("npx", [
+  "wrangler", "dev", "--persist-to", dbDir, "--port", String(PORT),
+  "--var", `ORIGIN:${BASE}`, "--var", "RP_ID:localhost",
+], { stdio: "ignore" }));
+await waitFor(`${BASE}/`, "wrangler dev");
 
 // --- start Chrome and connect ------------------------------------------------
 
@@ -102,6 +113,17 @@ await send("Runtime.enable");
 await send("Page.enable");
 await send("Log.enable");
 
+// A virtual passkey, like a phone's: discoverable, verifies the user, and can
+// derive encryption keys (PRF). Chrome answers passkey requests with it.
+await send("WebAuthn.enable", { enableUI: false });
+const addAuthenticator = async () => (await send("WebAuthn.addVirtualAuthenticator", {
+  options: {
+    protocol: "ctap2", ctap2Version: "ctap2_1", transport: "internal", hasResidentKey: true,
+    hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf: true,
+  },
+})).result.authenticatorId;
+let authenticatorId = await addAuthenticator();
+
 // Helpers available inside the page for each step.
 const PAGE_HELPERS = `
   const $ = (s) => document.querySelector(s);
@@ -117,7 +139,18 @@ const PAGE_HELPERS = `
     [...item.querySelectorAll("button")].find((b) => b.textContent === label).click();
     await wait(500);
   };
-  const type = async (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new Event("input")); await wait(900); };
+  // Waits until the ties list has stopped changing (up to 4 seconds), rather
+  // than guessing how long a search takes.
+  const settle = async () => {
+    let last = null, same = 0;
+    for (let i = 0; i < 40 && same < 4; i++) {
+      await wait(100);
+      const now = $("#tie-list")?.innerText ?? "";
+      same = now === last ? same + 1 : 0;
+      last = now;
+    }
+  };
+  const type = async (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new Event("input")); await wait(400); await settle(); };
   const post = async (path, body) => (await (await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()).id;
   const filterOptions = (sel) => [...document.querySelectorAll(sel + " label")].map((l) => l.textContent + (l.classList.contains("archived") ? " (muted)" : ""));
   const pick = async (sel, name) => {
@@ -134,6 +167,9 @@ const PAGE_HELPERS = `
   const leakyFields = () => [...document.querySelectorAll("input:not([type=checkbox]), textarea")]
     .filter((f) => f.getAttribute("autocomplete") !== "off" || f.getAttribute("spellcheck") !== "false")
     .map((f) => f.id || f.name || f.getAttribute("aria-label") || f.type);
+  const visibleCard = () => [...document.querySelectorAll("main > section.card")].find((c) => !c.hidden)?.id;
+  const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
+  const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
@@ -165,6 +201,30 @@ try {
       res.headers.get("x-frame-options"),
     ], ["no-store", true, true, "DENY"]);
   }
+  console.log("Signing up");
+  await go("/");
+  check("signed out, the journal goes to the sign-in page", await run(`return [location.pathname, visibleCard()];`), ["/signin", "choose"]);
+  check("the sign-up form's fields are kept out of form history and spellcheck", await run(`
+    [...document.querySelectorAll("[data-show=signup]")][0].click(); return [visibleCard(), leakyFields()];`), ["signup", []]);
+  check("sign-up needs 18+ and consent", await run(`
+    $("#invite").value = ${JSON.stringify(INVITE)}; $("#passkey-name").value = "Test phone";
+    $("#signup-form button[type=submit]").click(); await wait(300);
+    return $("#adult").validity.valueMissing;`), true);
+  const recoveryCode = await run(`
+    $("#adult").checked = true; $("#consent").checked = true;
+    $("#signup-form button[type=submit]").click(); await wait(2500);
+    return $("#recovery-code")?.textContent;`);
+  check("signing up makes a passkey and shows a recovery code once, which must be confirmed", await run(`
+    const before = recoveryDialog(); $("#recovery-saved").click();
+    return [before[1], $("dialog[open] button.primary").disabled];`), [true, false]);
+  check("the recovery code is 32 characters in groups of 4", /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(recoveryCode ?? ""), true);
+  await run(`$("dialog[open] button.primary").click();`);
+  await sleep(1500);
+  check("Done goes to the journal, signed in", await run(`return [location.pathname, $("#tie-count") !== null];`), ["/", true]);
+  check("the invite can't be used again", await run(`
+    const r = await fetch("/api/auth/register/options", { method: "POST", credentials: "omit", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ invite: ${JSON.stringify(INVITE)}, adult: true, consent: true }) });
+    return [r.status, (await r.json()).error];`), [400, "That invite code doesn't work. It may have been used or expired."]);
   for (const pagePath of ["/plans", "/people", "/locations"]) {
     await go(pagePath);
     check(`${pagePath}: every field is kept out of form history and spellcheck`, await run(`return leakyFields();`), []);
@@ -182,7 +242,7 @@ try {
   check("the sun button sits just before the +, with a half-filled sun", await run(`
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), $(".nav-theme svg path").getAttribute("fill"), document.querySelectorAll(".nav-theme svg line").length];`),
-    [["nav-theme", "nav-add"], "currentColor", 8]);
+    [["nav-icon nav-theme", "nav-add"], "currentColor", 8]);
   check("a light device starts light", await run(themeState), [LIGHT_BG, "Switch to dark mode", null, null]);
   check("tapping switches to dark and remembers it", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
     [DARK_BG, "Switch to light mode", "dark", "dark"]);
@@ -204,7 +264,7 @@ try {
 
   console.log("People");
   await go("/people");
-  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
+  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a:not(.nav-icon)")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
     ["Ties", "Plans", "People*", "Locations"]);
   check("add people", await run(`
     set("#name", "Me"); set("[name=is_self]", true); await submit();
@@ -385,6 +445,65 @@ try {
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); $("#tie-save").click();`);
   await sleep(1500);
   check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
+
+  console.log("Account");
+  await go("/account");
+  check("the account page lists the passkey and this session", await run(`
+    return [$(".nav-account").getAttribute("aria-current"), [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent),
+      [...$("#sessions").querySelectorAll(".item-title")].map((t) => [t.firstChild.textContent, t.querySelector(".badge")?.textContent]),
+      [...$("#passkeys").querySelectorAll("button")].map((b) => b.textContent), $("#end-others").hidden, $("#recovery-status").textContent];`),
+    ["page", ["Test phone"], [["Signed in with Test phone", "This device"]], ["Rename"], true, "You have a recovery code. Making a new one replaces it."]);
+  check("rename a passkey", await run(`
+    [...$("#passkeys").querySelectorAll("button")].find((b) => b.textContent === "Rename").click(); await wait(300);
+    const leaky = leakyFields(); $("#rename-input").value = "Phone"; $("dialog[open] button[type=submit]").click(); await wait(800);
+    return [leaky, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`), [[], ["Phone"]]);
+  const newRecovery = await run(`
+    $("#new-code").click(); await wait(300); await clickDialog("Make a new code"); await wait(600);
+    const code = $("#recovery-code").textContent; await finishRecoveryDialog(); return code;`);
+  check("make a new recovery code, shown once", [/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(newRecovery ?? ""), newRecovery !== recoveryCode], [true, true]);
+  await run(`$("#sign-out").click();`);
+  await sleep(1500);
+  check("sign out goes to the sign-in page, and the journal stays locked", await run(`
+    return [location.pathname, (await fetch("/api/tags")).status];`), ["/signin", 401]);
+
+  console.log("Signing in");
+  await go("/signin");
+  await run(`$("#sign-in").click();`);
+  await sleep(2500);
+  check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "24 ties"]);
+
+  console.log("Recovery");
+  // Lose the phone: its passkey is gone, a new device has a new authenticator.
+  await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
+  authenticatorId = await addAuthenticator();
+  await run(`await fetch("/api/auth/logout", { method: "POST" });`);
+  await go("/signin");
+  check("signing in without a passkey for this site fails gently", await run(`
+    $("#sign-in").click(); await wait(2500); return [location.pathname, $("#sign-in-message").className];`), ["/signin", "message error"]);
+  check("the replaced recovery code no longer works", await run(`
+    [...document.querySelectorAll("[data-show=recover]")][0].click(); $("#code").value = ${JSON.stringify(recoveryCode)};
+    $("#recover-form button[type=submit]").click(); await wait(1200); return $("#recover-message").textContent;`),
+    "That recovery code didn't work.");
+  check("the current one signs in, but only to add a passkey", await run(`
+    $("#code").value = ${JSON.stringify((newRecovery ?? "").toLowerCase().replace(/-/g, " "))};
+    $("#recover-form button[type=submit]").click(); await wait(1200);
+    return [visibleCard(), (await fetch("/api/tags")).status, leakyFields()];`), ["add-passkey", 403, []]);
+  const shownAfterRecovery = await run(`
+    $("#new-passkey-name").value = "New phone"; $("#add-passkey-form button[type=submit]").click(); await wait(2500);
+    const shown = recoveryDialog()[0]; $("#recovery-saved").click(); $("dialog[open] button.primary").click(); return shown;`);
+  await sleep(1500);
+  check("adding a passkey finishes signing in, with a new recovery code", [
+    /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(shownAfterRecovery ?? ""),
+    ...await run(`return [location.pathname, $("#tie-count").textContent];`),
+  ], [true, "/", "24 ties"]);
+  await go("/account");
+  check("the lost phone's passkey can then be removed", await run(`
+    const before = [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent);
+    const phone = [...$("#passkeys").querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Phone");
+    [...phone.querySelectorAll("button")].find((b) => b.textContent === "Remove").click(); await wait(300);
+    await clickDialog("Remove passkey"); await wait(800);
+    return [before, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`),
+    [["Phone", "New phone"], ["New phone"]]);
 
   check("no errors in the browser console", consoleErrors, []);
 } catch (err) {

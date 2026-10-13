@@ -1,0 +1,130 @@
+<!doctype html>
+<!-- Built from PRIVACY.md by scripts/privacy-html.mjs. Edit that, not this. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy · Rope Journal</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/js/theme-init.js"></script>
+</head>
+<body>
+  <main class="policy">
+<h1 id="rope-journal-privacy-policy">Rope Journal Privacy Policy</h1>
+<blockquote><strong>DRAFT: do not publish yet.</strong> This policy describes how Rope Journal will handle data once the privacy work planned in considerations.md (&quot;Planned: privacy and accounts roadmap&quot;) is finished. Some of it isn't true of the app today. Publish it only when every step is live, fill in the <code>[bracketed]</code> placeholders, and have it reviewed by a lawyer, because the app holds information about people's sex lives, which many privacy laws treat as specially protected.</blockquote>
+<p><strong>Last updated:</strong> [date of publication]</p>
+<h2 id="the-short-version">The short version</h2>
+<ul>
+  <li>Rope Journal is a private journal for rope practice. It is built so that <strong>the most sensitive parts, your notes and your photos, are encrypted on your device before they leave it.</strong> We can't read them, and neither can anyone who gets hold of our servers.</li>
+  <li><strong>You sign in with a passkey.</strong> There are no passwords, and we don't ask for your email address, your legal name, or a sign-in through Google, Apple or anyone else.</li>
+  <li><strong>No ads, no analytics, no tracking, no selling or sharing your data.</strong> The app loads no scripts or fonts from other companies.</li>
+  <li>Some information has to stay readable by our server so the app can sort and filter it, such as names, titles, dates and ratings. The full list is in <a href="#what-we-can-and-cant-read">What we can and can't read</a>.</li>
+  <li>You can export everything, or delete your account and everything in it, at any time.</li>
+</ul>
+<h2 id="who-we-are">Who we are</h2>
+<p>Rope Journal is run by [OPERATOR NAME] (&quot;we&quot;, &quot;us&quot;), [LOCATION / COUNTRY]. Contact us about privacy at [CONTACT EMAIL].</p>
+<p>Rope Journal is for adults only. You must be 18 or older to create an account.</p>
+<h2 id="what-we-collect">What we collect</h2>
+<h3 id="your-account">Your account</h3>
+<ul>
+  <li><strong>A passkey.</strong> When you create a passkey, your device keeps the secret part. We store only the public part, an ID for it, the name you give it (e.g. &quot;My phone&quot;) and when it was created and last used. A passkey can't be used to identify you outside Rope Journal.</li>
+  <li><strong>Your sessions.</strong> When you sign in we give your browser a random session token in a cookie. We store a scrambled (hashed) copy of it, which passkey you signed in with, when the session started, and when it was last used (to the hour), so you can see and end your sessions. We don't store your IP address or a description of your device.</li>
+  <li><strong>Your recovery code, scrambled.</strong> The code is made on your device and we never receive it. We store only a scrambled (hashed) value derived from it, which can't be turned back into the code.</li>
+  <li><strong>Your agreement.</strong> When you confirmed you're 18 or older and agreed to this policy, and which version of it you agreed to.</li>
+  <li><strong>Your invite.</strong> Accounts are by invite for now. We record that an invite was used, and by which account, but nothing about who it was for.</li>
+  <li><strong>Your encryption keys, locked.</strong> Your notes and photos are encrypted with a key that only exists unlocked on your own device. We store copies of it that are themselves locked by your passkeys and by your recovery code, so we can't use them. See <a href="#how-encryption-works">How encryption works</a>.</li>
+</ul>
+<p>We don't collect your email address, phone number, real name, contacts or location.</p>
+<h3 id="your-journal">Your journal</h3>
+<p>What you choose to write in the app: ties, plans, people, locations, tags, and (once photos are available) photos. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
+<h3 id="technical-information">Technical information</h3>
+<p>To deliver the app and protect it from attacks, our hosting provider, Cloudflare, briefly processes standard connection information such as your IP address, and counts sign-in attempts per IP address for a minute at a time to stop people guessing. We don't store it, and we don't keep request logs. We don't use analytics, advertising or tracking tools of any kind.</p>
+<h2 id="what-we-can-and-cant-read">What we can and can't read</h2>
+<p><strong>Encrypted on your device. Only you can read it:</strong></p>
+<ul>
+  <li>notes on ties, and each participant's notes on a tie</li>
+  <li>notes on people, and their profile notes (injuries, modifications, likes, dislikes and limits)</li>
+  <li>notes on locations</li>
+  <li>plan descriptions and notes</li>
+  <li>photos, their thumbnails, and any captions</li>
+</ul>
+<p><strong>Readable by our server, so the app can list, sort and filter them:</strong></p>
+<ul>
+  <li>tie titles, dates, durations and ratings; who took part and in what role; which plans and location were used</li>
+  <li>people's names and pronouns</li>
+  <li>location names, map links and coordinates</li>
+  <li>plan titles, stages, difficulty and versions</li>
+  <li>tags</li>
+  <li>when things were created, changed or archived, and how they link together</li>
+</ul>
+<p>This second list is still private to your account: the app never shows it to anyone else, and we don't look at it (see <a href="#our-own-access">Our own access</a>). But because it isn't encrypted on your device, it could be disclosed if our systems were breached or if we were legally required to hand it over. <strong>Keep anything you consider truly sensitive, such as full names, addresses or identifying details, in the notes fields, which are encrypted.</strong> We plan to encrypt more of these fields over time.</p>
+<h2 id="how-encryption-works">How encryption works</h2>
+<ul>
+  <li>When you create your account, your device makes a random encryption key. Your notes and photos are encrypted with it (AES-256-GCM) on your device, before anything is sent to us.</li>
+  <li>That key is locked using a secret your passkey produces (the WebAuthn &quot;PRF&quot; feature), which never leaves your device. If your passkey doesn't support this, you unlock with your recovery code instead.</li>
+  <li>You get a <strong>recovery code</strong> when you create your account. It can also unlock your key. We show it once and don't keep a copy.</li>
+  <li><strong>If you lose every passkey and your recovery code, your encrypted notes and photos can't be recovered, by you or by us.</strong> That is the cost of us not being able to read them. You can add passkeys on more than one device to avoid this.</li>
+</ul>
+<h2 id="how-the-app-protects-your-data-on-your-device">How the app protects your data on your device</h2>
+<ul>
+  <li><strong>Nothing decrypted is saved on your device.</strong> Your notes are decrypted in your browser's memory only while the app is open and unlocked, and are never written to the browser's storage, its cache or its form history. Our pages and data are sent with instructions not to be cached. The browser's spellcheck is turned off in the app, because some browsers can send the text being checked to their maker.</li>
+  <li><strong>The app locks itself.</strong> It forgets your key and everything it decrypted after [15] minutes without use, after [5] minutes in the background, when you sign out, and when you close the tab. You unlock again with your passkey.</li>
+  <li><strong>Decryption happens in a separate, walled-off part of the browser</strong> (a Web Worker), so the rest of the page only ever sees the results it is displaying.</li>
+  <li><strong>Searching happens on your device.</strong> What you type in the search box is never sent to us and never appears in the page address, so it doesn't end up in your browser history either.</li>
+  <li><strong>Only our own code runs in the app.</strong> Strict browser security rules (Content Security Policy and Trusted Types) block scripts from anywhere else, and the app can't be embedded in other websites.</li>
+</ul>
+<p>Browsers have limits that no app can fully overcome. Your operating system may copy memory to disk (for example when your computer sleeps or hibernates), and browser extensions you install can see what's on the page. Using full-disk encryption on your devices, and being careful which extensions you allow on this site, protects you further.</p>
+<h2 id="photos">Photos</h2>
+<ul>
+  <li>Before a photo leaves your device, the app removes its hidden metadata, including GPS location, camera details and timestamps.</li>
+  <li>The photo and its thumbnail are then encrypted on your device and stored in a private storage area that isn't reachable from the internet. Photos are only ever handed back to your own signed-in account, and only your device can decrypt them.</li>
+  <li>We never scan, analyse, tag or share your photos, and no other company processes them.</li>
+  <li><strong>Only store photos of people who have agreed to it.</strong> You are responsible for having their consent.</li>
+</ul>
+<h2 id="information-about-other-people">Information about other people</h2>
+<p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. Entries about someone stay in your account. If that person also uses Rope Journal, they can't see your entries, and we don't tell them you've written about them.</p>
+<h2 id="where-your-data-is-stored">Where your data is stored</h2>
+<p>Rope Journal runs on Cloudflare (Workers, D1 database and R2 storage), which is our only service provider with access to stored data. Data is stored [in REGION / &quot;in Cloudflare's network, which may include countries other than your own&quot;] and is encrypted at rest by Cloudflare, in addition to our own encryption of your notes and photos.</p>
+<h2 id="cookies">Cookies</h2>
+<p>We use one cookie: your session cookie. It's needed to keep you signed in. It can't be read by scripts, is only sent over secure connections and only to Rope Journal, and expires after [30] days, or sooner after [7] days without use. We use no other cookies, local storage for tracking, or similar technologies. If you switch between light and dark mode, the app remembers that choice in your browser's local storage (just the word &quot;light&quot; or &quot;dark&quot;); it never leaves your device.</p>
+<h2 id="how-long-we-keep-your-data">How long we keep your data</h2>
+<ul>
+  <li><strong>While you have an account</strong>, we keep what you've stored until you delete it.</li>
+  <li><strong>When you delete something</strong>, it's removed from our live database straight away. Deleted photos are removed from storage straight away.</li>
+  <li><strong>When you delete your account</strong>, everything in it (journal, photos, passkeys, sessions and locked keys) is deleted straight away.</li>
+  <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, so deleted data can remain there for up to [30] days before it disappears permanently. Our own backups are encrypted and kept for no more than [N] days. We would only restore from these to recover from a failure, never to bring back something you deleted unless you ask us to.</li>
+  <li><strong>Signed-out sessions</strong> are deleted when you sign out, and expired sessions are cleared regularly.</li>
+</ul>
+<h2 id="your-rights-and-choices">Your rights and choices</h2>
+<p>Wherever you live, you can:</p>
+<ul>
+  <li><strong>Export</strong> all your data from the app at any time, including your notes and photos, decrypted on your device into a file only you hold.</li>
+  <li><strong>Correct</strong> anything by editing it in the app.</li>
+  <li><strong>Delete</strong> individual entries, or your whole account, from the app.</li>
+  <li><strong>End sessions</strong> on any device, or remove passkeys, from your account settings.</li>
+  <li><strong>Contact us</strong> at [CONTACT EMAIL] with any privacy question or request. We will respond within [30] days.</li>
+</ul>
+<p>Depending on where you live (for example the EU, UK or California), you may have further rights under laws such as the GDPR or CCPA, including the right to complain to your data protection authority.</p>
+<p><strong>Legal basis (EU/UK users).</strong> We process your journal because you ask us to in order to provide the service. Information about your or other people's sex lives is special-category data, which we process only with your explicit consent, given when you create your account. You can withdraw consent at any time by deleting your data or your account.</p>
+<h2 id="our-own-access">Our own access</h2>
+<p>The only person who can access Rope Journal's systems is [OPERATOR NAME], using an account protected by a hardware security key. We don't browse users' data. We would look at the readable parts of an account only when you ask us to (for example to help with a problem), or when the law requires it. Encrypted notes and photos can't be read by us under any circumstances.</p>
+<p>If you lose every passkey and your recovery code, you can ask us to give your account a new recovery code so you can sign in again. We only do this when you ask. It restores signing in, not your encrypted notes and photos, which still need one of your own passkeys or your own recovery code.</p>
+<h2 id="legal-requests">Legal requests</h2>
+<p>If we receive a legally valid demand for data, we can only provide what we can read (see <a href="#what-we-can-and-cant-read">What we can and can't read</a>). We cannot decrypt your notes or photos. Unless the law forbids it, we will tell you about the request before handing anything over.</p>
+<h2 id="security-incidents">Security incidents</h2>
+<p>If a breach affects your data, we will tell you through the app [and by any contact method you've given us] as quickly as we can, and notify regulators where the law requires.</p>
+<h2 id="what-we-dont-do">What we don't do</h2>
+<ul>
+  <li>sell, rent or share your data</li>
+  <li>show ads or use your data for advertising</li>
+  <li>use analytics, tracking pixels or third-party scripts</li>
+  <li>train AI models on your data or send it to AI services</li>
+  <li>let anyone else see your journal</li>
+</ul>
+<h2 id="changes-to-this-policy">Changes to this policy</h2>
+<p>If we change this policy, we will update the date at the top and tell you in the app before the change takes effect. If a change would reduce your privacy, we will ask for your agreement first.</p>
+<h2 id="contact">Contact</h2>
+<p>[OPERATOR NAME] · [CONTACT EMAIL]</p>
+  </main>
+</body>
+</html>

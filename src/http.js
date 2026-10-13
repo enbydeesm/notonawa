@@ -3,14 +3,19 @@
 // Thrown for anything wrong with the request; becomes a 400 with this message.
 export class BadInput extends Error {}
 
+// Thrown when a sensitive change needs a recent sign-in; becomes a 403 that
+// tells the page to ask for the passkey again (see auth/session.js isFresh).
+export class NeedsReauth extends Error {}
+
 /**
  * @param {unknown} data
  * @param {number} [status]
+ * @param {Record<string, string>} [headers] e.g. a Set-Cookie
  */
-export function json(data, status = 200) {
+export function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 

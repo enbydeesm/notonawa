@@ -3,9 +3,12 @@
 // Anything under /api/ is handled here; everything else is served from /public.
 
 import { getUser } from "./auth/user.js";
+import { isAllowedOrigin, allowedInRecovery, rateLimitKey } from "./auth/guard.js";
 import { json, notFound } from "./http.js";
 import { errorResponse } from "./errors.js";
 import { withSecurityHeaders } from "./security-headers.js";
+import { handleAuth } from "./auth/routes.js";
+import { handleAccount } from "./account/routes.js";
 import { handleTies } from "./ties/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
@@ -42,13 +45,28 @@ async function respond(request, env) {
     return env.ASSETS.fetch(request);
   }
 
-  // Figure out who is asking. Every API request needs a known user.
+  if (!isAllowedOrigin(request, env.ORIGIN)) {
+    return json({ error: "Not allowed" }, 403);
+  }
+
+  // Signing up, in and out: no session needed, but a limit on attempts.
+  if (url.pathname.startsWith("/api/auth/")) {
+    const { success } = await env.AUTH_RATE_LIMIT.limit({ key: rateLimitKey(request) });
+    if (!success) return json({ error: "Too many attempts. Wait a minute and try again." }, 429);
+    return (await handleAuth(request, env, url)) ?? notFound();
+  }
+
+  // Figure out who is asking. Every other API request needs a signed-in user.
   const user = await getUser(request, env);
   if (!user) {
     return json({ error: "Not signed in" }, 401);
   }
+  if (user.session.kind === "recovery" && !allowedInRecovery(request.method, url.pathname)) {
+    return json({ error: "Add a passkey to finish signing in.", recovery: true }, 403);
+  }
 
   return (
+    (await handleAccount(request, env, user, url)) ??
     (await handleTies(request, env, user, url)) ??
     (await handleResources(request, env, user, url)) ??
     (await handleTags(request, env, user, url)) ??

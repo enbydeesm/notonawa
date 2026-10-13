@@ -7,8 +7,8 @@ import { sql, createOtherUser } from "../helpers.js";
 /** @type {string} */ let them;
 
 beforeEach(async () => {
-  me = await createOtherUser(`me-${crypto.randomUUID()}@example.com`);
-  them = await createOtherUser(`them-${crypto.randomUUID()}@example.com`);
+  me = await createOtherUser();
+  them = await createOtherUser();
 });
 
 /** @param {string} prefix */

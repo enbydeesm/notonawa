@@ -16,7 +16,7 @@ what's built, and don't publish it until every step below is live.
 
 Each step leaves the app working and shippable on its own.
 
-1. **Hardening baseline.** *Built 2026-10-12, not yet deployed.* Security headers on every response (strict CSP
+1. **Hardening baseline.** *Built 2026-10-12.* Security headers on every response (strict CSP
    with Trusted Types, `Cache-Control: no-store` on pages and API,
    `Referrer-Policy: no-referrer`, `nosniff`, `frame-ancestors 'none'`,
    COOP/CORP, `Permissions-Policy`, HSTS). The search keyword leaves the page
@@ -26,7 +26,8 @@ Each step leaves the app working and shippable on its own.
    logs. *First because
    it's small, needs no packages or migrations, and closes leaks that exist
    today (search words in browser history and request logs).*
-2. **Passkey sign-in and app sessions (replaces Cloudflare Access).** WebAuthn
+2. **Passkey sign-in and app sessions (replaces Cloudflare Access).**
+   *Built 2026-10-13, not yet deployed; see "Step 2 as built" below.* WebAuthn
    registration and sign-in in the Worker; `__Host-` session cookie
    (`HttpOnly; Secure; SameSite=Strict`, 30 days max, 7 days idle) with only
    a SHA-256 hash of the token stored; Origin check on writes; rate-limited
@@ -34,7 +35,7 @@ Each step leaves the app working and shippable on its own.
    sign out everywhere; 18+ confirmation and consent for sensitive data at
    sign-up. Registration asks for the PRF extension and records whether each
    passkey supports it, ready for step 4. Moves the existing account across.
-   No email is collected; `users.email` is dropped. *Before encryption
+   No email is collected; `users.email` is emptied (see below). *Before encryption
    because the keys hang off passkeys and the recovery code.*
 3. **Account export and deletion**, plus the retention rules in PRIVACY.md:
    JSON export, delete-account (cascades through D1), encrypted operator
@@ -104,7 +105,47 @@ Each step leaves the app working and shippable on its own.
     `accept`s only JPEG/PNG/WebP, so try that first; a HEIC decoder (WASM) is
     the fallback if needed.
 
+### Step 2 as built
+
+- **`users.email` couldn't be dropped.** SQLite won't drop a UNIQUE column,
+  and rebuilding `users` would cascade-delete every journal row (DROP TABLE
+  runs an implicit DELETE). Migration 0003 overwrites each email with the
+  user's id instead, and new users get email = id. **Drop the column** at the
+  next full table rebuild (children-first, like migration 0002).
+- **Moving the existing account:** no Access-and-passkeys overlap. After
+  deploying, `node scripts/recovery-code.mjs <id> --remote` gives the account
+  a recovery code; sign in with it and add a passkey. Then remove the Access
+  application in Zero Trust.
+- **Recovery code → login secret.** The browser derives a login secret
+  (HKDF-SHA256, info "login") from the code and sends only that; the server
+  keeps its SHA-256. The code is 160 random bits, so a fast hash is enough.
+  Step 4 must derive the key-wrapping key with a different `info`.
+- **A recovery session** lasts 15 minutes and can only see the account and
+  add a passkey; adding one turns it into a full session. The old code keeps
+  working until a new one is set (the page does that straight after), so a
+  crash mid-way can't lock anyone out.
+- **"Confirm it's you"** (fresh session, 10 minutes) for adding or removing a
+  passkey and replacing the recovery code, so a stolen session can't quietly
+  take over the account. Renaming and ending sessions don't need it.
+- **Removing a passkey ends the sessions it started** (`ON DELETE CASCADE`).
+- **Invites:** 80-bit codes, single use, 14 days by default; the trigger on
+  `invites` makes two sign-ups racing for one invite fail cleanly.
+- **`prf_capable`** comes from the browser's `prf.enabled` at registration;
+  NULL when it doesn't say (some only report PRF at sign-in). Step 4 should
+  fill unknowns in at sign-in.
+- **Rate limit:** 20 requests a minute per IP across `/api/auth/` (Cloudflare's
+  rate-limit binding, counted in memory).
+- **Not yet:** account deletion and export (step 3).
+
 ### Weighed and not adopted
+
+- **An owner back door** (a special login for the operator): rejected. It
+  would be a way in for anyone who got hold of it, and couldn't open
+  encrypted data anyway. The owner uses several passkeys (including a
+  hardware key) and a stored recovery code like anyone else, with
+  `scripts/recovery-code.mjs` as a last resort for signing in.
+- **Challenges in a signed cookie** instead of the `auth_challenges` table:
+  stateless, but can't be made single-use without storing something anyway.
 
 - **Cloudflare Access for everyone:** built for teams, priced per seat beyond
   the free tier, and not a public sign-up flow.

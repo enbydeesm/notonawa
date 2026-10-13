@@ -109,13 +109,23 @@ dialog p { margin: 0 0 16px; }
 
 nav { align-items: center; }
 
-/* The light/dark button, pushed right, just before the +: a plain icon in
-   the text color. */
-.nav-theme {
-  flex: none; margin-left: auto; width: 32px; height: 32px; padding: 3px;
-  background: transparent; border-color: transparent; color: var(--text);
+/* The account link and light/dark button, pushed right, before the +: plain
+   icons in the text color. */
+.nav-icon {
+  flex: none; width: 32px; height: 32px; padding: 3px;
+  background: transparent; border: 1px solid transparent; color: var(--text);
 }
-.nav-theme svg { display: block; width: 100%; height: 100%; }
+nav a.nav-icon { padding: 3px; color: var(--text); }
+nav a.nav-icon[aria-current="page"] { border-color: transparent; border-bottom: 2px solid var(--accent); border-radius: 0; }
+.nav-account { margin-left: auto; }
+.nav-icon svg { display: block; width: 100%; height: 100%; }
+
+/* A recovery code, shown once: big, easy to read and select. */
+.recovery-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; letter-spacing: 0.04em;
+  padding: 12px; text-align: center; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; user-select: all; overflow-wrap: anywhere;
+}
 
 /* The + button at the end of the nav: a small square in the accent color.
    The "Edit tags" dialog's + button and the tie form's small ones match. */
@@ -212,3 +222,9 @@ dialog.form-dialog {
 .dialog-footer button {
   padding: 8px 24px; background: var(--accent); color: var(--accent-text); border-color: var(--accent);
 }
+
+/* The privacy policy page (built from PRIVACY.md). */
+.policy h1 { margin-bottom: 8px; }
+.policy h2 { margin-top: 28px; }
+.policy blockquote { margin: 16px 0; padding: 12px 16px; border-left: 4px solid var(--accent); background: var(--card); }
+.policy li { margin-bottom: 4px; }

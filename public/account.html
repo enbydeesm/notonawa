@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account · Rope Journal</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/js/theme-init.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Account</h1>
+
+    <section class="card">
+      <h2>Passkeys</h2>
+      <p class="hint">Add one on each device you use, so losing one doesn't lock you out.</p>
+      <div id="passkeys"><p class="empty">Loading…</p></div>
+      <form id="add-form">
+        <label for="add-name">Add a passkey on this device</label>
+        <input id="add-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. My laptop">
+        <button type="submit">Add passkey</button>
+        <p class="message" id="passkey-message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Where you're signed in</h2>
+      <div id="sessions"><p class="empty">Loading…</p></div>
+      <button type="button" id="end-others">Sign out everywhere else</button>
+      <p class="message" id="session-message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Recovery code</h2>
+      <p class="hint" id="recovery-status"></p>
+      <button type="button" id="new-code">Make a new recovery code</button>
+      <p class="message" id="recovery-message"></p>
+    </section>
+
+    <button type="button" class="primary" id="sign-out">Sign out</button>
+    <p class="message" id="sign-out-message"></p>
+  </main>
+
+  <script type="module" src="/js/pages/account.js"></script>
+</body>
+</html>

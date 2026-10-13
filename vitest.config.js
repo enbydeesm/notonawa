@@ -12,8 +12,9 @@ export default defineConfig({
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(import.meta.dirname, "migrations")),
-          // Requests to http://localhost sign in as this user (see src/auth/user.js).
-          DEV_USER_EMAIL: "me@example.com",
+          // Tests call the Worker at http://localhost (see test/helpers.js).
+          RP_ID: "localhost",
+          ORIGIN: "http://localhost",
         },
       },
     })),

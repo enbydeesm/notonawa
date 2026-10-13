@@ -1,5 +1,5 @@
-// The page links at the top of every page, the light/dark button, and the
-// + button.
+// The page links at the top of every page, then the account link, the
+// light/dark button, and the + button.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
@@ -32,6 +32,10 @@ export function renderNav(current) {
     PAGES.map(([href, label]) =>
       h("a", { href, "aria-current": href === current ? "page" : null }, label)
     ),
+    h("a", {
+      href: "/account", className: "nav-icon nav-account", "aria-label": "Account", title: "Account",
+      "aria-current": current === "/account" ? "page" : null,
+    }, personIcon()),
     themeButton(),
     h("button", { type: "button", className: "nav-add", "aria-label": "Log a tie", title: "Log a tie", onclick: add }, "+")
   );
@@ -42,7 +46,7 @@ const deviceDark = matchMedia("(prefers-color-scheme: dark)");
 
 /** The sun button: switches between light and dark mode (see theme.js). */
 function themeButton() {
-  const button = h("button", { type: "button", className: "nav-theme", onclick: toggle }, sunIcon());
+  const button = h("button", { type: "button", className: "nav-icon nav-theme", onclick: toggle }, sunIcon());
 
   // The choice on the page (put there from storage by theme-init.js) is the
   // one in effect, even when storage is blocked.
@@ -92,6 +96,19 @@ function svg(tag, attrs) {
   const el = document.createElementNS(SVG, tag);
   for (const [name, value] of Object.entries(attrs)) el.setAttribute(name, String(value));
   return el;
+}
+
+/** A head and shoulders, for the account link. */
+function personIcon() {
+  const icon = svg("svg", {
+    viewBox: "0 0 24 24", "aria-hidden": "true", fill: "none",
+    stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round",
+  });
+  icon.append(
+    svg("circle", { cx: 12, cy: 8, r: 4 }),
+    svg("path", { d: "M4 21a8 8 0 0 1 16 0" })
+  );
+  return icon;
 }
 
 /** A sun whose disc is half filled: outlined on the left, solid on the right. */
