@@ -60,7 +60,7 @@ if (migrate.status !== 0) {
   process.exit(1);
 }
 children.push(spawn("npx", ["wrangler", "dev", "--persist-to", dbDir, "--port", String(PORT)], { stdio: "ignore" }));
-await waitFor(`${BASE}/api/ties`, "wrangler dev");
+await waitFor(`${BASE}/api/tags`, "wrangler dev");
 
 // --- start Chrome and connect ------------------------------------------------
 
@@ -87,6 +87,11 @@ ws.addEventListener("message", (event) => {
   if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
     consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
   }
+  // The browser's own messages, e.g. a script or style blocked by the CSP.
+  // Network ones are left out: some steps get a 400 on purpose.
+  if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
+    consoleErrors.push(msg.params.entry.text);
+  }
 });
 const send = (method, params = {}) => new Promise((resolve) => {
   const id = nextId++;
@@ -95,6 +100,7 @@ const send = (method, params = {}) => new Promise((resolve) => {
 });
 await send("Runtime.enable");
 await send("Page.enable");
+await send("Log.enable");
 
 // Helpers available inside the page for each step.
 const PAGE_HELPERS = `
@@ -124,6 +130,10 @@ const PAGE_HELPERS = `
     t.querySelector(".tag-toggle").textContent + (t.classList.contains("selected") ? "*" : "") + (t.querySelector(".tag-x") ? " ×" : ""));
   const tagChips = (sel) => [...document.querySelectorAll(sel + " .tag")].map((t) => t.firstChild.textContent);
   const tagsJson = async () => (await (await fetch("/api/tags")).json()).map((t) => t.name + ":" + t.tie_count);
+  // Fields that could leak what's typed into form history or spellcheck.
+  const leakyFields = () => [...document.querySelectorAll("input:not([type=checkbox]), textarea")]
+    .filter((f) => f.getAttribute("autocomplete") !== "off" || f.getAttribute("spellcheck") !== "false")
+    .map((f) => f.id || f.name || f.getAttribute("aria-label") || f.type);
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
@@ -145,6 +155,21 @@ async function go(pagePath) {
 // --- the walkthrough -----------------------------------------------------------
 
 try {
+  console.log("Security headers");
+  for (const pagePath of ["/", "/plans", "/people", "/locations", "/js/api.js"]) {
+    const res = await fetch(BASE + pagePath);
+    check(`${pagePath}: strict CSP, never cached`, [
+      res.headers.get("cache-control"),
+      res.headers.get("content-security-policy")?.includes("script-src 'self'; style-src 'self'"),
+      res.headers.get("content-security-policy")?.includes("require-trusted-types-for 'script'"),
+      res.headers.get("x-frame-options"),
+    ], ["no-store", true, true, "DENY"]);
+  }
+  for (const pagePath of ["/plans", "/people", "/locations"]) {
+    await go(pagePath);
+    check(`${pagePath}: every field is kept out of form history and spellcheck`, await run(`return leakyFields();`), []);
+  }
+
   console.log("People");
   await go("/people");
   check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
@@ -188,14 +213,14 @@ try {
   check("+ opens the log-a-tie dialog; pickers leave out archived items", await run(`
     $(".nav-add").click(); await wait(600);
     $("#tie-add-participant").click(); $("#tie-add-plan").click();
-    return [!!$("dialog[open] #tie-form"), [...$("#tie-location_id").options].map((o) => o.text), [...$(".person").options].map((o) => o.text)];`),
-    [true, ["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"]]);
+    return [!!$("dialog[open] #tie-form"), [...$("#tie-location_id").options].map((o) => o.text), [...$(".person").options].map((o) => o.text), leakyFields()];`),
+    [true, ["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"], []]);
   check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); $(".person").selectedIndex = 1; $("#tie-save").click(); await wait(500); return $("#tie-message").textContent;`),
     "Couldn't save: Choose a person and a role for each row, or remove it.");
   check("Edit tags opens an empty tag dialog", await run(`
     $("#tie-add-tags").click(); await wait(600);
-    return [$("#tie-add-tags").getAttribute("aria-label"), $("#tags-heading").textContent, ["autocapitalize", "autocorrect", "spellcheck"].map((a) => $("#tags-search").getAttribute(a)), !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder];`),
-    ["Edit tags", "Edit tags", ["none", "off", "false"], true, "No tags yet. Type one and press +.", "search tags"]);
+    return [$("#tie-add-tags").getAttribute("aria-label"), $("#tags-heading").textContent, ["autocapitalize", "autocorrect", "spellcheck"].map((a) => $("#tags-search").getAttribute(a)), !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder, leakyFields()];`),
+    ["Edit tags", "Edit tags", ["none", "off", "false"], true, "No tags yet. Type one and press +.", "search tags", []]);
   check("+ and Enter add tags; a different-capitals name picks the same tag", await run(`
     const box = $("#tags-search");
     box.value = "Futomomo"; $("#tags-add").click();
@@ -255,6 +280,11 @@ try {
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
     ["23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
+  check("every search field is kept out of form history and spellcheck", await run(`
+    $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
+    const leaky = leakyFields();
+    $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
+    return leaky;`), []);
   check("page 2 has the rest, and is in the URL", await run(`
     [...document.querySelectorAll("#pager button")].find((b) => b.textContent === "2").click(); await wait(800);
     return [titles(), location.search, pagerButtons()];`),
@@ -286,12 +316,22 @@ try {
     $("#clear").click(); await wait(800);
     return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
     ["23 ties", "", "Anyone", true, ""]);
-  check("keyword matches a linked plan's title", await run(`await type("#q", "hip"); return [titles(), location.search];`),
-    [["Floor session"], "?q=hip"]);
+  check("keyword matches a linked plan's title, and stays out of the URL", await run(`await type("#q", "hip"); return [titles(), location.search];`),
+    [["Floor session"], ""]);
+  check("the keyword stays out of the URL alongside other filters, and survives paging Back", await run(`
+    await type("#q", "practice"); set("#from", "2026-01-01"); await wait(800);
+    const onFilter = location.search;
+    [...document.querySelectorAll("#pager button")].find((b) => b.textContent === "2").click(); await wait(800);
+    const onPage2 = location.search;
+    history.back(); await wait(900);
+    const back = [location.search, $("#q").value, titles().length];
+    $("#clear").click(); await wait(800);
+    return [onFilter, onPage2, back];`),
+    ["?from=2026-01-01", "?from=2026-01-01&page=2", ["?from=2026-01-01", "practice", 20]]);
   check("no matches says so", await run(`await type("#q", "zzz"); return $("#tie-list").innerText;`), "No ties match this search.");
-  await go("/?q=practice+1&page=1");
-  check("a search in the URL is restored on load", await run(`return [$("#q").value, titles().length, $("#clear").hidden];`),
-    ["practice 1", 11, false]);
+  await go("/?q=practice+1&page=2");
+  check("a keyword in an old URL is ignored and removed from the address", await run(`return [$("#q").value, location.search, titles().length, $("#clear").hidden];`),
+    ["", "?page=2", 3, true]);
 
   console.log("Deleting");
   await go("/plans");

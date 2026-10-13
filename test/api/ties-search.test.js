@@ -5,11 +5,19 @@ import { call, create, createOtherUser, sql } from "../helpers.js";
 // locations and keywords and only looks at the ties it made.
 
 /**
- * The titles of the ties the list returns for a query string.
- * @param {string} query
+ * Searches the ties list.
+ * @param {Record<string, unknown>} filters
  */
-async function titles(query) {
-  const res = await call(`/api/ties?${query}`);
+function search(filters) {
+  return call("/api/ties/search", { method: "POST", body: filters });
+}
+
+/**
+ * The titles of the ties a search returns.
+ * @param {Record<string, unknown>} filters
+ */
+async function titles(filters) {
+  const res = await search(filters);
   if (res.status !== 200) throw new Error(`${res.status} ${JSON.stringify(res.body)}`);
   return res.body.ties.map((/** @type {any} */ t) => t.title);
 }
@@ -26,10 +34,10 @@ describe("searching ties", () => {
     await tie("Sam only", [sam]);
     await tie("Alex only", [alex]);
 
-    expect(await titles(`person_id=${sam}&person_id=${alex}`)).toEqual(["Both"]);
-    expect((await titles(`person_id=${sam}`)).sort()).toEqual(["Both", "Sam only"]);
+    expect(await titles({ person_ids: [sam, alex] })).toEqual(["Both"]);
+    expect((await titles({ person_ids: [sam] })).sort()).toEqual(["Both", "Sam only"]);
     // The same person chosen twice still counts once.
-    expect(await titles(`person_id=${sam}&person_id=${sam}&person_id=${alex}`)).toEqual(["Both"]);
+    expect(await titles({ person_ids: [sam, sam, alex] })).toEqual(["Both"]);
   });
 
   it("finds a person who took part in two roles", async () => {
@@ -38,9 +46,9 @@ describe("searching ties", () => {
     await create("/api/ties", {
       title: "Switch", participants: [{ person_id: sam, role: "rigger" }, { person_id: sam, role: "model" }],
     });
-    expect(await titles(`person_id=${sam}`)).toEqual(["Switch"]);
+    expect(await titles({ person_ids: [sam] })).toEqual(["Switch"]);
     // Sam twice doesn't count as Sam and Alex.
-    expect(await titles(`person_id=${sam}&person_id=${alex}`)).toEqual([]);
+    expect(await titles({ person_ids: [sam, alex] })).toEqual([]);
   });
 
   it("by location: ties at any of the chosen locations", async () => {
@@ -51,7 +59,7 @@ describe("searching ties", () => {
     await create("/api/ties", { title: "At B", tie_date: "2026-01-02", location_id: b });
     await create("/api/ties", { title: "At C", tie_date: "2026-01-01", location_id: c });
 
-    expect(await titles(`location_id=${a}&location_id=${b}`)).toEqual(["At A", "At B"]);
+    expect(await titles({ location_ids: [a, b] })).toEqual(["At A", "At B"]);
   });
 
   it("by tie date, from and to inclusive", async () => {
@@ -59,10 +67,10 @@ describe("searching ties", () => {
     for (const [title, tie_date] of [["Jan", "2025-01-15"], ["Feb", "2025-02-01"], ["Mar", "2025-03-31"], ["Undated", null]]) {
       await create("/api/ties", { title, tie_date, location_id: loc });
     }
-    const at = `location_id=${loc}`;
-    expect(await titles(`${at}&from=2025-02-01&to=2025-03-31`)).toEqual(["Mar", "Feb"]);
-    expect(await titles(`${at}&from=2025-02-02`)).toEqual(["Mar"]);
-    expect(await titles(`${at}&to=2025-01-15`)).toEqual(["Jan"]);
+    const at = { location_ids: [loc] };
+    expect(await titles({ ...at, from: "2025-02-01", to: "2025-03-31" })).toEqual(["Mar", "Feb"]);
+    expect(await titles({ ...at, from: "2025-02-02" })).toEqual(["Mar"]);
+    expect(await titles({ ...at, to: "2025-01-15" })).toEqual(["Jan"]);
     // No date filter: undated ties are listed, after the dated ones.
     expect(await titles(at)).toEqual(["Mar", "Feb", "Jan", "Undated"]);
   });
@@ -74,8 +82,8 @@ describe("searching ties", () => {
     await create("/api/ties", { title: "Plan match", plan_ids: [plan] });
     await create("/api/ties", { title: "No match", notes: "zebr a" });
 
-    expect((await titles("q=Zebra")).sort()).toEqual(["Notes match", "Plan match", "zebra in title"]);
-    expect(await titles("q=%20%20zebra%20wrap%20")).toEqual(["Notes match"]);
+    expect((await titles({ q: "Zebra" })).sort()).toEqual(["Notes match", "Plan match", "zebra in title"]);
+    expect(await titles({ q: "  zebra wrap " })).toEqual(["Notes match"]);
   });
 
   it("treats % and _ in the keyword as plain characters", async () => {
@@ -84,8 +92,8 @@ describe("searching ties", () => {
     await create("/api/ties", { title: "snake_case tie" });
     await create("/api/ties", { title: "snakeXcase tie" });
 
-    expect(await titles("q=" + encodeURIComponent("100%"))).toEqual(["100% fun"]);
-    expect(await titles("q=snake_case")).toEqual(["snake_case tie"]);
+    expect(await titles({ q: "100%" })).toEqual(["100% fun"]);
+    expect(await titles({ q: "snake_case" })).toEqual(["snake_case tie"]);
   });
 
   it("combines filters", async () => {
@@ -97,7 +105,7 @@ describe("searching ties", () => {
     await create("/api/ties", { title: "No Sam", notes: "kiwi", tie_date: "2026-05-01", location_id: loc });
     await create("/api/ties", { title: "Missing keyword", tie_date: "2026-05-01", location_id: loc, participants: with_ });
 
-    expect(await titles(`person_id=${sam}&location_id=${loc}&from=2026-04-01&to=2026-06-01&q=kiwi`)).toEqual(["Right"]);
+    expect(await titles({ person_ids: [sam], location_ids: [loc], from: "2026-04-01", to: "2026-06-01", q: "kiwi" })).toEqual(["Right"]);
   });
 
   it("never matches another user's ties", async () => {
@@ -105,15 +113,22 @@ describe("searching ties", () => {
     await sql("INSERT INTO locations (id, owner_id, name) VALUES ('their-spot', ?, 'Their spot')", otherId).run();
     await sql("INSERT INTO ties (id, owner_id, title, location_id) VALUES ('their-tie', ?, 'Secret mango', 'their-spot')", otherId).run();
 
-    expect(await titles("location_id=their-spot")).toEqual([]);
-    expect(await titles("q=mango")).toEqual([]);
+    expect(await titles({ location_ids: ["their-spot"] })).toEqual([]);
+    expect(await titles({ q: "mango" })).toEqual([]);
   });
 
   it("rejects bad filters with a friendly message", async () => {
-    expect(await call("/api/ties?from=2026-05-01&to=2026-04-01"))
+    expect(await search({ from: "2026-05-01", to: "2026-04-01" }))
       .toEqual({ status: 400, body: { error: "The start date is after the end date." } });
-    expect((await call("/api/ties?from=2026-02-30")).status).toBe(400);
-    expect((await call("/api/ties?page=0")).body.error).toBe("Page should be a whole number, 1 or more.");
+    expect((await search({ from: "2026-02-30" })).status).toBe(400);
+    expect((await search({ page: 0 })).body.error).toBe("Page should be a whole number, 1 or more.");
+    expect((await search({ person_ids: "sam" })).body.error).toBe("Choose people as a list.");
+    expect((await call("/api/ties/search", { method: "POST", body: "not json" })).status).toBe(400);
+  });
+
+  it("is only a POST, so the keyword never goes in a URL", async () => {
+    expect((await call("/api/ties?q=secret")).status).toBe(404);
+    expect((await call("/api/ties/search?q=secret")).status).toBe(404);
   });
 });
 
@@ -125,9 +140,9 @@ describe("paging ties", () => {
       await create("/api/ties", { title: `Day ${day}`, tie_date: `2026-03-${String(day).padStart(2, "0")}`, location_id: loc });
     }
 
-    const page1 = (await call(`/api/ties?location_id=${loc}`)).body;
-    const page2 = (await call(`/api/ties?location_id=${loc}&page=2`)).body;
-    const page3 = (await call(`/api/ties?location_id=${loc}&page=3`)).body;
+    const page1 = (await search({ location_ids: [loc] })).body;
+    const page2 = (await search({ location_ids: [loc], page: 2 })).body;
+    const page3 = (await search({ location_ids: [loc], page: 3 })).body;
 
     expect(page1).toMatchObject({ total: 25, page: 1, page_size: 20 });
     expect(page1.ties.map((/** @type {any} */ t) => t.title).slice(0, 3)).toEqual(["Day 25", "Day 24", "Day 23"]);
@@ -143,7 +158,7 @@ describe("paging ties", () => {
     await sql("UPDATE ties SET created_at = '2026-04-01T10:00:00Z' WHERE id = ?", first).run();
     await sql("UPDATE ties SET created_at = '2026-04-01T11:00:00Z' WHERE id = ?", second).run();
 
-    expect(await titles(`location_id=${loc}`)).toEqual(["Second", "First"]);
+    expect(await titles({ location_ids: [loc] })).toEqual(["Second", "First"]);
   });
 
   it("includes each tie's participants and plans on later pages", async () => {
@@ -156,7 +171,7 @@ describe("paging ties", () => {
     });
     for (let i = 0; i < 20; i++) await create("/api/ties", { title: `New ${i}`, tie_date: "2026-01-01", location_id: loc });
 
-    const [oldest] = (await call(`/api/ties?location_id=${loc}&page=2`)).body.ties;
+    const [oldest] = (await search({ location_ids: [loc], page: 2 })).body.ties;
     expect(oldest.title).toBe("Oldest");
     expect(oldest.participants).toEqual([{ person_id: sam, person_name: "Sam", role: "model" }]);
     expect(oldest.plans).toEqual([{ plan_id: plan, plan_title: "Box tie", plan_version: 1 }]);

@@ -1,7 +1,7 @@
 // A drop-down of checkboxes with a search box, for choosing several people or
 // locations. Archived options show in muted text.
 
-import { h } from "./dom.js";
+import { h, privateField } from "./dom.js";
 import { sortByName, nameMatches } from "./tie-search.js";
 
 /**
@@ -27,10 +27,10 @@ export function multiSelect({ labelledBy, placeholder, searchLabel, onChange }) 
   let selected = new Set();
 
   const summary = h("summary", { "aria-labelledby": labelledBy });
-  const search = h("input", {
-    type: "search", placeholder: searchLabel, "aria-label": searchLabel, autocomplete: "off",
+  const search = privateField(h("input", {
+    type: "search", placeholder: searchLabel, "aria-label": searchLabel,
     oninput: renderOptions,
-  });
+  }));
   const list = h("div", { className: "multi-select-options" });
   const details = h("details", { className: "multi-select" },
     summary, h("div", { className: "multi-select-panel" }, search, list));

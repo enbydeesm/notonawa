@@ -98,19 +98,19 @@ export function parsePlanIds(value) {
  */
 
 /**
- * The list's query string: person_id and location_id (each repeatable),
- * from / to (tie dates, inclusive), q (keyword) and page. All optional.
- * @param {URLSearchParams} params
+ * The search body: person_ids and location_ids (lists), from / to (tie dates,
+ * inclusive), q (keyword) and page. All optional.
+ * @param {Record<string, unknown>} body
  * @returns {TieFilters}
  */
-export function parseTieFilters(params) {
+export function parseTieFilters(body) {
   const filters = {
-    person_ids: parseIdList(params.getAll("person_id"), "people"),
-    location_ids: parseIdList(params.getAll("location_id"), "locations"),
-    from: toDateOrNull(params.get("from")),
-    to: toDateOrNull(params.get("to")),
-    q: cleanText(params.get("q")),
-    page: parsePage(params.get("page")),
+    person_ids: parseIdList(body.person_ids, "people"),
+    location_ids: parseIdList(body.location_ids, "locations"),
+    from: toDateOrNull(body.from),
+    to: toDateOrNull(body.to),
+    q: cleanText(body.q),
+    page: parsePage(body.page),
   };
   if (filters.from && filters.to && filters.from > filters.to) {
     throw new BadInput("The start date is after the end date.");
@@ -122,18 +122,20 @@ export function parseTieFilters(params) {
 }
 
 /**
- * @param {string[]} values
+ * @param {unknown} value
  * @param {string} what for the error message
  * @returns {string[]}
  */
-function parseIdList(values, what) {
+function parseIdList(value, what) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new BadInput(`Choose ${what} as a list.`);
   // Duplicates removed: the "all of these people" filter counts matches.
-  const ids = [...new Set(values.map(cleanText).filter((id) => id !== null))];
+  const ids = [...new Set(value.map(cleanText).filter((id) => id !== null))];
   if (ids.length > MAX_FILTER_IDS) throw new BadInput(`Choose up to ${MAX_FILTER_IDS} ${what}.`);
   return ids;
 }
 
-/** @param {string | null} value */
+/** @param {unknown} value */
 function parsePage(value) {
   try {
     return toIntOrNull(value, 1, 100000) ?? 1;

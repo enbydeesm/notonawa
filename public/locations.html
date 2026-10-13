@@ -14,27 +14,27 @@
       <h2>Add a location</h2>
       <form id="form">
         <label for="name">Name</label>
-        <input id="name" name="name" required>
+        <input id="name" name="name" required autocomplete="off" spellcheck="false">
 
         <label for="hard_points">Hard points</label>
-        <textarea id="hard_points" name="hard_points" placeholder="Suspension points, ratings, quirks"></textarea>
+        <textarea id="hard_points" name="hard_points" placeholder="Suspension points, ratings, quirks" autocomplete="off" spellcheck="false"></textarea>
 
         <label for="maps_url">Google Maps link</label>
-        <input id="maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…">
+        <input id="maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off" spellcheck="false">
 
         <div class="row">
           <div>
             <label for="latitude">Latitude</label>
-            <input id="latitude" name="latitude" type="number" step="any" min="-90" max="90">
+            <input id="latitude" name="latitude" type="number" step="any" min="-90" max="90" autocomplete="off" spellcheck="false">
           </div>
           <div>
             <label for="longitude">Longitude</label>
-            <input id="longitude" name="longitude" type="number" step="any" min="-180" max="180">
+            <input id="longitude" name="longitude" type="number" step="any" min="-180" max="180" autocomplete="off" spellcheck="false">
           </div>
         </div>
 
         <label for="notes">Notes</label>
-        <textarea id="notes" name="notes"></textarea>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <div data-add-only>
           <label class="inline"><input type="checkbox" name="archive_now"> Archive now</label>

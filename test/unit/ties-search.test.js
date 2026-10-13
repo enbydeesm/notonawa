@@ -2,42 +2,48 @@ import { describe, it, expect } from "vitest";
 import { parseTieFilters } from "../../src/ties/parse.js";
 import { tieFilterSql, escapeLike } from "../../src/ties/search.js";
 
-/** @param {string} query */
-const parse = (query) => parseTieFilters(new URLSearchParams(query));
+const parse = parseTieFilters;
 
 const NO_FILTERS = { person_ids: [], location_ids: [], from: null, to: null, q: null, page: 1 };
 
 describe("parseTieFilters", () => {
   it("has no filters and page 1 by default", () => {
-    expect(parse("")).toEqual(NO_FILTERS);
-    expect(parse("q=%20%20&from=&page=")).toEqual(NO_FILTERS);
+    expect(parse({})).toEqual(NO_FILTERS);
+    expect(parse({ person_ids: null, q: "  ", from: "", page: "" })).toEqual(NO_FILTERS);
   });
 
-  it("reads every filter, with repeated ids", () => {
-    expect(parse("person_id=a&person_id=b&location_id=c&from=2026-01-01&to=2026-02-01&q=+harness+&page=3")).toEqual({
+  it("reads every filter", () => {
+    expect(parse({
+      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: " harness ", page: 3,
+    })).toEqual({
       person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: "harness", page: 3,
     });
   });
 
   it("drops duplicate and empty ids", () => {
-    expect(parse("person_id=a&person_id=a&person_id=&location_id=x&location_id=x").person_ids).toEqual(["a"]);
-    expect(parse("location_id=x&location_id=x").location_ids).toEqual(["x"]);
+    expect(parse({ person_ids: ["a", "a", "", null] }).person_ids).toEqual(["a"]);
+    expect(parse({ location_ids: ["x", "x"] }).location_ids).toEqual(["x"]);
+  });
+
+  it("rejects ids that aren't a list", () => {
+    expect(() => parse({ person_ids: "a" })).toThrow("Choose people as a list.");
+    expect(() => parse({ location_ids: { id: "x" } })).toThrow("Choose locations as a list.");
   });
 
   it("allows a one-day range but not a backwards one", () => {
-    expect(parse("from=2026-01-01&to=2026-01-01").to).toBe("2026-01-01");
-    expect(() => parse("from=2026-01-02&to=2026-01-01")).toThrow("The start date is after the end date.");
+    expect(parse({ from: "2026-01-01", to: "2026-01-01" }).to).toBe("2026-01-01");
+    expect(() => parse({ from: "2026-01-02", to: "2026-01-01" })).toThrow("The start date is after the end date.");
   });
 
   it("rejects bad dates, pages, long searches and too many ids", () => {
-    expect(() => parse("to=yesterday")).toThrow("Expected a date like 2026-10-12.");
-    for (const page of ["0", "-1", "1.5", "two"]) {
-      expect(() => parse(`page=${page}`)).toThrow("Page should be a whole number, 1 or more.");
+    expect(() => parse({ to: "yesterday" })).toThrow("Expected a date like 2026-10-12.");
+    for (const page of [0, -1, 1.5, "two"]) {
+      expect(() => parse({ page })).toThrow("Page should be a whole number, 1 or more.");
     }
-    expect(() => parse(`q=${"x".repeat(201)}`)).toThrow("Search for 200 characters or fewer.");
-    expect(parse(`q=${"x".repeat(200)}`).q).toHaveLength(200);
-    const many = Array.from({ length: 51 }, (_, i) => `person_id=p${i}`).join("&");
-    expect(() => parse(many)).toThrow("Choose up to 50 people.");
+    expect(() => parse({ q: "x".repeat(201) })).toThrow("Search for 200 characters or fewer.");
+    expect(parse({ q: "x".repeat(200) }).q).toHaveLength(200);
+    const many = Array.from({ length: 51 }, (_, i) => `p${i}`);
+    expect(() => parse({ person_ids: many })).toThrow("Choose up to 50 people.");
   });
 });
 

@@ -5,6 +5,7 @@
 import { getUser } from "./auth/user.js";
 import { json, notFound } from "./http.js";
 import { errorResponse } from "./errors.js";
+import { withSecurityHeaders } from "./security-headers.js";
 import { handleTies } from "./ties/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
@@ -16,28 +17,41 @@ export default {
    * @returns {Promise<Response>}
    */
   async fetch(request, env) {
-    const url = new URL(request.url);
-
-    // Not an API request? Serve the page files.
-    if (!url.pathname.startsWith("/api/")) {
-      return env.ASSETS.fetch(request);
-    }
-
-    // Figure out who is asking. Every API request needs a known user.
-    const user = await getUser(request, env);
-    if (!user) {
-      return json({ error: "Not signed in" }, 401);
-    }
-
+    // Errors are caught here, around everything (signing in included), so
+    // even a failure gets a friendly answer with the security headers.
+    let response;
     try {
-      return (
-        (await handleTies(request, env, user, url)) ??
-        (await handleResources(request, env, user, url)) ??
-        (await handleTags(request, env, user, url)) ??
-        notFound()
-      );
+      response = await respond(request, env);
     } catch (err) {
-      return errorResponse(err);
+      response = errorResponse(err);
     }
+    return withSecurityHeaders(response);
   },
 };
+
+/**
+ * @param {Request} request
+ * @param {Env} env
+ * @returns {Promise<Response>}
+ */
+async function respond(request, env) {
+  const url = new URL(request.url);
+
+  // Not an API request? Serve the page files.
+  if (!url.pathname.startsWith("/api/")) {
+    return env.ASSETS.fetch(request);
+  }
+
+  // Figure out who is asking. Every API request needs a known user.
+  const user = await getUser(request, env);
+  if (!user) {
+    return json({ error: "Not signed in" }, 401);
+  }
+
+  return (
+    (await handleTies(request, env, user, url)) ??
+    (await handleResources(request, env, user, url)) ??
+    (await handleTags(request, env, user, url)) ??
+    notFound()
+  );
+}

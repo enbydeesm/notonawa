@@ -117,7 +117,7 @@ describe("deleting", () => {
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
 
-    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.participants).toEqual([{ person_id: null, person_name: null, role: "model" }]);
   });
 
@@ -126,7 +126,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Suspension", location_id: loc });
 
     expect((await call(`/api/locations/${loc}`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed).toMatchObject({ location_id: null, location_name: null, location_deleted: 1 });
   });
 
@@ -142,7 +142,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=keep`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.plans).toEqual([{ plan_id: null, plan_title: null, plan_version: 1 }]);
   });
 
@@ -151,7 +151,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.plans).toEqual([]);
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(404);
   });

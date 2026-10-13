@@ -27,6 +27,21 @@ export function h(tag, props = {}, ...children) {
 }
 
 /**
+ * Keeps what's typed in a field out of the browser's saved form history and
+ * its spellcheck (some browsers send spellchecked text to their maker). Every
+ * input and textarea gets this, except checkboxes; the HTML pages set the same
+ * two attributes directly. Set as attributes because h() skips false values.
+ * @template {HTMLInputElement | HTMLTextAreaElement} T
+ * @param {T} field
+ * @returns {T}
+ */
+export function privateField(field) {
+  field.setAttribute("autocomplete", "off");
+  field.setAttribute("spellcheck", "false");
+  return field;
+}
+
+/**
  * Finds an element that must exist on the page. It's typed as HTMLElement
  * unless you annotate the result with a more specific type (e.g. an input).
  * @template {Element} [T=HTMLElement]

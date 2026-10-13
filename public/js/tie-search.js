@@ -1,5 +1,7 @@
-// The Ties list's search state, kept in the page URL so refresh and Back keep
-// it. Pure (no DOM), so it's easy to test.
+// The Ties list's search state. The filters (people, locations, dates) and the
+// page are kept in the page URL so refresh and Back keep them. The keyword
+// never is: a URL ends up in browser history (and synced to other devices),
+// so it's kept in memory only. Pure (no DOM), so it's easy to test.
 
 /**
  * @typedef {{
@@ -13,6 +15,8 @@
  */
 
 /**
+ * Reads the filters and page from the URL. Any keyword in it (from an old
+ * bookmark) is ignored; see hasKeywordInUrl.
  * @param {string} search a URL's query string, e.g. location.search
  * @returns {SearchState}
  */
@@ -24,25 +28,49 @@ export function readSearch(search) {
     location_ids: params.getAll("location_id").filter(Boolean),
     from: params.get("from") ?? "",
     to: params.get("to") ?? "",
-    q: params.get("q") ?? "",
+    q: "",
     page: Number.isInteger(page) && page > 1 ? page : 1,
   };
 }
 
 /**
- * The query string for the URL and for GET /api/ties, leaving out anything
- * empty (and page 1). No leading "?".
+ * True if the URL has a keyword in it (from before keywords left the URL), so
+ * the page can rewrite the address without it.
+ * @param {string} search a URL's query string, e.g. location.search
+ */
+export function hasKeywordInUrl(search) {
+  return new URLSearchParams(search).has("q");
+}
+
+/**
+ * The page URL's query string: everything but the keyword, leaving out
+ * anything empty (and page 1). No leading "?".
  * @param {SearchState} state
  */
-export function searchQuery(state) {
+export function pageQuery(state) {
   const params = new URLSearchParams();
   for (const id of state.person_ids) params.append("person_id", id);
   for (const id of state.location_ids) params.append("location_id", id);
   if (state.from) params.set("from", state.from);
   if (state.to) params.set("to", state.to);
-  if (state.q.trim()) params.set("q", state.q.trim());
   if (state.page > 1) params.set("page", String(state.page));
   return params.toString();
+}
+
+/**
+ * The body for POST /api/ties/search, where the keyword travels instead of
+ * in a URL.
+ * @param {SearchState} state
+ */
+export function searchBody(state) {
+  return {
+    person_ids: state.person_ids,
+    location_ids: state.location_ids,
+    from: state.from,
+    to: state.to,
+    q: state.q.trim(),
+    page: state.page,
+  };
 }
 
 /** @param {SearchState} state */

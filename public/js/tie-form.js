@@ -1,7 +1,7 @@
 // The "Log a tie" form, in a pop-up dialog opened from the + button.
 
 import { api, errorMessage } from "./api.js";
-import { h, $, showMessage } from "./dom.js";
+import { h, $, showMessage, privateField } from "./dom.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
 
@@ -55,14 +55,14 @@ function showTieForm() {
 
     const form = h("form", { id: "tie-form", onsubmit: save },
       h("label", { htmlFor: "tie-title" }, "Title"),
-      h("input", { id: "tie-title", name: "title", placeholder: "e.g. Hip harness to futomomo" }),
+      privateField(h("input", { id: "tie-title", name: "title", placeholder: "e.g. Hip harness to futomomo" })),
       h("div", { className: "row" },
         h("div", {},
           h("label", { htmlFor: "tie-tie_date" }, "Date"),
-          h("input", { id: "tie-tie_date", name: "tie_date", type: "date", value: today() })),
+          privateField(h("input", { id: "tie-tie_date", name: "tie_date", type: "date", value: today() }))),
         h("div", {},
           h("label", { htmlFor: "tie-duration_minutes" }, "Duration (min)"),
-          h("input", { id: "tie-duration_minutes", name: "duration_minutes", type: "number", min: "0", max: "1440", inputMode: "numeric" }))),
+          privateField(h("input", { id: "tie-duration_minutes", name: "duration_minutes", type: "number", min: "0", max: "1440", inputMode: "numeric" })))),
       h("label", { htmlFor: "tie-location_id" }, "Location"),
       locationSelect,
       h("div", { className: "label-row" }, h("label", {}, "People"), addParticipantButton),
@@ -73,7 +73,7 @@ function showTieForm() {
       h("select", { id: "tie-success_rating", name: "success_rating" },
         RATINGS.map(([value, text]) => h("option", { value }, text))),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
-      h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" }),
+      privateField(h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" })),
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,

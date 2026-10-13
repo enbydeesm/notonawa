@@ -7,6 +7,12 @@
     "binding": "ASSETS"
   },
 
+  // No stored request logs: they'd keep IP addresses and URLs on Cloudflare.
+  // Errors can still be watched live with `npx wrangler tail`.
+  "observability": {
+    "enabled": false
+  },
+
   // Cloudflare Access settings, used to verify the signed-in user's token.
   // ACCESS_TEAM_DOMAIN: "https://<your-team-name>.cloudflareaccess.com"
   //   (your team name is in the Zero Trust dashboard's settings).

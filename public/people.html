@@ -14,15 +14,15 @@
       <h2>Add a person</h2>
       <form id="form">
         <label for="name">Name</label>
-        <input id="name" name="name" required>
+        <input id="name" name="name" required autocomplete="off" spellcheck="false">
 
         <label for="pronouns">Pronouns</label>
-        <input id="pronouns" name="pronouns" placeholder="e.g. they/them">
+        <input id="pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
 
         <label class="inline"><input type="checkbox" name="is_self"> This is me</label>
 
         <label for="notes">Notes</label>
-        <textarea id="notes" name="notes"></textarea>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <button type="submit" class="primary">Add person</button>
         <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>

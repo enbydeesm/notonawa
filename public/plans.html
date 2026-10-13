@@ -14,7 +14,7 @@
       <h2>Add a plan</h2>
       <form id="form">
         <label for="title">Title</label>
-        <input id="title" name="title" required placeholder="e.g. Hip harness to futomomo">
+        <input id="title" name="title" required placeholder="e.g. Hip harness to futomomo" autocomplete="off" spellcheck="false">
 
         <div class="row">
           <div>
@@ -45,10 +45,10 @@
         </select>
 
         <label for="description">Description</label>
-        <textarea id="description" name="description" placeholder="The sequence, step by step"></textarea>
+        <textarea id="description" name="description" placeholder="The sequence, step by step" autocomplete="off" spellcheck="false"></textarea>
 
         <label for="notes">Notes</label>
-        <textarea id="notes" name="notes"></textarea>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <button type="submit" class="primary">Add plan</button>
         <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>

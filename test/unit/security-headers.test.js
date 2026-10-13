@@ -1,0 +1,24 @@
+import { describe, it, expect } from "vitest";
+import { SECURITY_HEADERS, withSecurityHeaders } from "../../src/security-headers.js";
+
+describe("withSecurityHeaders", () => {
+  it("adds every header and keeps the status, body and other headers", async () => {
+    const res = withSecurityHeaders(new Response("hi", { status: 418, headers: { "content-type": "text/plain" } }));
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) expect(res.headers.get(name)).toBe(value);
+    expect(res.status).toBe(418);
+    expect(res.headers.get("content-type")).toBe("text/plain");
+    expect(await res.text()).toBe("hi");
+  });
+
+  it("keeps a header the response already has (a page's own CSP)", () => {
+    const pageCsp = "default-src 'none'; script-src 'self'";
+    const res = withSecurityHeaders(new Response("", { headers: { "Content-Security-Policy": pageCsp } }));
+    expect(res.headers.get("content-security-policy")).toBe(pageCsp);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("works on responses whose headers can't be changed", () => {
+    const locked = Response.redirect("https://example.com/", 302);
+    expect(withSecurityHeaders(locked).headers.get("x-frame-options")).toBe("DENY");
+  });
+});

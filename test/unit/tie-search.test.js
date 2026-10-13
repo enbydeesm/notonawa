@@ -1,33 +1,53 @@
 // The Ties page's search state (public/js/tie-search.js). No DOM needed.
 import { describe, it, expect } from "vitest";
 import {
-  readSearch, searchQuery, hasFilters, pageList, sortByName, nameMatches,
+  readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList, sortByName, nameMatches,
 } from "../../public/js/tie-search.js";
 
 const EMPTY = { person_ids: [], location_ids: [], from: "", to: "", q: "", page: 1 };
 
-describe("readSearch and searchQuery", () => {
+describe("readSearch and pageQuery", () => {
   it("start empty on page 1", () => {
     expect(readSearch("")).toEqual(EMPTY);
-    expect(searchQuery(EMPTY)).toBe("");
+    expect(pageQuery(EMPTY)).toBe("");
   });
 
-  it("round-trip every filter", () => {
-    const query = "person_id=a&person_id=b&location_id=c&from=2026-01-01&to=2026-02-01&q=hip+harness&page=2";
+  it("round-trip the filters and page", () => {
+    const query = "person_id=a&person_id=b&location_id=c&from=2026-01-01&to=2026-02-01&page=2";
     const state = readSearch("?" + query);
     expect(state).toEqual({
-      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: "hip harness", page: 2,
+      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: "", page: 2,
     });
-    expect(searchQuery(state)).toBe(query);
+    expect(pageQuery(state)).toBe(query);
   });
 
-  it("leave out page 1, blank keywords and trim the keyword", () => {
-    expect(searchQuery({ ...EMPTY, q: "   " })).toBe("");
-    expect(searchQuery({ ...EMPTY, q: " box tie ", page: 1 })).toBe("q=box+tie");
+  it("never put the keyword in the URL, or read it from one", () => {
+    expect(pageQuery({ ...EMPTY, q: "hip harness" })).toBe("");
+    expect(pageQuery({ ...EMPTY, q: "hip harness", from: "2026-01-01", page: 2 })).toBe("from=2026-01-01&page=2");
+    expect(readSearch("?q=hip+harness&page=2")).toEqual({ ...EMPTY, page: 2 });
   });
 
   it("ignore a bad page number in the URL", () => {
     for (const page of ["0", "-2", "1.5", "x"]) expect(readSearch(`?page=${page}`).page).toBe(1);
+  });
+});
+
+describe("hasKeywordInUrl", () => {
+  it("spots an old keyword in the URL, even an empty one", () => {
+    expect(hasKeywordInUrl("?q=hip&page=2")).toBe(true);
+    expect(hasKeywordInUrl("?q=")).toBe(true);
+    expect(hasKeywordInUrl("?page=2")).toBe(false);
+    expect(hasKeywordInUrl("")).toBe(false);
+  });
+});
+
+describe("searchBody", () => {
+  it("carries every filter, the trimmed keyword and the page", () => {
+    expect(searchBody({
+      person_ids: ["a"], location_ids: ["c"], from: "2026-01-01", to: "", q: "  box tie ", page: 3,
+    })).toEqual({
+      person_ids: ["a"], location_ids: ["c"], from: "2026-01-01", to: "", q: "box tie", page: 3,
+    });
   });
 });
 

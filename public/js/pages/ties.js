@@ -6,7 +6,7 @@ import { h, $ } from "../dom.js";
 import { renderNav, TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
 import { tieMeta, participantLabel, planLabel } from "../ties-view.js";
-import { readSearch, searchQuery, hasFilters, pageList } from "../tie-search.js";
+import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
 
@@ -27,6 +27,15 @@ const toInput = $("#to");
 const clearButton = $("#clear");
 
 let state = readSearch(location.search);
+// An old bookmark or history entry may still have a keyword in its address.
+// It isn't used; rewrite the address without it so it isn't saved again.
+if (hasKeywordInUrl(location.search)) history.replaceState(null, "", pageUrl());
+
+/** The page address for the current search: never includes the keyword. */
+function pageUrl() {
+  const query = pageQuery(state);
+  return query ? `/?${query}` : "/";
+}
 
 const peopleFilter = multiSelect({
   labelledBy: "people-label",
@@ -65,10 +74,8 @@ function showState() {
 function update(changes) {
   const pageChange = "page" in changes;
   state = { ...state, page: 1, ...changes };
-  const query = searchQuery(state);
-  const url = query ? `/?${query}` : "/";
-  if (pageChange) history.pushState(null, "", url);
-  else history.replaceState(null, "", url);
+  if (pageChange) history.pushState(null, "", pageUrl());
+  else history.replaceState(null, "", pageUrl());
   fromInput.max = state.to;
   toInput.min = state.from;
   clearButton.hidden = !hasFilters(state);
@@ -88,8 +95,10 @@ clearButton.addEventListener("click", () => {
   update({ person_ids: [], location_ids: [], from: "", to: "", q: "" });
   showState();
 });
+// Back and Forward restore the filters and page; the keyword isn't in history,
+// so the current one stays.
 window.addEventListener("popstate", () => {
-  state = readSearch(location.search);
+  state = { ...readSearch(location.search), q: state.q };
   showState();
   loadTies();
 });
@@ -172,7 +181,7 @@ let latestRequest = 0;
 async function loadTies() {
   const request = ++latestRequest;
   try {
-    const { ties, total, page, page_size } = await api(`/api/ties?${searchQuery(state)}`);
+    const { ties, total, page, page_size } = await api("/api/ties/search", { method: "POST", body: searchBody(state) });
     if (request !== latestRequest) return;
     const totalPages = Math.ceil(total / page_size);
     count.textContent = total === 1 ? "1 tie" : `${total} ties`;

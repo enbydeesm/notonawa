@@ -15,16 +15,20 @@ import { listTies, insertTie } from "./db.js";
  * @returns {Promise<Response | null>}
  */
 export async function handleTies(request, env, user, url) {
-  if (url.pathname !== "/api/ties") return null;
-
-  // GET /api/ties?person_id=&location_id=&from=&to=&q=&page=
+  // POST /api/ties/search
+  //   body { person_ids, location_ids, from, to, q, page }
   //   -> { ties, total, page, page_size }: one page of my ties matching the
   //   filters (all optional), newest tie date first, with location,
-  //   participants and plans. person_id: ties with all of them;
-  //   location_id: at any of them; q: in title, notes or a linked plan's title.
-  if (request.method === "GET") {
-    return json(await listTies(env.DB, user.id, parseTieFilters(url.searchParams)));
+  //   participants and plans. person_ids: ties with all of them;
+  //   location_ids: at any of them; q: in title, notes or a linked plan's title.
+  //   A POST, not a GET, so the keyword never appears in a URL, where it would
+  //   end up in browser history and request logs.
+  if (url.pathname === "/api/ties/search") {
+    if (request.method !== "POST") return null;
+    return json(await listTies(env.DB, user.id, parseTieFilters(await readJson(request))));
   }
+
+  if (url.pathname !== "/api/ties") return null;
 
   // POST /api/ties -> add a tie with its location, participants, plans and
   //   tags (by name; new ones are created)

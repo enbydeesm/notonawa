@@ -42,6 +42,8 @@ live in [considerations.md](considerations.md).
 - **Cloudflare Access** for sign-in. The Worker verifies the
   `Cf-Access-Jwt-Assertion` token (`src/auth.js`); `DEV_USER_EMAIL` in
   `.dev.vars` is used on localhost only.
+- **No stored request logs** (`observability` is off in `wrangler.jsonc`).
+  Watch errors live with `npx wrangler tail`.
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
   the Worker; each page loads its `public/js/pages/<page>.js` module.
 - **Tooling (dev only)**: ESLint, TypeScript (type checks the JS via JSDoc;
@@ -54,7 +56,11 @@ live in [considerations.md](considerations.md).
 Each feature is split into pure logic (`parse.js`, `config.js`: no I/O, unit
 tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 
-- `src/index.js`: routing. `src/errors.js`: errors → responses.
+- `src/index.js`: routing; catches every error and adds the security headers.
+  `src/errors.js`: errors → responses.
+- `src/security-headers.js`: headers on every Worker response (no-store, an
+  API-only CSP, etc.). Static files get theirs from `public/_headers`
+  (the pages' CSP lives there); keep the shared headers the same in both.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.
   `src/parse.js`: field parsers. `src/sql.js`: `NOW`.
 - `src/auth/jwt.js`: Access token verification (pure; key lookup passed in).
@@ -62,7 +68,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
-  `db.js`, `routes.js`). `GET /api/ties` is filtered and paged (20 per page)
+  `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body,
+  so the keyword never goes in a URL) is filtered and paged (20 per page)
   and returns `{ ties, total, page, page_size }`. A tie's `tags` are sent as
   names; new ones are created when the tie is saved.
 - `src/tags/`: tags (`parse.js` parses and matches names, ignoring capitals;
@@ -70,7 +77,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `DELETE /api/tags/:id`).
 - `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
   `people.html`, `locations.html`), shared `app.css`, and scripts in
-  `public/js/`: `api.js`, `dom.js` (`h`, `$`), `dialog.js` (`choose`),
+  `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs and
   the + button), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
@@ -157,5 +164,27 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Validation**: parse every request field with the parsers in `src/lib.js`;
   throw `BadInput` with a friendly message, which becomes a 400.
 - **Pages**: put user-entered text on the page with `h()` / `textContent`,
-  never `innerHTML`. Only make links clickable if they start with http(s).
+  never `innerHTML` (Trusted Types makes the browser refuse it anyway). Only
+  make links clickable if they start with http(s).
 - User-facing messages are short and friendly ("Couldn't save: …").
+
+### Privacy rules
+
+The plan and reasons are in considerations.md ("Planned: privacy and accounts
+roadmap"); [PRIVACY.md](PRIVACY.md) is the draft policy. Keep it true: when a
+change affects what's collected, stored, readable or kept, update it too.
+
+- **Never put user-entered text in a URL**, page address or API path/query
+  (it ends up in browser history and request logs). Send it in a POST body.
+  Ids, dates and page numbers are fine in URLs.
+- **The CSP is strict** (`public/_headers`): no inline scripts or styles, no
+  `style` attributes (use classes in `app.css`), no `eval`, nothing from other
+  sites. Something new (images from `blob:`, a Web Worker) needs its own
+  directive added there, deliberately. `npm run test:ui` fails on any CSP
+  violation.
+- **Every input and textarea** (except checkboxes) has `autocomplete="off"`
+  and `spellcheck="false"`: in HTML directly, in JS via `privateField()`.
+  `npm run test:ui` checks every page and dialog.
+- **Never log request bodies or journal content**; `console.error` only for
+  unexpected errors.
+- **No third-party scripts, fonts, analytics or trackers.**
