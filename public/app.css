@@ -89,14 +89,25 @@ dialog p { margin: 0 0 16px; }
 .dialog-buttons button { width: 100%; padding: 10px; }
 
 /* The + button at the end of the nav: a small square in the accent color.
-   The "Edit tags" dialog's + button looks the same. */
+   The "Edit tags" dialog's + button and the tie form's small ones match. */
 nav { align-items: center; }
 .nav-add { margin-left: auto; }
-.nav-add, .tag-add {
-  flex: none; width: 32px; height: 32px; padding: 0;
-  font-size: 1.4rem; font-weight: 400; line-height: 1;
+.nav-add, .tag-add, .label-add {
+  flex: none; padding: 0; font-weight: 400; line-height: 1;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent);
 }
+.nav-add, .tag-add { width: 32px; height: 32px; font-size: 1.4rem; }
+
+/* A form section's label with a small + after it ("People +"). The labels
+   share a width so the + buttons line up down the form. The + is as tall as
+   the label's text; an invisible margin around it keeps it easy to tap. */
+.label-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
+.label-row label { margin: 0; min-width: 3rem; }
+.label-add {
+  position: relative; width: 1rem; height: 1rem;
+  font-size: 0.95rem; font-weight: 600; border-radius: 4px;
+}
+.label-add::after { content: ""; position: absolute; inset: -12px; }
 
 /* Pop-up forms, e.g. "Log a tie". Taller than the screen scrolls inside. */
 dialog.form-dialog {

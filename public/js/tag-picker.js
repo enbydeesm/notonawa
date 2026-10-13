@@ -27,9 +27,15 @@ export function pickTags(chosen) {
     // Ids start with "tags-": this opens over the tie form and a page.
     const message = h("p", { className: "message", id: "tags-message" });
     const input = h("input", {
-      id: "tags-search", type: "text", autocomplete: "off", "aria-label": "Search tags",
+      // Tags are usually lowercase, so phone keyboards shouldn't start with a capital.
+      id: "tags-search", type: "text", autocomplete: "off", autocapitalize: "none", "aria-label": "Search tags",
       maxLength: MAX_TAG_LENGTH, oninput: renderList, onkeydown: onSearchKey,
     });
+    // No autocorrect or spellcheck either: rope terms like "futomomo" aren't
+    // in the dictionary. Set as attributes because h() skips false values, and
+    // where autocorrect is a true/false property "off" would turn it on.
+    input.setAttribute("autocorrect", "off");
+    input.setAttribute("spellcheck", "false");
     const searchBox = h("div", { className: "tag-search" });
     const list = h("div", { className: "tag-list", id: "tags-list" });
 

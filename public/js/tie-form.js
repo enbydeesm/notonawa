@@ -44,13 +44,13 @@ function showTieForm() {
     const planRows = h("div", { id: "tie-plans" });
     const locationSelect = h("select", { id: "tie-location_id", name: "location_id" },
       h("option", { value: "" }, "No location"));
-    const addParticipantButton = h("button", { type: "button", id: "tie-add-participant", onclick: addParticipantRow }, "Add person");
-    const addPlanButton = h("button", { type: "button", id: "tie-add-plan", onclick: addPlanRow }, "Add plan");
+    const addParticipantButton = addButton("tie-add-participant", "Add person", addParticipantRow);
+    const addPlanButton = addButton("tie-add-plan", "Add plan", addPlanRow);
     const noPeople = h("p", { className: "hint", hidden: true },
       "Add people on the ", h("a", { href: "/people" }, "People"), " page first.");
     const noPlans = h("p", { className: "hint", hidden: true },
       "Add plans on the ", h("a", { href: "/plans" }, "Plans"), " page first.");
-    const tagList = h("span", { className: "tag-row", id: "tie-tags" });
+    const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
 
     const form = h("form", { id: "tie-form", onsubmit: save },
@@ -65,19 +65,17 @@ function showTieForm() {
           h("input", { id: "tie-duration_minutes", name: "duration_minutes", type: "number", min: "0", max: "1440", inputMode: "numeric" }))),
       h("label", { htmlFor: "tie-location_id" }, "Location"),
       locationSelect,
-      h("label", {}, "People"),
-      participantRows, addParticipantButton, noPeople,
-      h("label", {}, "Plans"),
-      planRows, addPlanButton, noPlans,
+      h("div", { className: "label-row" }, h("label", {}, "People"), addParticipantButton),
+      participantRows, noPeople,
+      h("div", { className: "label-row" }, h("label", {}, "Plans"), addPlanButton),
+      planRows, noPlans,
       h("label", { htmlFor: "tie-success_rating" }, "How did it go?"),
       h("select", { id: "tie-success_rating", name: "success_rating" },
         RATINGS.map(([value, text]) => h("option", { value }, text))),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" }),
-      h("label", {}, "Tags"),
-      h("div", { className: "tag-row" },
-        h("button", { type: "button", id: "tie-add-tags", onclick: chooseTags }, "Edit tags"),
-        tagList),
+      h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
+      tagList,
       saveButton,
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
       message
@@ -92,6 +90,16 @@ function showTieForm() {
       dialog.remove();
       resolve(saved);
     });
+
+    /**
+     * The small + after a section's label.
+     * @param {string} id
+     * @param {string} label what it does, for screen readers and the tooltip
+     * @param {() => void} onclick
+     */
+    function addButton(id, label, onclick) {
+      return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, "+");
+    }
 
     /** @param {HTMLElement} row */
     function removeButton(row) {

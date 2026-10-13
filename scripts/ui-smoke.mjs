@@ -194,8 +194,8 @@ try {
     "Couldn't save: Choose a person and a role for each row, or remove it.");
   check("Edit tags opens an empty tag dialog", await run(`
     $("#tie-add-tags").click(); await wait(600);
-    return [$("#tie-add-tags").textContent, $("#tags-heading").textContent, !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder];`),
-    ["Edit tags", "Edit tags", true, "No tags yet. Type one and press +.", "search tags"]);
+    return [$("#tie-add-tags").getAttribute("aria-label"), $("#tags-heading").textContent, ["autocapitalize", "autocorrect", "spellcheck"].map((a) => $("#tags-search").getAttribute(a)), !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder];`),
+    ["Edit tags", "Edit tags", ["none", "off", "false"], true, "No tags yet. Type one and press +.", "search tags"]);
   check("+ and Enter add tags; a different-capitals name picks the same tag", await run(`
     const box = $("#tags-search");
     box.value = "Futomomo"; $("#tags-add").click();
