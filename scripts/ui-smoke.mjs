@@ -170,6 +170,38 @@ try {
     check(`${pagePath}: every field is kept out of form history and spellcheck`, await run(`return leakyFields();`), []);
   }
 
+  console.log("Light and dark mode");
+  const deviceMode = (value) => send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value }] });
+  // Background colour, the button's label, data-theme and the saved choice.
+  const themeState = `return [getComputedStyle(document.body).backgroundColor, $(".nav-theme").getAttribute("aria-label"),
+    document.documentElement.dataset.theme ?? null, localStorage.getItem("theme")];`;
+  const LIGHT_BG = "rgb(250, 248, 245)";
+  const DARK_BG = "rgb(22, 21, 20)";
+  await deviceMode("light");
+  await go("/");
+  check("the sun button sits just before the +, with a half-filled sun", await run(`
+    const nav = [...document.querySelector("nav").children];
+    return [nav.slice(-2).map((el) => el.className), $(".nav-theme svg path").getAttribute("fill"), document.querySelectorAll(".nav-theme svg line").length];`),
+    [["nav-theme", "nav-add"], "currentColor", 8]);
+  check("a light device starts light", await run(themeState), [LIGHT_BG, "Switch to dark mode", null, null]);
+  check("tapping switches to dark and remembers it", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+    [DARK_BG, "Switch to light mode", "dark", "dark"]);
+  await go("/plans");
+  check("the choice carries over to other pages", await run(themeState), [DARK_BG, "Switch to light mode", "dark", "dark"]);
+  check("tapping back to the device's mode forgets the choice", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+    [LIGHT_BG, "Switch to dark mode", null, null]);
+  await deviceMode("dark");
+  await go("/");
+  check("a dark device starts dark", await run(themeState), [DARK_BG, "Switch to light mode", null, null]);
+  check("light can be picked on a dark device", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+    [LIGHT_BG, "Switch to dark mode", "light", "light"]);
+  await go("/people");
+  check("and carries over too", await run(themeState), [LIGHT_BG, "Switch to dark mode", "light", "light"]);
+  check("the label follows the device changing while the page is open", await run(`$(".nav-theme").click(); await wait(100); return $(".nav-theme").getAttribute("aria-label");`),
+    "Switch to light mode");
+  await deviceMode("light");
+  check("…to light", await run(`await wait(100); ${themeState}`), [LIGHT_BG, "Switch to dark mode", null, null]);
+
   console.log("People");
   await go("/people");
   check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),

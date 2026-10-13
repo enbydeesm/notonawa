@@ -175,7 +175,9 @@ We use one cookie: your session cookie. It's needed to keep you signed in. It
 can't be read by scripts, is only sent over secure connections and only to
 Rope Journal, and expires after [30] days, or sooner after [7] days without
 use. We use no other cookies, local storage for tracking, or similar
-technologies.
+technologies. If you switch between light and dark mode, the app remembers
+that choice in your browser's local storage (just the word "light" or
+"dark"); it never leaves your device.
 
 ## How long we keep your data
 

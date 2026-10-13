@@ -136,9 +136,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Design system
 
 - **Colors are CSS variables** on `:root` in `public/app.css` (`--bg`, `--card`,
-  `--text`, `--muted`, `--line`, `--accent`, `--accent-text`, `--error`,
-  `--danger`, `--danger-text`), redefined for dark mode under
-  `@media (prefers-color-scheme: dark)`. Never hard-code colors elsewhere.
+  `--text`, `--muted`, `--line`, `--accent` (fills: buttons, selected tags,
+  underlines), `--accent-text` (text on `--accent`), `--accent-ink` (the
+  accent as text or a thin outline: links, link buttons), `--error`,
+  `--danger`, `--danger-text`), redefined for dark mode in two blocks that
+  must match: `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`
+  (the device is dark) and `:root[data-theme="dark"]` (dark picked with the
+  sun button). Never hard-code colors elsewhere.
+- **Light/dark mode** follows the device unless the user picks the other mode
+  with the sun button in the nav (`nav.js`). The choice (`light`/`dark`) is
+  saved in localStorage and applied before the page draws by
+  `public/js/theme-init.js`, a plain script in every page's `<head>`
+  (new pages need it too). `theme.js` holds the pure logic.
 - **Layout**: mobile-first single column, `max-width: 640px`, 16px padding.
   Sections are `.card`s; forms stack label above input; `.row` puts two fields
   side by side.

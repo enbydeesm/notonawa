@@ -1,14 +1,33 @@
 :root {
+  /* Native controls (date pickers, scrollbars) follow the mode too. */
+  color-scheme: light;
+  /* --accent fills buttons and selected tags (with --accent-text on top) and
+     underlines. --accent-ink is the accent wherever it's text or a thin
+     outline: the yellow is too light to read on the light background, so
+     light mode uses a darker gold from the same hue (5.6:1). */
   --bg: #faf8f5; --card: #ffffff; --text: #222; --muted: #6b6b6b;
-  --line: #e4dfd8; --accent: #8a3b2e; --accent-text: #fff; --error: #b00020;
+  --line: #e4dfd8; --accent: #fec762; --accent-text: #222; --accent-ink: #8a5a00;
+  --error: #b00020;
   --danger: #b00020; --danger-text: #fff;
 }
+/* Dark mode: when the device is dark, unless light was picked with the sun
+   button, or whenever dark was picked (data-theme is set by theme-init.js and
+   nav.js). The two blocks must match. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #161514; --card: #201f1d; --text: #eee; --muted: #a09a93;
-    --line: #34312d; --accent: #d07a62; --accent-text: #161514; --error: #ff6b81;
+    --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
+    --error: #ff6b81;
     --danger: #ff6b81; --danger-text: #161514;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161514; --card: #201f1d; --text: #eee; --muted: #a09a93;
+  --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
+  --error: #ff6b81;
+  --danger: #ff6b81; --danger-text: #161514;
 }
 * { box-sizing: border-box; }
 body {
@@ -18,7 +37,7 @@ body {
 main { max-width: 640px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 1.6rem; margin: 8px 0 16px; }
 h2 { font-size: 1.1rem; margin: 0 0 12px; }
-a { color: var(--accent); }
+a { color: var(--accent-ink); }
 
 nav { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; }
 nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
@@ -55,7 +74,7 @@ button.primary {
 button.danger { color: var(--danger); border-color: var(--danger); }
 button.danger.solid { background: var(--danger); color: var(--danger-text); }
 button:disabled { opacity: 0.6; }
-button.link { border: none; padding: 4px 0; color: var(--accent); font-weight: 400; }
+button.link { border: none; padding: 4px 0; color: var(--accent-ink); font-weight: 400; }
 
 .message { min-height: 1.5em; margin: 8px 0 0; font-size: 0.9rem; }
 .message.error { color: var(--error); }
@@ -88,10 +107,18 @@ dialog p { margin: 0 0 16px; }
 .dialog-buttons { display: flex; flex-direction: column; gap: 8px; }
 .dialog-buttons button { width: 100%; padding: 10px; }
 
+nav { align-items: center; }
+
+/* The light/dark button, pushed right, just before the +: a plain icon in
+   the text color. */
+.nav-theme {
+  flex: none; margin-left: auto; width: 32px; height: 32px; padding: 3px;
+  background: transparent; border-color: transparent; color: var(--text);
+}
+.nav-theme svg { display: block; width: 100%; height: 100%; }
+
 /* The + button at the end of the nav: a small square in the accent color.
    The "Edit tags" dialog's + button and the tie form's small ones match. */
-nav { align-items: center; }
-.nav-add { margin-left: auto; }
 .nav-add, .tag-add, .label-add {
   flex: none; padding: 0; font-weight: 400; line-height: 1;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent);
@@ -146,7 +173,7 @@ dialog.form-dialog {
 }
 .tag.selected { background: var(--accent); color: var(--accent-text); }
 /* A tie's chosen tags on the form: styled like the form's fields, outlined in the accent. */
-.tag.outline { background: var(--bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.tag.outline { background: var(--bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent-ink); }
 .tag:has(.tag-x) { padding-right: 18px; }
 .tag-toggle {
   border: none; padding: 0; background: transparent; color: inherit;
@@ -170,7 +197,7 @@ dialog.form-dialog {
   flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
 }
-.tag-search:focus-within { border-color: var(--accent); }
+.tag-search:focus-within { border-color: var(--accent-ink); }
 .tag-search input {
   flex: 1; min-width: 6em; width: auto; padding: 4px 0;
   border: none; outline: none; background: transparent;
