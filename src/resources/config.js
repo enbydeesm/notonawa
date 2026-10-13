@@ -94,3 +94,20 @@ export function checkEdit(name, id, { columns, values }) {
     throw new BadInput("A plan can't be a variation of itself.");
   }
 }
+
+/** @typedef {"true" | "false" | "all"} ArchivedFilter */
+export const ARCHIVED_FILTERS = /** @type {const} */ (["true", "false", "all"]);
+
+/**
+ * The required ?archived= on list requests. Required (no default) so a page
+ * that forgets it fails loudly instead of quietly showing archived items in a
+ * picker, or hiding them from a history.
+ * @param {string | null} value
+ * @returns {ArchivedFilter}
+ */
+export function parseArchivedFilter(value) {
+  if (value === null || !(/** @type {readonly string[]} */ (ARCHIVED_FILTERS)).includes(value)) {
+    throw new BadInput("Say which items to list: archived=false (active), archived=true or archived=all.");
+  }
+  return /** @type {ArchivedFilter} */ (value);
+}

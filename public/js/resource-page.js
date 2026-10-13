@@ -130,7 +130,7 @@ export function setupResourcePage(config) {
   async function load() {
     const archived = archivedToggle.checked;
     try {
-      items = await api(`/api/${resource}${archived ? "?archived=1" : ""}`);
+      items = await api(`/api/${resource}?archived=${archived}`);
       config.onLoad?.(items, archived);
       list.replaceChildren();
       if (items.length === 0) {

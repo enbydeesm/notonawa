@@ -87,3 +87,38 @@ dialog h2 { margin-bottom: 8px; }
 dialog p { margin: 0 0 16px; }
 .dialog-buttons { display: flex; flex-direction: column; gap: 8px; }
 .dialog-buttons button { width: 100%; padding: 10px; }
+
+/* The + button at the end of the nav: a small square in the accent color. */
+nav { align-items: center; }
+.nav-add {
+  margin-left: auto; width: 32px; height: 32px; padding: 0;
+  font-size: 1.4rem; font-weight: 400; line-height: 1;
+  background: var(--accent); color: var(--accent-text); border-color: var(--accent);
+}
+
+/* Pop-up forms, e.g. "Log a tie". Taller than the screen scrolls inside. */
+dialog.form-dialog {
+  width: min(560px, calc(100vw - 32px)); max-width: none;
+  max-height: calc(100dvh - 32px); overflow-y: auto;
+}
+.dialog-cancel { width: 100%; margin-top: 8px; padding: 10px; }
+
+/* Multi-select drop-down: a summary line that opens a searchable list. */
+.multi-select { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.multi-select summary {
+  padding: 10px; cursor: pointer; list-style-position: inside;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.multi-select summary.placeholder { color: var(--muted); }
+.multi-select-panel { border-top: 1px solid var(--line); padding: 8px; }
+.multi-select-options { max-height: 220px; overflow-y: auto; margin-top: 4px; }
+.multi-select-options label.inline { margin: 0; padding: 6px 2px; cursor: pointer; }
+.multi-select-options label.archived { color: var(--muted); }
+
+/* Page control under the ties list. */
+.pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 12px; margin-top: 12px; }
+.pager:empty { display: none; }
+.pager button.link { padding: 4px 6px; }
+.pager button[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); border-radius: 0; }
+.pager button:disabled { visibility: hidden; }
+.pager-gap { color: var(--muted); }

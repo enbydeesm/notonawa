@@ -1,89 +1,113 @@
-// Ties page: log a tie, and list them.
+// Ties page: search and page through logged ties. New ties are logged from
+// the + button (tie-form.js).
 
 import { api, errorMessage } from "../api.js";
-import { h, $, showMessage } from "../dom.js";
-import { today, capitalise } from "../format.js";
-import { renderNav } from "../nav.js";
+import { h, $ } from "../dom.js";
+import { renderNav, TIE_SAVED } from "../nav.js";
+import { multiSelect } from "../multi-select.js";
 import { tieMeta, participantLabel, planLabel } from "../ties-view.js";
+import { readSearch, searchQuery, hasFilters, pageList } from "../tie-search.js";
+
+/** @typedef {import("../tie-search.js").SearchState} SearchState */
 
 renderNav("/");
 
-const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
-/** @type {HTMLFormElement} */
-const form = $("#tie-form");
+const KEYWORD_DELAY_MS = 300;
+
 const list = $("#tie-list");
-const message = $("#message");
-/** @type {HTMLButtonElement} */
-const saveButton = $("#save");
-const participantRows = $("#participants");
-const planRows = $("#plans");
+const pager = $("#pager");
+const count = $("#tie-count");
 /** @type {HTMLInputElement} */
-const dateInput = $("#tie_date");
+const keyword = $("#q");
+/** @type {HTMLInputElement} */
+const fromInput = $("#from");
+/** @type {HTMLInputElement} */
+const toInput = $("#to");
 /** @type {HTMLButtonElement} */
-const addParticipantButton = $("#add-participant");
-/** @type {HTMLButtonElement} */
-const addPlanButton = $("#add-plan");
+const clearButton = $("#clear");
 
-// Active (non-archived) people and plans for the pickers.
-/** @type {Record<string, any>[]} */
-let people = [];
-/** @type {Record<string, any>[]} */
-let plans = [];
+let state = readSearch(location.search);
 
-dateInput.value = today();
+const peopleFilter = multiSelect({
+  labelledBy: "people-label",
+  placeholder: "Anyone",
+  searchLabel: "Search people",
+  onChange: (ids) => update({ person_ids: ids }),
+});
+const locationsFilter = multiSelect({
+  labelledBy: "locations-label",
+  placeholder: "Anywhere",
+  searchLabel: "Search locations",
+  onChange: (ids) => update({ location_ids: ids }),
+});
+$("#people-filter").append(peopleFilter.element);
+$("#locations-filter").append(locationsFilter.element);
 
-/** @param {HTMLElement} row */
-function removeButton(row) {
-  return h("button", { type: "button", "aria-label": "Remove", onclick: () => row.remove() }, "✕");
+/** Puts the current search into the inputs (on load, Back, and Clear). */
+function showState() {
+  keyword.value = state.q;
+  fromInput.value = state.from;
+  toInput.value = state.to;
+  // Stops a backwards date range being picked.
+  fromInput.max = state.to;
+  toInput.min = state.from;
+  peopleFilter.setSelected(state.person_ids);
+  locationsFilter.setSelected(state.location_ids);
+  clearButton.hidden = !hasFilters(state);
 }
 
-function addParticipantRow() {
-  const row = h("div", { className: "picker-row" });
-  row.append(
-    h("select", { className: "person", "aria-label": "Person" },
-      h("option", { value: "" }, "Choose person"),
-      people.map((p) => h("option", { value: p.id }, p.is_self ? `${p.name} (you)` : p.name))),
-    h("select", { className: "role", "aria-label": "Role" },
-      h("option", { value: "" }, "Role"),
-      ROLES.map((r) => h("option", { value: r }, capitalise(r)))),
-    removeButton(row)
-  );
-  participantRows.append(row);
+/**
+ * Changes the search and reloads the list. Any filter change goes back to
+ * page 1. Page changes add a history entry (so Back goes to the last page);
+ * typing and picking replace it.
+ * @param {Partial<SearchState>} changes
+ */
+function update(changes) {
+  const pageChange = "page" in changes;
+  state = { ...state, page: 1, ...changes };
+  const query = searchQuery(state);
+  const url = query ? `/?${query}` : "/";
+  if (pageChange) history.pushState(null, "", url);
+  else history.replaceState(null, "", url);
+  fromInput.max = state.to;
+  toInput.min = state.from;
+  clearButton.hidden = !hasFilters(state);
+  loadTies();
 }
 
-function addPlanRow() {
-  const row = h("div", { className: "picker-row" });
-  row.append(
-    h("select", { className: "plan", "aria-label": "Plan" },
-      h("option", { value: "" }, "Choose plan"),
-      plans.map((p) => h("option", { value: p.id }, p.title))),
-    removeButton(row)
-  );
-  planRows.append(row);
-}
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let keywordTimer;
+keyword.addEventListener("input", () => {
+  clearTimeout(keywordTimer);
+  keywordTimer = setTimeout(() => update({ q: keyword.value }), KEYWORD_DELAY_MS);
+});
+fromInput.addEventListener("change", () => update({ from: fromInput.value }));
+toInput.addEventListener("change", () => update({ to: toInput.value }));
+clearButton.addEventListener("click", () => {
+  clearTimeout(keywordTimer);
+  update({ person_ids: [], location_ids: [], from: "", to: "", q: "" });
+  showState();
+});
+window.addEventListener("popstate", () => {
+  state = readSearch(location.search);
+  showState();
+  loadTies();
+});
+document.addEventListener(TIE_SAVED, () => loadTies());
 
-addParticipantButton.addEventListener("click", addParticipantRow);
-addPlanButton.addEventListener("click", addPlanRow);
-
-async function loadPickers() {
+// Archived people and locations are included (in muted text): a search
+// covers your whole history.
+async function loadFilterOptions() {
   try {
-    const [loadedPeople, locations, loadedPlans] = await Promise.all([
-      api("/api/people"), api("/api/locations"), api("/api/plans"),
+    const [people, locations] = await Promise.all([
+      api("/api/people?archived=all"), api("/api/locations?archived=all"),
     ]);
-    people = loadedPeople;
-    plans = loadedPlans;
-
-    $("#location_id").replaceChildren(
-      h("option", { value: "" }, "No location"),
-      ...locations.map((/** @type {any} */ l) => h("option", { value: l.id }, l.name))
-    );
-
-    addParticipantButton.hidden = people.length === 0;
-    $("#no-people").hidden = people.length > 0;
-    addPlanButton.hidden = plans.length === 0;
-    $("#no-plans").hidden = plans.length > 0;
+    /** @param {Record<string, any>} item */
+    const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });
+    peopleFilter.setOptions(people.map(option));
+    locationsFilter.setOptions(locations.map(option));
   } catch (err) {
-    showMessage(message, "Couldn't load people, locations and plans: " + errorMessage(err), true);
+    count.textContent = "Couldn't load people and locations: " + errorMessage(err);
   }
 }
 
@@ -116,55 +140,58 @@ function renderTie(tie) {
   );
 }
 
+/**
+ * @param {number} page
+ * @param {number} totalPages
+ */
+function renderPager(page, totalPages) {
+  const pages = pageList(page, totalPages);
+  if (pages.length === 0) return [];
+  /** @param {number} n */
+  const go = (n) => () => {
+    update({ page: n });
+    $("#results").scrollIntoView({ block: "start" });
+  };
+  return [
+    h("button", { type: "button", className: "link", "aria-label": "Previous page", disabled: page <= 1, onclick: go(page - 1) }, "‹ Prev"),
+    pages.map((n) =>
+      n === null
+        ? h("span", { className: "pager-gap" }, "…")
+        : h("button", {
+          type: "button", className: "link", "aria-label": `Page ${n}`,
+          "aria-current": n === page ? "page" : null, onclick: go(n),
+        }, String(n))),
+    h("button", { type: "button", className: "link", "aria-label": "Next page", disabled: page >= totalPages, onclick: go(page + 1) }, "Next ›"),
+  ];
+}
+
+// Only the newest request's answer is shown, so a slow earlier search can't
+// overwrite a later one.
+let latestRequest = 0;
+
 async function loadTies() {
+  const request = ++latestRequest;
   try {
-    const ties = await api("/api/ties");
-    list.replaceChildren();
+    const { ties, total, page, page_size } = await api(`/api/ties?${searchQuery(state)}`);
+    if (request !== latestRequest) return;
+    const totalPages = Math.ceil(total / page_size);
+    count.textContent = total === 1 ? "1 tie" : `${total} ties`;
+    list.replaceChildren(...ties.map(renderTie));
     if (ties.length === 0) {
-      list.append(h("p", { className: "empty" }, "No ties yet. Log your first one above."));
-      return;
+      const text = total > 0 ? "Nothing on this page."
+        : hasFilters(state) ? "No ties match this search."
+        : "No ties yet. Tap + to log your first one.";
+      list.append(h("p", { className: "empty" }, text));
     }
-    for (const tie of ties) list.append(renderTie(tie));
+    pager.replaceChildren(...renderPager(page, totalPages).flat());
   } catch (err) {
+    if (request !== latestRequest) return;
+    count.textContent = "";
+    pager.replaceChildren();
     list.replaceChildren(h("p", { className: "empty" }, "Couldn't load ties: " + errorMessage(err)));
   }
 }
 
-function collectTie() {
-  /** @type {Record<string, any>} */
-  const data = Object.fromEntries(new FormData(form));
-
-  data.participants = [];
-  for (const row of participantRows.children) {
-    const personId = /** @type {HTMLSelectElement} */ ($(".person", row)).value;
-    const role = /** @type {HTMLSelectElement} */ ($(".role", row)).value;
-    if (!personId && !role) continue; // empty row
-    if (!personId || !role) throw new Error("Choose a person and a role for each row, or remove it.");
-    data.participants.push({ person_id: personId, role });
-  }
-
-  data.plan_ids = [...planRows.querySelectorAll("select")].map((s) => s.value).filter(Boolean);
-  return data;
-}
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  saveButton.disabled = true;
-  showMessage(message, "Saving…");
-  try {
-    await api("/api/ties", { method: "POST", body: collectTie() });
-    form.reset();
-    participantRows.replaceChildren();
-    planRows.replaceChildren();
-    dateInput.value = today();
-    showMessage(message, "Saved.");
-    loadTies();
-  } catch (err) {
-    showMessage(message, "Couldn't save: " + errorMessage(err), true);
-  } finally {
-    saveButton.disabled = false;
-  }
-});
-
-loadPickers();
+showState();
+loadFilterOptions();
 loadTies();

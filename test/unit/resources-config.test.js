@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RESOURCES, parseFields, checkEdit } from "../../src/resources/config.js";
+import { RESOURCES, parseFields, checkEdit, parseArchivedFilter } from "../../src/resources/config.js";
 
 describe("parseFields", () => {
   it("parses every field, in order, with defaults", () => {
@@ -32,5 +32,18 @@ describe("checkEdit", () => {
     const fields = parseFields(RESOURCES.plans, { title: "x", variation_of: "plan1" });
     expect(() => checkEdit("plans", "plan1", fields)).toThrow("variation of itself");
     expect(() => checkEdit("plans", "plan2", fields)).not.toThrow();
+  });
+});
+
+describe("parseArchivedFilter", () => {
+  it("accepts true, false and all", () => {
+    expect(parseArchivedFilter("true")).toBe("true");
+    expect(parseArchivedFilter("false")).toBe("false");
+    expect(parseArchivedFilter("all")).toBe("all");
+  });
+  it("is required: anything else is an error", () => {
+    for (const bad of [null, "", "1", "0", "null", "TRUE", "yes"]) {
+      expect(() => parseArchivedFilter(bad)).toThrow("archived=false");
+    }
   });
 });

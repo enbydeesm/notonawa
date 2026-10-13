@@ -2,7 +2,7 @@
 
 import { BadInput, json, notFound, noContent, readJson } from "../http.js";
 import { toFlag } from "../parse.js";
-import { RESOURCES, RESOURCE_NAMES, parseFields, checkEdit } from "./config.js";
+import { RESOURCES, RESOURCE_NAMES, parseFields, checkEdit, parseArchivedFilter } from "./config.js";
 import * as db from "./db.js";
 
 /** @typedef {import("./config.js").ResourceName} ResourceName */
@@ -25,14 +25,14 @@ export async function handleResources(request, env, user, url) {
   const { method } = request;
   let m;
 
-  // GET /api/:type            -> active items (for pages and pickers)
-  // GET /api/:type?archived=1 -> archived items only
+  // GET /api/:type?archived=false|true|all -> active items (pickers, default
+  //   lists), archived items only, or both. The parameter is required.
   // POST /api/:type           -> add
   if ((m = url.pathname.match(LIST_PATH))) {
     const name = /** @type {ResourceName} */ (m[1]);
 
     if (method === "GET") {
-      const archived = url.searchParams.get("archived") === "1";
+      const archived = parseArchivedFilter(url.searchParams.get("archived"));
       return json(await db.listRows(env.DB, name, user.id, archived));
     }
 

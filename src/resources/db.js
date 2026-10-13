@@ -6,18 +6,24 @@ import { RESOURCES } from "./config.js";
 
 /** @typedef {import("./config.js").ResourceName} ResourceName */
 
+const ARCHIVED_SQL = {
+  false: " AND archived_at IS NULL",
+  true: " AND archived_at IS NOT NULL",
+  all: "",
+};
+
 /**
- * Active items (archived_at IS NULL) or archived ones.
+ * Active items (archived_at IS NULL), archived ones, or all of them.
  * @param {D1Database} db
  * @param {ResourceName} name
  * @param {string} ownerId
- * @param {boolean} archived
+ * @param {import("./config.js").ArchivedFilter} archived
  */
 export async function listRows(db, name, ownerId, archived) {
   const { columns, orderBy } = RESOURCES[name];
   const { results } = await db.prepare(
     `SELECT ${columns} FROM ${name}
-      WHERE owner_id = ? AND archived_at IS ${archived ? "NOT NULL" : "NULL"}
+      WHERE owner_id = ?${ARCHIVED_SQL[archived]}
       ORDER BY ${orderBy}`
   )
     .bind(ownerId)

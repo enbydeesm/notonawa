@@ -62,3 +62,19 @@ export function toUrlOrNull(value) {
   }
   return url.href;
 }
+
+/**
+ * A plain calendar date, YYYY-MM-DD, that actually exists (no Feb 30).
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function toDateOrNull(value) {
+  const text = cleanText(value);
+  if (text === null) return null;
+  const m = text.match(/^(\d{4})-(\d\d)-(\d\d)$/);
+  const date = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (!date || date.toISOString().slice(0, 10) !== text) {
+    throw new BadInput("Expected a date like 2026-10-12.");
+  }
+  return text;
+}

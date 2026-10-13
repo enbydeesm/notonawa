@@ -111,6 +111,14 @@ const PAGE_HELPERS = `
     [...item.querySelectorAll("button")].find((b) => b.textContent === label).click();
     await wait(500);
   };
+  const type = async (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new Event("input")); await wait(900); };
+  const post = async (path, body) => (await (await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()).id;
+  const filterOptions = (sel) => [...document.querySelectorAll(sel + " label")].map((l) => l.textContent + (l.classList.contains("archived") ? " (muted)" : ""));
+  const pick = async (sel, name) => {
+    const box = [...document.querySelectorAll(sel + " label")].find((l) => l.textContent === name).querySelector("input");
+    box.click(); await wait(800);
+  };
+  const pagerButtons = () => [...document.querySelectorAll("#pager button")].map((b) => b.textContent + (b.getAttribute("aria-current") ? "*" : ""));
   const dialogButtons = () => [...document.querySelectorAll("dialog button")].map((b) => b.textContent);
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
@@ -171,25 +179,79 @@ try {
   check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
     ["Not a variation", "Hip harness, one-sided"]);
 
-  console.log("Ties");
+  console.log("Ties: logging");
   await go("/");
-  check("pickers leave out archived items", await run(`
-    $("#add-participant").click(); $("#add-plan").click();
-    return [[...$("#location_id").options].map((o) => o.text), [...$(".person").options].map((o) => o.text)];`),
-    [["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"]]);
-  check("incomplete person row is caught", await run(`set("#title", "Floor session"); $(".person").selectedIndex = 1; $("#save").click(); await wait(500); return $("#message").textContent;`),
+  check("+ opens the log-a-tie dialog; pickers leave out archived items", await run(`
+    $(".nav-add").click(); await wait(600);
+    $("#tie-add-participant").click(); $("#tie-add-plan").click();
+    return [!!$("dialog[open] #tie-form"), [...$("#tie-location_id").options].map((o) => o.text), [...$(".person").options].map((o) => o.text)];`),
+    [true, ["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"]]);
+  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); $(".person").selectedIndex = 1; $("#tie-save").click(); await wait(500); return $("#tie-message").textContent;`),
     "Couldn't save: Choose a person and a role for each row, or remove it.");
-  check("save a full tie", await run(`
-    set("#location_id", optionValue($("#location_id"), "Studio"));
+  check("save a full tie: the dialog closes and the list shows it", await run(`
+    set("#tie-location_id", optionValue($("#tie-location_id"), "Studio"));
     document.querySelectorAll(".role")[0].value = "rigger";
-    $("#add-participant").click();
+    $("#tie-add-participant").click();
     const sam = document.querySelectorAll(".person")[1]; sam.value = optionValue(sam, "Sam");
     document.querySelectorAll(".role")[1].value = "model";
     $(".plan").value = optionValue($(".plan"), "Hip harness");
-    set("#duration_minutes", "45"); set("#success_rating", "4"); set("#notes", "Smooth transitions");
-    $("#save").click(); await wait(1000);
-    return [$("#message").textContent, document.querySelectorAll(".picker-row").length, items()[0].replace(/^Floor session \\| [^·]+· /, "")];`),
-    ["Saved.", 0, "Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
+    set("#tie-duration_minutes", "45"); set("#tie-success_rating", "4"); set("#tie-notes", "Smooth transitions");
+    $("#tie-save").click(); await wait(1000);
+    return [!!document.querySelector("dialog"), items()[0].replace(/^Floor session \\| [^·]+· /, "")];`),
+    [false, "Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
+  check("Cancel closes the dialog without saving", await run(`
+    $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
+    [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
+    return [!!document.querySelector("dialog"), titles()];`), [false, ["Floor session"]]);
+
+  console.log("Ties: searching and paging");
+  await run(`
+    const all = async (type) => (await (await fetch("/api/" + type + "?archived=all")).json());
+    const alex = (await all("people")).find((p) => p.name === "Alex").id;
+    const hotel = (await all("locations")).find((l) => l.name === "Hotel").id;
+    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "model" }] });
+    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_date: "2026-01-" + String(day).padStart(2, "0") });`);
+  await go("/");
+  check("20 per page, newest tie date first, with a page control", await run(`
+    return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
+    ["23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
+  check("page 2 has the rest, and is in the URL", await run(`
+    [...document.querySelectorAll("#pager button")].find((b) => b.textContent === "2").click(); await wait(800);
+    return [titles(), location.search, pagerButtons()];`),
+    [["Practice 2", "Practice 1", "Hotel night"], "?page=2", ["‹ Prev", "1", "2*", "Next ›"]]);
+  check("Back returns to page 1", await run(`history.back(); await wait(900); return [titles().length, location.search];`), [20, ""]);
+  check("filters list everyone A–Z, archived in muted text", await run(`
+    $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
+    return [filterOptions("#people-filter"), filterOptions("#locations-filter")];`),
+    [["Alex (muted)", "Me", "Sam"], ["Hotel (muted)", "Old flat", "Studio"]]);
+  check("a filter's search box narrows its list", await run(`
+    const box = $("#people-filter input[type=search]"); box.value = "SA"; box.dispatchEvent(new Event("input"));
+    const shown = filterOptions("#people-filter"); box.value = ""; box.dispatchEvent(new Event("input"));
+    return shown;`), ["Sam"]);
+  check("people filter: ties with all chosen people", await run(`
+    await pick("#people-filter", "Me"); await pick("#people-filter", "Sam");
+    return [titles(), $("#people-filter summary").textContent, $("#tie-count").textContent, pagerButtons()];`),
+    [["Floor session"], "Me, Sam", "1 tie", []]);
+  check("an archived person can be searched for", await run(`
+    await pick("#people-filter", "Me"); await pick("#people-filter", "Sam"); await pick("#people-filter", "Alex");
+    return titles();`), ["Hotel night"]);
+  check("location filter", await run(`
+    await pick("#people-filter", "Alex"); await pick("#locations-filter", "Hotel"); await pick("#locations-filter", "Studio");
+    return titles();`), ["Floor session", "Hotel night"]);
+  check("date range", await run(`
+    await pick("#locations-filter", "Hotel"); await pick("#locations-filter", "Studio");
+    set("#from", "2026-01-05"); await wait(500); set("#to", "2026-01-07"); await wait(800);
+    return [titles(), $("#to").min];`), [["Practice 7", "Practice 6", "Practice 5"], "2026-01-05"]);
+  check("Clear search resets everything", await run(`
+    $("#clear").click(); await wait(800);
+    return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
+    ["23 ties", "", "Anyone", true, ""]);
+  check("keyword matches a linked plan's title", await run(`await type("#q", "hip"); return [titles(), location.search];`),
+    [["Floor session"], "?q=hip"]);
+  check("no matches says so", await run(`await type("#q", "zzz"); return $("#tie-list").innerText;`), "No ties match this search.");
+  await go("/?q=practice+1&page=1");
+  check("a search in the URL is restored on load", await run(`return [$("#q").value, titles().length, $("#clear").hidden];`),
+    ["practice 1", 11, false]);
 
   console.log("Deleting");
   await go("/plans");
@@ -205,6 +267,12 @@ try {
   await go("/");
   check("tie shows what was deleted", await run(`return items()[0].replace(/^Floor session \\| [^·]+· /, "");`),
     "(location deleted) · 45 min · 4/5 | With: (person deleted) (model), Me (rigger) | Plans: (plan deleted) | Smooth transitions");
+
+  console.log("+ on other tabs");
+  await go("/plans");
+  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); $("#tie-save").click();`);
+  await sleep(1500);
+  check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
 
   check("no errors in the browser console", consoleErrors, []);
 } catch (err) {

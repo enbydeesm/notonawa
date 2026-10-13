@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull,
+  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, toDateOrNull,
 } from "../../src/parse.js";
 import { BadInput } from "../../src/http.js";
 
@@ -69,5 +69,19 @@ describe("toUrlOrNull", () => {
     expect(() => toUrlOrNull("javascript:alert(1)")).toThrow(BadInput);
     expect(() => toUrlOrNull("data:text/html,<script>")).toThrow(BadInput);
     expect(() => toUrlOrNull("not a link")).toThrow(BadInput);
+  });
+});
+
+describe("toDateOrNull", () => {
+  it("accepts real YYYY-MM-DD dates", () => {
+    expect(toDateOrNull("2026-10-12")).toBe("2026-10-12");
+    expect(toDateOrNull(" 2024-02-29 ")).toBe("2024-02-29");
+    expect(toDateOrNull("")).toBeNull();
+    expect(toDateOrNull(null)).toBeNull();
+  });
+  it("rejects other formats and dates that don't exist", () => {
+    for (const bad of ["2026-02-30", "2025-02-29", "2026-13-01", "12/10/2026", "2026-1-5", "2026-10-12T00:00:00Z"]) {
+      expect(() => toDateOrNull(bad)).toThrow(BadInput);
+    }
   });
 });

@@ -5,7 +5,7 @@ describe("plans, people and locations", () => {
   it("adds, lists and edits", async () => {
     const id = await create("/api/plans", { title: "Hip harness", stage: "ready", est_difficulty: "3" });
 
-    const list = await call("/api/plans");
+    const list = await call("/api/plans?archived=false");
     expect(list.status).toBe(200);
     expect(list.body).toContainEqual(expect.objectContaining({
       id, title: "Hip harness", stage: "ready", est_difficulty: 3, version: 1, archived_at: null,
@@ -42,13 +42,32 @@ describe("plans, people and locations", () => {
     // Archiving again keeps the original date.
     expect((await call(`/api/people/${id}/archive`, { method: "POST" })).body.archived_at).toBe(archived.body.archived_at);
 
-    expect((await call("/api/people")).body.map((/** @type {any} */ p) => p.id)).not.toContain(id);
-    expect((await call("/api/people?archived=1")).body.map((/** @type {any} */ p) => p.id)).toContain(id);
+    expect((await call("/api/people?archived=false")).body.map((/** @type {any} */ p) => p.id)).not.toContain(id);
+    expect((await call("/api/people?archived=true")).body.map((/** @type {any} */ p) => p.id)).toContain(id);
 
     expect((await call(`/api/people/${id}/restore`, { method: "POST" })).status).toBe(200);
-    expect((await call("/api/people")).body.map((/** @type {any} */ p) => p.id)).toContain(id);
+    expect((await call("/api/people?archived=false")).body.map((/** @type {any} */ p) => p.id)).toContain(id);
     // Restoring something that isn't archived is a 404.
     expect((await call(`/api/people/${id}/restore`, { method: "POST" })).status).toBe(404);
+  });
+
+  it("lists active, archived or all items, and requires saying which", async () => {
+    const active = await create("/api/locations", { name: "Studio" });
+    const archived = await create("/api/locations", { name: "Hotel", archive_now: true });
+    /** @param {string} query */
+    const ids = async (query) => (await call(`/api/locations${query}`)).body.map((/** @type {any} */ l) => l.id);
+
+    expect(await ids("?archived=false")).toContain(active);
+    expect(await ids("?archived=false")).not.toContain(archived);
+    expect(await ids("?archived=true")).toEqual([archived]);
+    expect(await ids("?archived=all")).toEqual(expect.arrayContaining([active, archived]));
+
+    // Forgetting it is an error, not a quiet default.
+    for (const query of ["", "?archived=", "?archived=1", "?archived=null"]) {
+      const res = await call(`/api/locations${query}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("archived=false");
+    }
   });
 
   it("restoring a plan keeps its stage", async () => {
@@ -60,7 +79,7 @@ describe("plans, people and locations", () => {
 
   it("can add a location already archived (a one-off spot)", async () => {
     const id = await create("/api/locations", { name: "Hotel", archive_now: true });
-    expect((await call("/api/locations?archived=1")).body.map((/** @type {any} */ l) => l.id)).toContain(id);
+    expect((await call("/api/locations?archived=true")).body.map((/** @type {any} */ l) => l.id)).toContain(id);
   });
 
   it("stops a plan being a variation of itself", async () => {
@@ -75,7 +94,7 @@ describe("other users' data", () => {
     const otherId = await createOtherUser();
     await sql("INSERT INTO people (id, owner_id, name) VALUES ('theirs', ?, 'Their person')", otherId).run();
 
-    expect((await call("/api/people")).body.map((/** @type {any} */ p) => p.id)).not.toContain("theirs");
+    expect((await call("/api/people?archived=false")).body.map((/** @type {any} */ p) => p.id)).not.toContain("theirs");
     expect((await call("/api/people/theirs", { method: "PUT", body: { name: "Mine now" } })).status).toBe(404);
     expect((await call("/api/people/theirs/archive", { method: "POST" })).status).toBe(404);
     expect((await call("/api/people/theirs", { method: "DELETE" })).status).toBe(404);
@@ -98,7 +117,7 @@ describe("deleting", () => {
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
 
-    const listed = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.participants).toEqual([{ person_id: null, person_name: null, role: "model" }]);
   });
 
@@ -107,7 +126,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Suspension", location_id: loc });
 
     expect((await call(`/api/locations/${loc}`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed).toMatchObject({ location_id: null, location_name: null, location_deleted: 1 });
   });
 
@@ -123,7 +142,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=keep`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.plans).toEqual([{ plan_id: null, plan_title: null, plan_version: 1 }]);
   });
 
@@ -132,7 +151,7 @@ describe("deleting", () => {
     const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(204);
-    const listed = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === tie);
+    const listed = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(listed.plans).toEqual([]);
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(404);
   });

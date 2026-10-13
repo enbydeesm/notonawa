@@ -18,7 +18,7 @@ describe("ties", () => {
       plan_ids: [plan, plan],
     });
 
-    const tie = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === id);
+    const tie = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === id);
     expect(tie).toMatchObject({
       title: "Floor session", tie_date: "2026-10-12", duration_minutes: 45, success_rating: 4,
       location_id: loc, location_name: "Studio", location_deleted: 0,
@@ -34,7 +34,7 @@ describe("ties", () => {
   it("lists newest first", async () => {
     const older = await create("/api/ties", { title: "Older", tie_date: "2020-01-01" });
     const newer = await create("/api/ties", { title: "Newer", tie_date: "2030-01-01" });
-    const ids = (await call("/api/ties")).body.map((/** @type {any} */ t) => t.id);
+    const ids = (await call("/api/ties")).body.ties.map((/** @type {any} */ t) => t.id);
     expect(ids.indexOf(newer)).toBeLessThan(ids.indexOf(older));
   });
 
@@ -46,7 +46,7 @@ describe("ties", () => {
     await call(`/api/people/${sam}/archive`, { method: "POST" });
     await call(`/api/locations/${loc}/archive`, { method: "POST" });
 
-    const tie = (await call("/api/ties")).body.find((/** @type {any} */ t) => t.id === id);
+    const tie = (await call("/api/ties")).body.ties.find((/** @type {any} */ t) => t.id === id);
     expect(tie.location_name).toBe("Old flat");
     expect(tie.participants[0].person_name).toBe("Sam");
   });
@@ -64,5 +64,8 @@ describe("ties", () => {
   it("rejects bad input", async () => {
     expect((await call("/api/ties", { method: "POST", body: {} })).body.error).toBe("Add at least a title or a date.");
     expect((await call("/api/ties", { method: "POST", body: { title: "x", participants: [{ person_id: "p", role: "chef" }] } })).status).toBe(400);
+    expect(await call("/api/ties", { method: "POST", body: { title: "Bad date", tie_date: "2026-02-30" } }))
+      .toEqual({ status: 400, body: { error: "Expected a date like 2026-10-12." } });
+    expect(await sql("SELECT id FROM ties WHERE title = 'Bad date'").first()).toBeNull();
   });
 });

@@ -61,12 +61,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `src/auth/user.js`: `getUser`, `findOrCreateUser`.
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
-- `src/ties/`: ties (`parse.js`, `db.js`, `routes.js`).
+- `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
+  `db.js`, `routes.js`). `GET /api/ties` is filtered and paged (20 per page)
+  and returns `{ ties, total, page, page_size }`.
 - `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
   `people.html`, `locations.html`), shared `app.css`, and scripts in
   `public/js/`: `api.js`, `dom.js` (`h`, `$`), `dialog.js` (`choose`),
-  `format.js` and `ties-view.js` (pure), `nav.js`, `resource-page.js`
-  (list/edit pages), and `pages/<page>.js` for each page. No inline scripts.
+  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs and
+  the + button), `tie-form.js` (the "Log a tie" dialog), `multi-select.js`,
+  `resource-page.js` (list/edit pages), and `pages/<page>.js` for each page.
+  No inline scripts. Ids inside dialogs are prefixed (e.g. `tie-title`) so they
+  don't clash with the page underneath.
 - `test/unit/`: pure logic. `test/api/`: requests to the Worker with a real
   D1. `test/db/`: rules the database enforces itself. `scripts/ui-smoke.mjs`:
   headless-Chrome walkthrough of every page.
@@ -102,6 +107,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   pickers (choosing a plan, participants or a location for a tie) and from
   default lists, but still show them on existing ties and in their own
   history. A one-off location is just one archived when it's added.
+  `GET /api/plans|people|locations` requires `?archived=false|true|all`
+  (no default, so a forgotten filter is a 400, not a silent mistake).
 - **Show deleted links on ties instead of hiding them:**
   - `tie_participants.person_id` NULL → "(person deleted)"
   - `tie_plans.plan_id` NULL → "(plan deleted)"

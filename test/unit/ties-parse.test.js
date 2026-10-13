@@ -29,6 +29,14 @@ describe("parseTieInput", () => {
     expect(parseTieInput({ tie_date: "2026-10-12" }).title).toBeNull();
   });
 
+  it("only accepts a real YYYY-MM-DD tie date", () => {
+    expect(parseTieInput({ title: "x", tie_date: " 2024-02-29 " }).tie_date).toBe("2024-02-29");
+    expect(parseTieInput({ title: "x", tie_date: "" }).tie_date).toBeNull();
+    for (const bad of ["2026-02-30", "12/10/2026", "yesterday", "2026-10-12T21:00:00Z"]) {
+      expect(() => parseTieInput({ title: "x", tie_date: bad })).toThrow("Expected a date like 2026-10-12.");
+    }
+  });
+
   it("rejects ratings and durations out of range", () => {
     expect(() => parseTieInput({ title: "x", success_rating: 6 })).toThrow("1 to 5");
     expect(() => parseTieInput({ title: "x", duration_minutes: 2000 })).toThrow("0 to 1440");

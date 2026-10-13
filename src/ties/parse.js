@@ -1,9 +1,14 @@
 // Parsing a submitted tie. Pure, so it's easy to test.
 
 import { BadInput } from "../http.js";
-import { cleanText, toIntOrNull, toChoiceOrNull } from "../parse.js";
+import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull } from "../parse.js";
 
 export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
+
+// Ties per page in the list. One place to change if it becomes adjustable.
+export const PAGE_SIZE = 20;
+const MAX_FILTER_IDS = 50;
+const MAX_SEARCH_LENGTH = 200;
 
 /**
  * @typedef {{ person_id: string, role: string }} ParticipantInput
@@ -28,7 +33,7 @@ export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photograph
 export function parseTieInput(body) {
   const tie = {
     title: cleanText(body.title),
-    tie_date: cleanText(body.tie_date),
+    tie_date: toDateOrNull(body.tie_date),
     notes: cleanText(body.notes),
     duration_minutes: toIntOrNull(body.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(body.success_rating, 1, 5),
@@ -75,4 +80,60 @@ export function parsePlanIds(value) {
     throw new BadInput("Plans should be a list of up to 20 plans.");
   }
   return [...new Set(value.map(cleanText).filter((id) => id !== null))];
+}
+
+/**
+ * @typedef {{
+ *   person_ids: string[],
+ *   location_ids: string[],
+ *   from: string | null,
+ *   to: string | null,
+ *   q: string | null,
+ *   page: number,
+ * }} TieFilters
+ */
+
+/**
+ * The list's query string: person_id and location_id (each repeatable),
+ * from / to (tie dates, inclusive), q (keyword) and page. All optional.
+ * @param {URLSearchParams} params
+ * @returns {TieFilters}
+ */
+export function parseTieFilters(params) {
+  const filters = {
+    person_ids: parseIdList(params.getAll("person_id"), "people"),
+    location_ids: parseIdList(params.getAll("location_id"), "locations"),
+    from: toDateOrNull(params.get("from")),
+    to: toDateOrNull(params.get("to")),
+    q: cleanText(params.get("q")),
+    page: parsePage(params.get("page")),
+  };
+  if (filters.from && filters.to && filters.from > filters.to) {
+    throw new BadInput("The start date is after the end date.");
+  }
+  if (filters.q && filters.q.length > MAX_SEARCH_LENGTH) {
+    throw new BadInput(`Search for ${MAX_SEARCH_LENGTH} characters or fewer.`);
+  }
+  return filters;
+}
+
+/**
+ * @param {string[]} values
+ * @param {string} what for the error message
+ * @returns {string[]}
+ */
+function parseIdList(values, what) {
+  // Duplicates removed: the "all of these people" filter counts matches.
+  const ids = [...new Set(values.map(cleanText).filter((id) => id !== null))];
+  if (ids.length > MAX_FILTER_IDS) throw new BadInput(`Choose up to ${MAX_FILTER_IDS} ${what}.`);
+  return ids;
+}
+
+/** @param {string | null} value */
+function parsePage(value) {
+  try {
+    return toIntOrNull(value, 1, 100000) ?? 1;
+  } catch {
+    throw new BadInput("Page should be a whole number, 1 or more.");
+  }
 }

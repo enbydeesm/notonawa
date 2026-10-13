@@ -10,59 +10,38 @@
   <main>
     <h1>Rope Journal</h1>
 
-    <section class="card">
-      <h2>Log a tie</h2>
-      <form id="tie-form">
-        <label for="title">Title</label>
-        <input id="title" name="title" placeholder="e.g. Hip harness to futomomo">
+    <section class="card" role="search" aria-label="Search ties">
+      <label for="q">Search</label>
+      <input id="q" type="search" placeholder="Title, notes or plan" autocomplete="off">
 
-        <div class="row">
-          <div>
-            <label for="tie_date">Date</label>
-            <input id="tie_date" name="tie_date" type="date">
-          </div>
-          <div>
-            <label for="duration_minutes">Duration (min)</label>
-            <input id="duration_minutes" name="duration_minutes" type="number" min="0" max="1440" inputmode="numeric">
-          </div>
+      <label id="people-label">People</label>
+      <div id="people-filter"></div>
+      <p class="hint">Ties with all of the people you choose.</p>
+
+      <label id="locations-label">Locations</label>
+      <div id="locations-filter"></div>
+
+      <div class="row">
+        <div>
+          <label for="from">From</label>
+          <input id="from" type="date">
         </div>
+        <div>
+          <label for="to">To</label>
+          <input id="to" type="date">
+        </div>
+      </div>
 
-        <label for="location_id">Location</label>
-        <select id="location_id" name="location_id">
-          <option value="">No location</option>
-        </select>
-
-        <label>People</label>
-        <div id="participants"></div>
-        <button type="button" id="add-participant">Add person</button>
-        <p class="hint" id="no-people" hidden>Add people on the <a href="/people">People</a> page first.</p>
-
-        <label>Plans</label>
-        <div id="plans"></div>
-        <button type="button" id="add-plan">Add plan</button>
-        <p class="hint" id="no-plans" hidden>Add plans on the <a href="/plans">Plans</a> page first.</p>
-
-        <label for="success_rating">How did it go?</label>
-        <select id="success_rating" name="success_rating">
-          <option value="">Not rated</option>
-          <option value="1">1 – Rough</option>
-          <option value="2">2</option>
-          <option value="3">3 – OK</option>
-          <option value="4">4</option>
-          <option value="5">5 – Great</option>
-        </select>
-
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" placeholder="What happened, what changed, what to try next"></textarea>
-
-        <button type="submit" class="primary" id="save">Save tie</button>
-        <p class="message" id="message"></p>
-      </form>
+      <button type="button" class="link" id="clear" hidden>Clear search</button>
     </section>
 
-    <section class="card">
-      <h2>My ties</h2>
+    <section class="card" id="results">
+      <div class="card-header">
+        <h2>My ties</h2>
+        <span class="item-meta" id="tie-count"></span>
+      </div>
       <div id="tie-list"><p class="empty">Loading…</p></div>
+      <div class="pager" id="pager" role="navigation" aria-label="Pages"></div>
     </section>
   </main>
 
