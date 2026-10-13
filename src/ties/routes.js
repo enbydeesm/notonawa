@@ -26,7 +26,8 @@ export async function handleTies(request, env, user, url) {
     return json(await listTies(env.DB, user.id, parseTieFilters(url.searchParams)));
   }
 
-  // POST /api/ties -> add a tie with its location, participants and plans
+  // POST /api/ties -> add a tie with its location, participants, plans and
+  //   tags (by name; new ones are created)
   if (request.method === "POST") {
     const tie = parseTieInput(await readJson(request));
     return json({ id: await insertTie(env.DB, user.id, tie) }, 201);

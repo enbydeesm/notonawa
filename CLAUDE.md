@@ -63,12 +63,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
   `db.js`, `routes.js`). `GET /api/ties` is filtered and paged (20 per page)
-  and returns `{ ties, total, page, page_size }`.
+  and returns `{ ties, total, page, page_size }`. A tie's `tags` are sent as
+  names; new ones are created when the tie is saved.
+- `src/tags/`: tags (`parse.js` parses and matches names, ignoring capitals;
+  `db.js`; `routes.js`: `GET /api/tags` most recently used first,
+  `DELETE /api/tags/:id`).
 - `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
   `people.html`, `locations.html`), shared `app.css`, and scripts in
   `public/js/`: `api.js`, `dom.js` (`h`, `$`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs and
-  the + button), `tie-form.js` (the "Log a tie" dialog), `multi-select.js`,
+  the + button), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
   `resource-page.js` (list/edit pages), and `pages/<page>.js` for each page.
   No inline scripts. Ids inside dialogs are prefixed (e.g. `tie-title`) so they
   don't clash with the page underneath.

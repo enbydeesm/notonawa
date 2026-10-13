@@ -2,6 +2,8 @@
 
 import { PAGE_SIZE } from "./parse.js";
 import { tieFilterSql } from "./search.js";
+import { tagNames } from "../tags/db.js";
+import { matchTags } from "../tags/parse.js";
 
 /** @typedef {import("./parse.js").TieInput} TieInput */
 /** @typedef {import("./parse.js").TieFilters} TieFilters */
@@ -77,8 +79,8 @@ export function assembleTies(ties, participants, plans) {
 }
 
 /**
- * Adds a tie with its participants and plans in one batch (one transaction),
- * so a bad link saves nothing. The database's ownership triggers reject links
+ * Adds a tie with its participants, plans and tags in one batch (one
+ * transaction), so a bad link saves nothing, not even a new tag. The database's ownership triggers reject links
  * to other users' items.
  * @param {D1Database} db
  * @param {string} ownerId
@@ -106,6 +108,22 @@ export async function insertTie(db, ownerId, tie) {
         `INSERT INTO tie_plans (id, tie_id, plan_id, plan_version)
          VALUES (?, ?, ?, (SELECT version FROM plans WHERE id = ? AND owner_id = ?))`
       ).bind(crypto.randomUUID(), id, planId, planId, ownerId)
+    );
+  }
+  // Tags not matching one of mine (ignoring capitals) are created here. If the
+  // same tag was created a moment ago elsewhere, DO NOTHING keeps that one, and
+  // the link below finds it by name either way.
+  const tags = tie.tags.length ? matchTags(await tagNames(db, ownerId), tie.tags) : [];
+  for (const tag of tags) {
+    if (tag.isNew) {
+      statements.push(
+        db.prepare("INSERT INTO tags (id, owner_id, name) VALUES (?, ?, ?) ON CONFLICT (owner_id, name) DO NOTHING")
+          .bind(crypto.randomUUID(), ownerId, tag.name)
+      );
+    }
+    statements.push(
+      db.prepare("INSERT INTO tie_tags (tie_id, tag_id) SELECT ?, id FROM tags WHERE owner_id = ? AND name = ?")
+        .bind(id, ownerId, tag.name)
     );
   }
   await db.batch(statements);

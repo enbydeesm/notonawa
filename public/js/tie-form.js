@@ -3,6 +3,7 @@
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
 import { today, capitalise } from "./format.js";
+import { pickTags } from "./tag-picker.js";
 
 const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
 
@@ -33,6 +34,8 @@ function showTieForm() {
     let people = [];
     /** @type {Record<string, any>[]} */
     let plans = [];
+    /** @type {string[]} tag names; new ones are created when the tie is saved */
+    let tags = [];
 
     // Ids start with "tie-" because this dialog opens on top of pages whose own
     // forms use ids like #title and #notes.
@@ -47,6 +50,7 @@ function showTieForm() {
       "Add people on the ", h("a", { href: "/people" }, "People"), " page first.");
     const noPlans = h("p", { className: "hint", hidden: true },
       "Add plans on the ", h("a", { href: "/plans" }, "Plans"), " page first.");
+    const tagList = h("span", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
 
     const form = h("form", { id: "tie-form", onsubmit: save },
@@ -70,6 +74,10 @@ function showTieForm() {
         RATINGS.map(([value, text]) => h("option", { value }, text))),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" }),
+      h("label", {}, "Tags"),
+      h("div", { className: "tag-row" },
+        h("button", { type: "button", id: "tie-add-tags", onclick: chooseTags }, "Edit tags"),
+        tagList),
       saveButton,
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
       message
@@ -115,6 +123,13 @@ function showTieForm() {
       planRows.append(row);
     }
 
+    async function chooseTags() {
+      const picked = await pickTags(tags);
+      if (picked === null) return; // closed with Esc: keep what was chosen before
+      tags = picked;
+      tagList.replaceChildren(...tags.map((name) => h("span", { className: "tag outline" }, name)));
+    }
+
     async function loadPickers() {
       try {
         const [loadedPeople, locations, loadedPlans] = await Promise.all([
@@ -146,6 +161,7 @@ function showTieForm() {
       }
 
       data.plan_ids = [...planRows.querySelectorAll("select")].map((s) => s.value).filter(Boolean);
+      data.tags = tags;
       return data;
     }
 

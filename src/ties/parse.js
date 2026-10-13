@@ -2,6 +2,7 @@
 
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull } from "../parse.js";
+import { parseTagNames } from "../tags/parse.js";
 
 export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
 
@@ -21,12 +22,14 @@ const MAX_SEARCH_LENGTH = 200;
  *   location_id: string | null,
  *   participants: ParticipantInput[],
  *   plan_ids: string[],
+ *   tags: string[],
  * }} TieInput
  */
 
 /**
  * Body: { title, tie_date, duration_minutes, success_rating, notes, location_id,
- *         participants: [{ person_id, role }], plan_ids: [id] }
+ *         participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
+ * tags are names, so new tags (created on save) and existing ones are sent alike.
  * @param {Record<string, unknown>} body
  * @returns {TieInput}
  */
@@ -40,6 +43,7 @@ export function parseTieInput(body) {
     location_id: cleanText(body.location_id),
     participants: parseParticipants(body.participants),
     plan_ids: parsePlanIds(body.plan_ids),
+    tags: parseTagNames(body.tags),
   };
   if (!tie.title && !tie.tie_date) {
     throw new BadInput("Add at least a title or a date.");

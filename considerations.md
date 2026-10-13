@@ -87,3 +87,37 @@ to check for it on every write path.
 
 **Revisit if:** stale `updated_at` values start causing bugs, or something
 (like sync) comes to depend on it being exact.
+
+## Tag recency worked out from ties, not a `last_used_at` column
+
+**Status:** not adopted (2026-10-12)
+
+The "Edit tags" dialog lists tags most recently used first. We weighed adding
+`tags.last_used_at`, set whenever a tie is saved with the tag.
+
+**Why not:** it's another value to keep in sync by hand (like `updated_at`),
+and it goes wrong quietly: deleting or (later) editing a tie, or changing its
+date, would leave it pointing at a use that's gone. `GET /api/tags` works it
+out from the newest tie each tag is on (tie date, then when it was logged),
+which is always right and cheap at journal scale. **Revisit if** listing tags
+gets slow with many thousands of ties. Plan tags don't count towards recency
+yet; plans can't be tagged in the UI.
+
+## Tags are created when the tie is saved
+
+**Status:** decided (2026-10-12)
+
+Typing a tag and pressing + in the dialog only adds it on the page. The tie's
+`tags` (names) are matched to existing tags, ignoring capitals, when the tie
+is saved, and any new ones are created in the same batch. So a cancelled tie
+leaves no stray tags behind, and a failed save creates none. The match uses
+JavaScript's `toLocaleLowerCase` on both the page and the server, so unlike
+the keyword search, "Ö" and "ö" count as the same tag.
+
+## Planned: tags on the ties list
+
+**Status:** planned (2026-10-12)
+
+Ties can be tagged, but the list doesn't show tags or filter by them yet.
+`listTies` would fetch `tie_tags` for the page the way it does participants and
+plans; a tag filter would fit next to the people and location filters.

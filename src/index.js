@@ -7,6 +7,7 @@ import { json, notFound } from "./http.js";
 import { errorResponse } from "./errors.js";
 import { handleTies } from "./ties/routes.js";
 import { handleResources } from "./resources/routes.js";
+import { handleTags } from "./tags/routes.js";
 
 export default {
   /**
@@ -32,6 +33,7 @@ export default {
       return (
         (await handleTies(request, env, user, url)) ??
         (await handleResources(request, env, user, url)) ??
+        (await handleTags(request, env, user, url)) ??
         notFound()
       );
     } catch (err) {

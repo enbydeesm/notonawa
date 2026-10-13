@@ -12,6 +12,7 @@ describe("parseTieInput", () => {
       location_id: "loc1",
       participants: [{ person_id: "p1", role: "rigger" }],
       plan_ids: ["pl1"],
+      tags: ["Futomomo"],
     })).toEqual({
       title: "Floor session",
       tie_date: "2026-10-12",
@@ -21,6 +22,7 @@ describe("parseTieInput", () => {
       location_id: "loc1",
       participants: [{ person_id: "p1", role: "rigger" }],
       plan_ids: ["pl1"],
+      tags: ["Futomomo"],
     });
   });
 

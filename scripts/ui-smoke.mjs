@@ -120,6 +120,10 @@ const PAGE_HELPERS = `
   };
   const pagerButtons = () => [...document.querySelectorAll("#pager button")].map((b) => b.textContent + (b.getAttribute("aria-current") ? "*" : ""));
   const dialogButtons = () => [...document.querySelectorAll("dialog button")].map((b) => b.textContent);
+  const tagBubbles = () => [...document.querySelectorAll("#tags-list .tag")].map((t) =>
+    t.querySelector(".tag-toggle").textContent + (t.classList.contains("selected") ? "*" : "") + (t.querySelector(".tag-x") ? " ×" : ""));
+  const tagChips = (sel) => [...document.querySelectorAll(sel + " .tag")].map((t) => t.firstChild.textContent);
+  const tagsJson = async () => (await (await fetch("/api/tags")).json()).map((t) => t.name + ":" + t.tie_count);
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
@@ -188,6 +192,24 @@ try {
     [true, ["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"]]);
   check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); $(".person").selectedIndex = 1; $("#tie-save").click(); await wait(500); return $("#tie-message").textContent;`),
     "Couldn't save: Choose a person and a role for each row, or remove it.");
+  check("Edit tags opens an empty tag dialog", await run(`
+    $("#tie-add-tags").click(); await wait(600);
+    return [$("#tie-add-tags").textContent, $("#tags-heading").textContent, !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder];`),
+    ["Edit tags", "Edit tags", true, "No tags yet. Type one and press +.", "search tags"]);
+  check("+ and Enter add tags; a different-capitals name picks the same tag", await run(`
+    const box = $("#tags-search");
+    box.value = "Futomomo"; $("#tags-add").click();
+    box.value = "Floor"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    box.value = "futomomo"; $("#tags-add").click();
+    return [tagChips(".tag-search"), tagBubbles(), box.value];`),
+    [["Futomomo", "Floor"], ["Floor*", "Futomomo*"], ""]);
+  check("a chip's × deselects it, and it can be deleted again; OK shows the tags by the button", await run(`
+    document.querySelector(".tag-search .tag-x").click();
+    const after = [tagChips(".tag-search"), tagBubbles()];
+    [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === "Futomomo").click();
+    $("#tags-ok").click(); await wait(300);
+    return [after, tagChips("#tie-tags"), !!$("dialog[open] #tags-search")];`),
+    [[["Floor"], ["Floor*", "Futomomo ×"]], ["Floor", "Futomomo"], false]);
   check("save a full tie: the dialog closes and the list shows it", await run(`
     set("#tie-location_id", optionValue($("#tie-location_id"), "Studio"));
     document.querySelectorAll(".role")[0].value = "rigger";
@@ -203,6 +225,24 @@ try {
     $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
     [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
     return [!!document.querySelector("dialog"), titles()];`), [false, ["Floor session"]]);
+
+  check("saving the tie created and linked its tags", await run(`return tagsJson();`), ["Floor:1", "Futomomo:1"]);
+  check("deleting a tag asks first, saying which ties use it", await run(`
+    $(".nav-add").click(); await wait(600); $("#tie-add-tags").click(); await wait(600);
+    const before = tagBubbles();
+    [...document.querySelectorAll("#tags-list .tag")].find((t) => t.querySelector(".tag-toggle").textContent === "Floor").querySelector(".tag-x").click();
+    await wait(300);
+    const dialogs = document.querySelectorAll("dialog"); const confirm = dialogs[dialogs.length - 1];
+    const asked = [confirm.querySelector("h2").textContent, confirm.querySelector("p").textContent, [...confirm.querySelectorAll("button")].map((b) => b.textContent)];
+    [...confirm.querySelectorAll("button")].find((b) => b.textContent === "Confirm").click(); await wait(800);
+    return [before, asked, tagBubbles(), await tagsJson()];`),
+    [["Floor ×", "Futomomo ×"], ["Delete tag 'Floor'?", "Used on 1 tie; it'll be removed from it.", ["Confirm", "Cancel"]], ["Futomomo ×"], ["Futomomo:1"]]);
+  check("closing the tag dialog without OK keeps the tie's tags as they were", await run(`
+    document.querySelector("#tags-list .tag-toggle").click();
+    $("#tags-search").closest("dialog").close(); await wait(300);
+    const kept = tagChips("#tie-tags");
+    $("#tie-form .dialog-cancel").click(); await wait(600);
+    return [kept, !!document.querySelector("dialog")];`), [[], false]);
 
   console.log("Ties: searching and paging");
   await run(`

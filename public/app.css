@@ -88,10 +88,12 @@ dialog p { margin: 0 0 16px; }
 .dialog-buttons { display: flex; flex-direction: column; gap: 8px; }
 .dialog-buttons button { width: 100%; padding: 10px; }
 
-/* The + button at the end of the nav: a small square in the accent color. */
+/* The + button at the end of the nav: a small square in the accent color.
+   The "Edit tags" dialog's + button looks the same. */
 nav { align-items: center; }
-.nav-add {
-  margin-left: auto; width: 32px; height: 32px; padding: 0;
+.nav-add { margin-left: auto; }
+.nav-add, .tag-add {
+  flex: none; width: 32px; height: 32px; padding: 0;
   font-size: 1.4rem; font-weight: 400; line-height: 1;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent);
 }
@@ -122,3 +124,53 @@ dialog.form-dialog {
 .pager button[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); border-radius: 0; }
 .pager button:disabled { visibility: hidden; }
 .pager-gap { color: var(--muted); }
+
+/* Tags: rounded bubbles, chosen ones in the accent color. A bubble's ×
+   (remove, or delete) sits on its top-right corner. */
+.tag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tag {
+  position: relative; display: inline-flex; align-items: center;
+  padding: 4px 12px; border-radius: 999px; font-size: 0.9rem; font-weight: 600;
+  background: var(--line); color: var(--text);
+}
+.tag.selected { background: var(--accent); color: var(--accent-text); }
+/* A tie's chosen tags on the form: styled like the form's fields, outlined in the accent. */
+.tag.outline { background: var(--bg); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.tag:has(.tag-x) { padding-right: 18px; }
+.tag-toggle {
+  border: none; padding: 0; background: transparent; color: inherit;
+  font-weight: inherit; font-size: inherit;
+}
+/* The whole bubble is the toggle's tap target. */
+.tag-toggle::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.tag-x {
+  position: absolute; top: -7px; right: -7px; z-index: 1;
+  width: 20px; height: 20px; padding: 0; border-radius: 50%;
+  font-size: 0.85rem; font-weight: 600; line-height: 1;
+  background: var(--card); color: var(--text); border: 1px solid var(--text);
+}
+/* In the list, × deletes the tag for good, so it's filled in the accent to
+   tell it apart from the search box's ×, which only deselects. */
+.tag-list .tag-x { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.tag-search .tag { margin-right: 6px; }
+
+.tag-search-row { display: flex; align-items: center; gap: 12px; }
+.tag-search {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+.tag-search:focus-within { border-color: var(--accent); }
+.tag-search input {
+  flex: 1; min-width: 6em; width: auto; padding: 4px 0;
+  border: none; outline: none; background: transparent;
+}
+.tag-search-icon {
+  flex: none; width: 20px; height: 20px;
+  fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round;
+}
+.tag-list { display: flex; flex-wrap: wrap; gap: 12px 10px; padding: 16px 8px 0 0; }
+
+.dialog-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+.dialog-footer button {
+  padding: 8px 24px; background: var(--accent); color: var(--accent-text); border-color: var(--accent);
+}
