@@ -1,0 +1,20 @@
+{
+  // Type checks the Worker (src/) and its tests (test/) from JSDoc comments.
+  // No build output: Wrangler bundles the Worker itself.
+  // The pages have their own config in public/tsconfig.json (browser types).
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    // Untyped parameters are allowed for now; add JSDoc types as code is touched.
+    "noImplicitAny": false,
+    "types": ["@cloudflare/vitest-plugin/types"],
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.js", "test/**/*.js", "test/**/*.d.ts", "worker-configuration.d.ts"]
+}

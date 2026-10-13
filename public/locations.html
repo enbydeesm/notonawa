@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locations · Rope Journal</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main>
+    <h1>Locations</h1>
+
+    <section class="card">
+      <h2>Add a location</h2>
+      <form id="form">
+        <label for="name">Name</label>
+        <input id="name" name="name" required>
+
+        <label for="hard_points">Hard points</label>
+        <textarea id="hard_points" name="hard_points" placeholder="Suspension points, ratings, quirks"></textarea>
+
+        <label for="maps_url">Google Maps link</label>
+        <input id="maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…">
+
+        <div class="row">
+          <div>
+            <label for="latitude">Latitude</label>
+            <input id="latitude" name="latitude" type="number" step="any" min="-90" max="90">
+          </div>
+          <div>
+            <label for="longitude">Longitude</label>
+            <input id="longitude" name="longitude" type="number" step="any" min="-180" max="180">
+          </div>
+        </div>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes"></textarea>
+
+        <div data-add-only>
+          <label class="inline"><input type="checkbox" name="archive_now"> Archive now</label>
+          <p class="hint">For a one-off spot: it's saved for your ties, but kept out of the location picker.</p>
+        </div>
+
+        <button type="submit" class="primary">Add location</button>
+        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <p class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Your locations</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/pages/locations.js"></script>
+</body>
+</html>

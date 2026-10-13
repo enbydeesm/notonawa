@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plans · Rope Journal</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main>
+    <h1>Plans</h1>
+
+    <section class="card">
+      <h2>Add a plan</h2>
+      <form id="form">
+        <label for="title">Title</label>
+        <input id="title" name="title" required placeholder="e.g. Hip harness to futomomo">
+
+        <div class="row">
+          <div>
+            <label for="stage">Stage</label>
+            <select id="stage" name="stage">
+              <option value="idea">Idea</option>
+              <option value="developing">Developing</option>
+              <option value="ready">Ready</option>
+              <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div>
+            <label for="est_difficulty">Difficulty</label>
+            <select id="est_difficulty" name="est_difficulty">
+              <option value="">Not set</option>
+              <option value="1">1 – Easy</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5 – Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="variation_of">Variation of</label>
+        <select id="variation_of" name="variation_of">
+          <option value="">Not a variation</option>
+        </select>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" placeholder="The sequence, step by step"></textarea>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes"></textarea>
+
+        <button type="submit" class="primary">Add plan</button>
+        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <p class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Your plans</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/pages/plans.js"></script>
+</body>
+</html>

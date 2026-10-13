@@ -150,3 +150,5 @@ vite.config.ts.timestamp-*
 .DS_Store
 .dev.vars
 node_modules/
+# Database backups (contain journal data)
+backups/

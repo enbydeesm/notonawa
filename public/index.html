@@ -4,52 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rope Journal</title>
-  <style>
-    :root {
-      --bg: #faf8f5; --card: #ffffff; --text: #222; --muted: #6b6b6b;
-      --line: #e4dfd8; --accent: #8a3b2e; --accent-text: #fff; --error: #b00020;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #161514; --card: #201f1d; --text: #eee; --muted: #a09a93;
-        --line: #34312d; --accent: #d07a62; --accent-text: #161514; --error: #ff6b81;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--bg); color: var(--text);
-      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    main { max-width: 640px; margin: 0 auto; padding: 16px; }
-    h1 { font-size: 1.6rem; margin: 8px 0 16px; }
-    h2 { font-size: 1.1rem; margin: 0 0 12px; }
-    .card {
-      background: var(--card); border: 1px solid var(--line);
-      border-radius: 12px; padding: 16px; margin-bottom: 16px;
-    }
-    label { display: block; font-size: 0.9rem; color: var(--muted); margin: 10px 0 4px; }
-    input, textarea, select {
-      width: 100%; padding: 10px; font: inherit; color: var(--text);
-      background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
-    }
-    textarea { min-height: 90px; resize: vertical; }
-    .row { display: flex; gap: 12px; }
-    .row > div { flex: 1; }
-    button {
-      margin-top: 14px; width: 100%; padding: 12px; font: inherit; font-weight: 600;
-      background: var(--accent); color: var(--accent-text);
-      border: none; border-radius: 8px; cursor: pointer;
-    }
-    button:disabled { opacity: 0.6; }
-    #message { min-height: 1.5em; margin: 8px 0 0; font-size: 0.9rem; }
-    #message.error { color: var(--error); }
-    .tie { border-top: 1px solid var(--line); padding: 12px 0; }
-    .tie:first-child { border-top: none; padding-top: 0; }
-    .tie-title { font-weight: 600; }
-    .tie-meta { color: var(--muted); font-size: 0.9rem; }
-    .tie-notes { margin-top: 4px; white-space: pre-wrap; }
-    .empty { color: var(--muted); }
-  </style>
+  <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <main>
@@ -72,6 +27,21 @@
           </div>
         </div>
 
+        <label for="location_id">Location</label>
+        <select id="location_id" name="location_id">
+          <option value="">No location</option>
+        </select>
+
+        <label>People</label>
+        <div id="participants"></div>
+        <button type="button" id="add-participant">Add person</button>
+        <p class="hint" id="no-people" hidden>Add people on the <a href="/people">People</a> page first.</p>
+
+        <label>Plans</label>
+        <div id="plans"></div>
+        <button type="button" id="add-plan">Add plan</button>
+        <p class="hint" id="no-plans" hidden>Add plans on the <a href="/plans">Plans</a> page first.</p>
+
         <label for="success_rating">How did it go?</label>
         <select id="success_rating" name="success_rating">
           <option value="">Not rated</option>
@@ -85,8 +55,8 @@
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" placeholder="What happened, what changed, what to try next"></textarea>
 
-        <button type="submit" id="save">Save tie</button>
-        <p id="message"></p>
+        <button type="submit" class="primary" id="save">Save tie</button>
+        <p class="message" id="message"></p>
       </form>
     </section>
 
@@ -96,103 +66,6 @@
     </section>
   </main>
 
-  <script>
-    const form = document.getElementById("tie-form");
-    const list = document.getElementById("tie-list");
-    const message = document.getElementById("message");
-    const saveButton = document.getElementById("save");
-
-    // Default the date to today
-    document.getElementById("tie_date").value = new Date().toLocaleDateString("en-CA");
-
-    function showMessage(text, isError = false) {
-      message.textContent = text;
-      message.className = isError ? "error" : "";
-    }
-
-    function formatDate(isoDate) {
-      if (!isoDate) return "No date";
-      const [y, m, d] = isoDate.split("-").map(Number);
-      return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-        year: "numeric", month: "short", day: "numeric",
-      });
-    }
-
-    async function loadTies() {
-      try {
-        const res = await fetch("/api/ties");
-        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-        const ties = await res.json();
-
-        list.replaceChildren();
-        if (ties.length === 0) {
-          list.innerHTML = '<p class="empty">No ties yet. Log your first one above.</p>';
-          return;
-        }
-
-        for (const tie of ties) {
-          const item = document.createElement("div");
-          item.className = "tie";
-
-          const title = document.createElement("div");
-          title.className = "tie-title";
-          title.textContent = tie.title || "Untitled tie";
-
-          const meta = document.createElement("div");
-          meta.className = "tie-meta";
-          const bits = [formatDate(tie.tie_date)];
-          if (tie.duration_minutes != null) bits.push(`${tie.duration_minutes} min`);
-          if (tie.success_rating != null) bits.push(`${tie.success_rating}/5`);
-          meta.textContent = bits.join(" · ");
-
-          item.append(title, meta);
-
-          if (tie.notes) {
-            const notes = document.createElement("div");
-            notes.className = "tie-notes";
-            notes.textContent = tie.notes;
-            item.append(notes);
-          }
-
-          list.append(item);
-        }
-      } catch (err) {
-        list.innerHTML = "";
-        const p = document.createElement("p");
-        p.className = "empty";
-        p.textContent = "Couldn't load ties: " + err.message;
-        list.append(p);
-      }
-    }
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      saveButton.disabled = true;
-      showMessage("Saving…");
-
-      const data = Object.fromEntries(new FormData(form));
-
-      try {
-        const res = await fetch("/api/ties", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || res.statusText);
-
-        form.reset();
-        document.getElementById("tie_date").value = new Date().toLocaleDateString("en-CA");
-        showMessage("Saved.");
-        loadTies();
-      } catch (err) {
-        showMessage("Couldn't save: " + err.message, true);
-      } finally {
-        saveButton.disabled = false;
-      }
-    });
-
-    loadTies();
-  </script>
+  <script type="module" src="/js/pages/ties.js"></script>
 </body>
 </html>

@@ -41,7 +41,7 @@ The `WHEN` clause stops it looping and lets code set its own value when needed.
 - Some automatic changes would count as edits, e.g. deleting a location empties
   `ties.location_id` and would bump the tie's `updated_at`.
 
-**Instead:** code sets `updated_at` explicitly, and instructions.md has a rule
+**Instead:** code sets `updated_at` explicitly, and CLAUDE.md has a rule
 to check for it on every write path.
 
 **Revisit if:** stale `updated_at` values start causing bugs, or something
