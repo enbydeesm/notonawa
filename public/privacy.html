@@ -16,7 +16,8 @@
 <h2 id="the-short-version">The short version</h2>
 <ul>
   <li>Rope Journal is a private journal for rope practice. It is built so that <strong>the most sensitive parts, your notes and your photos, are encrypted on your device before they leave it.</strong> We can't read them, and neither can anyone who gets hold of our servers.</li>
-  <li><strong>You sign in with a passkey.</strong> There are no passwords, and we don't ask for your email address, your legal name, or a sign-in through Google, Apple or anyone else.</li>
+  <li><strong>You sign in with a passkey.</strong> There are no passwords, and we don't ask for your legal name or a sign-in through Google, Apple or anyone else. An email address is optional, only for account recovery, and we keep only a scrambled copy that we can't read.</li>
+  <li><strong>Keep a second passkey and your recovery code.</strong> If you lose them all, we can't guarantee to get you back in, and your encrypted notes and photos can't be recovered by anyone.</li>
   <li><strong>No ads, no analytics, no tracking, no selling or sharing your data.</strong> The app loads no scripts or fonts from other companies.</li>
   <li>Some information has to stay readable by our server so the app can sort and filter it, such as names, titles, dates and ratings. The full list is in <a href="#what-we-can-and-cant-read">What we can and can't read</a>.</li>
   <li>You can export everything, import entries from a file, or delete your account and everything in it, at any time.</li>
@@ -30,11 +31,12 @@
   <li><strong>A passkey.</strong> When you create a passkey, your device keeps the secret part. We store only the public part, an ID for it, the name you give it (e.g. &quot;My phone&quot;) and when it was created and last used. A passkey can't be used to identify you outside Rope Journal.</li>
   <li><strong>Your sessions.</strong> When you sign in we give your browser a random session token in a cookie. We store a scrambled (hashed) copy of it, which passkey you signed in with, when the session started, and when it was last used (to the hour), so you can see and end your sessions. We don't store your IP address or a description of your device.</li>
   <li><strong>Your recovery code, scrambled.</strong> The code is made on your device and we never receive it. We store only a scrambled (hashed) value derived from it, which can't be turned back into the code.</li>
+  <li><strong>Your recovery email, scrambled, if you add one.</strong> It's optional. Your device scrambles the address (a slow, salted hash) before sending it, and we store only that, so we can't read the address or send you email. We use it for one thing: checking that someone asking us to recover an account is its owner (see <a href="#our-own-access">Our own access</a>).</li>
   <li><strong>Your agreement.</strong> When you confirmed you're 18 or older and agreed to this policy, and which version of it you agreed to.</li>
   <li><strong>Your invite.</strong> Accounts are by invite for now. We record that an invite was used, and by which account, but nothing about who it was for.</li>
   <li><strong>Your encryption keys, locked.</strong> Your notes and photos are encrypted with a key that only exists unlocked on your own device. We store copies of it that are themselves locked by your passkeys and by your recovery code, so we can't use them. See <a href="#how-encryption-works">How encryption works</a>.</li>
 </ul>
-<p>We don't collect your email address, phone number, real name, contacts or location.</p>
+<p>We don't collect your phone number, real name, contacts or location, or your email address unless you add a recovery email.</p>
 <h3 id="your-journal">Your journal</h3>
 <p>What you choose to write in the app: ties, plans, people, locations, tags, and (once photos are available) photos. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
 <h3 id="technical-information">Technical information</h3>
@@ -63,7 +65,7 @@
   <li>When you create your account, your device makes a random encryption key. Your notes and photos are encrypted with it (AES-256-GCM) on your device, before anything is sent to us.</li>
   <li>That key is locked using a secret your passkey produces (the WebAuthn &quot;PRF&quot; feature), which never leaves your device. If your passkey doesn't support this, you unlock with your recovery code instead.</li>
   <li>You get a <strong>recovery code</strong> when you create your account. It can also unlock your key. We show it once and don't keep a copy.</li>
-  <li><strong>If you lose every passkey and your recovery code, your encrypted notes and photos can't be recovered, by you or by us.</strong> That is the cost of us not being able to read them. You can add passkeys on more than one device to avoid this.</li>
+  <li><strong>If you lose every passkey and your recovery code, your encrypted notes and photos can't be recovered, by you or by us.</strong> That is the cost of us not being able to read them. <strong>We strongly recommend keeping a second passkey (on another device, or a hardware security key) and keeping your recovery code somewhere safe</strong>, such as a password manager or on paper.</li>
 </ul>
 <h2 id="how-the-app-protects-your-data-on-your-device">How the app protects your data on your device</h2>
 <ul>
@@ -92,14 +94,14 @@
 <ul>
   <li><strong>While you have an account</strong>, we keep what you've stored until you delete it.</li>
   <li><strong>When you delete something</strong>, it's removed from our live database straight away. Deleted photos are removed from storage straight away.</li>
-  <li><strong>When you delete your account</strong>, everything in it (journal, photos, passkeys, sessions and locked keys) is deleted straight away. Your device or password manager may still list your passkey for Rope Journal; where the browser supports it, the app tells it the passkey no longer works.</li>
+  <li><strong>When you delete your account</strong>, everything in it (journal, photos, passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device or password manager may still list your passkey for Rope Journal; where the browser supports it, the app tells it the passkey no longer works.</li>
   <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, so deleted data can remain there for up to 7 days before it disappears permanently. Our own backups are encrypted and kept for no more than 7 days. We would only restore from these to recover from a failure, never to bring back something you deleted unless you ask us to.</li>
   <li><strong>Signed-out sessions</strong> are deleted when you sign out, and expired sessions are cleared every day.</li>
 </ul>
 <h2 id="your-rights-and-choices">Your rights and choices</h2>
 <p>Wherever you live, you can:</p>
 <ul>
-  <li><strong>Export</strong> all your data from the app at any time, including your notes and photos, decrypted on your device into a file only you hold. It contains your whole journal, plus when you created your account and agreed to this policy, and your passkeys' names and dates. The file isn't encrypted, so keep it somewhere safe.</li>
+  <li><strong>Export</strong> all your data from the app at any time, including your notes and photos, decrypted on your device into a file only you hold. It contains your whole journal, plus when you created your account and agreed to this policy, your passkeys' names and dates, and whether you've set a recovery email (not the address, which we don't have). The file isn't encrypted, so keep it somewhere safe.</li>
   <li><strong>Import</strong> entries from an export, or ties from a spreadsheet (a CSV file). The file is read in your browser, and only the entries in it are sent to us, just as if you'd typed them in.</li>
   <li><strong>Correct</strong> anything by editing it in the app.</li>
   <li><strong>Delete</strong> individual entries, or your whole account, from the app.</li>
@@ -110,11 +112,17 @@
 <p><strong>Legal basis (EU/UK users).</strong> We process your journal because you ask us to in order to provide the service. Information about your or other people's sex lives is special-category data, which we process only with your explicit consent, given when you create your account. You can withdraw consent at any time by deleting your data or your account.</p>
 <h2 id="our-own-access">Our own access</h2>
 <p>The only person who can access Rope Journal's systems is [OPERATOR NAME], using an account protected by a hardware security key. We don't browse users' data. We would look at the readable parts of an account only when you ask us to (for example to help with a problem), or when the law requires it. Encrypted notes and photos can't be read by us under any circumstances.</p>
-<p>If you lose every passkey and your recovery code, you can ask us to give your account a new recovery code so you can sign in again. We only do this when you ask. It restores signing in, not your encrypted notes and photos, which still need one of your own passkeys or your own recovery code.</p>
+<p><strong>Keep a second passkey and your recovery code: we can't guarantee that we can restore your account or your data if you lose them all.</strong> We may be able to help you sign in again, but only if you added a recovery email:</p>
+<ul>
+  <li>Contact us from that address. We'll send a one-time code to it from our own mailbox, and you send it back, so we know the address is yours (an email that merely appears to come from an address doesn't prove it).</li>
+  <li>We then give your account a new recovery code. We only do this when you ask.</li>
+  <li>Without a recovery email we have no way to tell that an account is yours, so we can't help.</li>
+</ul>
+<p>A new recovery code restores signing in and the parts of your journal we can read. It never brings back your encrypted notes and photos, which still need one of your own passkeys or your own earlier recovery code.</p>
 <h2 id="legal-requests">Legal requests</h2>
 <p>If we receive a legally valid demand for data, we can only provide what we can read (see <a href="#what-we-can-and-cant-read">What we can and can't read</a>). We cannot decrypt your notes or photos. Unless the law forbids it, we will tell you about the request before handing anything over.</p>
 <h2 id="security-incidents">Security incidents</h2>
-<p>If a breach affects your data, we will tell you through the app [and by any contact method you've given us] as quickly as we can, and notify regulators where the law requires.</p>
+<p>If a breach affects your data, we will tell you through the app as quickly as we can (we can't email you: we only hold a scrambled copy of any recovery email), and notify regulators where the law requires.</p>
 <h2 id="what-we-dont-do">What we don't do</h2>
 <ul>
   <li>sell, rent or share your data</li>

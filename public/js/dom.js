@@ -64,3 +64,17 @@ export function showMessage(el, text, isError = false) {
   el.textContent = text;
   el.className = isError ? "message error" : "message";
 }
+
+/**
+ * Makes an "i" button show and hide the explanation it controls (the element
+ * named by its aria-controls), keeping aria-expanded up to date.
+ * @param {HTMLButtonElement} button
+ */
+export function infoButton(button) {
+  const text = $(`#${button.getAttribute("aria-controls")}`);
+  button.addEventListener("click", () => {
+    const open = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(open));
+    text.hidden = !open;
+  });
+}

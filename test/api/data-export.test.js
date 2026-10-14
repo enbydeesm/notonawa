@@ -6,6 +6,7 @@ describe("GET /api/data/export", () => {
   it("exports everything in my account, links and deleted links included", async () => {
     const me = await signedInUser();
     await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES ('pk1', ?, 'PUBLIC-KEY', 'Phone')", me.id).run();
+    await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT' WHERE id = ?", me.id).run();
     const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Likes floor work", default_role: "model" });
     const gone = await create("/api/people", { name: "Gone" });
     await sql(
@@ -30,6 +31,7 @@ describe("GET /api/data/export", () => {
     const doc = JSON.parse(text);
 
     expect(doc).toMatchObject({ format: "rope-journal-export", version: 1 });
+    expect(doc.account.recovery_email_set).toBe(true);
     expect(doc.account.passkeys).toEqual([{ name: "Phone", created_at: expect.any(String), last_used_at: null }]);
     expect(doc.people).toEqual([expect.objectContaining({
       id: sam, name: "Sam", pronouns: "they/them", notes: "Likes floor work", is_self: false, default_role: "model", archived_at: null,
@@ -55,6 +57,7 @@ describe("GET /api/data/export", () => {
 
     // No secrets: no public keys, hashes or session details.
     expect(text).not.toContain("PUBLIC-KEY");
+    expect(text).not.toMatch(/EMAIL-HASH|EMAIL-SALT/);
     expect(text).not.toMatch(/"[a-z_]*(hash|token|session|public_key)[a-z_]*":/);
   });
 

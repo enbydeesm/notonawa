@@ -1,4 +1,5 @@
-// Routes for the account page: my passkeys, my sessions, my recovery code.
+// Routes for the account page: my passkeys, my sessions, my recovery code
+// and recovery email.
 // Adding a passkey is in auth/routes.js (it's the same flow as signing up).
 
 import { BadInput, NeedsReauth, json, notFound, noContent, readJson } from "../http.js";
@@ -6,8 +7,10 @@ import { parsePasskeyName, parseRecoverySecret } from "../auth/parse.js";
 import { isFresh, sha256Hex } from "../auth/session.js";
 import { clearSessionCookie } from "../auth/cookie.js";
 import {
-  getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash, deleteAccount,
+  getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash, setRecoveryEmail,
+  deleteAccount,
 } from "./db.js";
+import { parseRecoveryEmail } from "./parse.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -25,8 +28,9 @@ const SESSION_PATH = /^\/api\/account\/sessions\/([^/]+)$/;
 export async function handleAccount(request, env, user, url) {
   const db = env.DB;
 
-  // GET /api/account -> { session_kind, fresh, has_recovery_code, passkeys,
-  //   sessions } (the current session is marked current: true)
+  // GET /api/account -> { session_kind, fresh, has_recovery_code,
+  //   has_recovery_email, passkeys, sessions } (the current session is
+  //   marked current: true)
   if (url.pathname === "/api/account" && request.method === "GET") {
     return json({
       session_kind: user.session.kind,
@@ -51,6 +55,23 @@ export async function handleAccount(request, env, user, url) {
     if (!isFresh(user.session)) throw new NeedsReauth();
     const secret = parseRecoverySecret((await readJson(request)).recovery_secret);
     await setRecoveryHash(db, user.id, await sha256Hex(secret));
+    return noContent();
+  }
+
+  // PUT /api/account/recovery-email  body { email_hash, salt } -> sets or
+  //   replaces my recovery email (needs a recent sign-in, so a stolen session
+  //   can't make itself the way to recover the account). The browser sends
+  //   only a hash of the address and its salt, never the address.
+  if (url.pathname === "/api/account/recovery-email" && request.method === "PUT") {
+    if (!isFresh(user.session)) throw new NeedsReauth();
+    await setRecoveryEmail(db, user.id, parseRecoveryEmail(await readJson(request)));
+    return noContent();
+  }
+
+  // DELETE /api/account/recovery-email -> removes it (needs a recent sign-in)
+  if (url.pathname === "/api/account/recovery-email" && request.method === "DELETE") {
+    if (!isFresh(user.session)) throw new NeedsReauth();
+    await setRecoveryEmail(db, user.id, null);
     return noContent();
   }
 

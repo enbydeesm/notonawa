@@ -42,7 +42,21 @@ Each step leaves the app working and shippable on its own.
    backups with a fixed retention. Import was added too. *Built 2026-10-13,
    not yet deployed; see "Step 3 as built" below.* *Before encryption while
    it's simple; steps 4–6 each extend it.*
-4. **Encryption foundation.** Per-user random data key (AES-256-GCM), wrapped
+3b. **Optional recovery email**, stored only as a salted hash, so the
+   operator can check that someone asking to recover an account owns it.
+   PRIVACY.md now strongly recommends a second passkey and the recovery code,
+   and says recovery isn't guaranteed. *Built 2026-10-14, not yet deployed;
+   see "Step 3b as built" below.*
+4a. **Single-page app (no change in behaviour).** One document with a
+   client-side router; the pages become views (`<template>`s in
+   `index.html` plus a module per view, loaded with `import()`), each with
+   an AbortController so nothing leaks between views. Sign-in becomes a
+   view; the privacy page stays a static page, opened from the app in a new
+   tab. *Needed because the key lives only in a Worker's memory: in a
+   multi-page app every tab change is a page load, which kills the Worker
+   (and fires `pagehide`), so each one would mean using the passkey again,
+   and even sign-in → home would lose the key.* Decided 2026-10-14.
+4. **Encryption foundation** (4b, after 4a). Per-user random data key (AES-256-GCM), wrapped
    by a key derived from each passkey's PRF output and by the recovery code;
    wrapped copies stored on the server. A dedicated Web Worker holds the
    non-extractable key and all decrypted data; pages ask it for results only.
@@ -70,10 +84,41 @@ Each step leaves the app working and shippable on its own.
 
 ### Decided along the way
 
-- **Passkeys only; no passwords, email, or Google/Apple sign-in.** Third-party
-  sign-in tells that company the user has an account here, and email would
-  be another identifier to protect. Recovery is via a second passkey or the
-  recovery code.
+- **Passkeys only; no passwords, email sign-in, or Google/Apple sign-in.**
+  Third-party sign-in tells that company the user has an account here, and
+  email would be another identifier to protect. Recovery is via a second
+  passkey or the recovery code, and as a last resort the operator (only for
+  accounts with a recovery email; see "Step 3b as built").
+- **Step 4 design notes** (2026-10-14, from planning; details settle when 4b
+  is built):
+  - Sign-in is discoverable (no `allowCredentials`), so PRF can't use
+    `evalByCredential`: one fixed app-wide salt in `prf.eval.first`, and
+    HKDF(PRF output, a random salt per wrap, info "rope-journal wrap v1")
+    gives the wrapping key. The recovery code's wrapping key uses HKDF with
+    another `info` than "login".
+  - Each wrap is bound to its user, wrap id and version as AES-GCM
+    additional data, so the server can't swap one wrap for another.
+  - The everyday data key is non-extractable. Rewrapping (adding a passkey,
+    a new recovery code) happens at "Confirm it's you", whose passkey use
+    gives the PRF output again: unwrap an extractable copy just long enough
+    to wrap it again.
+  - PRF results at registration are patchy, so a new passkey often needs a
+    follow-up `get()` with that credential to wrap the key for it.
+  - The existing account has no wrapped key, and the browser never had its
+    recovery code: first unlock runs a one-time setup that also makes a new
+    recovery code.
+  - An operator-made recovery code has no wrap, so that account signs in but
+    can't unlock: the app needs a "start a new key" state.
+  - `new Worker(url)` is a Trusted Types sink, and `trusted-types 'none'`
+    forbids every policy: the crypto Worker needs a named policy allowing
+    only its URL, plus `worker-src 'self'`.
+  - The PRF output passes through the page (`navigator.credentials` only
+    runs there): transfer the buffer to the Worker so the page's copy is
+    emptied. PRIVACY.md should say so.
+  - Wraps are checked by unwrapping them before upload: the server can't
+    tell a bad wrap from a good one.
+  - Once notes are encrypted, the recovery email's ⓘ text should add that
+    a recovery never brings back encrypted notes and photos.
 - **Titles, names, dates, ratings, links, tags, location coordinates and map
   links stay readable by the server** so filtering, sorting and paging keep
   working server-side. PRIVACY.md says so plainly. **Revisit** encrypting
@@ -212,6 +257,41 @@ Each step leaves the app working and shippable on its own.
 - **Ties import keeps more than the tie form does:** participants' ratings
   and notes, plan versions, deleted links and timestamps, so an export
   round-trips exactly (tested).
+
+### Step 3b as built
+
+- **Recovery email, optional, hashed in the browser**
+  (`public/js/recovery-email.js`): the address is trimmed and lower-cased,
+  then PBKDF2-SHA256 with 600,000 rounds and a random 16-byte salt each time
+  it's set. The browser sends `{ email_hash, salt }` to `PUT
+  /api/account/recovery-email`; the server stores both
+  (`users.recovery_email_hash`, `recovery_email_salt`, migration 0008) and
+  refuses anything else, such as the address itself. Hashed in the browser
+  because the Worker's 10 ms CPU limit (Free plan) can't run 600,000 rounds.
+  The browser makes the salt (rather than asking the server for one) to
+  save a request; it's not secret either way.
+- **Why hashed, not stored as typed** (decided 2026-10-14): a leaked
+  database doesn't list anyone's address, and testing guessed addresses is
+  slow. The cost: we can never email users (announcements, breach notices
+  go through the app). Recovery doesn't need email: the user writes to us.
+- **Recovery by the operator:** `node scripts/recovery-code.mjs --email
+  <address>` hashes the address with each account's salt (about 0.3 s each:
+  fine for hundreds of accounts, slow for many thousands) and lists the
+  match. Then the operator emails a one-time code to that address from
+  their own mailbox and waits for it to come back, because a From address
+  can be faked. Only then a new recovery code is set. Without a recovery
+  email there's no way to check, so no help. Not limited to the operator's
+  own account (decided 2026-10-14).
+- **Setting, changing or removing it needs a fresh session**, so a stolen
+  session can't make itself the way back in. Not allowed in a recovery
+  session.
+- **The account page** asks for the address twice (it can never be shown
+  again, so a typo would make it useless). Once set it shows only "set",
+  with Change and Remove. An ⓘ button next to the label shows or hides the
+  explanation (a disclosure rather than a hover tooltip, so it works on
+  touch screens; `infoButton` in `dom.js`).
+- **Export** says only `recovery_email_set`; the hash and salt never leave
+  the server. Import ignores it. Account deletion removes it with `users`.
 
 ### Weighed and not adopted
 

@@ -14,8 +14,12 @@
   your device before they leave it.** We can't read them, and neither can
   anyone who gets hold of our servers.
 - **You sign in with a passkey.** There are no passwords, and we don't ask for
-  your email address, your legal name, or a sign-in through Google, Apple or
-  anyone else.
+  your legal name or a sign-in through Google, Apple or anyone else. An email
+  address is optional, only for account recovery, and we keep only a
+  scrambled copy that we can't read.
+- **Keep a second passkey and your recovery code.** If you lose them all, we
+  can't guarantee to get you back in, and your encrypted notes and photos
+  can't be recovered by anyone.
 - **No ads, no analytics, no tracking, no selling or sharing your data.** The
   app loads no scripts or fonts from other companies.
 - Some information has to stay readable by our server so the app can sort and
@@ -48,6 +52,11 @@ account.
 - **Your recovery code, scrambled.** The code is made on your device and we
   never receive it. We store only a scrambled (hashed) value derived from it,
   which can't be turned back into the code.
+- **Your recovery email, scrambled, if you add one.** It's optional. Your
+  device scrambles the address (a slow, salted hash) before sending it, and
+  we store only that, so we can't read the address or send you email. We use
+  it for one thing: checking that someone asking us to recover an account is
+  its owner (see [Our own access](#our-own-access)).
 - **Your agreement.** When you confirmed you're 18 or older and agreed to
   this policy, and which version of it you agreed to.
 - **Your invite.** Accounts are by invite for now. We record that an invite
@@ -57,8 +66,8 @@ account.
   are themselves locked by your passkeys and by your recovery code, so we
   can't use them. See [How encryption works](#how-encryption-works).
 
-We don't collect your email address, phone number, real name, contacts or
-location.
+We don't collect your phone number, real name, contacts or location, or your
+email address unless you add a recovery email.
 
 ### Your journal
 
@@ -115,8 +124,9 @@ encrypt more of these fields over time.
   your key. We show it once and don't keep a copy.
 - **If you lose every passkey and your recovery code, your encrypted notes and
   photos can't be recovered, by you or by us.** That is the cost of us not
-  being able to read them. You can add passkeys on more than one device to
-  avoid this.
+  being able to read them. **We strongly recommend keeping a second passkey
+  (on another device, or a hardware security key) and keeping your recovery
+  code somewhere safe**, such as a password manager or on paper.
 
 ## How the app protects your data on your device
 
@@ -200,7 +210,7 @@ that choice in your browser's local storage (just the word "light" or
 - **When you delete something**, it's removed from our live database straight
   away. Deleted photos are removed from storage straight away.
 - **When you delete your account**, everything in it (journal, photos,
-  passkeys, sessions and locked keys) is deleted straight away. Your device
+  passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
   or password manager may still list your passkey for Rope Journal; where the
   browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
@@ -218,7 +228,8 @@ Wherever you live, you can:
 - **Export** all your data from the app at any time, including your notes and
   photos, decrypted on your device into a file only you hold. It contains your
   whole journal, plus when you created your account and agreed to this
-  policy, and your passkeys' names and dates. The file isn't encrypted, so
+  policy, your passkeys' names and dates, and whether you've set a recovery
+  email (not the address, which we don't have). The file isn't encrypted, so
   keep it somewhere safe.
 - **Import** entries from an export, or ties from a spreadsheet (a CSV file).
   The file is read in your browser, and only the entries in it are sent to
@@ -248,10 +259,21 @@ data. We would look at the readable parts of an account only when you ask us
 to (for example to help with a problem), or when the law requires it.
 Encrypted notes and photos can't be read by us under any circumstances.
 
-If you lose every passkey and your recovery code, you can ask us to give your
-account a new recovery code so you can sign in again. We only do this when
-you ask. It restores signing in, not your encrypted notes and photos, which
-still need one of your own passkeys or your own recovery code.
+**Keep a second passkey and your recovery code: we can't guarantee that we
+can restore your account or your data if you lose them all.** We may be able
+to help you sign in again, but only if you added a recovery email:
+
+- Contact us from that address. We'll send a one-time code to it from our
+  own mailbox, and you send it back, so we know the address is yours (an
+  email that merely appears to come from an address doesn't prove it).
+- We then give your account a new recovery code. We only do this when you
+  ask.
+- Without a recovery email we have no way to tell that an account is yours,
+  so we can't help.
+
+A new recovery code restores signing in and the parts of your journal we can
+read. It never brings back your encrypted notes and photos, which still need
+one of your own passkeys or your own earlier recovery code.
 
 ## Legal requests
 
@@ -262,8 +284,9 @@ you about the request before handing anything over.
 
 ## Security incidents
 
-If a breach affects your data, we will tell you through the app [and by any
-contact method you've given us] as quickly as we can, and notify regulators
+If a breach affects your data, we will tell you through the app as quickly as
+we can (we can't email you: we only hold a scrambled copy of any recovery
+email), and notify regulators
 where the law requires.
 
 ## What we don't do

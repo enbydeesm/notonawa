@@ -665,6 +665,27 @@ try {
     [...$("#passkeys").querySelectorAll("button")].find((b) => b.textContent === "Rename").click(); await wait(300);
     const leaky = leakyFields(); $("#rename-input").value = "Phone"; $("dialog[open] button[type=submit]").click(); await wait(800);
     return [leaky, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`), [[], ["Phone"]]);
+  check("the recovery email's i button shows and hides its explanation", await run(`
+    const button = $("#email-info-button"); const shown = () => [button.getAttribute("aria-expanded"), !$("#email-info").hidden];
+    const before = shown(); button.click(); const open = shown(); button.click();
+    return [$("#email-form").hidden, $("#email-actions").hidden, before, open, shown()];`),
+    [false, true, ["false", false], ["true", true], ["false", false]]);
+  check("a recovery email typed differently twice isn't saved", await run(`
+    $("#recovery-email").value = "sam@example.com"; $("#recovery-email-again").value = "sam@example.org";
+    $("#email-form button[type=submit]").click(); await wait(500);
+    return [$("#email-message").textContent, (await (await fetch("/api/account")).json()).has_recovery_email];`),
+    ["The two addresses don't match.", false]);
+  check("set a recovery email: only 'set' is shown, with Change and Remove", await run(`
+    $("#recovery-email-again").value = " Sam@Example.com"; $("#email-form button[type=submit]").click(); await wait(2500);
+    return [$("#email-message").textContent, $("#email-form").hidden, $("#email-actions").hidden, $("#recovery-email").value,
+      (await (await fetch("/api/account")).json()).has_recovery_email];`),
+    ["Saved.", true, false, "", true]);
+  check("Change shows the form with Cancel; Remove asks first, then removes it", await run(`
+    $("#email-change").click(); const changing = [$("#email-form").hidden, $("#email-cancel").hidden, $("#email-actions").hidden];
+    $("#email-cancel").click(); const back = [$("#email-form").hidden, $("#email-actions").hidden];
+    $("#email-remove").click(); await wait(300); await clickDialog("Remove"); await wait(800);
+    return [changing, back, $("#email-form").hidden, (await (await fetch("/api/account")).json()).has_recovery_email];`),
+    [[false, false, true], [true, false], false, false]);
   const newRecovery = await run(`
     $("#new-code").click(); await wait(300); await clickDialog("Make a new code"); await wait(600);
     const code = $("#recovery-code").textContent; await finishRecoveryDialog(); return code;`);

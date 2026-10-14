@@ -1,13 +1,14 @@
-// Account page: my passkeys, where I'm signed in, my recovery code, and
-// signing out.
+// Account page: my passkeys, where I'm signed in, my recovery code and
+// recovery email, and signing out.
 
 import { api, errorMessage } from "../api.js";
-import { h, $, showMessage, privateField } from "../dom.js";
+import { h, $, showMessage, privateField, infoButton } from "../dom.js";
 import { renderNav } from "../nav.js";
 import { choose } from "../dialog.js";
 import { formatDate } from "../format.js";
 import { addPasskey, replaceRecoveryCode, withReauth } from "../auth-flows.js";
 import { forgetPasskeys } from "../webauthn.js";
+import { readRecoveryEmail, newRecoveryEmailHash } from "../recovery-email.js";
 
 renderNav("/account");
 
@@ -95,7 +96,64 @@ async function load() {
   $("#recovery-status").textContent = account.has_recovery_code
     ? "You have a recovery code. Making a new one replaces it."
     : "You don't have a recovery code. Make one so you can get back in if you lose your passkeys.";
+  showRecoveryEmail(account.has_recovery_email);
 }
+
+/**
+ * Shows the recovery email card: the form when there's none, otherwise
+ * Change and Remove (the address itself can't be shown: we never have it).
+ * @param {boolean} isSet
+ * @param {boolean} [changing] showing the form to replace one that's set
+ */
+function showRecoveryEmail(isSet, changing = false) {
+  $("#email-status").textContent = isSet
+    ? "A recovery email is set. We can't see it. If you ever lose every passkey and your recovery code, contact us from that address."
+    : "None set. Add one so we can check it's you if you ever lose every passkey and your recovery code.";
+  $("#email-form").hidden = isSet && !changing;
+  $("#email-cancel").hidden = !changing;
+  $("#email-actions").hidden = !isSet || changing;
+}
+
+infoButton($("#email-info-button"));
+
+$("#email-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  /** @type {HTMLInputElement} */
+  const field = $("#recovery-email");
+  /** @type {HTMLInputElement} */
+  const again = $("#recovery-email-again");
+  const message = $("#email-message");
+  attempt(message, async () => {
+    const email = readRecoveryEmail(field.value);
+    if (!email) throw new Error("That doesn't look like an email address.");
+    if (readRecoveryEmail(again.value) !== email) throw new Error("The two addresses don't match.");
+    showMessage(message, "Saving…");
+    // Hashed once, before asking to confirm it's you, as it takes a moment.
+    const body = await newRecoveryEmailHash(email);
+    await withReauth(() => api("/api/account/recovery-email", { method: "PUT", body }));
+    field.value = "";
+    again.value = "";
+    showMessage(message, "Saved.");
+  });
+});
+
+$("#email-change").addEventListener("click", () => {
+  showMessage($("#email-message"), "");
+  showRecoveryEmail(true, true);
+});
+$("#email-cancel").addEventListener("click", () => {
+  showMessage($("#email-message"), "");
+  showRecoveryEmail(true);
+});
+
+$("#email-remove").addEventListener("click", () => attempt($("#email-message"), async () => {
+  const ok = await choose({
+    title: "Remove your recovery email?",
+    message: "If you lose every passkey and your recovery code, we won't be able to check the account is yours.",
+    choices: [{ label: "Remove", value: "remove", style: "solid-danger" }],
+  });
+  if (ok) await withReauth(() => api("/api/account/recovery-email", { method: "DELETE" }));
+}));
 
 $("#add-form").addEventListener("submit", (e) => {
   e.preventDefault();

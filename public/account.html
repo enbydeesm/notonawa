@@ -37,6 +37,34 @@
       <p class="message" id="recovery-message"></p>
     </section>
 
+    <section class="card">
+      <h2>Recovery email</h2>
+      <p class="hint" id="email-status"></p>
+      <form id="email-form" hidden>
+        <div class="label-row">
+          <label for="recovery-email">Email address (optional)</label>
+          <button type="button" class="info-button" id="email-info-button" aria-label="About the recovery email"
+            title="About the recovery email" aria-expanded="false" aria-controls="email-info">i</button>
+        </div>
+        <p class="info-text" id="email-info" hidden>Optional. If you lose every passkey and your recovery code, this is
+          the only way we can check the account is yours and help you sign in again. We keep only a scrambled copy,
+          so we can't see the address or send you email.</p>
+        <input id="recovery-email" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+        <label for="recovery-email-again">Type it again</label>
+        <input id="recovery-email-again" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+        <p class="hint">You won't be able to see it again, so check it's right.</p>
+        <div class="item-actions">
+          <button type="submit">Save recovery email</button>
+          <button type="button" id="email-cancel" hidden>Cancel</button>
+        </div>
+      </form>
+      <div class="item-actions" id="email-actions" hidden>
+        <button type="button" id="email-change">Change</button>
+        <button type="button" class="danger" id="email-remove">Remove</button>
+      </div>
+      <p class="message" id="email-message"></p>
+    </section>
+
     <button type="button" class="primary" id="sign-out">Sign out</button>
     <p class="message" id="sign-out-message"></p>
 

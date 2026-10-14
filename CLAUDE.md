@@ -73,8 +73,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
   options|verify`, `/api/auth/recover`, `/api/auth/logout`).
 - `src/account/`: `GET /api/account`, renaming/removing passkeys, ending
-  sessions, replacing the recovery code, deleting the account
-  (`DELETE /api/account`: one cascading delete).
+  sessions, replacing the recovery code, setting or removing the recovery
+  email (`PUT`/`DELETE /api/account/recovery-email`: a hash and salt only;
+  `parse.js`), deleting the account (`DELETE /api/account`: one cascading
+  delete).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
   `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
@@ -103,7 +105,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `people.html`, `locations.html`, `account.html`), plus `signin.html` and
   `privacy.html` (built from PRIVACY.md), `data.html` (export and import;
   `import-template.csv` is its CSV template), shared `app.css`, and scripts in
-  `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
+  `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
@@ -114,7 +116,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `resource-page.js` (list/edit pages), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
   import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
-  typed codes, recovery codes and their login secret), `webauthn-json.js`
+  typed codes, recovery codes and their login secret), `recovery-email.js`
+  (pure: reading and hashing a recovery email), `webauthn-json.js`
   (pure) and `webauthn.js` (making and using passkeys), `auth-flows.js`
   (sign-in flows shared by the sign-in and account pages), and
   `pages/<page>.js` for each page.
@@ -135,7 +138,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   editing PRIVACY.md.
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
-  give one a new recovery code (only when its owner asks).
+  give one a new recovery code (only when its owner asks, has a recovery
+  email, and has proved the address is theirs). `--email <address>` finds
+  the account with that recovery email.
 - `node scripts/backup.mjs --remote`: encrypted backup into `backups/`, and
   deletes ones older than 7 days (only when it runs: run it at least weekly).
   `node scripts/restore-backup.mjs <file>` decrypts one.
@@ -259,7 +264,8 @@ change affects what's collected, stored, readable or kept, update it too.
   derivations apart.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery
-  code, deleting the account. Throw `NeedsReauth`; the page asks for the passkey again
+  code, setting or removing the recovery email, deleting the account. Throw `NeedsReauth`; the page asks for the passkey again
   (`withReauth`). New sensitive actions should do the same.
 - **Only hashes of secrets are stored**: session tokens, invite codes,
-  recovery login secrets.
+  recovery login secrets. **A recovery email never leaves the browser**
+  either: only its salted PBKDF2 hash (`public/js/recovery-email.js`).

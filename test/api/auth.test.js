@@ -80,6 +80,9 @@ async function addPasskey(cookie) {
 }
 
 /** @param {string | null} cookie */
+// A recovery email as the browser sends it: a hash and its salt, base64url.
+const EMAIL = { email_hash: "h".repeat(43), salt: "s".repeat(22) };
+
 const tagsStatus = async (cookie) => (await call("/api/tags", { cookie })).status;
 
 describe("signing up", () => {
@@ -325,6 +328,8 @@ describe("the account", () => {
     expect((await post("/api/auth/register/options", {}, { cookie: older })).body).toEqual(reauth);
     expect((await call(`/api/account/passkeys/${passkey.id}`, { method: "DELETE", cookie: older })).body).toEqual(reauth);
     expect((await call("/api/account/recovery-code", { method: "PUT", body: { recovery_secret: await secretFor(newRecoveryCode()) }, cookie: older })).body).toEqual(reauth);
+    expect((await call("/api/account/recovery-email", { method: "PUT", body: EMAIL, cookie: older })).body).toEqual(reauth);
+    expect((await call("/api/account/recovery-email", { method: "DELETE", cookie: older })).body).toEqual(reauth);
     // Renaming isn't sensitive.
     expect((await call(`/api/account/passkeys/${passkey.id}`, { method: "PATCH", body: { name: "x" }, cookie: older })).status).toBe(204);
   });
@@ -345,5 +350,43 @@ describe("the account", () => {
     expect(await tagsStatus(other.cookie)).toBe(200);
     const { n } = /** @type {{ n: number }} */ (await sql("SELECT count(*) AS n FROM sessions WHERE user_id = ?", userId).first());
     expect(n).toBe(1);
+  });
+});
+
+describe("recovery emails", () => {
+  /** @param {string} userId */
+  const stored = (userId) => sql("SELECT recovery_email_hash, recovery_email_salt FROM users WHERE id = ?", userId).first();
+
+  it("are set, replaced and removed, as a hash and salt only, for my account alone", async () => {
+    const { cookie, userId } = await signUp();
+    const other = await signUp();
+    expect((await call("/api/account", { cookie })).body.has_recovery_email).toBe(false);
+
+    expect((await call("/api/account/recovery-email", { method: "PUT", body: EMAIL, cookie })).status).toBe(204);
+    expect(await stored(userId)).toEqual({ recovery_email_hash: EMAIL.email_hash, recovery_email_salt: EMAIL.salt });
+    expect((await call("/api/account", { cookie })).body.has_recovery_email).toBe(true);
+
+    const replaced = { email_hash: "H".repeat(43), salt: "S".repeat(22) };
+    expect((await call("/api/account/recovery-email", { method: "PUT", body: replaced, cookie })).status).toBe(204);
+    expect(await stored(userId)).toEqual({ recovery_email_hash: replaced.email_hash, recovery_email_salt: replaced.salt });
+
+    expect((await call("/api/account/recovery-email", { method: "DELETE", cookie })).status).toBe(204);
+    expect(await stored(userId)).toEqual({ recovery_email_hash: null, recovery_email_salt: null });
+    expect(await stored(other.userId)).toEqual({ recovery_email_hash: null, recovery_email_salt: null });
+  });
+
+  it("refuse anything but a hash and salt, such as the address itself", async () => {
+    const { cookie, userId } = await signUp();
+    for (const body of [{ email: "sam@example.com" }, { email_hash: "sam@example.com", salt: EMAIL.salt }, { email_hash: EMAIL.email_hash }]) {
+      expect((await call("/api/account/recovery-email", { method: "PUT", body, cookie })).status).toBe(400);
+    }
+    expect(await stored(userId)).toEqual({ recovery_email_hash: null, recovery_email_salt: null });
+  });
+
+  it("can't be set from a recovery session", async () => {
+    const { recoveryCode, userId } = await signUp();
+    const { cookie } = await post("/api/auth/recover", { recovery_secret: await secretFor(recoveryCode) });
+    expect((await call("/api/account/recovery-email", { method: "PUT", body: EMAIL, cookie })).status).toBe(403);
+    expect(await stored(userId)).toEqual({ recovery_email_hash: null, recovery_email_salt: null });
   });
 });

@@ -98,6 +98,7 @@ describe("request guards", () => {
   it("let a recovery session only see the account", () => {
     expect(allowedInRecovery("GET", "/api/account")).toBe(true);
     expect(allowedInRecovery("PUT", "/api/account/recovery-code")).toBe(false);
+    expect(allowedInRecovery("PUT", "/api/account/recovery-email")).toBe(false);
     expect(allowedInRecovery("GET", "/api/tags")).toBe(false);
   });
 

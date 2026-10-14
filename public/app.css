@@ -211,6 +211,21 @@ dialog .menu-title { margin: 4px 0 16px; text-align: center; font-size: 1.5rem; 
 }
 .label-add::after { content: ""; position: absolute; inset: -12px; }
 
+/* An "i" in a circle after a label: tapping it shows or hides an
+   explanation under the label (a disclosure, so it works on touch screens
+   and with screen readers, unlike a hover tooltip). */
+.info-button {
+  position: relative; width: 1.1rem; height: 1.1rem; padding: 0;
+  border-radius: 50%; border-color: var(--muted); color: var(--muted);
+  font-size: 0.75rem; font-weight: 700; font-style: italic; line-height: 1;
+}
+.info-button[aria-expanded="true"] { border-color: var(--accent-ink); color: var(--accent-ink); }
+.info-button::after { content: ""; position: absolute; inset: -12px; }
+.info-text {
+  margin: 4px 0 8px; padding: 8px 10px; font-size: 0.85rem;
+  color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+
 /* The tie form's location picker: a text box with a list under it that
    opens when the box is tapped, ending with buttons to add what's typed. */
 .combo { position: relative; flex: 1; min-width: 0; }

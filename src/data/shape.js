@@ -48,6 +48,9 @@ export function exportDocument(rows, exportedAt) {
       created_at: rows.user.created_at,
       accepted_at: rows.user.accepted_at,
       terms_version: rows.user.terms_version,
+      // Only whether one is set: we never have the address, and the hash
+      // is of no use to the user.
+      recovery_email_set: !!rows.user.recovery_email_set,
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
     },
     people: rows.people.map((p) => ({

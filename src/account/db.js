@@ -1,5 +1,5 @@
-// Database queries for the account page: my passkeys, sessions and recovery
-// code. Every query is scoped to the signed-in user.
+// Database queries for the account page: my passkeys, sessions, recovery
+// code and recovery email. Every query is scoped to the signed-in user.
 
 /**
  * @param {D1Database} db
@@ -17,12 +17,17 @@ export async function getAccount(db, userId, currentSessionId) {
        FROM sessions s LEFT JOIN passkeys p ON p.id = s.passkey_id
        WHERE s.user_id = ? ORDER BY s.last_used_at DESC`
     ).bind(userId),
-    db.prepare("SELECT recovery_secret_hash IS NOT NULL AS has_recovery_code FROM users WHERE id = ?").bind(userId),
+    db.prepare(
+      `SELECT recovery_secret_hash IS NOT NULL AS has_recovery_code,
+              recovery_email_hash IS NOT NULL AS has_recovery_email
+       FROM users WHERE id = ?`
+    ).bind(userId),
   ]));
   return {
     passkeys: passkeys.results,
     sessions: sessions.results.map((s) => ({ ...s, current: s.id === currentSessionId })),
     has_recovery_code: !!user.results[0]?.has_recovery_code,
+    has_recovery_email: !!user.results[0]?.has_recovery_email,
   };
 }
 
@@ -85,6 +90,17 @@ export async function endOtherSessions(db, userId, keepId) {
  */
 export async function setRecoveryHash(db, userId, recoveryHash) {
   await db.prepare("UPDATE users SET recovery_secret_hash = ? WHERE id = ?").bind(recoveryHash, userId).run();
+}
+
+/**
+ * Sets (or with null, removes) my recovery email's hash and salt, together.
+ * @param {D1Database} db
+ * @param {string} userId
+ * @param {{ emailHash: string, salt: string } | null} email
+ */
+export async function setRecoveryEmail(db, userId, email) {
+  await db.prepare("UPDATE users SET recovery_email_hash = ?, recovery_email_salt = ? WHERE id = ?")
+    .bind(email?.emailHash ?? null, email?.salt ?? null, userId).run();
 }
 
 /**
