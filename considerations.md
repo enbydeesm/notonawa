@@ -52,7 +52,7 @@ Each step leaves the app working and shippable on its own.
    service-worker cache.
 5. **Encrypted notes and on-device search.** Encrypt the free-text fields:
    `ties.notes`, `tie_participants.notes`, `people.notes`,
-   `profile_notes.description`, `locations.notes`, `locations.hard_points`,
+   `profile_notes.description`, `locations.notes`,
    `plans.description`, `plans.notes`. Existing plaintext is encrypted by
    the browser on first unlock and the plaintext columns cleared. Keyword
    search moves into the crypto Worker (matching with `toLocaleLowerCase`,

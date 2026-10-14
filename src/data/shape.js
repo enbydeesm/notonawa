@@ -59,7 +59,7 @@ export function exportDocument(rows, exportedAt) {
       })),
     })),
     locations: rows.locations.map((l) => ({
-      id: l.id, name: l.name, notes: l.notes, hard_points: l.hard_points, maps_url: l.maps_url,
+      id: l.id, name: l.name, notes: l.notes, maps_url: l.maps_url,
       latitude: l.latitude, longitude: l.longitude,
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,
     })),

@@ -10,6 +10,7 @@ import { withSecurityHeaders } from "./security-headers.js";
 import { handleAuth } from "./auth/routes.js";
 import { handleAccount } from "./account/routes.js";
 import { handleTies } from "./ties/routes.js";
+import { handleLocations } from "./locations/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
 import { handleData } from "./data/routes.js";
@@ -80,6 +81,8 @@ async function respond(request, env) {
   return (
     (await handleAccount(request, env, user, url)) ??
     (await handleTies(request, env, user, url)) ??
+    // Before resources: /api/locations/coords would look like an item there.
+    (await handleLocations(request, env, user, url)) ??
     (await handleResources(request, env, user, url)) ??
     (await handleTags(request, env, user, url)) ??
     (await handleData(request, env, user, url)) ??

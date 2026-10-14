@@ -177,6 +177,12 @@ our only service provider with access to stored data. Data is stored
 your own"] and is encrypted at rest by Cloudflare, in addition to our own
 encryption of your notes and photos.
 
+When you paste a short Google Maps link (maps.app.goo.gl) into a location, our
+server asks Google where the link points, to fill in its coordinates. Google
+sees that request coming from our server, not from you, and it carries only
+the link. Full Google Maps links are read on our server without contacting
+Google.
+
 ## Cookies
 
 We use one cookie: your session cookie. It's needed to keep you signed in. It

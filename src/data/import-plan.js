@@ -58,7 +58,7 @@ export function planItems(items, existing, newId) {
       id: newId(), person_id: people[i].id, ...n,
     }))),
     locations: items.locations.flatMap((l, i) => locations[i].matched ? [] : [{
-      id: locations[i].id, name: l.name, notes: l.notes, hard_points: l.hard_points, maps_url: l.maps_url,
+      id: locations[i].id, name: l.name, notes: l.notes, maps_url: l.maps_url,
       latitude: l.latitude, longitude: l.longitude,
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,
     }]),

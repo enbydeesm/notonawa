@@ -332,11 +332,17 @@ try {
   console.log("Locations");
   await go("/locations");
   check("add locations (one archived now)", await run(`
-    set("#name", "Studio"); set("#hard_points", "Two rated points"); set("#maps_url", "https://maps.app.goo.gl/abc"); await submit();
+    set("#name", "Studio"); set("#maps_url", "https://maps.app.goo.gl/abc"); await submit();
     set("#name", "Hotel"); set("[name=archive_now]", true); await submit();
     set("#name", "Old flat"); await submit();
     return [titles(), [...document.querySelectorAll("#list a")].map((a) => a.href)];`),
     [["Old flat", "Studio"], ["https://maps.app.goo.gl/abc"]]);
+  check("a Maps link fills in editable coordinates", await run(`
+    const link = $("#maps_url"); link.value = "https://www.google.com/maps/place/Studio/@51.5,-0.12,17z/data=!4m2!3m1!8m2!3d51.51!4d-0.13";
+    link.dispatchEvent(new Event("input")); await wait(1200);
+    const filled = [$("#latitude").value, $("#longitude").value, $("#maps-hint").textContent];
+    $("form").reset(); return [filled, $("#latitude").value, $("#maps-hint").textContent];`),
+    [["51.51", "-0.13", "Coordinates filled in from the link."], "", "Paste a link to fill in the latitude and longitude."]);
   check("'Archive now' is hidden while editing", await run(`await clickIn("Studio", "Edit"); const hidden = $("[data-add-only]").hidden; $("[data-cancel-edit]").click(); return hidden;`), true);
   check("one-off is in the archived list", await run(`set("#show-archived", true); await wait(600); return titles();`), ["Hotel"]);
 

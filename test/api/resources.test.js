@@ -169,4 +169,15 @@ describe("deleting", () => {
     expect(listed.plans).toEqual([]);
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(404);
   });
+
+  it("reads coordinates from a Google Maps link", async () => {
+    const coords = (/** @type {unknown} */ url) => call("/api/locations/coords", { method: "POST", body: { url } });
+    expect(await coords("https://www.google.com/maps/place/Studio/@51.5,-0.12,17z/data=!3m1!4b1!4m2!3m1!8m2!3d51.51!4d-0.13"))
+      .toEqual({ status: 200, body: { latitude: 51.51, longitude: -0.13 } });
+    expect(await coords("https://www.google.com/maps?q=Studio"))
+      .toEqual({ status: 200, body: { latitude: null, longitude: null } });
+    expect(await coords("https://example.com/maps/@51.5,-0.12"))
+      .toEqual({ status: 400, body: { error: "That isn't a Google Maps link." } });
+    expect(await coords("")).toEqual({ status: 400, body: { error: "Paste a Google Maps link." } });
+  });
 });

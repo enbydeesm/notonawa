@@ -29,7 +29,7 @@ const MAX_ID_LENGTH = 100;
  *   default_role: string | null, archived_at: string | null, profile_notes: ProfileNoteInput[],
  * }} PersonInput
  * @typedef {Times & {
- *   file_id: string, name: string, notes: string | null, hard_points: string | null,
+ *   file_id: string, name: string, notes: string | null,
  *   maps_url: string | null, latitude: number | null, longitude: number | null, archived_at: string | null,
  * }} LocationInput
  * @typedef {Times & {
@@ -201,11 +201,11 @@ function parseProfileNote(n) {
 /** @param {Record<string, unknown>} l @returns {LocationInput} */
 function parseLocation(l) {
   const { values } = parseFields(RESOURCES.locations, l);
-  const [name, notes, hardPoints, mapsUrl, latitude, longitude] =
-    /** @type {[string, string | null, string | null, string | null, number | null, number | null]} */ (values);
+  const [name, notes, mapsUrl, latitude, longitude] =
+    /** @type {[string, string | null, string | null, number | null, number | null]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(l.id)),
-    name, notes, hard_points: hardPoints, maps_url: mapsUrl, latitude, longitude,
+    name, notes, maps_url: mapsUrl, latitude, longitude,
     ...archiveAndTimes(l),
   };
 }

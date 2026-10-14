@@ -56,12 +56,11 @@ export const RESOURCES = {
     fields: {
       name: { parse: cleanText, required: "Give the location a name." },
       notes: { parse: cleanText },
-      hard_points: { parse: cleanText },
       maps_url: { parse: toUrlOrNull },
       latitude: { parse: (v) => toNumberOrNull(v, -90, 90) },
       longitude: { parse: (v) => toNumberOrNull(v, -180, 180) },
     },
-    columns: "id, name, notes, hard_points, maps_url, latitude, longitude, archived_at, created_at, updated_at",
+    columns: "id, name, notes, maps_url, latitude, longitude, archived_at, created_at, updated_at",
     orderBy: "name COLLATE NOCASE",
     // "Archive now" on the add screen and "Add & archive" in the tie form: a
     // one-off spot, saved but kept out of pickers.

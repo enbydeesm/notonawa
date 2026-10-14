@@ -137,9 +137,9 @@ button.link { border: none; padding: 4px 0; color: var(--accent-ink); font-weigh
 
 .picker-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .picker-row[hidden] { display: none; }
-/* A person row: the name gets 60% and the role 40%. */
-.person-row .combo { flex: 3; }
-.person-row select { flex: 2; }
+/* A person row: the name and the role get half each. */
+.person-row .combo { flex: 1; }
+.person-row select { flex: 1; }
 .picker-row select { flex: 1; min-width: 0; }
 
 dialog {
