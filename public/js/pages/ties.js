@@ -1,14 +1,17 @@
 // Ties page: search and page through logged ties. New ties are logged from
-// the + button (tie-form.js).
+// the + button (tie-form.js); tapping a tie's title opens it in the same form
+// to edit or delete.
 
 import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { renderNav, TIE_SAVED } from "../nav.js";
+import { openTieForm } from "../tie-form.js";
+import { formatDate } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { pickTags } from "../tag-picker.js";
 import { findTag } from "../tags.js";
 import { ratingHanks } from "../rope-rating.js";
-import { tieMeta, participantLabel, planLabel } from "../ties-view.js";
+import { placeLine, participantLabel, showingText, peopleThatFit } from "../ties-view.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -28,6 +31,10 @@ const fromInput = $("#from");
 const toInput = $("#to");
 /** @type {HTMLButtonElement} */
 const clearButton = $("#clear");
+/** @type {HTMLSelectElement} */
+const pageSizeSelect = $("#page-size");
+/** @type {HTMLButtonElement} */
+const sortButton = $("#sort");
 const tagFilter = $("#tag-filter");
 /** @type {HTMLButtonElement} */
 const tagsAny = $("#tags-any");
@@ -74,7 +81,16 @@ function showState() {
   peopleFilter.setSelected(state.person_ids);
   locationsFilter.setSelected(state.location_ids);
   showTags();
+  showListControls();
   clearButton.hidden = !hasFilters(state);
+}
+
+/** The page size and the sort button (pressed = oldest first). */
+function showListControls() {
+  pageSizeSelect.value = String(state.page_size);
+  const oldest = state.sort === "oldest";
+  sortButton.setAttribute("aria-pressed", String(oldest));
+  sortButton.title = oldest ? "Oldest first" : "Newest first";
 }
 
 /** The chosen tags (each with × to remove it) and the OR / AND toggle. */
@@ -122,6 +138,11 @@ $("#tags-choose").addEventListener("click", async () => {
   const ids = picked.map((name) => findTag(allTags, name)?.id).filter((id) => typeof id === "string");
   update({ tag_ids: ids });
   showTags();
+});
+pageSizeSelect.addEventListener("change", () => update({ page_size: Number(pageSizeSelect.value) }));
+sortButton.addEventListener("click", () => {
+  update({ sort: state.sort === "oldest" ? "newest" : "oldest" });
+  showListControls();
 });
 tagsAny.addEventListener("click", () => { update({ tag_match: "any" }); showTags(); });
 tagsAll.addEventListener("click", () => { update({ tag_match: "all" }); showTags(); });
@@ -177,28 +198,81 @@ function renderLabel(label) {
   return label.deleted ? h("span", { className: "deleted" }, label.text) : label.text;
 }
 
-/** @param {any[]} parts */
-function joinWithCommas(parts) {
-  return parts.flatMap((part, i) => (i === 0 ? [part] : [", ", part]));
+/**
+ * A tie as a card: title (tap to edit) and date; type and location, and the
+ * rating; who took part, on one line; and its tags.
+ * @param {Record<string, any>} tie
+ */
+function renderTie(tie) {
+  const place = placeLine(tie);
+  const people = tie.participants.map((/** @type {any} */ p, /** @type {number} */ i) => {
+    const { name, role } = participantLabel(p);
+    return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${role})`);
+  });
+
+  return h("article", { className: "tie-card" },
+    h("button", { type: "button", className: "tie-title", onclick: () => editTie(tie.id) }, tie.title || "Untitled tie"),
+    h("span", { className: "tie-date" }, formatDate(tie.tie_date)),
+    h("div", { className: "tie-place" }, place.flatMap((part, i) => (i === 0 ? [renderLabel(part)] : [" ", renderLabel(part)]))),
+    tie.success_rating != null
+      ? h("div", { className: "tie-rating" }, ratingHanks(tie.success_rating, `Rating ${tie.success_rating}/5`))
+      : null,
+    people.length
+      ? h("div", { className: "tie-with" }, h("span", { className: "tie-with-label" }, "With: "), people, h("span", { className: "tie-more", hidden: true }))
+      : null,
+    tie.tags.length
+      ? h("div", { className: "tag-row tie-tags" }, tie.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
+      : null
+  );
 }
 
-/** @param {Record<string, any>} tie */
-function renderTie(tie) {
-  const meta = tieMeta(tie);
-  const participants = tie.participants.map((/** @type {any} */ p) => {
-    const { name, role } = participantLabel(p);
-    return [renderLabel(name), ` (${role})`];
-  });
-  const plansUsed = tie.plans.map((/** @type {any} */ p) => renderLabel(planLabel(p)));
+/**
+ * Shows as many people as fit on each tie's "With:" line, and "+2" for the
+ * rest (its tooltip names them). Run after the list is drawn and when its
+ * width changes.
+ */
+function fitPeople() {
+  for (const line of list.querySelectorAll(".tie-with")) {
+    const people = /** @type {HTMLElement[]} */ ([...line.querySelectorAll(".tie-person")]);
+    const more = /** @type {HTMLElement} */ ($(".tie-more", line));
+    const label = /** @type {HTMLElement} */ ($(".tie-with-label", line));
+    for (const person of people) person.hidden = false;
+    more.hidden = false;
+    const moreWidth = (/** @type {number} */ n) => { more.textContent = ` +${n}`; return more.offsetWidth; };
+    const shown = peopleThatFit(people.map((p) => p.offsetWidth), line.clientWidth - label.offsetWidth, moreWidth);
+    people.forEach((person, i) => { person.hidden = i >= shown; });
+    const hiddenPeople = people.slice(shown);
+    more.hidden = hiddenPeople.length === 0;
+    moreWidth(hiddenPeople.length);
+    more.title = hiddenPeople.map((p) => (p.textContent ?? "").replace(/^, /, "")).join(", ");
+    more.setAttribute("aria-label", `and ${hiddenPeople.length} more: ${more.title}`);
+  }
+}
 
-  return h("div", { className: "item" },
-    h("div", { className: "item-title" }, tie.title || "Untitled tie"),
-    h("div", { className: "item-meta" },
-      meta.flatMap((part, i) => (i === 0 ? [renderLabel(part)] : [" · ", renderLabel(part)]))),
-    participants.length ? h("div", { className: "item-meta" }, "With: ", joinWithCommas(participants)) : null,
-    plansUsed.length ? h("div", { className: "item-meta" }, "Plans: ", joinWithCommas(plansUsed)) : null,
-    tie.notes ? h("div", { className: "item-notes" }, tie.notes) : null
-  );
+// Refit when the list's width changes (rotating a phone, resizing a window).
+let fittedWidth = 0;
+new ResizeObserver(() => {
+  if (list.clientWidth === fittedWidth) return;
+  fittedWidth = list.clientWidth;
+  fitPeople();
+}).observe(list);
+
+/**
+ * Opens a tie in the tie form to edit or delete; reloads the list if it changed.
+ * @param {string} id
+ */
+async function editTie(id) {
+  let tie;
+  try {
+    tie = await api(`/api/ties/${encodeURIComponent(id)}`);
+  } catch (err) {
+    count.textContent = "Couldn't open the tie: " + errorMessage(err);
+    return;
+  }
+  if (await openTieForm(tie)) {
+    loadTies();
+    loadTags();
+  }
 }
 
 /**
@@ -233,11 +307,12 @@ let latestRequest = 0;
 async function loadTies() {
   const request = ++latestRequest;
   try {
-    const { ties, total, page, page_size } = await api("/api/ties/search", { method: "POST", body: searchBody(state) });
+    const { ties, total, all_total, page, page_size } = await api("/api/ties/search", { method: "POST", body: searchBody(state) });
     if (request !== latestRequest) return;
     const totalPages = Math.ceil(total / page_size);
-    count.textContent = total === 1 ? "1 tie" : `${total} ties`;
+    count.textContent = showingText(total, all_total);
     list.replaceChildren(...ties.map(renderTie));
+    fitPeople();
     if (ties.length === 0) {
       const text = total > 0 ? "Nothing on this page."
         : hasFilters(state) ? "No ties match this search."

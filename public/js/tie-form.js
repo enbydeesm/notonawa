@@ -1,10 +1,13 @@
-// The "Log a tie" form, in a pop-up dialog opened from the + button.
+// The "Log a tie" form, in a pop-up dialog opened from the + button. The
+// same form edits a tie (opened from its title in the list), with a Delete
+// button too.
 
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage, privateField } from "./dom.js";
+import { choose } from "./dialog.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
-import { ROLES, TIE_TYPES } from "./ties-view.js";
+import { ROLES, TIE_TYPES, participantLabel, planLabel } from "./ties-view.js";
 import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
@@ -13,18 +16,23 @@ import { ratingPicker } from "./rope-rating.js";
 let openDialog = null;
 
 /**
- * Opens the form. Resolves true once a tie is saved (the dialog closes
- * itself), or false if it's closed without saving. Opening it again while
- * it's open returns the same promise.
+ * Opens the form, empty to log a tie, or filled in with a tie (as GET
+ * /api/ties/:id returns it) to edit it. Resolves true once the tie is saved
+ * or deleted (the dialog closes itself), or false if it's closed without
+ * either. Opening it again while it's open returns the same promise.
+ * @param {Record<string, any> | null} [tie]
  * @returns {Promise<boolean>}
  */
-export function openTieForm() {
-  openDialog ??= showTieForm().finally(() => { openDialog = null; });
+export function openTieForm(tie = null) {
+  openDialog ??= showTieForm(tie).finally(() => { openDialog = null; });
   return openDialog;
 }
 
-/** @returns {Promise<boolean>} */
-function showTieForm() {
+/**
+ * @param {Record<string, any> | null} tie
+ * @returns {Promise<boolean>}
+ */
+function showTieForm(tie) {
   return new Promise((resolve) => {
     let saved = false;
     // Each kind's items, shared by its pickers (so one added in one row is
@@ -35,10 +43,10 @@ function showTieForm() {
       plans: pickerSource([], []),
     };
     let rowCount = 0;
-    // The first person row added starts with me in it.
-    let addedPerson = false;
+    // The first person row added to a new tie starts with me in it.
+    let addedPerson = !!tie;
     /** @type {string[]} tag names; new ones are created when the tie is saved */
-    let tags = [];
+    let tags = [...(tie?.tags ?? [])];
 
     // Ids start with "tie-" because this dialog opens on top of pages whose own
     // forms use ids like #title and #notes.
@@ -56,8 +64,12 @@ function showTieForm() {
     const locationRow = h("div", { className: "picker-row", hidden: true },
       location.element,
       h("button", { type: "button", id: "tie-location-remove", "aria-label": "Remove location", onclick: removeLocation }, "✕"));
-    const addParticipantButton = addButton("tie-add-participant", "Add person", addParticipantRow);
-    const addPlanButton = addButton("tie-add-plan", "Add plan", addPlanRow);
+    // Editing a tie whose location was deleted: shown until it's removed.
+    const deletedLocationRow = h("div", { className: "picker-row kept-deleted", id: "tie-location-deleted", hidden: true },
+      h("span", { className: "deleted" }, "(location deleted)"),
+      h("button", { type: "button", "aria-label": "Remove location", onclick: removeDeletedLocation }, "✕"));
+    const addParticipantButton = addButton("tie-add-participant", "Add person", () => addParticipantRow());
+    const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
 
@@ -81,7 +93,7 @@ function showTieForm() {
         h("div", {},
           h("div", { className: "label-row" },
             h("label", { htmlFor: "tie-location", id: "tie-location-label" }, "Location"), showLocationButton),
-          locationRow),
+          locationRow, deletedLocationRow),
         h("div", {},
           h("div", { className: "label-row" }, h("label", {}, "Plans"), addPlanButton),
           planRows)),
@@ -89,20 +101,21 @@ function showTieForm() {
       participantRows,
       h("div", { className: "label-row" },
         h("label", { id: "tie-rating-label" }, "How did it go?"),
-        ratingPicker({ name: "success_rating", labelledBy: "tie-rating-label" })),
+        ratingPicker({ name: "success_rating", labelledBy: "tie-rating-label", value: tie?.success_rating ?? null })),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       privateField(h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" })),
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
+      tie ? h("button", { type: "button", className: "danger dialog-delete", id: "tie-delete", onclick: confirmDelete }, "Delete tie") : null,
       message
     );
 
     // Unlike the confirmation dialogs, tapping outside doesn't close this
     // one, so a stray tap can't throw away a half-written tie. Esc still does.
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "tie-form-heading" },
-      h("h2", { id: "tie-form-heading" }, "Log a tie"),
+      h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie"),
       form);
     dialog.addEventListener("close", () => {
       dialog.remove();
@@ -130,6 +143,12 @@ function showTieForm() {
       location.focus();
     }
 
+    function removeDeletedLocation() {
+      deletedLocationRow.hidden = true;
+      showLocationButton.hidden = false;
+      showLocationButton.focus();
+    }
+
     function removeLocation() {
       location.clear();
       locationRow.hidden = true;
@@ -137,9 +156,29 @@ function showTieForm() {
       showLocationButton.focus();
     }
 
+    /**
+     * A link on the tie being edited to a person or plan since deleted: it
+     * can be removed but not changed. Kept rows are sent in keep_deleted.
+     * @param {HTMLElement} rows
+     * @param {string} linkId the link row's id
+     * @param {any[]} text
+     */
+    function addDeletedRow(rows, linkId, ...text) {
+      const row = h("div", { className: "picker-row kept-deleted", "data-link-id": linkId }, h("span", {}, text));
+      row.append(removeButton(row));
+      rows.append(row);
+    }
+
     // People and plan rows: a search box whose hidden input has the class
-    // .person or .plan, which collectTie reads.
-    function addParticipantRow() {
+    // .person or .plan, which collectTie reads. Editing a tie, they start
+    // with its people and plans in them.
+    /** @param {any} [existing] one of the tie's participants */
+    function addParticipantRow(existing) {
+      if (existing && !existing.person_id) {
+        const { name, role } = participantLabel(existing);
+        addDeletedRow(participantRows, existing.id, h("span", { className: "deleted" }, name.text), ` (${role})`);
+        return;
+      }
       const row = h("div", { className: "picker-row person-row" });
       const role = h("select", { className: "role", "aria-label": "Role" },
         h("option", { value: "" }, "Role"),
@@ -154,6 +193,11 @@ function showTieForm() {
       row.append(person.element, role, removeButton(row));
       participantRows.append(row);
 
+      if (existing) {
+        person.pick(linked(existing.person_id, existing.person_name));
+        role.value = existing.role; // after pick, which sets their usual role
+        return;
+      }
       const me = sources.people.active.find((item) => item.isSelf);
       if (!addedPerson && me) {
         person.pick(me);
@@ -164,7 +208,12 @@ function showTieForm() {
       addedPerson = true;
     }
 
-    function addPlanRow() {
+    /** @param {any} [existing] one of the tie's plans */
+    function addPlanRow(existing) {
+      if (existing && !existing.plan_id) {
+        addDeletedRow(planRows, existing.id, h("span", { className: "deleted" }, planLabel(existing).text));
+        return;
+      }
       const row = h("div", { className: "picker-row" });
       const plan = searchPicker({
         kind: "plans", id: `tie-plan-${++rowCount}`, label: { text: "Plan" },
@@ -175,7 +224,8 @@ function showTieForm() {
       const hidden = /** @type {HTMLInputElement} */ ($(".plan", plan.element));
       row.append(plan.element, removeButton(row));
       planRows.append(row);
-      plan.focus();
+      if (existing) plan.pick(linked(existing.plan_id, existing.plan_title));
+      else plan.focus();
     }
 
     function chosenPlans() {
@@ -186,6 +236,10 @@ function showTieForm() {
       const picked = await pickTags(tags);
       if (picked === null) return; // closed with Esc: keep what was chosen before
       tags = picked;
+      showTags();
+    }
+
+    function showTags() {
       tagList.replaceChildren(...tags.map((name) => h("span", { className: "tag outline" }, name)));
     }
 
@@ -209,7 +263,7 @@ function showTieForm() {
       const data = Object.fromEntries(new FormData(form));
 
       data.participants = [];
-      for (const row of participantRows.children) {
+      for (const row of participantRows.querySelectorAll(".person-row")) {
         const personId = /** @type {HTMLInputElement} */ ($(".person", row)).value;
         const role = /** @type {HTMLSelectElement} */ ($(".role", row)).value;
         if (!personId && !role) continue; // empty row
@@ -219,7 +273,61 @@ function showTieForm() {
 
       data.plan_ids = chosenPlans();
       data.tags = tags;
+      if (tie) {
+        /** @param {HTMLElement} rows */
+        const kept = (rows) => [...rows.querySelectorAll(".kept-deleted")].map((row) => /** @type {HTMLElement} */ (row).dataset.linkId);
+        data.keep_deleted = { participants: kept(participantRows), plans: kept(planRows), location: !deletedLocationRow.hidden };
+      }
       return data;
+    }
+
+    async function confirmDelete() {
+      const choice = await choose({
+        title: "Delete this tie?",
+        message: "It'll be gone for good. Its people, location, plans and tags stay.",
+        choices: [{ label: "Delete tie", value: "delete", style: "solid-danger" }],
+      });
+      if (choice !== "delete" || !tie) return;
+      showMessage(message, "Deleting…");
+      try {
+        await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "DELETE" });
+        saved = true;
+        dialog.close();
+      } catch (err) {
+        showMessage(message, "Couldn't delete: " + errorMessage(err), true);
+      }
+    }
+
+    /**
+     * A person, location or plan already on the tie, to show in its picker
+     * (archived ones too: they stay on the tie, still archived).
+     * @param {string} id
+     * @param {string} name
+     */
+    function linked(id, name) {
+      return { id, name, created_at: "" };
+    }
+
+    /** Puts the tie being edited into the form. @param {Record<string, any>} t */
+    function fill(t) {
+      /** @param {string} id @param {unknown} value */
+      const set = (id, value) => { /** @type {HTMLInputElement} */ ($(`#${id}`, form)).value = value == null ? "" : String(value); };
+      set("tie-title", t.title);
+      set("tie-tie_date", t.tie_date);
+      set("tie-tie_type", t.tie_type);
+      set("tie-duration_minutes", t.duration_minutes);
+      set("tie-notes", t.notes);
+      if (t.location_id) {
+        location.pick(linked(t.location_id, t.location_name));
+        locationRow.hidden = false;
+        showLocationButton.hidden = true;
+      } else if (t.location_deleted) {
+        deletedLocationRow.hidden = false;
+        showLocationButton.hidden = true;
+      }
+      for (const p of t.participants) addParticipantRow(p);
+      for (const p of t.plans) addPlanRow(p);
+      showTags();
     }
 
     /** @param {SubmitEvent} event */
@@ -228,7 +336,8 @@ function showTieForm() {
       saveButton.disabled = true;
       showMessage(message, "Saving…");
       try {
-        await api("/api/ties", { method: "POST", body: collectTie() });
+        if (tie) await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "PUT", body: collectTie() });
+        else await api("/api/ties", { method: "POST", body: collectTie() });
         saved = true;
         dialog.close();
       } catch (err) {
@@ -238,6 +347,7 @@ function showTieForm() {
       }
     }
 
+    if (tie) fill(tie);
     document.body.append(dialog);
     dialog.showModal();
     loadPickers();

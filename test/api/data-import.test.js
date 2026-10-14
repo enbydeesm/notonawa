@@ -200,7 +200,7 @@ describe("importing an export", () => {
       plans: [{ plan_id: plan, plan_title: "Hip harness", plan_version: 2 }],
     });
     expect(tie.participants).toEqual(expect.arrayContaining([
-      { person_id: sam, person_name: "sam", role: "model" },
+      { id: expect.any(String), person_id: sam, person_name: "sam", role: "model" },
       expect.objectContaining({ person_name: "Alex", role: "rigger" }),
     ]));
     const tags = (await call("/api/tags", { cookie: user.cookie })).body.map((/** @type {any} */ t) => t.name).sort();

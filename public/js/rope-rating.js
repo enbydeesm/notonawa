@@ -36,9 +36,10 @@ function hankIcon() {
  * The tie form's rating: a row of hank buttons. Tapping the third fills
  * three; tapping the filled-in last one again clears the rating. The value
  * goes in a hidden input, so the form sends it with the rest.
- * @param {{ name: string, labelledBy: string }} config
+ * @param {{ name: string, labelledBy: string, value?: number | null }} config
+ *   value: the rating to start with (editing a tie)
  */
-export function ratingPicker({ name, labelledBy }) {
+export function ratingPicker({ name, labelledBy, value = null }) {
   /** @type {number | null} */
   let rating = null;
   const input = privateField(h("input", { type: "hidden", name, value: "" }));
@@ -58,7 +59,7 @@ export function ratingPicker({ name, labelledBy }) {
       button.setAttribute("aria-pressed", String(value === i + 1));
     });
   }
-  set(null);
+  set(value);
 
   return h("div", { className: "hank-picker", role: "group", "aria-labelledby": labelledBy }, buttons, input);
 }

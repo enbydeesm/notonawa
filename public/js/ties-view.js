@@ -3,7 +3,7 @@
 // Labels come back as { text, deleted }; the page shows deleted ones muted
 // and in italics.
 
-import { formatDate, capitalise } from "./format.js";
+import { capitalise } from "./format.js";
 
 /** Same lists as the API (src/ties/parse.js). */
 export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
@@ -16,20 +16,57 @@ export const TIE_TYPES = ["suspension", "partial suspension", "floor"];
  */
 
 /**
- * Date, type, location, duration and rating, in display order.
+ * A tie's "Floor at Studio" line: the type, then "at" and the location if
+ * there is one ("at Studio" with no type). Empty with neither.
  * @param {Record<string, any>} tie
- * @param {string} [locale]
- * @returns {Label[]}
+ * @returns {Label[]} shown with spaces between
  */
-export function tieMeta(tie, locale) {
+export function placeLine(tie) {
   /** @type {Label[]} */
-  const parts = [{ text: formatDate(tie.tie_date, locale), deleted: false }];
+  const parts = [];
   if (tie.tie_type) parts.push({ text: capitalise(tie.tie_type), deleted: false });
-  if (tie.location_name) parts.push({ text: tie.location_name, deleted: false });
-  else if (tie.location_deleted) parts.push({ text: "(location deleted)", deleted: true });
-  if (tie.duration_minutes != null) parts.push({ text: `${tie.duration_minutes} min`, deleted: false });
-  if (tie.success_rating != null) parts.push({ text: `${tie.success_rating}/5`, deleted: false, rating: tie.success_rating });
+  /** @type {Label | null} */
+  const place = tie.location_name ? { text: tie.location_name, deleted: false }
+    : tie.location_deleted ? { text: "(location deleted)", deleted: true }
+    : null;
+  if (place) parts.push({ text: "at", deleted: false }, place);
   return parts;
+}
+
+/**
+ * The list header's count: "Showing 3 of 40 ties".
+ * @param {number} shown ties matching the search
+ * @param {number} total all my ties
+ */
+export function showingText(shown, total) {
+  return `Showing ${shown} of ${total} ${total === 1 ? "tie" : "ties"}`;
+}
+
+/**
+ * How many people fit on a tie's one-line "With:" list. widths[i] is the
+ * i-th person's width (with the ", " before it); moreWidth(n) is the width
+ * of the "+n" that says n more are hidden. Shows as many as fit, leaving
+ * room for the "+n" when any are hidden.
+ * @param {number[]} widths
+ * @param {number} available
+ * @param {(hidden: number) => number} moreWidth
+ */
+export function peopleThatFit(widths, available, moreWidth) {
+  let used = 0;
+  for (let i = 0; i < widths.length; i++) {
+    used += widths[i];
+    if (used > available) {
+      // Person i doesn't fit: back off until the "+n" fits too.
+      let shown = i;
+      let width = used - widths[i];
+      while (shown > 0 && width + moreWidth(widths.length - shown) > available) {
+        shown--;
+        width -= widths[shown];
+      }
+      return shown;
+    }
+  }
+  return widths.length;
 }
 
 /**

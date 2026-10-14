@@ -4,7 +4,7 @@ import { tieFilterSql, escapeLike } from "../../src/ties/search.js";
 
 const parse = parseTieFilters;
 
-const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [], tag_match: "any", from: null, to: null, q: null, page: 1 };
+const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [], tag_match: "any", from: null, to: null, q: null, page: 1, page_size: 20, sort: "newest" };
 
 describe("parseTieFilters", () => {
   it("has no filters and page 1 by default", () => {
@@ -15,10 +15,10 @@ describe("parseTieFilters", () => {
   it("reads every filter", () => {
     expect(parse({
       person_ids: ["a", "b"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all",
-      from: "2026-01-01", to: "2026-02-01", q: " harness ", page: 3,
+      from: "2026-01-01", to: "2026-02-01", q: " harness ", page: 3, page_size: "50", sort: "oldest",
     })).toEqual({
       person_ids: ["a", "b"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all",
-      from: "2026-01-01", to: "2026-02-01", q: "harness", page: 3,
+      from: "2026-01-01", to: "2026-02-01", q: "harness", page: 3, page_size: 50, sort: "oldest",
     });
   });
 
@@ -33,6 +33,15 @@ describe("parseTieFilters", () => {
     expect(parse({ tag_match: "all" }).tag_match).toBe("all");
     expect(() => parse({ tag_match: "some" })).toThrow("Match any or all of the tags.");
     expect(() => parse({ tag_ids: "t" })).toThrow("Choose tags as a list.");
+  });
+
+  it("shows 20, 50 or 100 a page, newest or oldest first", () => {
+    expect(parse({ page_size: 100 }).page_size).toBe(100);
+    for (const page_size of [10, 21, "lots", 1000]) {
+      expect(() => parse({ page_size })).toThrow("Show 20, 50, 100 ties per page.");
+    }
+    expect(parse({ sort: "" }).sort).toBe("newest");
+    expect(() => parse({ sort: "random" })).toThrow("Sort by newest or oldest.");
   });
 
   it("rejects ids that aren't a list", () => {
@@ -65,7 +74,7 @@ describe("tieFilterSql", () => {
   it("binds every value instead of putting it in the SQL", () => {
     const filters = {
       person_ids: ["p1", "p2"], location_ids: ["'; DROP TABLE ties; --"], tag_ids: ["t1"], tag_match: "all",
-      from: "2026-01-01", to: "2026-02-01", q: "50%_off", page: 1,
+      from: "2026-01-01", to: "2026-02-01", q: "50%_off", page: 1, page_size: 20, sort: "newest",
     };
     const { where, params } = tieFilterSql("me", filters);
     expect(params).toEqual([

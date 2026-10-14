@@ -1,7 +1,7 @@
 // Pure helpers used by the pages (public/js). No DOM needed.
 import { describe, it, expect } from "vitest";
 import { formatDate, capitalise } from "../../public/js/format.js";
-import { tieMeta, participantLabel, planLabel, nextRating, ROLES, TIE_TYPES } from "../../public/js/ties-view.js";
+import { placeLine, showingText, peopleThatFit, participantLabel, planLabel, nextRating, ROLES, TIE_TYPES } from "../../public/js/ties-view.js";
 import { TIE_TYPES as API_TIE_TYPES, ROLES as API_ROLES } from "../../src/ties/parse.js";
 
 describe("formatDate", () => {
@@ -20,26 +20,46 @@ describe("capitalise", () => {
   });
 });
 
-describe("tieMeta", () => {
-  const base = { tie_date: "2026-10-12", tie_type: null, location_name: null, location_deleted: 0, duration_minutes: null, success_rating: null };
+describe("placeLine", () => {
+  const base = { tie_type: null, location_name: null, location_deleted: 0 };
+  /** @param {Record<string, any>} tie */
+  const text = (tie) => placeLine(tie).map((part) => part.text).join(" ");
 
-  it("lists date, type, location, duration and rating in order", () => {
-    expect(tieMeta({ ...base, tie_type: "partial suspension", location_name: "Studio", duration_minutes: 45, success_rating: 4 }, "en-US")).toEqual([
-      { text: "Oct 12, 2026", deleted: false },
-      { text: "Partial suspension", deleted: false },
-      { text: "Studio", deleted: false },
-      { text: "45 min", deleted: false },
-      { text: "4/5", deleted: false, rating: 4 },
-    ]);
+  it("says the type at the location, keeping 'at' when there's no type", () => {
+    expect(text({ ...base, tie_type: "partial suspension", location_name: "Studio" })).toBe("Partial suspension at Studio");
+    expect(text({ ...base, location_name: "Studio" })).toBe("at Studio");
+    expect(text({ ...base, tie_type: "floor" })).toBe("Floor");
+    expect(placeLine(base)).toEqual([]);
   });
 
   it("marks a deleted location", () => {
-    expect(tieMeta({ ...base, location_deleted: 1 }, "en-US")).toContainEqual({ text: "(location deleted)", deleted: true });
+    expect(placeLine({ ...base, tie_type: "floor", location_deleted: 1 })).toEqual([
+      { text: "Floor", deleted: false }, { text: "at", deleted: false }, { text: "(location deleted)", deleted: true },
+    ]);
   });
+});
 
-  it("leaves out what wasn't recorded, including a duration of zero only when missing", () => {
-    expect(tieMeta(base, "en-US")).toHaveLength(1);
-    expect(tieMeta({ ...base, duration_minutes: 0 }, "en-US")).toContainEqual({ text: "0 min", deleted: false });
+describe("showingText", () => {
+  it("says how many match out of all my ties", () => {
+    expect(showingText(3, 40)).toBe("Showing 3 of 40 ties");
+    expect(showingText(0, 0)).toBe("Showing 0 of 0 ties");
+    expect(showingText(1, 1)).toBe("Showing 1 of 1 tie");
+  });
+});
+
+describe("peopleThatFit", () => {
+  const more = () => 20;
+  it("shows everyone who fits, with no '+n' when nobody's hidden", () => {
+    expect(peopleThatFit([50, 50, 50], 150, more)).toBe(3);
+    expect(peopleThatFit([], 100, more)).toBe(0);
+  });
+  it("leaves room for the '+n' when some don't fit", () => {
+    // 50 + 50 = 100 fits, but 100 + "+1" (20) doesn't, so only one shows.
+    expect(peopleThatFit([50, 50, 50], 110, more)).toBe(1);
+    expect(peopleThatFit([50, 50, 50], 120, more)).toBe(2);
+  });
+  it("can show nobody but the '+n'", () => {
+    expect(peopleThatFit([200, 50], 100, more)).toBe(0);
   });
 });
 

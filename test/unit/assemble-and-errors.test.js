@@ -4,7 +4,7 @@ import { errorResponse } from "../../src/errors.js";
 import { BadInput } from "../../src/http.js";
 
 describe("assembleTies", () => {
-  it("nests participants and plans under their ties, keeping tie order", () => {
+  it("nests participants, plans and tag names under their ties, keeping tie order", () => {
     const ties = [{ id: "t2", title: "B" }, { id: "t1", title: "A" }];
     const participants = [
       { tie_id: "t1", person_id: "p1", person_name: "Sam", role: "model" },
@@ -12,10 +12,11 @@ describe("assembleTies", () => {
     ];
     const plans = [{ tie_id: "t2", plan_id: "pl1", plan_title: "Hip harness", plan_version: 1 }];
 
-    expect(assembleTies(ties, participants, plans)).toEqual([
-      { id: "t2", title: "B", participants: [], plans: [{ plan_id: "pl1", plan_title: "Hip harness", plan_version: 1 }] },
+    const tags = [{ tie_id: "t1", name: "floor" }, { tie_id: "t1", name: "kata" }];
+    expect(assembleTies(ties, participants, plans, tags)).toEqual([
+      { id: "t2", title: "B", participants: [], tags: [], plans: [{ plan_id: "pl1", plan_title: "Hip harness", plan_version: 1 }] },
       {
-        id: "t1", title: "A", plans: [],
+        id: "t1", title: "A", plans: [], tags: ["floor", "kata"],
         participants: [
           { person_id: "p1", person_name: "Sam", role: "model" },
           { person_id: null, person_name: null, role: "rigger" },

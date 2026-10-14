@@ -49,6 +49,36 @@ nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom
 }
 .card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .card-header h2 { margin-bottom: 12px; }
+/* The ties list's header: "My ties", the count right after it, and the
+   page size and sort button at the far right. */
+.list-header { justify-content: flex-start; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.list-header h2 { margin-bottom: 0; }
+.list-controls { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.list-controls select { width: auto; padding: 4px 6px; font-size: 0.85rem; }
+.icon-button { display: inline-flex; padding: 6px; }
+.sort-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Oldest first: the arrow points up. */
+#sort[aria-pressed="true"] .sort-icon { transform: scaleY(-1); }
+
+/* A tie in the list: title and date on top, type/location and rating
+   under them, then who took part (one line) and the tags. */
+.tie-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px;
+}
+.tie-title {
+  justify-self: start; padding: 0; border: none; border-radius: 0; text-align: left;
+  font-size: 1.05rem; font-weight: 700; color: var(--text); overflow-wrap: anywhere;
+}
+.tie-title:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.tie-date, .tie-rating { justify-self: end; white-space: nowrap; }
+.tie-date { font-size: 0.95rem; }
+.tie-place { grid-column: 1; font-size: 0.95rem; }
+.tie-rating { grid-column: 2; }
+.tie-with, .tie-tags { grid-column: 1 / -1; }
+.tie-with { font-size: 0.95rem; white-space: nowrap; overflow: hidden; }
+.tie-more { color: var(--muted); font-weight: 600; }
+.tie-tags { margin-top: 6px; gap: 6px; }
 
 label { display: block; font-size: 0.9rem; color: var(--muted); margin: 10px 0 4px; }
 label.inline { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 0.95rem; }
@@ -235,6 +265,12 @@ dialog.form-dialog {
   max-height: calc(100dvh - 32px); overflow-y: auto;
 }
 .dialog-cancel { width: 100%; margin-top: 8px; padding: 10px; }
+/* Deleting from the edit form: last, set apart from Save and Cancel. */
+.dialog-delete { width: 100%; margin-top: 20px; padding: 10px; }
+/* A link on a tie to something since deleted, in the edit form: it can be
+   removed but not changed. */
+.kept-deleted { align-items: center; min-height: 40px; }
+.kept-deleted > span { flex: 1; min-width: 0; }
 
 /* Multi-select drop-down: a summary line that opens a searchable list. */
 .multi-select { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }

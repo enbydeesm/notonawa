@@ -10,8 +10,11 @@ export const TIE_TYPES = ["suspension", "partial suspension", "floor"];
 /** @type {RecentType[]} what /api/ties/recent/:type lists */
 export const RECENT_TYPES = ["locations", "people", "plans"];
 
-// Ties per page in the list. One place to change if it becomes adjustable.
+// Ties per page in the list: the default, and the sizes the page offers.
 export const PAGE_SIZE = 20;
+export const PAGE_SIZES = [20, 50, 100];
+/** Newest tie date first (the default), or oldest first. */
+export const SORTS = ["newest", "oldest"];
 const MAX_FILTER_IDS = 50;
 const MAX_SEARCH_LENGTH = 200;
 /** How the tags filter combines the chosen tags: ties with any of them, or all. */
@@ -104,13 +107,16 @@ export function parsePlanIds(value) {
  *   to: string | null,
  *   q: string | null,
  *   page: number,
+ *   page_size: number,
+ *   sort: string,
  * }} TieFilters
  */
 
 /**
  * The search body: person_ids, location_ids and tag_ids (lists), tag_match
  * ("any", the default, or "all"), from / to (tie dates, inclusive), q
- * (keyword) and page. All optional.
+ * (keyword), page, page_size (20, 50 or 100) and sort ("newest", the
+ * default, or "oldest"). All optional.
  * @param {Record<string, unknown>} body
  * @returns {TieFilters}
  */
@@ -124,6 +130,8 @@ export function parseTieFilters(body) {
     to: toDateOrNull(body.to),
     q: cleanText(body.q),
     page: parsePage(body.page),
+    page_size: parsePageSize(body.page_size),
+    sort: parseSort(body.sort),
   };
   if (filters.from && filters.to && filters.from > filters.to) {
     throw new BadInput("The start date is after the end date.");
@@ -158,10 +166,56 @@ function parseTagMatch(value) {
 }
 
 /** @param {unknown} value */
+function parsePageSize(value) {
+  if (value === undefined || value === null || value === "") return PAGE_SIZE;
+  const size = Number(value);
+  if (!PAGE_SIZES.includes(size)) throw new BadInput(`Show ${PAGE_SIZES.join(", ")} ties per page.`);
+  return size;
+}
+
+/** @param {unknown} value */
+function parseSort(value) {
+  try {
+    return toChoiceOrNull(value, SORTS) ?? "newest";
+  } catch {
+    throw new BadInput("Sort by newest or oldest.");
+  }
+}
+
+/** @param {unknown} value */
 function parsePage(value) {
   try {
     return toIntOrNull(value, 1, 100000) ?? 1;
   } catch {
     throw new BadInput("Page should be a whole number, 1 or more.");
   }
+}
+
+/**
+ * Links on a tie to people, plans or a location that have since been
+ * deleted, which the edit form shows as "(… deleted)" and can remove but not
+ * change. Ones listed here are kept when the tie is saved; the rest go.
+ * participants and plans are the link rows' ids.
+ * @typedef {{ participants: string[], plans: string[], location: boolean }} KeptDeleted
+ */
+
+/**
+ * Body: as parseTieInput, plus keep_deleted: { participants: [link id],
+ * plans: [link id], location: true|false } (optional).
+ * @param {Record<string, unknown>} body
+ * @returns {TieInput & { keep_deleted: KeptDeleted }}
+ */
+export function parseTieUpdate(body) {
+  const tie = parseTieInput(body);
+  const keep = body.keep_deleted ?? {};
+  if (typeof keep !== "object" || Array.isArray(keep)) throw new BadInput("keep_deleted should be an object.");
+  const k = /** @type {Record<string, unknown>} */ (keep);
+  return {
+    ...tie,
+    keep_deleted: {
+      participants: parseIdList(k.participants, "deleted people"),
+      plans: parseIdList(k.plans, "deleted plans"),
+      location: k.location === true,
+    },
+  };
 }

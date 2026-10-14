@@ -1,5 +1,6 @@
-// The Ties list's search state. The filters (people, locations, tags, dates) and the
-// page are kept in the page URL so refresh and Back keep them. The keyword
+// The Ties list's search state. The filters (people, locations, tags, dates),
+// the page, the sort and the page size are kept in the page URL so refresh
+// and Back keep them. The keyword
 // never is: a URL ends up in browser history (and synced to other devices),
 // so it's kept in memory only. Pure (no DOM), so it's easy to test.
 
@@ -13,8 +14,13 @@
  *   to: string,
  *   q: string,
  *   page: number,
+ *   page_size: number,
+ *   sort: "newest" | "oldest",
  * }} SearchState
  */
+
+/** Ties per page the list offers; the first is the default. Same as the API. */
+export const PAGE_SIZES = [20, 50, 100];
 
 /**
  * Reads the filters and page from the URL. Any keyword in it (from an old
@@ -25,6 +31,7 @@
 export function readSearch(search) {
   const params = new URLSearchParams(search);
   const page = Number(params.get("page"));
+  const pageSize = Number(params.get("per_page"));
   return {
     person_ids: params.getAll("person_id").filter(Boolean),
     location_ids: params.getAll("location_id").filter(Boolean),
@@ -34,6 +41,8 @@ export function readSearch(search) {
     to: params.get("to") ?? "",
     q: "",
     page: Number.isInteger(page) && page > 1 ? page : 1,
+    page_size: PAGE_SIZES.includes(pageSize) ? pageSize : PAGE_SIZES[0],
+    sort: params.get("sort") === "oldest" ? "oldest" : "newest",
   };
 }
 
@@ -62,6 +71,9 @@ export function pageQuery(state) {
   if (state.from) params.set("from", state.from);
   if (state.to) params.set("to", state.to);
   if (state.page > 1) params.set("page", String(state.page));
+  // Defaults (20 a page, newest first) are left out.
+  if (state.page_size !== PAGE_SIZES[0]) params.set("per_page", String(state.page_size));
+  if (state.sort === "oldest") params.set("sort", "oldest");
   return params.toString();
 }
 
@@ -80,10 +92,16 @@ export function searchBody(state) {
     to: state.to,
     q: state.q.trim(),
     page: state.page,
+    page_size: state.page_size,
+    sort: state.sort,
   };
 }
 
-/** @param {SearchState} state */
+/**
+ * Whether anything narrows the list. The sort and page size don't: they're
+ * how the list is shown, so Clear search keeps them.
+ * @param {SearchState} state
+ */
 export function hasFilters(state) {
   return state.person_ids.length > 0 || state.location_ids.length > 0 || state.tag_ids.length > 0 ||
     !!state.from || !!state.to || state.q.trim() !== "";

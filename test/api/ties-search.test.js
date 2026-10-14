@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { call, create, createOtherUser, sql } from "../helpers.js";
+import { call, create, createOtherUser, sessionCookieFor, sql } from "../helpers.js";
 
 // Tests in this file share a database, so each one makes its own people,
 // locations and keywords and only looks at the ties it made.
@@ -190,7 +190,45 @@ describe("paging ties", () => {
 
     const [oldest] = (await search({ location_ids: [loc], page: 2 })).body.ties;
     expect(oldest.title).toBe("Oldest");
-    expect(oldest.participants).toEqual([{ person_id: sam, person_name: "Sam", role: "model" }]);
-    expect(oldest.plans).toEqual([{ plan_id: plan, plan_title: "Box tie", plan_version: 1 }]);
+    expect(oldest.participants).toEqual([{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "model" }]);
+    expect(oldest.plans).toEqual([{ id: expect.any(String), plan_id: plan, plan_title: "Box tie", plan_version: 1 }]);
+  });
+});
+
+describe("the list's order, page size and counts", () => {
+  it("sorts newest or oldest first, pages 20, 50 or 100 at a time, and counts all my ties", async () => {
+    // A user of its own, so all_total counts only these ties.
+    const cookie = await sessionCookieFor(await createOtherUser());
+    /** @param {Record<string, unknown>} body */
+    const list = async (body) => (await call("/api/ties/search", { method: "POST", body, cookie })).body;
+    for (let day = 1; day <= 25; day++) {
+      const tie_date = `2026-03-${String(day).padStart(2, "0")}`;
+      await call("/api/ties", { method: "POST", body: { title: `Day ${day}`, tie_date, tags: day === 1 ? ["first", "Alpha"] : [] }, cookie });
+    }
+
+    const newest = await list({});
+    expect([newest.ties.length, newest.page_size, newest.ties[0].title]).toEqual([20, 20, "Day 25"]);
+    const oldest = await list({ sort: "oldest" });
+    expect(oldest.ties.slice(0, 2).map((/** @type {any} */ t) => t.title)).toEqual(["Day 1", "Day 2"]);
+    // Tags come with each tie, A–Z ignoring capitals.
+    expect(oldest.ties[0].tags).toEqual(["Alpha", "first"]);
+    expect(oldest.ties[1].tags).toEqual([]);
+    expect((await list({ page_size: 50 })).ties).toHaveLength(25);
+    expect((await list({ sort: "oldest", page: 2 })).ties.map((/** @type {any} */ t) => t.title)).toEqual(
+      ["Day 21", "Day 22", "Day 23", "Day 24", "Day 25"]);
+
+    const filtered = await list({ from: "2026-03-20" });
+    expect([filtered.total, filtered.all_total]).toEqual([6, 25]);
+    expect((await call("/api/ties/search", { method: "POST", body: { page_size: 30 }, cookie })).status).toBe(400);
+  });
+
+  it("puts same-day ties in exactly the reverse order when sorted oldest first", async () => {
+    const cookie = await sessionCookieFor(await createOtherUser());
+    for (const title of ["A", "B", "C"]) {
+      await call("/api/ties", { method: "POST", body: { title, tie_date: "2026-04-01" }, cookie });
+    }
+    /** @param {string} sort */
+    const titles = async (sort) => (await call("/api/ties/search", { method: "POST", body: { sort }, cookie })).body.ties.map((/** @type {any} */ t) => t.title);
+    expect(await titles("oldest")).toEqual([...(await titles("newest"))].reverse());
   });
 });

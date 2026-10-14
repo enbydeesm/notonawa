@@ -143,8 +143,17 @@ const PAGE_HELPERS = `
   const lastBox = (rows) => [...document.querySelectorAll(rows + " [role=combobox]")].pop();
   const submit = async () => { $("form button[type=submit]").click(); await wait(700); };
   const flat = (el) => el.innerText.replace(/\\n+/g, " | ");
-  const items = () => [...document.querySelectorAll(".item")].map(flat);
-  const titles = () => [...document.querySelectorAll(".item-title")].map((t) => t.innerText);
+  // List rows on the plans, people and locations pages, and tie cards on the Ties page.
+  const items = () => [...document.querySelectorAll(".item, .tie-card")].map(flat);
+  const titles = () => [...document.querySelectorAll(".item-title, .tie-title")].map((t) => t.innerText);
+  // A tie card's parts: date, "type at location", filled rating hanks, the
+  // visible "With:" line and the tags.
+  const card = (i = 0) => {
+    const c = document.querySelectorAll(".tie-card")[i];
+    const text = (sel) => c.querySelector(sel)?.innerText ?? null;
+    return [text(".tie-date") !== null, text(".tie-place"), c.querySelectorAll(".tie-rating .hank.filled").length,
+      text(".tie-with"), [...c.querySelectorAll(".tie-tags .tag")].map((t) => t.innerText)];
+  };
   const clickIn = async (title, label) => {
     const item = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === title);
     [...item.querySelectorAll("button")].find((b) => b.textContent === label).click();
@@ -447,8 +456,8 @@ try {
     document.querySelectorAll(".role")[0].value = "rigger";
     set("#tie-duration_minutes", "45"); set("#tie-notes", "Smooth transitions");
     $("#tie-save").click(); await wait(1000);
-    return [!!document.querySelector("dialog"), items()[0].replace(/^Floor session \\| [^·]+· /, "")];`),
-    [false, "Floor · Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
+    return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
+    [false, "Floor session", [true, "Floor at Studio", 4, "With: Me (rigger), Sam (model)", ["Floor", "Futomomo"]]]);
   check("a tie needs a date: the form won't save without one", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await wait(600);
@@ -488,7 +497,7 @@ try {
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
-    ["23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
+    ["Showing 23 of 23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
   check("every search field is kept out of form history and spellcheck", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
     const leaky = leakyFields();
@@ -499,6 +508,22 @@ try {
     return [titles(), location.search, pagerButtons()];`),
     [["Practice 2", "Practice 1", "Hotel night"], "?page=2", ["‹ Prev", "1", "2*", "Next ›"]]);
   check("Back returns to page 1", await run(`history.back(); await wait(900); return [titles().length, location.search];`), [20, ""]);
+  check("50 per page shows them all, and is in the URL", await run(`
+    set("#page-size", "50"); await wait(400); await settle();
+    return [titles().length, pagerButtons(), location.search];`), [23, [], "?per_page=50"]);
+  check("the sort button puts the oldest first, and back", await run(`
+    $("#sort").click(); await wait(400); await settle();
+    const oldest = [titles()[0], $("#sort").getAttribute("aria-pressed"), location.search];
+    $("#sort").click(); set("#page-size", "20"); await wait(400); await settle();
+    return [oldest, titles()[0], location.search];`),
+    [["Hotel night", "true", "?per_page=50&sort=oldest"], "Floor session", ""]);
+  check("people who don't fit on the line show as '+n'", await run(`
+    $("#tie-list").style.width = "190px"; await wait(400);
+    const line = document.querySelector(".tie-card .tie-with");
+    const narrow = [line.innerText, line.querySelector(".tie-more").title];
+    $("#tie-list").style.width = ""; await wait(400);
+    return [narrow, line.innerText];`),
+    [["With: Me (rigger) +1", "Sam (model)"], "With: Me (rigger), Sam (model)"]);
   check("filters list everyone A–Z, archived in muted text", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
     return [filterOptions("#people-filter"), filterOptions("#locations-filter")];`),
@@ -510,7 +535,7 @@ try {
   check("people filter: ties with all chosen people", await run(`
     await pick("#people-filter", "Me"); await pick("#people-filter", "Sam");
     return [titles(), $("#people-filter summary").textContent, $("#tie-count").textContent, pagerButtons()];`),
-    [["Floor session"], "Me, Sam", "1 tie", []]);
+    [["Floor session"], "Me, Sam", "Showing 1 of 23 ties", []]);
   check("an archived person can be searched for", await run(`
     await pick("#people-filter", "Me"); await pick("#people-filter", "Sam"); await pick("#people-filter", "Alex");
     return titles();`), ["Hotel night"]);
@@ -524,7 +549,7 @@ try {
   check("Clear search resets everything", await run(`
     $("#clear").click(); await wait(800);
     return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
-    ["23 ties", "", "Anyone", true, ""]);
+    ["Showing 23 of 23 ties", "", "Anyone", true, ""]);
   check("Has Tags opens the tag dialog for picking only: no adding or deleting", await run(`
     $("#tags-choose").click(); await wait(600);
     const box = $("#tags-search"); box.value = "nosuchtag";
@@ -550,7 +575,7 @@ try {
     const kept = [tagChips("#tag-filter"), $("#tags-all").getAttribute("aria-pressed"), titles()];
     $("#clear").click(); await wait(800);
     return [kept, tagChips("#tag-filter"), $("#tags-any").getAttribute("aria-pressed"), $("#tie-count").textContent, location.search];`),
-    [[["Futomomo"], "true", ["Floor session", "Hotel night"]], [], "true", "23 ties", ""]);
+    [[["Futomomo"], "true", ["Floor session", "Hotel night"]], [], "true", "Showing 23 of 23 ties", ""]);
   check("keyword matches a linked plan's title, and stays out of the URL", await run(`await type("#q", "hip"); return [titles(), location.search];`),
     [["Floor session"], ""]);
   check("the keyword stays out of the URL alongside other filters, and survives paging Back", await run(`
@@ -580,8 +605,41 @@ try {
   await go("/people");
   check("delete a person", await run(`await clickIn("Sam", "Delete"); await clickDialog("Delete permanently"); return titles();`), ["MeYou"]);
   await go("/");
-  check("tie shows what was deleted", await run(`return items()[0].replace(/^Floor session \\| [^·]+· /, "");`),
-    "Floor · (location deleted) · 45 min · 4/5 | With: (person deleted) (model), Me (rigger) | Plans: (plan deleted) | Smooth transitions");
+  check("tie shows what was deleted", await run(`return card(0);`),
+    [true, "Floor at (location deleted)", 4, "With: (person deleted) (model), Me (rigger)", ["Futomomo"]]);
+  check("tapping a title opens the tie to edit, deleted links shown as kept", await run(`
+    $(".tie-title").click(); await wait(1000);
+    const d = $("dialog[open]");
+    const kept = (sel) => [...d.querySelectorAll(sel + " .kept-deleted")].map((r) => r.innerText.replace(/\\s*✕$/, ""));
+    return [$("#tie-form-heading").textContent, $("#tie-title").value, $("#tie-tie_type").value, $("#tie-duration_minutes").value,
+      $("#tie-notes").value, $("#tie-location-deleted").hidden, kept("#tie-participants"),
+      [...d.querySelectorAll("#tie-participants .person-row [role=combobox]")].map((b) => b.value),
+      kept("#tie-plans"), tagChips("#tie-tags"), d.querySelectorAll(".hank-button.filled").length,
+      [...d.querySelectorAll("button")].filter((b) => ["Save tie", "Cancel", "Delete tie"].includes(b.textContent)).map((b) => b.textContent), leakyFields()];`),
+    ["Edit tie", "Floor session", "floor", "45", "Smooth transitions", false, ["(person deleted) (model)"], ["Me"], ["(plan deleted)"], ["Futomomo"], 4,
+      ["Save tie", "Cancel", "Delete tie"], []]);
+  check("saving an edit updates the tie, keeping the deleted links left in", await run(`
+    set("#tie-title", "Floor session, edited"); $("#tie-save").click(); await wait(600); await settle();
+    return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
+    [false, "Floor session, edited", [true, "Floor at (location deleted)", 4, "With: (person deleted) (model), Me (rigger)", ["Futomomo"]]]);
+  check("removing deleted links in the edit form drops them", await run(`
+    $(".tie-title").click(); await wait(1000);
+    $("#tie-participants .kept-deleted button").click(); $("#tie-location-deleted button").click();
+    $("#tie-save").click(); await wait(600); await settle();
+    return card(0);`), [true, "Floor", 4, "With: Me (rigger)", ["Futomomo"]]);
+  await run(`await post("/api/ties", { title: "Throwaway", tie_date: "2030-01-01" });`);
+  await go("/");
+  check("Delete tie asks first; Cancel keeps it, Delete tie deletes it", await run(`
+    const confirmDialog = () => { const all = document.querySelectorAll("dialog"); return all[all.length - 1]; };
+    const press = (label) => [...confirmDialog().querySelectorAll("button")].find((b) => b.textContent === label).click();
+    [...document.querySelectorAll(".tie-title")].find((t) => t.innerText === "Throwaway").click(); await wait(1000);
+    $("#tie-delete").click(); await wait(300);
+    const asked = [confirmDialog().querySelector("h2").textContent, [...confirmDialog().querySelectorAll("button")].map((b) => b.textContent)];
+    press("Cancel"); await wait(300);
+    const kept = [!!$("dialog[open] #tie-form"), titles().includes("Throwaway")];
+    $("#tie-delete").click(); await wait(300); press("Delete tie"); await wait(600); await settle();
+    return [asked, kept, !!document.querySelector("dialog"), titles().includes("Throwaway")];`),
+    [["Delete this tie?", ["Delete tie", "Cancel"]], [true, true], false, false]);
 
   console.log("+ on other tabs");
   await go("/plans");
@@ -614,7 +672,7 @@ try {
   await go("/signin");
   await run(`$("#sign-in").click();`);
   await sleep(2500);
-  check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "24 ties"]);
+  check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 24 of 24 ties"]);
 
   console.log("Recovery");
   // Lose the phone: its passkey is gone, a new device has a new authenticator.
@@ -639,7 +697,7 @@ try {
   check("adding a passkey finishes signing in, with a new recovery code", [
     /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(shownAfterRecovery ?? ""),
     ...await run(`return [location.pathname, $("#tie-count").textContent];`),
-  ], [true, "/", "24 ties"]);
+  ], [true, "/", "Showing 24 of 24 ties"]);
   await go("/account");
   check("the lost phone's passkey can then be removed", await run(`
     const before = [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent);

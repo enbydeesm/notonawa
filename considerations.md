@@ -257,14 +257,17 @@ and maybe plan) and open that dialog. `renderNav` in `public/js/nav.js` is
 where the choice goes; the person and location forms would need to move into
 dialogs the way the tie form did (`public/js/tie-form.js`).
 
-## Planned: adjustable ties per page
+## Adjustable ties per page, and sorting
 
-**Status:** planned (2026-10-12)
+**Status:** built (2026-10-14)
 
-The Ties list shows 20 per page (`PAGE_SIZE` in `src/ties/parse.js`; the API
-returns it as `page_size` and the page uses that). To let the user change it,
-accept a `page_size` query parameter (with a sensible cap, e.g. 100) and add a
-picker under the list.
+The list header has a page-size picker (20, 50 or 100; `PAGE_SIZES` in
+`src/ties/parse.js` and `public/js/tie-search.js`) and a sort button
+(newest or oldest tie date first). Both go in the page address
+(`per_page`, `sort`, left out at their defaults) and in the search body
+(`page_size`, `sort`); any other page size is a 400. They aren't filters, so
+Clear search keeps them. Oldest first is the exact reverse of newest first,
+same-day ties included, so paging never shifts.
 
 ## `?archived=` with a default when it's left out
 
@@ -349,14 +352,14 @@ the keyword search, "Ö" and "ö" count as the same tag.
 
 ## Planned: tags on the ties list
 
-**Status:** filter built (2026-10-13); showing tags on each tie still planned
+**Status:** built (filter 2026-10-13, tags on each tie 2026-10-14)
 
 The search has a "Has Tags" filter: tags are picked in the tie form's tag
 dialog (`forSearch`: existing tags only, no adding or deleting, since a new
 tag can't match anything), with an OR / AND switch (any of the tags, or all).
 Tag ids, not names, go in the page address, as names are typed by the user.
-The list doesn't show each tie's tags yet: `listTies` would fetch `tie_tags`
-for the page the way it does participants and plans.
+Each tie in the list shows its tags (`listTies` fetches them with the
+participants and plans).
 
 ## Every tie has a date
 
@@ -376,3 +379,27 @@ Weighed:
   (as in 0002), with the link tables rebuilt alongside so nothing cascades.
 - **Filling missing dates from `created_at`** on import: not needed, as no
   undated ties existed to export.
+
+## The ties list as cards, and editing from the list
+
+**Status:** built (2026-10-14)
+
+Each tie is a card: title (a button that opens the tie to edit) and date;
+"Floor at Studio" ("at Studio" with no type) and the rating; who took part, on
+one line; and the tags. Duration, plans and notes left the list on purpose:
+they're in the edit form. The header says "Showing X of Y ties" (matching,
+and all; the search returns `all_total`).
+
+- **People on one line:** the page measures each person after drawing and
+  hides those that don't fit, ending the line with "+2" (its tooltip names
+  them), so nobody silently goes missing. Redone when the list's width
+  changes (`peopleThatFit` in `ties-view.js` is the pure part).
+- **Editing** reuses the "Log a tie" form (`openTieForm(tie)`), with
+  `GET`/`PUT`/`DELETE /api/ties/:id`. A save replaces the tie's people, plans
+  and tags, but a person kept in the same role keeps their link row (and
+  any ratings or notes an import put on it), and a plan kept keeps the
+  version this tie recorded. Deleted people, plans and locations show as
+  "(… deleted)" rows that can be removed but not changed; they're kept only
+  if sent back in `keep_deleted`.
+- **Deleting** a tie asks first. Its people, plans and tags stay; there's no
+  archive for ties.

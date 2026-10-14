@@ -47,9 +47,21 @@
     </section>
 
     <section class="card" id="results">
-      <div class="card-header">
+      <div class="card-header list-header">
         <h2>My ties</h2>
         <span class="item-meta" id="tie-count"></span>
+        <div class="list-controls">
+          <select id="page-size" aria-label="Ties per page" title="Ties per page">
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <button type="button" class="icon-button" id="sort" aria-label="Oldest first" aria-pressed="false" title="Newest first">
+            <svg viewBox="0 0 24 24" class="sort-icon" aria-hidden="true" focusable="false">
+              <path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 11h5M14 16h3"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <div id="tie-list"><p class="empty">Loading…</p></div>
       <div class="pager" id="pager" role="navigation" aria-label="Pages"></div>

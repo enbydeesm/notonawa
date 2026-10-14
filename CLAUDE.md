@@ -87,8 +87,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body,
-  so the keyword never goes in a URL) is filtered and paged (20 per page)
-  and returns `{ ties, total, page, page_size }`. A tie's `tags` are sent as
+  so the keyword never goes in a URL) is filtered and paged (20 per page by default)
+  and returns `{ ties, total, all_total, page, page_size }` (`page_size`
+  20, 50 or 100; `sort` newest or oldest). `GET`/`PUT`/`DELETE
+  /api/ties/:id` read, edit (with `keep_deleted` for deleted links to keep)
+  and delete one tie. A tie's `tags` are sent as
   names; new ones are created when the tie is saved. `tie_type` is one of
   `TIE_TYPES` (also in `public/js/ties-view.js` and a CHECK in migration
   0004). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active

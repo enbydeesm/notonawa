@@ -132,7 +132,7 @@ describe("deleting", () => {
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
 
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
-    expect(listed.participants).toEqual([{ person_id: null, person_name: null, role: "model" }]);
+    expect(listed.participants).toEqual([{ id: expect.any(String), person_id: null, person_name: null, role: "model" }]);
   });
 
   it("a location marks its ties as '(location deleted)'", async () => {
@@ -157,7 +157,7 @@ describe("deleting", () => {
 
     expect((await call(`/api/plans/${plan}?linked_ties=keep`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
-    expect(listed.plans).toEqual([{ plan_id: null, plan_title: null, plan_version: 1 }]);
+    expect(listed.plans).toEqual([{ id: expect.any(String), plan_id: null, plan_title: null, plan_version: 1 }]);
   });
 
   it("a plan with linked_ties=remove drops it from its ties", async () => {
