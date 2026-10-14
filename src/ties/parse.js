@@ -14,12 +14,14 @@ export const RECENT_TYPES = ["locations", "people", "plans"];
 export const PAGE_SIZE = 20;
 const MAX_FILTER_IDS = 50;
 const MAX_SEARCH_LENGTH = 200;
+/** How the tags filter combines the chosen tags: ties with any of them, or all. */
+export const TAG_MATCHES = ["any", "all"];
 
 /**
  * @typedef {{ person_id: string, role: string }} ParticipantInput
  * @typedef {{
  *   title: string | null,
- *   tie_date: string | null,
+ *   tie_date: string,
  *   tie_type: string | null,
  *   notes: string | null,
  *   duration_minutes: number | null,
@@ -51,10 +53,10 @@ export function parseTieInput(body) {
     plan_ids: parsePlanIds(body.plan_ids),
     tags: parseTagNames(body.tags),
   };
-  if (!tie.title && !tie.tie_date) {
-    throw new BadInput("Add at least a title or a date.");
-  }
-  return tie;
+  // Every tie has a date, so a date search never leaves one out.
+  const date = tie.tie_date;
+  if (!date) throw new BadInput("Add a date.");
+  return { ...tie, tie_date: date };
 }
 
 /**
@@ -96,6 +98,8 @@ export function parsePlanIds(value) {
  * @typedef {{
  *   person_ids: string[],
  *   location_ids: string[],
+ *   tag_ids: string[],
+ *   tag_match: string,
  *   from: string | null,
  *   to: string | null,
  *   q: string | null,
@@ -104,8 +108,9 @@ export function parsePlanIds(value) {
  */
 
 /**
- * The search body: person_ids and location_ids (lists), from / to (tie dates,
- * inclusive), q (keyword) and page. All optional.
+ * The search body: person_ids, location_ids and tag_ids (lists), tag_match
+ * ("any", the default, or "all"), from / to (tie dates, inclusive), q
+ * (keyword) and page. All optional.
  * @param {Record<string, unknown>} body
  * @returns {TieFilters}
  */
@@ -113,6 +118,8 @@ export function parseTieFilters(body) {
   const filters = {
     person_ids: parseIdList(body.person_ids, "people"),
     location_ids: parseIdList(body.location_ids, "locations"),
+    tag_ids: parseIdList(body.tag_ids, "tags"),
+    tag_match: parseTagMatch(body.tag_match),
     from: toDateOrNull(body.from),
     to: toDateOrNull(body.to),
     q: cleanText(body.q),
@@ -135,10 +142,19 @@ export function parseTieFilters(body) {
 function parseIdList(value, what) {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) throw new BadInput(`Choose ${what} as a list.`);
-  // Duplicates removed: the "all of these people" filter counts matches.
+  // Duplicates removed: the "all of these" filters count matches.
   const ids = [...new Set(value.map(cleanText).filter((id) => id !== null))];
   if (ids.length > MAX_FILTER_IDS) throw new BadInput(`Choose up to ${MAX_FILTER_IDS} ${what}.`);
   return ids;
+}
+
+/** @param {unknown} value */
+function parseTagMatch(value) {
+  try {
+    return toChoiceOrNull(value, TAG_MATCHES) ?? "any";
+  } catch {
+    throw new BadInput("Match any or all of the tags.");
+  }
 }
 
 /** @param {unknown} value */

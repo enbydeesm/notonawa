@@ -23,6 +23,28 @@ const time = (name) => `COALESCE(${j(name)}, ${NOW})`;
 // it was inserted rather than skipped as a duplicate).
 const TIE_INSERTED = `EXISTS (SELECT 1 FROM ties WHERE id = ${j("tie_id")} AND owner_id = ?1)`;
 
+// A saved tie x's people, plans and tags as one text, built as linksKey
+// (import-plan.js) builds it for the file's ties; the two must match.
+// Ids are compared in byte order, which is how JavaScript sorts them too.
+const LINKS_KEY = `
+  COALESCE((SELECT group_concat(k, ',' ORDER BY k) FROM
+             (SELECT COALESCE(person_id, '') || '|' || role AS k FROM tie_participants WHERE tie_id = x.id)), '')
+  || ';' || COALESCE((SELECT group_concat(k, ',' ORDER BY k) FROM
+             (SELECT COALESCE(plan_id, '') AS k FROM tie_plans WHERE tie_id = x.id)), '')
+  || ';' || COALESCE((SELECT group_concat(tag_id, ',' ORDER BY tag_id) FROM tie_tags WHERE tie_id = x.id), '')`;
+
+// One of my ties that's the same as the file's tie j in everything you can
+// see on it: date, title, notes, type, location, duration, rating, people,
+// plans and tags. (Not created_at: a CSV has none.)
+const SAME_TIE = `EXISTS (
+  SELECT 1 FROM ties x
+   WHERE x.owner_id = ?1 AND x.tie_date = ${j("tie_date")}
+     AND x.title IS ${j("title")} AND x.notes IS ${j("notes")}
+     AND x.tie_type IS ${j("tie_type")} AND x.location_id IS ${j("location_id")}
+     AND x.location_deleted = ${j("location_deleted")}
+     AND x.duration_minutes IS ${j("duration_minutes")} AND x.success_rating IS ${j("success_rating")}
+     AND (${LINKS_KEY}) = ${j("links")})`;
+
 const SQL = {
   tags: `INSERT INTO tags (id, owner_id, name)
          SELECT ${j("id")}, ?1, ${j("name")} FROM json_each(?2) j WHERE true
@@ -52,17 +74,13 @@ const SQL = {
   planTags: `INSERT INTO plan_tags (plan_id, tag_id)
              SELECT ${j("plan_id")}, t.id FROM json_each(?2) j
                JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}`,
-  // An exact duplicate of one of my ties (same date, title and notes) is
-  // skipped, so importing the same file twice, or again after a failed
-  // batch, adds nothing twice.
+  // An exact duplicate of one of my ties (SAME_TIE) is skipped, so importing
+  // the same file twice, or again after a failed batch, adds nothing twice.
   ties: `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, location_deleted, duration_minutes, success_rating, notes, created_at, updated_at)
          SELECT ${j("id")}, ?1, ${j("title")}, ${j("tie_date")}, ${j("tie_type")}, ${j("location_id")}, ${j("location_deleted")},
                 ${j("duration_minutes")}, ${j("success_rating")}, ${j("notes")}, ${time("created_at")}, ${time("updated_at")}
            FROM json_each(?2) j
-          WHERE NOT EXISTS (
-            SELECT 1 FROM ties x
-             WHERE x.owner_id = ?1 AND x.tie_date IS ${j("tie_date")}
-               AND x.title IS ${j("title")} AND x.notes IS ${j("notes")})`,
+          WHERE NOT ${SAME_TIE}`,
   participants: `INSERT INTO tie_participants (id, tie_id, person_id, role, difficulty_rating, experience_rating, notes)
                  SELECT ${j("id")}, ${j("tie_id")}, ${j("person_id")}, ${j("role")},
                         ${j("difficulty_rating")}, ${j("experience_rating")}, ${j("notes")}
@@ -78,11 +96,7 @@ const SQL = {
             SELECT ${j("tie_id")}, t.id FROM json_each(?2) j
               JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}
              WHERE ${TIE_INSERTED}`,
-  duplicates: `SELECT ${j("i")} AS i FROM json_each(?2) j
-                WHERE EXISTS (
-                  SELECT 1 FROM ties x
-                   WHERE x.owner_id = ?1 AND x.tie_date IS ${j("tie_date")}
-                     AND x.title IS ${j("title")} AND x.notes IS ${j("notes")})`,
+  duplicates: `SELECT ${j("i")} AS i FROM json_each(?2) j WHERE ${SAME_TIE}`,
 };
 
 /**
@@ -146,11 +160,11 @@ export async function insertTies(db, ownerId, rows) {
  * Which of these ties (by position) are exact duplicates of mine.
  * @param {D1Database} db
  * @param {string} ownerId
- * @param {{ title: string | null, tie_date: string | null, notes: string | null }[]} ties
+ * @param {ReturnType<typeof import("./import-plan.js").planTies>["rows"]["ties"]} ties
  * @returns {Promise<number[]>}
  */
 export async function duplicateTies(db, ownerId, ties) {
-  const rows = ties.map((t, i) => ({ i, title: t.title, tie_date: t.tie_date, notes: t.notes }));
+  const rows = ties.map((t, i) => ({ ...t, i }));
   const results = await runBatch(db, statements(db, SQL.duplicates, ownerId, rows));
   return results.flatMap((r) => r.results.map((/** @type {any} */ row) => /** @type {number} */ (row.i)));
 }

@@ -118,7 +118,7 @@ describe("other users' data", () => {
   it("can't be linked to a tie", async () => {
     const otherId = await createOtherUser();
     await sql("INSERT INTO locations (id, owner_id, name) VALUES ('their-loc', ?, 'Their place')", otherId).run();
-    expect(await call("/api/ties", { method: "POST", body: { title: "x", location_id: "their-loc" } }))
+    expect(await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", location_id: "their-loc" } }))
       .toEqual({ status: 400, body: { error: "Linked item not found." } });
   });
 });
@@ -126,7 +126,7 @@ describe("other users' data", () => {
 describe("deleting", () => {
   it("a person keeps their place in ties, shown as deleted", async () => {
     const person = await create("/api/people", { name: "Sam" });
-    const tie = await create("/api/ties", { title: "Floor", participants: [{ person_id: person, role: "model" }] });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Floor", participants: [{ person_id: person, role: "model" }] });
 
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
@@ -137,7 +137,7 @@ describe("deleting", () => {
 
   it("a location marks its ties as '(location deleted)'", async () => {
     const loc = await create("/api/locations", { name: "Studio" });
-    const tie = await create("/api/ties", { title: "Suspension", location_id: loc });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Suspension", location_id: loc });
 
     expect((await call(`/api/locations/${loc}`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
@@ -153,7 +153,7 @@ describe("deleting", () => {
 
   it("a plan with linked_ties=keep leaves '(plan deleted)' on its ties", async () => {
     const plan = await create("/api/plans", { title: "Hip harness" });
-    const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=keep`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
@@ -162,7 +162,7 @@ describe("deleting", () => {
 
   it("a plan with linked_ties=remove drops it from its ties", async () => {
     const plan = await create("/api/plans", { title: "Hip harness" });
-    const tie = await create("/api/ties", { title: "Attempt", plan_ids: [plan] });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);

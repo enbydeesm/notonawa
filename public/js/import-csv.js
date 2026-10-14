@@ -50,10 +50,10 @@ export function csvToImport(rows) {
   /** @type {string[]} */
   const errors = [];
   const fields = header.map((h) => /** @type {Record<string, string>} */ (COLUMNS)[h.trim().toLowerCase().replace(/[\s-]+/g, "_")]);
-  // No date or title column: most likely the headings are missing, so that's
-  // the one thing to say.
-  if (!fields.includes("date") && !fields.includes("title")) {
-    errors.push("The first row needs the column names, with a date or title column.");
+  // No date column: most likely the headings are missing, so that's the one
+  // thing to say. (Every tie needs a date.)
+  if (!fields.includes("date")) {
+    errors.push("The first row needs the column names, with a date column.");
     return { doc: { people: [], locations: [], plans: [], tags: [], ties: [] }, errors };
   }
   const unknown = header.filter((h, i) => h.trim() && !fields[i]);
@@ -93,7 +93,7 @@ function rowToTie(get, { people, locations, plans }) {
   const date = get.date || null;
   if (date !== null && !isDate(date)) throw new Error(`Write the date as year-month-day, like 2026-10-12 (not "${date}").`);
   const title = get.title || null;
-  if (!date && !title) throw new Error("Add at least a title or a date.");
+  if (!date) throw new Error("Add a date.");
   return {
     title,
     tie_date: date,

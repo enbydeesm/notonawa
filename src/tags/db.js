@@ -9,8 +9,7 @@
  * @returns {Promise<{ id: string, name: string, tie_count: number }[]>}
  */
 export async function listTags(db, ownerId) {
-  // Sorts on each tag's newest "tie date|logged at"; undated ties get a date
-  // before any real one.
+  // Sorts on each tag's newest "tie date|logged at".
   const { results } = await db.prepare(
     `SELECT t.id, t.name, COUNT(ti.id) AS tie_count
        FROM tags t
@@ -18,8 +17,8 @@ export async function listTags(db, ownerId) {
        LEFT JOIN ties ti ON ti.id = tt.tie_id
       WHERE t.owner_id = ?
       GROUP BY t.id
-      ORDER BY MAX(COALESCE(ti.tie_date, '0000-00-00') || '|' || ti.created_at) IS NULL,
-               MAX(COALESCE(ti.tie_date, '0000-00-00') || '|' || ti.created_at) DESC,
+      ORDER BY MAX(ti.tie_date || '|' || ti.created_at) IS NULL,
+               MAX(ti.tie_date || '|' || ti.created_at) DESC,
                t.name COLLATE NOCASE`
   ).bind(ownerId).all();
   return /** @type {any} */ (results);

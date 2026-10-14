@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseImportItems, parseImportTies } from "../../src/data/import-parse.js";
-import { planItems, planTies, jsonChunks, findByName } from "../../src/data/import-plan.js";
+import { planItems, planTies, jsonChunks, findByName, linksKey } from "../../src/data/import-plan.js";
 
 /** Ids 1, 2, 3, … so plans are predictable. */
 function counter() {
@@ -78,12 +78,12 @@ describe("parseImportTies", () => {
   });
 
   it("never marks a tie with a location as having lost it", () => {
-    expect(parseImportTies({ ties: [{ title: "x", location_id: "l1", location_deleted: true }] })[0].location_deleted).toBe(0);
+    expect(parseImportTies({ ties: [{ title: "x", tie_date: "2026-01-01", location_id: "l1", location_deleted: true }] })[0].location_deleted).toBe(0);
   });
 
   it("names the tie in an error", () => {
-    expect(() => parseImportTies({ ties: [{ title: "ok" }, { notes: "no title or date" }] }))
-      .toThrow("Tie 2: Add at least a title or a date.");
+    expect(() => parseImportTies({ ties: [{ title: "ok", tie_date: "2026-01-01" }, { title: "Undated" }] }))
+      .toThrow('Tie 2 ("Undated"): Add a date.');
     expect(() => parseImportTies({ ties: [{ title: "Floor", tie_date: "12/10/2026" }] }))
       .toThrow('Tie 1 ("Floor"): Expected a date like 2026-10-12.');
     expect(() => parseImportTies({ ties: [{ title: "x", participants: [{ person_id: "p" }] }] })).toThrow("needs a role");
@@ -151,16 +151,31 @@ describe("planItems", () => {
   });
 });
 
+describe("linksKey", () => {
+  it("lists people with roles, plans and tags, in any order", () => {
+    const key = linksKey([{ person_id: "b", role: "model" }, { person_id: "a", role: "rigger" }], ["p2", "p1"], ["t2", "t1"]);
+    expect(key).toBe("a|rigger,b|model;p1,p2;t1,t2");
+    expect(linksKey([{ person_id: "a", role: "rigger" }, { person_id: "b", role: "model" }], ["p1", "p2"], ["t1", "t2"])).toBe(key);
+  });
+
+  it("keeps deleted people and plans as empty entries, and is empty with no links", () => {
+    expect(linksKey([{ person_id: null, role: "model" }], [null], [])).toBe("|model;;");
+    expect(linksKey([], [], [])).toBe(";;");
+  });
+});
+
 describe("planTies", () => {
   it("gives each tie and link a new id, and resolves tags to my spelling", () => {
     const ties = parseImportTies({ ties: [
-      { title: "A", participants: [{ person_id: "p", role: "model" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
-      { title: "B", tags: ["new"] },
+      { title: "A", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "model" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
+      { title: "B", tie_date: "2026-01-02", tags: ["new"] },
     ] });
     const plan = planTies(ties, [{ id: "t", name: "Floor" }], counter());
     expect(plan.newTags).toEqual(["New"]);
     expect(plan.rows.tags).toEqual([{ id: "new-1", name: "New" }]);
     expect(plan.rows.ties.map((t) => t.id)).toEqual(["new-2", "new-3"]);
+    // Tags in the links key are ids: "t" is mine, "new-1" is being added.
+    expect(plan.rows.ties.map((t) => t.links)).toEqual(["p|model;pl;new-1,t", ";;new-1"]);
     expect(plan.rows.participants).toEqual([expect.objectContaining({ id: "new-4", tie_id: "new-2", person_id: "p", role: "model" })]);
     expect(plan.rows.tiePlans).toEqual([{ id: "new-5", tie_id: "new-2", plan_id: "pl", plan_version: null }]);
     expect(plan.rows.tieTags).toEqual([

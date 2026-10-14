@@ -4,7 +4,7 @@ import { tieFilterSql, escapeLike } from "../../src/ties/search.js";
 
 const parse = parseTieFilters;
 
-const NO_FILTERS = { person_ids: [], location_ids: [], from: null, to: null, q: null, page: 1 };
+const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [], tag_match: "any", from: null, to: null, q: null, page: 1 };
 
 describe("parseTieFilters", () => {
   it("has no filters and page 1 by default", () => {
@@ -14,15 +14,25 @@ describe("parseTieFilters", () => {
 
   it("reads every filter", () => {
     expect(parse({
-      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: " harness ", page: 3,
+      person_ids: ["a", "b"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all",
+      from: "2026-01-01", to: "2026-02-01", q: " harness ", page: 3,
     })).toEqual({
-      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: "harness", page: 3,
+      person_ids: ["a", "b"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all",
+      from: "2026-01-01", to: "2026-02-01", q: "harness", page: 3,
     });
   });
 
   it("drops duplicate and empty ids", () => {
     expect(parse({ person_ids: ["a", "a", "", null] }).person_ids).toEqual(["a"]);
     expect(parse({ location_ids: ["x", "x"] }).location_ids).toEqual(["x"]);
+  });
+
+  it("matches any tag unless told all, and rejects anything else", () => {
+    expect(parse({ tag_ids: ["t"] }).tag_match).toBe("any");
+    expect(parse({ tag_match: "" }).tag_match).toBe("any");
+    expect(parse({ tag_match: "all" }).tag_match).toBe("all");
+    expect(() => parse({ tag_match: "some" })).toThrow("Match any or all of the tags.");
+    expect(() => parse({ tag_ids: "t" })).toThrow("Choose tags as a list.");
   });
 
   it("rejects ids that aren't a list", () => {
@@ -54,7 +64,7 @@ describe("tieFilterSql", () => {
 
   it("binds every value instead of putting it in the SQL", () => {
     const filters = {
-      person_ids: ["p1", "p2"], location_ids: ["'; DROP TABLE ties; --"],
+      person_ids: ["p1", "p2"], location_ids: ["'; DROP TABLE ties; --"], tag_ids: ["t1"], tag_match: "all",
       from: "2026-01-01", to: "2026-02-01", q: "50%_off", page: 1,
     };
     const { where, params } = tieFilterSql("me", filters);
@@ -62,11 +72,13 @@ describe("tieFilterSql", () => {
       "me",
       '["p1","p2"]', 2,
       `["'; DROP TABLE ties; --"]`,
+      '["t1"]', 1,
       "2026-01-01", "2026-02-01",
       "%50\\%\\_off%", "%50\\%\\_off%", "%50\\%\\_off%",
     ]);
     expect(where).not.toContain("DROP");
     expect(where).not.toContain("p1");
+    expect(where).not.toContain("t1");
     expect(where.match(/\?/g)).toHaveLength(params.length);
   });
 
@@ -74,6 +86,17 @@ describe("tieFilterSql", () => {
     const { where, params } = tieFilterSql("me", { ...NO_FILTERS, person_ids: ["a", "b", "c"] });
     expect(where).toContain("COUNT(DISTINCT tp.person_id)");
     expect(params.slice(1)).toEqual(['["a","b","c"]', 3]);
+  });
+
+  it("matches any chosen tag, or all of them by counting", () => {
+    const any = tieFilterSql("me", { ...NO_FILTERS, tag_ids: ["x", "y"] });
+    expect(any.where).toContain("EXISTS (SELECT 1 FROM tie_tags tt");
+    expect(any.params.slice(1)).toEqual(['["x","y"]']);
+    const all = tieFilterSql("me", { ...NO_FILTERS, tag_ids: ["x", "y"], tag_match: "all" });
+    expect(all.where).toContain("COUNT(DISTINCT tt.tag_id)");
+    expect(all.params.slice(1)).toEqual(['["x","y"]', 2]);
+    // "all" with no tags chosen filters nothing.
+    expect(tieFilterSql("me", { ...NO_FILTERS, tag_match: "all" }).params).toEqual(["me"]);
   });
 });
 

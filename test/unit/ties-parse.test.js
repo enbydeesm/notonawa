@@ -28,23 +28,24 @@ describe("parseTieInput", () => {
     });
   });
 
-  it("needs at least a title or a date", () => {
-    expect(() => parseTieInput({})).toThrow("Add at least a title or a date.");
+  it("needs a date, but not a title", () => {
+    expect(() => parseTieInput({})).toThrow("Add a date.");
+    expect(() => parseTieInput({ title: "x", tie_date: "" })).toThrow("Add a date.");
     expect(parseTieInput({ tie_date: "2026-10-12" }).title).toBeNull();
   });
 
   it("only accepts a real YYYY-MM-DD tie date", () => {
     expect(parseTieInput({ title: "x", tie_date: " 2024-02-29 " }).tie_date).toBe("2024-02-29");
-    expect(parseTieInput({ title: "x", tie_date: "" }).tie_date).toBeNull();
     for (const bad of ["2026-02-30", "12/10/2026", "yesterday", "2026-10-12T21:00:00Z"]) {
       expect(() => parseTieInput({ title: "x", tie_date: bad })).toThrow("Expected a date like 2026-10-12.");
     }
   });
 
   it("only accepts a known type, and none is fine", () => {
-    expect(parseTieInput({ title: "x" }).tie_type).toBeNull();
-    expect(parseTieInput({ title: "x", tie_type: "" }).tie_type).toBeNull();
-    expect(parseTieInput({ title: "x", tie_type: "floor" }).tie_type).toBe("floor");
+    const dated = { title: "x", tie_date: "2026-01-01" };
+    expect(parseTieInput(dated).tie_type).toBeNull();
+    expect(parseTieInput({ ...dated, tie_type: "" }).tie_type).toBeNull();
+    expect(parseTieInput({ ...dated, tie_type: "floor" }).tie_type).toBe("floor");
     expect(() => parseTieInput({ title: "x", tie_type: "hanging" })).toThrow("Expected one of: suspension, partial suspension, floor.");
   });
 

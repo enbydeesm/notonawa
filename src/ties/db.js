@@ -23,7 +23,7 @@ const RECENT_JOINS = {
 
 /**
  * Ids of my active locations, people or plans, most recently on a tie first
- * (by tie date; ties with no date count as oldest). For the tie form's
+ * (by tie date). For the tie form's
  * pickers, so archived ones are left out.
  * @param {D1Database} db
  * @param {string} ownerId

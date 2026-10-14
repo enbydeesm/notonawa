@@ -4,7 +4,8 @@ import {
   readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList, sortByName, nameMatches,
 } from "../../public/js/tie-search.js";
 
-const EMPTY = { person_ids: [], location_ids: [], from: "", to: "", q: "", page: 1 };
+/** @type {import("../../public/js/tie-search.js").SearchState} */
+const EMPTY = { person_ids: [], location_ids: [], tag_ids: [], tag_match: "any", from: "", to: "", q: "", page: 1 };
 
 describe("readSearch and pageQuery", () => {
   it("start empty on page 1", () => {
@@ -13,10 +14,10 @@ describe("readSearch and pageQuery", () => {
   });
 
   it("round-trip the filters and page", () => {
-    const query = "person_id=a&person_id=b&location_id=c&from=2026-01-01&to=2026-02-01&page=2";
+    const query = "person_id=a&person_id=b&location_id=c&tag_id=t1&tag_id=t2&tags=all&from=2026-01-01&to=2026-02-01&page=2";
     const state = readSearch("?" + query);
     expect(state).toEqual({
-      person_ids: ["a", "b"], location_ids: ["c"], from: "2026-01-01", to: "2026-02-01", q: "", page: 2,
+      person_ids: ["a", "b"], location_ids: ["c"], tag_ids: ["t1", "t2"], tag_match: "all", from: "2026-01-01", to: "2026-02-01", q: "", page: 2,
     });
     expect(pageQuery(state)).toBe(query);
   });
@@ -25,6 +26,11 @@ describe("readSearch and pageQuery", () => {
     expect(pageQuery({ ...EMPTY, q: "hip harness" })).toBe("");
     expect(pageQuery({ ...EMPTY, q: "hip harness", from: "2026-01-01", page: 2 })).toBe("from=2026-01-01&page=2");
     expect(readSearch("?q=hip+harness&page=2")).toEqual({ ...EMPTY, page: 2 });
+  });
+
+  it("leave out the default tag match, and treat anything but 'all' as 'any'", () => {
+    expect(pageQuery({ ...EMPTY, tag_ids: ["t"] })).toBe("tag_id=t");
+    expect(readSearch("?tags=bogus").tag_match).toBe("any");
   });
 
   it("ignore a bad page number in the URL", () => {
@@ -44,9 +50,9 @@ describe("hasKeywordInUrl", () => {
 describe("searchBody", () => {
   it("carries every filter, the trimmed keyword and the page", () => {
     expect(searchBody({
-      person_ids: ["a"], location_ids: ["c"], from: "2026-01-01", to: "", q: "  box tie ", page: 3,
+      person_ids: ["a"], location_ids: ["c"], tag_ids: ["t"], tag_match: /** @type {const} */ ("all"), from: "2026-01-01", to: "", q: "  box tie ", page: 3,
     })).toEqual({
-      person_ids: ["a"], location_ids: ["c"], from: "2026-01-01", to: "", q: "box tie", page: 3,
+      person_ids: ["a"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all", from: "2026-01-01", to: "", q: "box tie", page: 3,
     });
   });
 });
@@ -54,10 +60,12 @@ describe("searchBody", () => {
 describe("hasFilters", () => {
   it("is false for no filters, whatever the page", () => {
     expect(hasFilters({ ...EMPTY, page: 3, q: "  " })).toBe(false);
+    expect(hasFilters({ ...EMPTY, tag_match: "all" })).toBe(false);
   });
   it("is true for any filter", () => {
     expect(hasFilters({ ...EMPTY, person_ids: ["a"] })).toBe(true);
     expect(hasFilters({ ...EMPTY, location_ids: ["a"] })).toBe(true);
+    expect(hasFilters({ ...EMPTY, tag_ids: ["a"] })).toBe(true);
     expect(hasFilters({ ...EMPTY, from: "2026-01-01" })).toBe(true);
     expect(hasFilters({ ...EMPTY, to: "2026-01-01" })).toBe(true);
     expect(hasFilters({ ...EMPTY, q: "x" })).toBe(true);

@@ -1,4 +1,4 @@
-// The Ties list's search state. The filters (people, locations, dates) and the
+// The Ties list's search state. The filters (people, locations, tags, dates) and the
 // page are kept in the page URL so refresh and Back keep them. The keyword
 // never is: a URL ends up in browser history (and synced to other devices),
 // so it's kept in memory only. Pure (no DOM), so it's easy to test.
@@ -7,6 +7,8 @@
  * @typedef {{
  *   person_ids: string[],
  *   location_ids: string[],
+ *   tag_ids: string[],
+ *   tag_match: "any" | "all",
  *   from: string,
  *   to: string,
  *   q: string,
@@ -26,6 +28,8 @@ export function readSearch(search) {
   return {
     person_ids: params.getAll("person_id").filter(Boolean),
     location_ids: params.getAll("location_id").filter(Boolean),
+    tag_ids: params.getAll("tag_id").filter(Boolean),
+    tag_match: params.get("tags") === "all" ? "all" : "any",
     from: params.get("from") ?? "",
     to: params.get("to") ?? "",
     q: "",
@@ -44,13 +48,17 @@ export function hasKeywordInUrl(search) {
 
 /**
  * The page URL's query string: everything but the keyword, leaving out
- * anything empty (and page 1). No leading "?".
+ * anything empty (and page 1). Tags go in as ids: their names are typed by
+ * the user, so they stay out of URLs. No leading "?".
  * @param {SearchState} state
  */
 export function pageQuery(state) {
   const params = new URLSearchParams();
   for (const id of state.person_ids) params.append("person_id", id);
   for (const id of state.location_ids) params.append("location_id", id);
+  for (const id of state.tag_ids) params.append("tag_id", id);
+  // "any" is the default, so only "all" goes in the address.
+  if (state.tag_match === "all") params.set("tags", "all");
   if (state.from) params.set("from", state.from);
   if (state.to) params.set("to", state.to);
   if (state.page > 1) params.set("page", String(state.page));
@@ -66,6 +74,8 @@ export function searchBody(state) {
   return {
     person_ids: state.person_ids,
     location_ids: state.location_ids,
+    tag_ids: state.tag_ids,
+    tag_match: state.tag_match,
     from: state.from,
     to: state.to,
     q: state.q.trim(),
@@ -75,7 +85,7 @@ export function searchBody(state) {
 
 /** @param {SearchState} state */
 export function hasFilters(state) {
-  return state.person_ids.length > 0 || state.location_ids.length > 0 ||
+  return state.person_ids.length > 0 || state.location_ids.length > 0 || state.tag_ids.length > 0 ||
     !!state.from || !!state.to || state.q.trim() !== "";
 }
 

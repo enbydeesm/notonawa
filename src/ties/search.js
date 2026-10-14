@@ -30,7 +30,25 @@ export function tieFilterSql(ownerId, filters) {
     params.push(JSON.stringify(filters.location_ids));
   }
 
-  // Inclusive. Ties with no date never match a date range.
+  // Ties with ANY of the chosen tags, or (tag_match "all") with ALL of them,
+  // counted the same way as people.
+  if (filters.tag_ids.length) {
+    if (filters.tag_match === "all") {
+      clauses.push(
+        `(SELECT COUNT(DISTINCT tt.tag_id) FROM tie_tags tt
+           WHERE tt.tie_id = t.id AND tt.tag_id IN (SELECT value FROM json_each(?))) = ?`
+      );
+      params.push(JSON.stringify(filters.tag_ids), filters.tag_ids.length);
+    } else {
+      clauses.push(
+        `EXISTS (SELECT 1 FROM tie_tags tt
+                  WHERE tt.tie_id = t.id AND tt.tag_id IN (SELECT value FROM json_each(?)))`
+      );
+      params.push(JSON.stringify(filters.tag_ids));
+    }
+  }
+
+  // Inclusive. Every tie has a date (required since migration 0006).
   if (filters.from) {
     clauses.push("t.tie_date >= ?");
     params.push(filters.from);

@@ -246,9 +246,9 @@ describe("sessions", () => {
   });
 
   it("can't be used for writes from another site", async () => {
-    const res = await call("/api/ties", { method: "POST", body: { title: "x" }, origin: "https://evil.example" });
+    const res = await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01" }, origin: "https://evil.example" });
     expect(res).toEqual({ status: 403, body: { error: "Not allowed" } });
-    expect((await call("/api/ties", { method: "POST", body: { title: "x" }, origin: null })).status).toBe(403);
+    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01" }, origin: null })).status).toBe(403);
   });
 });
 

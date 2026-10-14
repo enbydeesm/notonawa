@@ -58,10 +58,10 @@ describe("csvToImport", () => {
     ]);
   });
 
-  it("accepts columns in any order, and only date or title", () => {
-    const { doc, errors } = csvToImport([["notes", "title"], ["n", "Only a title"]]);
+  it("accepts columns in any order, and no title", () => {
+    const { doc, errors } = csvToImport([["notes", "date"], ["n", "2026-10-12"]]);
     expect(errors).toEqual([]);
-    expect(doc.ties[0]).toMatchObject({ title: "Only a title", notes: "n", tie_date: null });
+    expect(doc.ties[0]).toMatchObject({ title: null, notes: "n", tie_date: "2026-10-12" });
   });
 
   it("names the spreadsheet row of each problem", () => {
@@ -75,6 +75,7 @@ describe("csvToImport", () => {
       ["2026-02-30", "x", "", "", "1.5", ""],
       ["", "", "", "", "30", ""],
       ["2026-10-12", "x", "", "", "", "hanging"],
+      ["", "Undated", "", "", "", ""],
     ]);
     expect(errors).toEqual([
       'Row 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").',
@@ -82,8 +83,9 @@ describe("csvToImport", () => {
       'Row 5: "boss" isn\'t a role. Use one of: rigger, top, model, bottom, spotter, photographer.',
       "Row 6: The rating should be a whole number from 1 to 5.",
       'Row 7: Write the date as year-month-day, like 2026-10-12 (not "2026-02-30").',
-      "Row 8: Add at least a title or a date.",
+      "Row 8: Add a date.",
       'Row 9: "hanging" isn\'t a type. Use one of: suspension, partial suspension, floor.',
+      "Row 10: Add a date.",
     ]);
   });
 
@@ -91,6 +93,7 @@ describe("csvToImport", () => {
     expect(csvToImport([["date", "titel"], ["2026-10-12", "x"]]).errors)
       .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, people, plans, tags, notes."]);
     expect(csvToImport([["2026-10-12", "Floor"]]).errors[0]).toMatch("needs the column names");
+    expect(csvToImport([["title"], ["Floor"]]).errors).toEqual(["The first row needs the column names, with a date column."]);
     expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
   });
 

@@ -88,7 +88,7 @@ describe("ties", () => {
   it("still shows archived people and locations on existing ties", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const loc = await create("/api/locations", { name: "Old flat" });
-    const id = await create("/api/ties", { title: "x", location_id: loc, participants: [{ person_id: sam, role: "model" }] });
+    const id = await create("/api/ties", { tie_date: "2026-01-01", title: "x", location_id: loc, participants: [{ person_id: sam, role: "model" }] });
 
     await call(`/api/people/${sam}/archive`, { method: "POST" });
     await call(`/api/locations/${loc}/archive`, { method: "POST" });
@@ -102,15 +102,16 @@ describe("ties", () => {
     const sam = await create("/api/people", { name: "Sam" });
     const res = await call("/api/ties", {
       method: "POST",
-      body: { title: "Half saved?", participants: [{ person_id: sam, role: "model" }], plan_ids: ["no-such-plan"] },
+      body: { title: "Half saved?", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "model" }], plan_ids: ["no-such-plan"] },
     });
     expect(res).toEqual({ status: 400, body: { error: "Linked item not found." } });
     expect(await sql("SELECT id FROM ties WHERE title = 'Half saved?'").first()).toBeNull();
   });
 
   it("rejects bad input", async () => {
-    expect((await call("/api/ties", { method: "POST", body: {} })).body.error).toBe("Add at least a title or a date.");
-    expect((await call("/api/ties", { method: "POST", body: { title: "x", participants: [{ person_id: "p", role: "chef" }] } })).status).toBe(400);
+    expect((await call("/api/ties", { method: "POST", body: {} })).body.error).toBe("Add a date.");
+    expect((await call("/api/ties", { method: "POST", body: { title: "No date" } })).body.error).toBe("Add a date.");
+    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "chef" }] } })).status).toBe(400);
     expect(await call("/api/ties", { method: "POST", body: { title: "Bad date", tie_date: "2026-02-30" } }))
       .toEqual({ status: 400, body: { error: "Expected a date like 2026-10-12." } });
     expect(await sql("SELECT id FROM ties WHERE title = 'Bad date'").first()).toBeNull();

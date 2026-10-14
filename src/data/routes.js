@@ -53,7 +53,8 @@ export async function handleData(request, env, user, url) {
 
   // POST /api/data/import/ties  body { preview, ties }
   //   preview: true -> { duplicates: [positions], new_tags }: which ties are
-  //     exact duplicates of mine (same date, title and notes), saving nothing
+  //     exact duplicates of mine (the same date, title, notes, type, location,
+  //     duration, rating, people, plans and tags), saving nothing
   //   otherwise     -> { added, skipped }: adds up to 500 ties (links must be
   //     my ids, from the items request), skipping exact duplicates, all in
   //     one transaction
@@ -62,9 +63,12 @@ export async function handleData(request, env, user, url) {
     const ties = parseImportTies(body);
     const existingTags = await tagNames(env.DB, user.id);
     if (toFlag(body.preview) === 1) {
+      // Placeholder ids: nothing is saved. New tags' ids then match no tie of
+      // mine, which is right: a tie with a new tag can't be a duplicate.
+      const plan = planTies(ties, existingTags, () => "");
       return json({
-        duplicates: await duplicateTies(env.DB, user.id, ties),
-        new_tags: planTies(ties, existingTags, () => "").newTags,
+        duplicates: await duplicateTies(env.DB, user.id, plan.rows.ties),
+        new_tags: plan.newTags,
       });
     }
     const plan = planTies(ties, existingTags, () => crypto.randomUUID());

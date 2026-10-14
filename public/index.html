@@ -33,6 +33,16 @@
         </div>
       </div>
 
+      <div class="label-row">
+        <label id="tags-label">Has Tags</label>
+        <button type="button" class="label-add" id="tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+        <div class="match-toggle" role="group" aria-label="Match tags">
+          <button type="button" id="tags-any" aria-pressed="true" title="Ties with any of the tags">OR</button>
+          <button type="button" id="tags-all" aria-pressed="false" title="Ties with all of the tags">AND</button>
+        </div>
+      </div>
+      <div class="tag-row" id="tag-filter" aria-labelledby="tags-label"></div>
+
       <button type="button" class="link" id="clear" hidden>Clear search</button>
     </section>
 

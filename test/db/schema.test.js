@@ -19,14 +19,14 @@ describe("ownership triggers", () => {
     const loc = newId("loc");
     await sql("INSERT INTO locations (id, owner_id, name) VALUES (?, ?, 'Theirs')", loc, them).run();
     await expect(
-      sql("INSERT INTO ties (id, owner_id, title, location_id) VALUES (?, ?, 'x', ?)", newId("tie"), me, loc).run()
+      sql("INSERT INTO ties (id, owner_id, title, tie_date, location_id) VALUES (?, ?, 'x', '2026-01-01', ?)", newId("tie"), me, loc).run()
     ).rejects.toThrow("ownership mismatch: location");
   });
 
   it("stop adding another user's person to a tie", async () => {
     const tie = newId("tie");
     const person = newId("person");
-    await sql("INSERT INTO ties (id, owner_id, title) VALUES (?, ?, 'x')", tie, me).run();
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'x', '2026-01-01')", tie, me).run();
     await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Theirs')", person, them).run();
     await expect(
       sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, 'model')", newId("tp"), tie, person).run()
@@ -66,17 +66,26 @@ describe("constraints", () => {
   });
 
   it("only allow a known tie type, or none", async () => {
-    await sql("INSERT INTO ties (id, owner_id, title, tie_type) VALUES (?, ?, 'x', 'partial suspension')", newId("tie"), me).run();
-    await sql("INSERT INTO ties (id, owner_id, title) VALUES (?, ?, 'x')", newId("tie"), me).run();
-    await expect(sql("INSERT INTO ties (id, owner_id, title, tie_type) VALUES (?, ?, 'x', 'Floor')", newId("tie"), me).run())
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'partial suspension')", newId("tie"), me).run();
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'x', '2026-01-01')", newId("tie"), me).run();
+    await expect(sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'Floor')", newId("tie"), me).run())
       .rejects.toThrow("CHECK constraint failed");
+  });
+
+  it("require every tie to have a date", async () => {
+    const tie = newId("tie");
+    await expect(sql("INSERT INTO ties (id, owner_id, title) VALUES (?, ?, 'x')", newId("tie"), me).run())
+      .rejects.toThrow("NOT NULL constraint failed: ties.tie_date");
+    await sql("INSERT INTO ties (id, owner_id, tie_date) VALUES (?, ?, '2026-01-01')", tie, me).run();
+    await expect(sql("UPDATE ties SET tie_date = NULL WHERE id = ?", tie).run())
+      .rejects.toThrow("NOT NULL constraint failed: ties.tie_date");
   });
 
   it("make setting a tie's location clear the deleted-location flag", async () => {
     const loc = newId("loc");
     const tie = newId("tie");
     await sql("INSERT INTO locations (id, owner_id, name) VALUES (?, ?, 'Studio')", loc, me).run();
-    await sql("INSERT INTO ties (id, owner_id, title, location_deleted) VALUES (?, ?, 'x', 1)", tie, me).run();
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, location_deleted) VALUES (?, ?, 'x', '2026-01-01', 1)", tie, me).run();
     await expect(sql("UPDATE ties SET location_id = ? WHERE id = ?", loc, tie).run()).rejects.toThrow("CHECK constraint failed");
     await sql("UPDATE ties SET location_id = ?, location_deleted = 0 WHERE id = ?", loc, tie).run();
   });

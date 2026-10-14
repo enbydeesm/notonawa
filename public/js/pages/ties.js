@@ -5,6 +5,8 @@ import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { renderNav, TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
+import { pickTags } from "../tag-picker.js";
+import { findTag } from "../tags.js";
 import { ratingHanks } from "../rope-rating.js";
 import { tieMeta, participantLabel, planLabel } from "../ties-view.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
@@ -26,6 +28,14 @@ const fromInput = $("#from");
 const toInput = $("#to");
 /** @type {HTMLButtonElement} */
 const clearButton = $("#clear");
+const tagFilter = $("#tag-filter");
+/** @type {HTMLButtonElement} */
+const tagsAny = $("#tags-any");
+/** @type {HTMLButtonElement} */
+const tagsAll = $("#tags-all");
+
+/** @type {import("../tags.js").Tag[]} my tags, to show the chosen ones' names */
+let allTags = [];
 
 let state = readSearch(location.search);
 // An old bookmark or history entry may still have a keyword in its address.
@@ -63,7 +73,21 @@ function showState() {
   toInput.min = state.from;
   peopleFilter.setSelected(state.person_ids);
   locationsFilter.setSelected(state.location_ids);
+  showTags();
   clearButton.hidden = !hasFilters(state);
+}
+
+/** The chosen tags (each with × to remove it) and the OR / AND toggle. */
+function showTags() {
+  tagsAny.setAttribute("aria-pressed", String(state.tag_match === "any"));
+  tagsAll.setAttribute("aria-pressed", String(state.tag_match === "all"));
+  const chosen = allTags.filter((tag) => tag.id && state.tag_ids.includes(tag.id));
+  tagFilter.replaceChildren(...chosen.map((tag) =>
+    h("span", { className: "tag outline" }, tag.name,
+      h("button", {
+        type: "button", className: "tag-x", "aria-label": `Remove ${tag.name}`,
+        onclick: () => { update({ tag_ids: state.tag_ids.filter((id) => id !== tag.id) }); showTags(); },
+      }, "×"))));
 }
 
 /**
@@ -89,11 +113,23 @@ keyword.addEventListener("input", () => {
   clearTimeout(keywordTimer);
   keywordTimer = setTimeout(() => update({ q: keyword.value }), KEYWORD_DELAY_MS);
 });
+$("#tags-choose").addEventListener("click", async () => {
+  const names = allTags.filter((tag) => tag.id && state.tag_ids.includes(tag.id)).map((tag) => tag.name);
+  const picked = await pickTags(names, { forSearch: true });
+  if (picked === null) return; // closed with Esc: keep the search as it was
+  // A tag added on a tie since the page loaded isn't in allTags yet.
+  if (picked.some((name) => !findTag(allTags, name))) await loadTags();
+  const ids = picked.map((name) => findTag(allTags, name)?.id).filter((id) => typeof id === "string");
+  update({ tag_ids: ids });
+  showTags();
+});
+tagsAny.addEventListener("click", () => { update({ tag_match: "any" }); showTags(); });
+tagsAll.addEventListener("click", () => { update({ tag_match: "all" }); showTags(); });
 fromInput.addEventListener("change", () => update({ from: fromInput.value }));
 toInput.addEventListener("change", () => update({ to: toInput.value }));
 clearButton.addEventListener("click", () => {
   clearTimeout(keywordTimer);
-  update({ person_ids: [], location_ids: [], from: "", to: "", q: "" });
+  update({ person_ids: [], location_ids: [], tag_ids: [], tag_match: "any", from: "", to: "", q: "" });
   showState();
 });
 // Back and Forward restore the filters and page; the keyword isn't in history,
@@ -103,7 +139,7 @@ window.addEventListener("popstate", () => {
   showState();
   loadTies();
 });
-document.addEventListener(TIE_SAVED, () => loadTies());
+document.addEventListener(TIE_SAVED, () => { loadTies(); loadTags(); });
 
 // Archived people and locations are included (in muted text): a search
 // covers your whole history.
@@ -119,6 +155,20 @@ async function loadFilterOptions() {
   } catch (err) {
     count.textContent = "Couldn't load people and locations: " + errorMessage(err);
   }
+}
+
+async function loadTags() {
+  try {
+    allTags = await api("/api/tags");
+  } catch (err) {
+    count.textContent = "Couldn't load tags: " + errorMessage(err);
+    return;
+  }
+  // A tag deleted since this address was saved would match nothing; drop it
+  // rather than leave a filter you can't see.
+  const known = state.tag_ids.filter((id) => allTags.some((tag) => tag.id === id));
+  if (known.length !== state.tag_ids.length) update({ tag_ids: known });
+  showTags();
 }
 
 /** @param {import("../ties-view.js").Label} label */
@@ -205,4 +255,5 @@ async function loadTies() {
 
 showState();
 loadFilterOptions();
+loadTags();
 loadTies();

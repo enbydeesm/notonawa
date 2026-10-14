@@ -91,6 +91,7 @@ export function planItems(items, existing, newId) {
 export function planTies(ties, existingTags, newId) {
   const tags = planTags(existingTags, ties.flatMap((t) => t.tags), newId);
   const ids = ties.map(() => newId());
+  const tagIds = new Map([...existingTags, ...tags.rows].map((t) => [t.name, t.id]));
   return {
     newTags: tags.rows.map((t) => t.name),
     rows: {
@@ -100,12 +101,36 @@ export function planTies(ties, existingTags, newId) {
         duration_minutes: t.duration_minutes, success_rating: t.success_rating,
         location_id: t.location_id, location_deleted: t.location_deleted,
         created_at: t.created_at, updated_at: t.updated_at,
+        links: linksKey(
+          t.participants,
+          t.plans.map((p) => p.plan_id),
+          t.tags.map((name) => /** @type {string} */ (tagIds.get(tags.resolve(name)))),
+        ),
       })),
       participants: ties.flatMap((t, i) => t.participants.map((p) => ({ id: newId(), tie_id: ids[i], ...p }))),
       tiePlans: ties.flatMap((t, i) => t.plans.map((p) => ({ id: newId(), tie_id: ids[i], ...p }))),
       tieTags: ties.flatMap((t, i) => t.tags.map((name) => ({ tie_id: ids[i], name: tags.resolve(name) }))),
     },
   };
+}
+
+/**
+ * A tie's people (with roles), plans and tags as one text, so the import can
+ * tell a duplicate tie from a different one with the same date, title and
+ * notes. Each list is sorted, so the order they're listed in doesn't matter.
+ * import-db.js builds the same text for ties already saved (LINKS_KEY); the
+ * two must match. A deleted person or plan (null) is an empty entry.
+ * @param {{ person_id: string | null, role: string }[]} participants
+ * @param {(string | null)[]} planIds
+ * @param {string[]} tagIds
+ */
+export function linksKey(participants, planIds, tagIds) {
+  const list = (/** @type {string[]} */ items) => [...items].sort().join(",");
+  return [
+    list(participants.map((p) => `${p.person_id ?? ""}|${p.role}`)),
+    list(planIds.map((id) => id ?? "")),
+    list(tagIds),
+  ].join(";");
 }
 
 /**

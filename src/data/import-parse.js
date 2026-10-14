@@ -45,7 +45,7 @@ const MAX_ID_LENGTH = 100;
  * }} ImportParticipant
  * @typedef {{ plan_id: string | null, plan_version: number | null }} ImportTiePlan
  * @typedef {Times & {
- *   title: string | null, tie_date: string | null, tie_type: string | null, notes: string | null,
+ *   title: string | null, tie_date: string, tie_type: string | null, notes: string | null,
  *   duration_minutes: number | null, success_rating: number | null,
  *   location_id: string | null, location_deleted: 0 | 1,
  *   participants: ImportParticipant[], plans: ImportTiePlan[], tags: string[],
@@ -114,8 +114,9 @@ function parseTie(t) {
     plans: parseImportTiePlans(t.plans),
     tags: parseTagNames(t.tags),
   };
-  if (!tie.title && !tie.tie_date) throw new BadInput("Add at least a title or a date.");
-  return tie;
+  const date = tie.tie_date;
+  if (!date) throw new BadInput("Add a date.");
+  return { ...tie, tie_date: date };
 }
 
 /**

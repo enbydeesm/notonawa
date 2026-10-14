@@ -103,7 +103,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
-  (its "Edit tags" dialog) and `tags.js` (pure), `search-picker.js` (its
+  (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
+  `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
   `rope-rating.js` (ratings drawn as rope hanks), `multi-select.js`,

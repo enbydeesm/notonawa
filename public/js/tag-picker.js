@@ -1,5 +1,7 @@
 // The "Edit tags" dialog, opened from the "Log a tie" form: search my tags,
 // pick some, type a new one and press +, or delete one I don't use any more.
+// The Ties search opens it too (forSearch), only to pick existing tags: a new
+// tag can't match any tie, and deleting tags isn't what a search is for.
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
@@ -13,9 +15,11 @@ import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from 
  * tag names on OK, or null if it's closed with Esc (nothing changes). Deleting
  * a tag is saved straight away, whichever way it closes.
  * @param {string[]} chosen
+ * @param {{ forSearch?: boolean }} [options] forSearch: pick existing tags only
+ *   (no adding or deleting)
  * @returns {Promise<string[] | null>}
  */
-export function pickTags(chosen) {
+export function pickTags(chosen, { forSearch = false } = {}) {
   return new Promise((resolve) => {
     /** @type {string[] | null} */
     let result = null;
@@ -40,10 +44,11 @@ export function pickTags(chosen) {
     const list = h("div", { className: "tag-list", id: "tags-list" });
 
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "tags-heading" },
-      h("h2", { id: "tags-heading" }, "Edit tags"),
+      h("h2", { id: "tags-heading" }, forSearch ? "Choose tags" : "Edit tags"),
       h("div", { className: "tag-search-row" },
         searchBox,
-        h("button", { type: "button", className: "tag-add", id: "tags-add", "aria-label": "Add tag", title: "Add tag", onclick: addTyped }, "+")),
+        forSearch ? null
+          : h("button", { type: "button", className: "tag-add", id: "tags-add", "aria-label": "Add tag", title: "Add tag", onclick: addTyped }, "+")),
       list,
       message,
       h("div", { className: "dialog-footer" },
@@ -61,7 +66,7 @@ export function pickTags(chosen) {
     function select(name) {
       if (isSelected(name)) return;
       if (selected.length >= MAX_TAGS) {
-        showMessage(message, `A tie can have up to ${MAX_TAGS} tags.`, true);
+        showMessage(message, forSearch ? `Choose up to ${MAX_TAGS} tags.` : `A tie can have up to ${MAX_TAGS} tags.`, true);
         return;
       }
       selected.push(name);
@@ -104,15 +109,17 @@ export function pickTags(chosen) {
             }, tag.name),
             // Only unselected tags can be deleted, so a tag can't vanish from
             // the tie you're picking for.
-            on ? null : h("button", {
+            on || forSearch ? null : h("button", {
               type: "button", className: "tag-x", "aria-label": `Delete ${tag.name}`,
               onclick: () => confirmDelete(tag),
             }, "×"));
         })
       );
       if (shown.length === 0) {
-        list.append(h("p", { className: "hint" },
-          tags.length ? "No matches. Press + to add it." : "No tags yet. Type one and press +."));
+        const hint = forSearch
+          ? (tags.length ? "No matching tags." : "No tags yet. Add them to a tie first.")
+          : (tags.length ? "No matches. Press + to add it." : "No tags yet. Type one and press +.");
+        list.append(h("p", { className: "hint" }, hint));
       }
     }
 
@@ -129,6 +136,7 @@ export function pickTags(chosen) {
 
     // Picks the tag typed in the search box, creating it if it's new. New
     // tags go first in the list so they're in view; they're saved with the tie.
+    // In a search, only an existing tag can be picked.
     function addTyped() {
       const name = input.value.trim();
       if (!name) {
@@ -137,6 +145,7 @@ export function pickTags(chosen) {
       }
       showMessage(message, "");
       let tag = findTag(tags, name);
+      if (!tag && forSearch) return;
       if (!tag) {
         tag = { id: null, name, tie_count: 0 };
         tags.unshift(tag);
@@ -172,8 +181,11 @@ export function pickTags(chosen) {
         showMessage(message, "Couldn't load tags: " + errorMessage(err), true);
       }
       // Chosen tags not saved yet (typed last time the dialog was open) go first.
-      for (const name of [...selected].reverse()) {
-        if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0 });
+      // A search only ever holds saved tags.
+      if (!forSearch) {
+        for (const name of [...selected].reverse()) {
+          if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0 });
+        }
       }
       renderList();
     }

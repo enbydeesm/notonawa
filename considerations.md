@@ -186,8 +186,12 @@ Each step leaves the app working and shippable on its own.
     before archived); the file's "this is me" matches the user's own. A
     matched item is used as it is, never changed, so its details in the file
     (notes, profile notes, tags) aren't imported.
-  - **Exact duplicate ties are skipped:** same date, title and notes as one
+  - **Exact duplicate ties are skipped:** the same date, title, notes, type,
+    location, duration, rating, people (with roles), plans and tags as one
     already in the journal. Two identical ties within one file are both kept.
+    (Until 2026-10-13 only date, title and notes were compared, so two
+    untitled, note-less ties on the same day counted as one even with
+    different people. created_at isn't compared: a CSV has none.)
   - **Fresh ids always.** File ids only link items within the file; the
     ownership triggers still check every link.
   - **Sent in parts** because of the Free plan's 10 ms CPU per request:
@@ -345,8 +349,30 @@ the keyword search, "Ö" and "ö" count as the same tag.
 
 ## Planned: tags on the ties list
 
-**Status:** planned (2026-10-12)
+**Status:** filter built (2026-10-13); showing tags on each tie still planned
 
-Ties can be tagged, but the list doesn't show tags or filter by them yet.
-`listTies` would fetch `tie_tags` for the page the way it does participants and
-plans; a tag filter would fit next to the people and location filters.
+The search has a "Has Tags" filter: tags are picked in the tie form's tag
+dialog (`forSearch`: existing tags only, no adding or deleting, since a new
+tag can't match anything), with an OR / AND switch (any of the tags, or all).
+Tag ids, not names, go in the page address, as names are typed by the user.
+The list doesn't show each tie's tags yet: `listTies` would fetch `tie_tags`
+for the page the way it does participants and plans.
+
+## Every tie has a date
+
+**Status:** decided (2026-10-13), migration 0006
+
+Ties used to need a title or a date. A tie without a date never matched a date
+search, so it could quietly disappear from a search for a period it belonged
+to. Now the date is required by the API, the tie form, both imports (JSON and
+CSV reject an undated tie and name it) and the database (`tie_date NOT NULL`).
+No tie, live or local, had a missing date when this changed.
+
+Weighed:
+- **A default date range** (earliest to latest tie) on the search: not
+  adopted. It would hide undated ties, and new ties outside the range.
+- **A trigger rejecting NULL dates** instead of rebuilding `ties`: cheaper,
+  but the rule wouldn't be visible in the table's schema. Chose the rebuild
+  (as in 0002), with the link tables rebuilt alongside so nothing cascades.
+- **Filling missing dates from `created_at`** on import: not needed, as no
+  undated ties existed to export.

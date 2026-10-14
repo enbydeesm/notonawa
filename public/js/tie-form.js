@@ -67,7 +67,7 @@ function showTieForm() {
       h("div", { className: "row same-height" },
         h("div", { className: "date-field" },
           h("label", { htmlFor: "tie-tie_date" }, "Date"),
-          privateField(h("input", { id: "tie-tie_date", name: "tie_date", type: "date", value: today() }))),
+          privateField(h("input", { id: "tie-tie_date", name: "tie_date", type: "date", value: today(), required: true }))),
         h("div", {},
           h("label", { htmlFor: "tie-tie_type" }, "Type"),
           h("select", { id: "tie-tie_type", name: "tie_type" },

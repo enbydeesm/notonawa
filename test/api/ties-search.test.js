@@ -43,7 +43,7 @@ describe("searching ties", () => {
   it("finds a person who took part in two roles", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const alex = await create("/api/people", { name: "Alex" });
-    await create("/api/ties", {
+    await create("/api/ties", { tie_date: "2026-01-01",
       title: "Switch", participants: [{ person_id: sam, role: "rigger" }, { person_id: sam, role: "model" }],
     });
     expect(await titles({ person_ids: [sam] })).toEqual(["Switch"]);
@@ -62,35 +62,52 @@ describe("searching ties", () => {
     expect(await titles({ location_ids: [a, b] })).toEqual(["At A", "At B"]);
   });
 
+  it("by tags: ties with any of them, or with all of them", async () => {
+    // Tag names are unique per user and the tests share a database.
+    await create("/api/ties", { title: "Both tags", tie_date: "2026-01-03", tags: ["tagtest-a", "tagtest-b"] });
+    await create("/api/ties", { title: "A only", tie_date: "2026-01-02", tags: ["tagtest-a"] });
+    await create("/api/ties", { title: "B only", tie_date: "2026-01-01", tags: ["tagtest-b"] });
+    await create("/api/ties", { title: "C only", tie_date: "2026-01-01", tags: ["tagtest-c"] });
+    const tags = (await call("/api/tags")).body;
+    /** @param {string} name */
+    const id = (name) => tags.find((/** @type {any} */ t) => t.name === name).id;
+    const ab = [id("tagtest-a"), id("tagtest-b")];
+
+    expect(await titles({ tag_ids: ab })).toEqual(["Both tags", "A only", "B only"]);
+    expect(await titles({ tag_ids: ab, tag_match: "any" })).toEqual(["Both tags", "A only", "B only"]);
+    expect(await titles({ tag_ids: ab, tag_match: "all" })).toEqual(["Both tags"]);
+    expect(await titles({ tag_ids: [id("tagtest-c")], tag_match: "all" })).toEqual(["C only"]);
+    expect((await search({ tag_match: "most" })).status).toBe(400);
+  });
+
   it("by tie date, from and to inclusive", async () => {
     const loc = await create("/api/locations", { name: "Dates" });
-    for (const [title, tie_date] of [["Jan", "2025-01-15"], ["Feb", "2025-02-01"], ["Mar", "2025-03-31"], ["Undated", null]]) {
+    for (const [title, tie_date] of [["Jan", "2025-01-15"], ["Feb", "2025-02-01"], ["Mar", "2025-03-31"]]) {
       await create("/api/ties", { title, tie_date, location_id: loc });
     }
     const at = { location_ids: [loc] };
     expect(await titles({ ...at, from: "2025-02-01", to: "2025-03-31" })).toEqual(["Mar", "Feb"]);
     expect(await titles({ ...at, from: "2025-02-02" })).toEqual(["Mar"]);
     expect(await titles({ ...at, to: "2025-01-15" })).toEqual(["Jan"]);
-    // No date filter: undated ties are listed, after the dated ones.
-    expect(await titles(at)).toEqual(["Mar", "Feb", "Jan", "Undated"]);
+    expect(await titles(at)).toEqual(["Mar", "Feb", "Jan"]);
   });
 
   it("by keyword in the title, notes or a linked plan's title, ignoring case", async () => {
     const plan = await create("/api/plans", { title: "Zebra harness" });
-    await create("/api/ties", { title: "zebra in title" });
-    await create("/api/ties", { title: "Notes match", notes: "tried the ZEBRA wrap" });
-    await create("/api/ties", { title: "Plan match", plan_ids: [plan] });
-    await create("/api/ties", { title: "No match", notes: "zebr a" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "zebra in title" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "Notes match", notes: "tried the ZEBRA wrap" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "Plan match", plan_ids: [plan] });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "No match", notes: "zebr a" });
 
     expect((await titles({ q: "Zebra" })).sort()).toEqual(["Notes match", "Plan match", "zebra in title"]);
     expect(await titles({ q: "  zebra wrap " })).toEqual(["Notes match"]);
   });
 
   it("treats % and _ in the keyword as plain characters", async () => {
-    await create("/api/ties", { title: "100% fun" });
-    await create("/api/ties", { title: "1000 fun" });
-    await create("/api/ties", { title: "snake_case tie" });
-    await create("/api/ties", { title: "snakeXcase tie" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "100% fun" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "1000 fun" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "snake_case tie" });
+    await create("/api/ties", { tie_date: "2026-01-01", title: "snakeXcase tie" });
 
     expect(await titles({ q: "100%" })).toEqual(["100% fun"]);
     expect(await titles({ q: "snake_case" })).toEqual(["snake_case tie"]);
@@ -111,7 +128,7 @@ describe("searching ties", () => {
   it("never matches another user's ties", async () => {
     const otherId = await createOtherUser();
     await sql("INSERT INTO locations (id, owner_id, name) VALUES ('their-spot', ?, 'Their spot')", otherId).run();
-    await sql("INSERT INTO ties (id, owner_id, title, location_id) VALUES ('their-tie', ?, 'Secret mango', 'their-spot')", otherId).run();
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, location_id) VALUES ('their-tie', ?, 'Secret mango', '2026-01-01', 'their-spot')", otherId).run();
 
     expect(await titles({ location_ids: ["their-spot"] })).toEqual([]);
     expect(await titles({ q: "mango" })).toEqual([]);

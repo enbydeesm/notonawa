@@ -449,6 +449,12 @@ try {
     $("#tie-save").click(); await wait(1000);
     return [!!document.querySelector("dialog"), items()[0].replace(/^Floor session \\| [^·]+· /, "")];`),
     [false, "Floor · Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
+  check("a tie needs a date: the form won't save without one", await run(`
+    $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
+    $("#tie-save").click(); await wait(600);
+    const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_date").validity.valueMissing];
+    $("#tie-form .dialog-cancel").click(); await wait(600);
+    return [stayed, titles()];`), [[true, true], ["Floor session"]]);
   check("Cancel closes the dialog without saving", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
     [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
@@ -477,8 +483,8 @@ try {
     const all = async (type) => (await (await fetch("/api/" + type + "?archived=all")).json());
     const alex = (await all("people")).find((p) => p.name === "Alex").id;
     const hotel = (await all("locations")).find((l) => l.name === "Hotel").id;
-    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "model" }] });
-    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_date: "2026-01-" + String(day).padStart(2, "0") });`);
+    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "model" }], tags: ["Futomomo", "Inversion"] });
+    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
@@ -519,6 +525,32 @@ try {
     $("#clear").click(); await wait(800);
     return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
     ["23 ties", "", "Anyone", true, ""]);
+  check("Has Tags opens the tag dialog for picking only: no adding or deleting", await run(`
+    $("#tags-choose").click(); await wait(600);
+    const box = $("#tags-search"); box.value = "nosuchtag";
+    box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })); box.dispatchEvent(new Event("input")); await wait(100);
+    const unknown = [tagChips("#tags-search"), $("#tags-list").innerText];
+    box.value = ""; box.dispatchEvent(new Event("input"));
+    return [$("#tags-heading").textContent, !!$("#tags-add"), document.querySelectorAll("#tags-list .tag-x").length, tagBubbles(), unknown, leakyFields()];`),
+    ["Choose tags", false, 0, ["Futomomo", "Inversion"], [[], "No matching tags."], []]);
+  check("tags filter: OR (the default) lists ties with any chosen tag", await run(`
+    for (const name of ["Futomomo", "Inversion"]) [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === name).click();
+    $("#tags-ok").click(); await wait(800);
+    return [titles(), tagChips("#tag-filter"), $("#tags-any").getAttribute("aria-pressed"), (location.search.match(/tag_id=/g) || []).length, $("#clear").hidden];`),
+    [["Floor session", "Practice 1", "Hotel night"], ["Futomomo", "Inversion"], "true", 2, false]);
+  check("tags filter: AND lists only ties with every chosen tag", await run(`
+    $("#tags-all").click(); await wait(800);
+    return [titles(), $("#tags-all").getAttribute("aria-pressed"), $("#tags-any").getAttribute("aria-pressed"), location.search.includes("tags=all")];`),
+    [["Hotel night"], "true", "false", true]);
+  check("a chosen tag's × takes it out of the search", await run(`
+    [...document.querySelectorAll("#tag-filter .tag")].find((t) => t.textContent.startsWith("Inversion")).querySelector(".tag-x").click(); await wait(800);
+    return [titles(), tagChips("#tag-filter")];`), [["Floor session", "Hotel night"], ["Futomomo"]]);
+  await go(await run(`return location.pathname + location.search;`));
+  check("tags survive a reload, and Clear search resets them to none and OR", await run(`
+    const kept = [tagChips("#tag-filter"), $("#tags-all").getAttribute("aria-pressed"), titles()];
+    $("#clear").click(); await wait(800);
+    return [kept, tagChips("#tag-filter"), $("#tags-any").getAttribute("aria-pressed"), $("#tie-count").textContent, location.search];`),
+    [[["Futomomo"], "true", ["Floor session", "Hotel night"]], [], "true", "23 ties", ""]);
   check("keyword matches a linked plan's title, and stays out of the URL", await run(`await type("#q", "hip"); return [titles(), location.search];`),
     [["Floor session"], ""]);
   check("the keyword stays out of the URL alongside other filters, and survives paging Back", await run(`
