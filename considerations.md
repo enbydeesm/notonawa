@@ -175,7 +175,7 @@ archived as of their creation date.
 
 **Status:** planned (2026-10-12)
 
-The + button at the end of the nav (every page) opens the "Log a tie"
+The + button in the nav (every page) opens the "Log a tie"
 dialog for now. Later it should first ask what to add (tie, person, location,
 and maybe plan) and open that dialog. `renderNav` in `public/js/nav.js` is
 where the choice goes; the person and location forms would need to move into

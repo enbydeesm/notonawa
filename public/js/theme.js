@@ -1,5 +1,5 @@
 // Light and dark mode. The app follows the device's setting unless the user
-// picks the other mode with the sun button in the nav. That choice is kept in
+// picks the other mode in the nav's menu (☰). That choice is kept in
 // localStorage as just "light" or "dark" (never journal data), and
 // theme-init.js reads it and applies it before each page draws. Pure (the
 // button and saving are in nav.js), so it's easy to test.

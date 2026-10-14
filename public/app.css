@@ -10,8 +10,8 @@
   --error: #b00020;
   --danger: #b00020; --danger-text: #fff;
 }
-/* Dark mode: when the device is dark, unless light was picked with the sun
-   button, or whenever dark was picked (data-theme is set by theme-init.js and
+/* Dark mode: when the device is dark, unless light was picked in the menu,
+   or whenever dark was picked (data-theme is set by theme-init.js and
    nav.js). The two blocks must match. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -109,16 +109,35 @@ dialog p { margin: 0 0 16px; }
 
 nav { align-items: center; }
 
-/* The account link and light/dark button, pushed right, before the +: plain
-   icons in the text color. */
+/* The menu button (☰) in the top-right corner, after the +: a plain icon in
+   the text color. The + before it is pushed right. */
 .nav-icon {
   flex: none; width: 32px; height: 32px; padding: 3px;
   background: transparent; border: 1px solid transparent; color: var(--text);
 }
-nav a.nav-icon { padding: 3px; color: var(--text); }
-nav a.nav-icon[aria-current="page"] { border-color: transparent; border-bottom: 2px solid var(--accent); border-radius: 0; }
-.nav-account { margin-left: auto; }
 .nav-icon svg { display: block; width: 100%; height: 100%; }
+nav .nav-add { margin-left: auto; }
+
+/* The menu: a full-height panel on the right that slides in. Each row is a
+   small icon with a label beside it. */
+dialog.menu-panel {
+  position: fixed; inset: 0 0 0 auto; margin: 0;
+  width: min(300px, calc(100vw - 48px)); max-width: none; height: 100dvh; max-height: none;
+  padding: 0; border: none; border-left: 1px solid var(--line); border-radius: 0;
+  transition: transform 0.2s ease-out;
+}
+@starting-style { dialog.menu-panel[open] { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
+.menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
+.menu-privacy { margin-top: auto; }
+dialog .menu-title { margin: 4px 0 16px; text-align: center; font-size: 1.5rem; font-weight: 400; color: var(--accent-ink); }
+.menu-item {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
+  border: none; border-radius: 8px; background: transparent; color: var(--text);
+  font-size: 1rem; font-weight: 400; text-align: left; text-decoration: none;
+}
+.menu-item svg { flex: none; width: 24px; height: 24px; }
+.menu-item[aria-current="page"] span { font-weight: 600; border-bottom: 2px solid var(--accent); }
 
 /* A recovery code, shown once: big, easy to read and select. */
 .recovery-code {

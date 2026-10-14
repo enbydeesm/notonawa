@@ -170,6 +170,7 @@ const PAGE_HELPERS = `
   const visibleCard = () => [...document.querySelectorAll("main > section.card")].find((c) => !c.hidden)?.id;
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
   const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
+  const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
@@ -232,32 +233,59 @@ try {
 
   console.log("Light and dark mode");
   const deviceMode = (value) => send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value }] });
-  // Background colour, the button's label, data-theme and the saved choice.
-  const themeState = `return [getComputedStyle(document.body).backgroundColor, $(".nav-theme").getAttribute("aria-label"),
+  // Background colour, the menu row's tooltip, data-theme and the saved choice.
+  // Opens the menu first if it's closed.
+  const menuOpen = `if (!$("dialog.menu-panel[open]")) await openMenu();`;
+  const themeState = `${menuOpen}
+    return [getComputedStyle(document.body).backgroundColor, $(".menu-theme").title,
     document.documentElement.dataset.theme ?? null, localStorage.getItem("theme")];`;
+  const toggleTheme = `${menuOpen} $(".menu-theme").click(); await wait(100);`;
+  const menuGone = `await wait(300); return $("dialog") === null;`;
+  // Real key presses and taps (not events made by the page), as the browser
+  // handles Esc and the backdrop itself.
+  const key = async (type) => send("Input.dispatchKeyEvent", { type, key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  const tap = async (type, x, y) => send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
   const LIGHT_BG = "rgb(250, 248, 245)";
   const DARK_BG = "rgb(22, 21, 20)";
   await deviceMode("light");
   await go("/");
-  check("the sun button sits just before the +, with a half-filled sun", await run(`
+  check("the menu button sits in the corner, after the +", await run(`
     const nav = [...document.querySelector("nav").children];
-    return [nav.slice(-2).map((el) => el.className), $(".nav-theme svg path").getAttribute("fill"), document.querySelectorAll(".nav-theme svg line").length];`),
-    [["nav-icon nav-theme", "nav-add"], "currentColor", 8]);
+    return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
+    [["nav-add", "nav-icon nav-menu"], 3, true]);
+  check("the menu opens with the title, Light / Dark Mode (a half-filled sun), Account and Privacy Policy", await run(`
+    await openMenu();
+    return [$(".menu-title").textContent, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
+      $(".menu-theme svg path").getAttribute("fill"), document.querySelectorAll(".menu-theme svg line").length,
+      $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
+    ["Rope Journal", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
+  check("Privacy Policy sits at the bottom of the panel", await run(`
+    const panel = $(".menu-inner").getBoundingClientRect(), row = $(".menu-privacy").getBoundingClientRect();
+    return [Math.round(panel.bottom - row.bottom), row.top - $(".nav-account").getBoundingClientRect().bottom > 100];`), [16, true]);
+  check("the panel is on the right, full height", await run(`
+    const r = $("dialog.menu-panel").getBoundingClientRect();
+    return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
+  await key("keyDown"); await key("keyUp");
+  check("Esc closes the menu", await run(menuGone), true);
+  await run(`await openMenu();`);
+  await tap("mousePressed", 5, 300); await tap("mouseReleased", 5, 300);
+  check("tapping beside the panel closes it", await run(menuGone), true);
   check("a light device starts light", await run(themeState), [LIGHT_BG, "Switch to dark mode", null, null]);
-  check("tapping switches to dark and remembers it", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+  check("tapping switches to dark and remembers it", await run(`${toggleTheme} ${themeState}`),
     [DARK_BG, "Switch to light mode", "dark", "dark"]);
+  check("the menu stays open", await run(`return $("dialog.menu-panel[open]") !== null;`), true);
   await go("/plans");
   check("the choice carries over to other pages", await run(themeState), [DARK_BG, "Switch to light mode", "dark", "dark"]);
-  check("tapping back to the device's mode forgets the choice", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+  check("tapping back to the device's mode forgets the choice", await run(`${toggleTheme} ${themeState}`),
     [LIGHT_BG, "Switch to dark mode", null, null]);
   await deviceMode("dark");
   await go("/");
   check("a dark device starts dark", await run(themeState), [DARK_BG, "Switch to light mode", null, null]);
-  check("light can be picked on a dark device", await run(`$(".nav-theme").click(); await wait(100); ${themeState}`),
+  check("light can be picked on a dark device", await run(`${toggleTheme} ${themeState}`),
     [LIGHT_BG, "Switch to dark mode", "light", "light"]);
   await go("/people");
   check("and carries over too", await run(themeState), [LIGHT_BG, "Switch to dark mode", "light", "light"]);
-  check("the label follows the device changing while the page is open", await run(`$(".nav-theme").click(); await wait(100); return $(".nav-theme").getAttribute("aria-label");`),
+  check("the tooltip follows the device changing while the menu is open", await run(`${toggleTheme} return $(".menu-theme").title;`),
     "Switch to light mode");
   await deviceMode("light");
   check("…to light", await run(`await wait(100); ${themeState}`), [LIGHT_BG, "Switch to dark mode", null, null]);
@@ -449,7 +477,8 @@ try {
   console.log("Account");
   await go("/account");
   check("the account page lists the passkey and this session", await run(`
-    return [$(".nav-account").getAttribute("aria-current"), [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent),
+    await openMenu(); const current = $(".nav-account").getAttribute("aria-current"); $("dialog.menu-panel").close();
+    return [current, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent),
       [...$("#sessions").querySelectorAll(".item-title")].map((t) => [t.firstChild.textContent, t.querySelector(".badge")?.textContent]),
       [...$("#passkeys").querySelectorAll("button")].map((b) => b.textContent), $("#end-others").hidden, $("#recovery-status").textContent];`),
     ["page", ["Test phone"], [["Signed in with Test phone", "This device"]], ["Rename"], true, "You have a recovery code. Making a new one replaces it."]);

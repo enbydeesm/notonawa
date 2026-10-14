@@ -88,8 +88,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `people.html`, `locations.html`, `account.html`), plus `signin.html` and
   `privacy.html` (built from PRIVACY.md), shared `app.css`, and scripts in
   `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
-  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs and
-  the + button), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
+  + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
   `resource-page.js` (list/edit pages), `codes.js` and `recovery.js` (pure:
   typed codes, recovery codes and their login secret), `webauthn-json.js`
@@ -164,10 +164,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   accent as text or a thin outline: links, link buttons), `--error`,
   `--danger`, `--danger-text`), redefined for dark mode in two blocks that
   must match: `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`
-  (the device is dark) and `:root[data-theme="dark"]` (dark picked with the
-  sun button). Never hard-code colors elsewhere.
+  (the device is dark) and `:root[data-theme="dark"]` (dark picked in the
+  menu). Never hard-code colors elsewhere.
 - **Light/dark mode** follows the device unless the user picks the other mode
-  with the sun button in the nav (`nav.js`). The choice (`light`/`dark`) is
+  with "Light / Dark Mode" in the nav's ☰ menu (`nav.js`). The choice (`light`/`dark`) is
   saved in localStorage and applied before the page draws by
   `public/js/theme-init.js`, a plain script in every page's `<head>`
   (new pages need it too). `theme.js` holds the pure logic.
