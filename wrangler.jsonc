@@ -2,9 +2,14 @@
   "name": "rope-app",
   "main": "src/index.js",
   "compatibility_date": "2026-10-11",
+  // The app is one page (public/index.html): any address that isn't a file
+  // gets it, and the page shows the view for the address (or "not found").
+  // /api/ always goes to the Worker, so an API 404 stays JSON.
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
   },
 
   // No stored request logs: they'd keep IP addresses and URLs on Cloudflare.

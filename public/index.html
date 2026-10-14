@@ -8,7 +8,16 @@
   <script src="/js/theme-init.js"></script>
 </head>
 <body>
+  <!-- The app's only page (every view's address serves it: see
+       not_found_handling in wrangler.jsonc). app.js draws the nav into
+       <main> and puts the view for the address into #view, from one of the
+       templates below. -->
   <main>
+    <div id="view"></div>
+  </main>
+
+  <!-- Ties (/) -->
+  <template id="view-ties">
     <h1>Rope Journal</h1>
 
     <section class="card" role="search" aria-label="Search ties">
@@ -66,8 +75,320 @@
       <div id="tie-list"><p class="empty">Loading…</p></div>
       <div class="pager" id="pager" role="navigation" aria-label="Pages"></div>
     </section>
-  </main>
+  </template>
 
-  <script type="module" src="/js/pages/ties.js"></script>
+  <!-- Plans (/plans) -->
+  <template id="view-plans">
+    <h1>Plans</h1>
+
+    <section class="card">
+      <h2>Add a plan</h2>
+      <form id="form">
+        <label for="title">Title</label>
+        <input id="title" name="title" required placeholder="e.g. Hip harness to futomomo" autocomplete="off" spellcheck="false">
+
+        <div class="row">
+          <div>
+            <label for="stage">Stage</label>
+            <select id="stage" name="stage">
+              <option value="idea">Idea</option>
+              <option value="developing">Developing</option>
+              <option value="ready">Ready</option>
+              <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div>
+            <label for="est_difficulty">Difficulty</label>
+            <select id="est_difficulty" name="est_difficulty">
+              <option value="">Not set</option>
+              <option value="1">1 – Easy</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5 – Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="variation_of">Variation of</label>
+        <select id="variation_of" name="variation_of">
+          <option value="">Not a variation</option>
+        </select>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" placeholder="The sequence, step by step" autocomplete="off" spellcheck="false"></textarea>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+
+        <button type="submit" class="primary">Add plan</button>
+        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <p class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Your plans</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+  </template>
+
+  <!-- People (/people) -->
+  <template id="view-people">
+    <h1>People</h1>
+
+    <section class="card">
+      <h2>Add a person</h2>
+      <form id="form">
+        <label for="name">Name</label>
+        <input id="name" name="name" required autocomplete="off" spellcheck="false">
+
+        <div class="row">
+          <div>
+            <label for="pronouns">Pronouns</label>
+            <input id="pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="default_role">Default role</label>
+            <!-- The roles are added by people.js, from the same list as the tie form's. -->
+            <select id="default_role" name="default_role">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="inline"><input type="checkbox" name="is_self"> This is me</label>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+
+        <button type="submit" class="primary">Add person</button>
+        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <p class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Your people</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+  </template>
+
+  <!-- Locations (/locations) -->
+  <template id="view-locations">
+    <h1>Locations</h1>
+
+    <section class="card">
+      <h2>Add a location</h2>
+      <form id="form">
+        <label for="name">Name</label>
+        <input id="name" name="name" required autocomplete="off" spellcheck="false">
+
+        <label for="maps_url">Google Maps link (dropped pins work best)</label>
+        <input id="maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off" spellcheck="false">
+        <p class="hint" id="maps-hint">Paste a link to fill in the latitude and longitude.</p>
+
+        <div class="row">
+          <div>
+            <label for="latitude">Latitude</label>
+            <input id="latitude" name="latitude" type="number" step="any" min="-90" max="90" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="longitude">Longitude</label>
+            <input id="longitude" name="longitude" type="number" step="any" min="-180" max="180" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+
+        <div data-add-only>
+          <label class="inline"><input type="checkbox" name="archive_now"> Archive now</label>
+          <p class="hint">For a one-off spot: it's saved for your ties, but kept out of the location picker.</p>
+        </div>
+
+        <button type="submit" class="primary">Add location</button>
+        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <p class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Your locations</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+  </template>
+
+  <!-- Account (/account) -->
+  <template id="view-account">
+    <h1>Account</h1>
+
+    <section class="card">
+      <h2>Passkeys</h2>
+      <p class="hint">Add one on each device you use, so losing one doesn't lock you out.</p>
+      <div id="passkeys"><p class="empty">Loading…</p></div>
+      <form id="add-form">
+        <label for="add-name">Add a passkey on this device</label>
+        <input id="add-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. My laptop">
+        <button type="submit">Add passkey</button>
+        <p class="message" id="passkey-message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Where you're signed in</h2>
+      <div id="sessions"><p class="empty">Loading…</p></div>
+      <button type="button" id="end-others">Sign out everywhere else</button>
+      <p class="message" id="session-message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Recovery code</h2>
+      <p class="hint" id="recovery-status"></p>
+      <button type="button" id="new-code">Make a new recovery code</button>
+      <p class="message" id="recovery-message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Recovery email</h2>
+      <p class="hint" id="email-status"></p>
+      <form id="email-form" hidden>
+        <div class="label-row">
+          <label for="recovery-email">Email address (optional)</label>
+          <button type="button" class="info-button" id="email-info-button" aria-label="About the recovery email"
+            title="About the recovery email" aria-expanded="false" aria-controls="email-info">i</button>
+        </div>
+        <p class="info-text" id="email-info" hidden>Optional. If you lose every passkey and your recovery code, this is
+          the only way we can check the account is yours and help you sign in again. We keep only a scrambled copy,
+          so we can't see the address or send you email.</p>
+        <input id="recovery-email" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+        <label for="recovery-email-again">Type it again</label>
+        <input id="recovery-email-again" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+        <p class="hint">You won't be able to see it again, so check it's right.</p>
+        <div class="item-actions">
+          <button type="submit">Save recovery email</button>
+          <button type="button" id="email-cancel" hidden>Cancel</button>
+        </div>
+      </form>
+      <div class="item-actions" id="email-actions" hidden>
+        <button type="button" id="email-change">Change</button>
+        <button type="button" class="danger" id="email-remove">Remove</button>
+      </div>
+      <p class="message" id="email-message"></p>
+    </section>
+
+    <button type="button" class="primary" id="sign-out">Sign out</button>
+    <p class="message" id="sign-out-message"></p>
+
+    <section class="card delete-account">
+      <h2>Delete account</h2>
+      <p class="hint">Deletes your account and everything in your journal, for good. If you want a copy,
+        <a href="/data">export your data</a> first.</p>
+      <button type="button" class="danger" id="delete-account">Delete my account</button>
+      <p class="message" id="delete-message"></p>
+    </section>
+  </template>
+
+  <!-- Your data (/data) -->
+  <template id="view-data">
+    <h1>Your data</h1>
+
+    <section class="card">
+      <h2>Export</h2>
+      <p class="hint">Everything in your journal (ties, plans, people, locations and tags) in one file.
+        The file isn't encrypted, so keep it somewhere safe.</p>
+      <button type="button" class="primary" id="export">Download my data</button>
+      <p class="message" id="export-message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Import</h2>
+      <p class="hint">Add to your journal from a Rope Journal export, or from a spreadsheet of ties saved as CSV
+        (<a href="/import-template.csv" download>download a template</a>). People, locations and plans are matched to
+        yours by name, and new ones are added. Ties already in your journal are skipped. You'll see what will happen
+        before anything is saved.</p>
+      <label for="import-file">File (.json or .csv)</label>
+      <input type="file" id="import-file" accept=".json,.csv,application/json,text/csv" autocomplete="off" spellcheck="false">
+      <div id="import-preview" class="import-preview" hidden></div>
+      <button type="button" class="primary" id="import-go" hidden>Import</button>
+      <p class="message" id="import-message"></p>
+    </section>
+  </template>
+
+  <!-- Sign in (/signin) -->
+  <template id="view-signin">
+    <h1>Rope Journal</h1>
+
+    <section class="card" id="choose" hidden>
+      <h2>Sign in</h2>
+      <p class="hint">Rope Journal uses passkeys: your phone or computer unlocks it with Face ID, a fingerprint or your PIN. There's no password.</p>
+      <button type="button" class="primary" id="sign-in">Sign in with a passkey</button>
+      <p class="message" id="sign-in-message"></p>
+      <button type="button" class="link" data-show="signup">Create an account (invite needed)</button><br>
+      <button type="button" class="link" data-show="recover">Use a recovery code</button>
+    </section>
+
+    <section class="card" id="signup" hidden>
+      <h2>Create an account</h2>
+      <form id="signup-form">
+        <label for="invite">Invite code</label>
+        <input id="invite" required autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX">
+
+        <label for="passkey-name">Name for this passkey</label>
+        <input id="passkey-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. My phone">
+        <p class="hint">So you can tell your passkeys apart later.</p>
+
+        <label class="inline"><input type="checkbox" id="adult" required> I'm 18 or older</label>
+        <label class="inline"><input type="checkbox" id="consent" required> <span>I agree to the <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>, including storing details of my and other people's sex lives</span></label>
+        <p class="hint">Only record what the people you tie with would be comfortable with.</p>
+
+        <button type="submit" class="primary">Create account</button>
+        <p class="message" id="signup-message"></p>
+      </form>
+      <button type="button" class="link" data-show="choose">Back</button>
+    </section>
+
+    <section class="card" id="recover" hidden>
+      <h2>Use a recovery code</h2>
+      <form id="recover-form">
+        <label for="code">Recovery code</label>
+        <input id="code" required autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <button type="submit" class="primary">Continue</button>
+        <p class="message" id="recover-message"></p>
+      </form>
+      <button type="button" class="link" data-show="choose">Back</button>
+    </section>
+
+    <section class="card" id="add-passkey" hidden>
+      <h2>Add a passkey</h2>
+      <p class="hint">You're signed in with your recovery code. Add a passkey on this device to finish; you'll then get a new recovery code.</p>
+      <form id="add-passkey-form">
+        <label for="new-passkey-name">Name for this passkey</label>
+        <input id="new-passkey-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. My phone">
+        <button type="submit" class="primary">Add passkey</button>
+        <p class="message" id="add-passkey-message"></p>
+      </form>
+    </section>
+  </template>
+
+  <!-- Any other address -->
+  <template id="view-not-found">
+    <h1>Page not found</h1>
+    <section class="card">
+      <p>There's nothing at this address.</p>
+      <a href="/">Go to your ties</a>
+    </section>
+  </template>
+
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>

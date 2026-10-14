@@ -1,9 +1,11 @@
-// The page links at the top of every page, then the + button and the menu
+// The view links at the top of the app, then the + button and the menu
 // button (☰), which opens a side panel of settings: light/dark mode, the
-// account and "Your data" links, and the privacy policy.
+// account and "Your data" links, and the privacy policy. Drawn once by
+// app.js; setCurrent() marks the view being shown.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
+import { navigate } from "./navigate.js";
 import { THEME_KEY, parseChoice, shownTheme, nextChoice } from "./theme.js";
 
 export const PAGES = [
@@ -13,42 +15,67 @@ export const PAGES = [
   ["/locations", "Locations"],
 ];
 
-// Fired on document when a tie is saved from the + button on the Ties page,
+// Fired on document when a tie is saved from the + button on the Ties view,
 // so the list can reload.
 export const TIE_SAVED = "tie-saved";
 
-/** @param {string} current the current page's path */
-export function renderNav(current) {
+/** The path of the view being shown (null: not one of the app's views). @type {string | null} */
+let current = null;
+/** @type {HTMLElement | null} */
+let navElement = null;
+
+/** Draws the nav at the top of <main>, once. */
+export function renderNav() {
   // For now + always logs a tie. Later it will ask what to add (see
   // considerations.md).
   async function add() {
     if (!(await openTieForm())) return;
     if (current === "/") document.dispatchEvent(new CustomEvent(TIE_SAVED));
-    else location.href = "/";
+    else navigate("/");
   }
 
   const nav = h(
     "nav",
     {},
-    PAGES.map(([href, label]) =>
-      h("a", { href, "aria-current": href === current ? "page" : null }, label)
-    ),
+    PAGES.map(([href, label]) => h("a", { href }, label)),
     h("button", { type: "button", className: "nav-add", "aria-label": "Log a tie", title: "Log a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
-      "aria-haspopup": "dialog", onclick: () => openMenu(current),
+      "aria-haspopup": "dialog", onclick: openMenu,
     }, menuIcon())
   );
   $("main").prepend(nav);
+  navElement = nav;
+  return nav;
+}
+
+/**
+ * Shows or hides the nav (hidden on the sign-in view, and once the account
+ * is deleted).
+ * @param {boolean} shown
+ */
+export function showNav(shown) {
+  if (navElement) navElement.hidden = !shown;
+}
+
+/**
+ * Marks the view being shown in the nav (and in the menu when it opens).
+ * @param {string | null} path
+ */
+export function setCurrent(path) {
+  current = path;
+  for (const link of navElement?.querySelectorAll("a") ?? []) {
+    if (link.getAttribute("href") === path) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
 }
 
 /**
  * The menu: a panel that slides in from the right, built each time it opens
  * (like the confirmation dialogs) and removed when it closes. Closes with
  * Esc or a tap on the dimmed page beside it.
- * @param {string} current the current page's path
  */
-function openMenu(current) {
+function openMenu() {
   const theme = themeRow();
   const dialog = h(
     "dialog",
@@ -67,8 +94,11 @@ function openMenu(current) {
         href: "/data", className: "menu-item nav-data",
         "aria-current": current === "/data" ? "page" : null,
       }, dataIcon(), h("span", {}, "Your data")),
-      // Pinned to the bottom of the panel. The same page sign-up links to.
-      h("a", { href: "/privacy", className: "menu-item menu-privacy" }, privacyIcon(), h("span", {}, "Privacy Policy"))
+      // Pinned to the bottom of the panel. The same page sign-up links to. It
+      // isn't part of the app, so it opens in a new tab and leaves the app
+      // (and later its unlocked key) as it is.
+      h("a", { href: "/privacy", target: "_blank", rel: "noopener", className: "menu-item menu-privacy" },
+        privacyIcon(), h("span", {}, "Privacy Policy"))
     )
   );
   // The panel fills the dialog, so a click on the dialog itself is outside it.
@@ -111,8 +141,8 @@ function themeRow() {
 }
 
 /**
- * Keeps the choice for the next page. Just a convenience: if storage is
- * blocked, the choice lasts until the page changes.
+ * Keeps the choice for next time. Just a convenience: if storage is
+ * blocked, the choice lasts until the page is reloaded.
  * @param {import("./theme.js").Theme | null} choice
  */
 function saveChoice(choice) {

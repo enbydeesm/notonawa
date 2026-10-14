@@ -112,7 +112,7 @@ export async function setRecoveryEmail(db, userId, email) {
  * @param {D1Database} db
  * @param {string} userId
  * @returns {Promise<string[]>} my passkeys' ids, so the browser can be told
- *   they're gone (see public/js/pages/account.js)
+ *   they're gone (see public/js/views/account.js)
  */
 export async function deleteAccount(db, userId) {
   const [passkeys] = /** @type {D1Result<{ id: string }>[]} */ (await db.batch([

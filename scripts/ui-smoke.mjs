@@ -187,7 +187,7 @@ const PAGE_HELPERS = `
   const leakyFields = () => [...document.querySelectorAll("input:not([type=checkbox]), textarea")]
     .filter((f) => f.getAttribute("autocomplete") !== "off" || f.getAttribute("spellcheck") !== "false")
     .map((f) => f.id || f.name || f.getAttribute("aria-label") || f.type);
-  const visibleCard = () => [...document.querySelectorAll("main > section.card")].find((c) => !c.hidden)?.id;
+  const visibleCard = () => [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id;
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
   const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
@@ -309,6 +309,42 @@ try {
     "Switch to light mode");
   await deviceMode("light");
   check("…to light", await run(`await wait(100); ${themeState}`), [LIGHT_BG, "Switch to dark mode", null, null]);
+
+  console.log("Single-page app");
+  await go("/");
+  // A marker on window survives only if the page wasn't loaded again.
+  const viewState = `return [location.pathname + location.search, document.title, $("#view h1").textContent, window.marker === 1,
+    $("nav a[aria-current=page]")?.textContent ?? null, document.activeElement === $("#view h1")];`;
+  check("a tab changes the view without loading a new page, with its title, tab and focus", await run(`
+    window.marker = 1; $("nav a[href='/plans']").click(); await wait(800); ${viewState}`),
+    ["/plans", "Plans · Rope Journal", "Plans", true, "Plans", true]);
+  check("Back and Forward change the view, still without a page load", await run(`
+    history.back(); await wait(800); const back = (() => { ${viewState} })();
+    history.forward(); await wait(800); return [back, (() => { ${viewState} })()];`), [
+    ["/", "Rope Journal", "Rope Journal", true, "Ties", true],
+    ["/plans", "Plans · Rope Journal", "Plans", true, "Plans", true],
+  ]);
+  check("Back to the Ties list brings back its sort order", await run(`
+    $("nav a[href='/']").click(); await wait(800); $("#sort").click(); await settle();
+    $("nav a[href='/people']").click(); await wait(800); history.back(); await wait(800);
+    return [location.pathname + location.search, $("#sort").getAttribute("aria-pressed"), window.marker === 1];`), ["/?sort=oldest", "true", true]);
+  check("Back with a dialog open closes it", await run(`
+    $("nav a[href='/']").click(); await wait(800); $("nav a[href='/locations']").click(); await wait(800);
+    $(".nav-add").click(); await wait(600); const open = $("dialog[open] #tie-form") !== null;
+    history.back(); await wait(800); return [open, $("dialog[open]") === null, location.pathname];`), [true, true, "/"]);
+  check("the privacy policy opens in a new tab, leaving the app as it is", await run(`
+    await openMenu(); const link = $(".menu-privacy"); const out = [link.target, link.rel]; $("dialog.menu-panel").close(); return out;`),
+    ["_blank", "noopener"]);
+  await go("/people");
+  check("an address loaded directly (a bookmark or refresh) shows its view", await run(`
+    return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.textContent, $("nav").hidden];`),
+    ["People · Rope Journal", "People", "People", false]);
+  await go("/nope");
+  check("an unknown address says so, and links back to the ties", await run(`
+    const shown = [document.title, $("#view h1").textContent, $("nav a[aria-current=page]") === null];
+    window.marker = 1; $("#view a[href='/']").click(); await wait(800);
+    return [...shown, location.pathname, $("#tie-count") !== null, window.marker === 1];`),
+    ["Page not found · Rope Journal", "Page not found", true, "/", true, true]);
 
   console.log("People");
   await go("/people");
@@ -692,8 +728,8 @@ try {
   check("make a new recovery code, shown once", [/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(newRecovery ?? ""), newRecovery !== recoveryCode], [true, true]);
   await run(`$("#sign-out").click();`);
   await sleep(1500);
-  check("sign out goes to the sign-in page, and the journal stays locked", await run(`
-    return [location.pathname, (await fetch("/api/tags")).status];`), ["/signin", 401]);
+  check("sign out goes to the sign-in page, without the nav, and the journal stays locked", await run(`
+    return [location.pathname, $("nav").hidden, document.title, (await fetch("/api/tags")).status];`), ["/signin", true, "Sign in · Rope Journal", 401]);
 
   console.log("Signing in");
   await go("/signin");

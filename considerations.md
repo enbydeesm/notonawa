@@ -56,6 +56,7 @@ Each step leaves the app working and shippable on its own.
    multi-page app every tab change is a page load, which kills the Worker
    (and fires `pagehide`), so each one would mean using the passkey again,
    and even sign-in → home would lose the key.* Decided 2026-10-14.
+   *Built 2026-10-14, not yet deployed; see "Step 4a as built" below.*
 4. **Encryption foundation** (4b, after 4a). Per-user random data key (AES-256-GCM), wrapped
    by a key derived from each passkey's PRF output and by the recovery code;
    wrapped copies stored on the server. A dedicated Web Worker holds the
@@ -292,6 +293,41 @@ Each step leaves the app working and shippable on its own.
   touch screens; `infoButton` in `dom.js`).
 - **Export** says only `recovery_email_set`; the hash and salt never leave
   the server. Import ignores it. Account deletion removes it with `users`.
+
+### Step 4a as built
+
+- **One page:** `public/index.html` holds the nav's place, `#view`, and a
+  `<template>` per view with the markup the old pages had (moved over
+  unchanged). Cloning a template is CSP- and Trusted-Types-safe and kept the
+  markup as HTML rather than rewriting it as `h()` calls. The old
+  `plans.html`, `people.html`, `locations.html`, `account.html`, `data.html`
+  and `signin.html` are gone; `privacy.html` stays a static page.
+- **Serving:** `not_found_handling: "single-page-application"` gives
+  `index.html` (with the pages' CSP and `no-store`, checked) to any address
+  that isn't a file, and `run_worker_first: ["/api/*"]` keeps the API with
+  the Worker even for a page load. Unknown addresses (old `….html` ones
+  included) show a "Page not found" view.
+- **Views** (`public/js/views/`, moved from `pages/` with git history) export
+  `mount(root, { signal })`; app.js loads each with `import()` from a fixed
+  list (so the type checker follows it) and aborts the previous view's
+  signal. The Ties view hangs its `popstate` and `TIE_SAVED` listeners, its
+  `ResizeObserver` and its keyword timer off it; Locations its lookup timer.
+- **History:** a link or `navigate()` adds an entry and always draws the view
+  afresh, even the one already shown (as a page load did). Back and Forward
+  change view only when the path's view changes: within Ties, its own
+  `popstate` listener restores the filters and page. app.js's listener is
+  registered first, so leaving Ties aborts it before its listener runs.
+  Redirects (signed out → sign-in, signed in → journal, sign-out) replace
+  the entry, so Back doesn't land on a page that only sends you on.
+- **Scroll and focus:** a new view starts at the top; Back puts back the
+  position saved on its entry (best effort: lists still loading may be
+  shorter than it). Focus moves to the view's `<h1>` so screen readers
+  announce the change (not on the first load).
+- **Dialogs close on a view change**, as they vanished with the old page.
+- **No loading indicator between views**: modules are small and same-origin;
+  each view shows its own "Loading…" until its data arrives.
+- **A missing file** (e.g. a mistyped script path) also gets `index.html`,
+  which `nosniff` refuses to run as a script, so it fails loudly.
 
 ### Weighed and not adopted
 

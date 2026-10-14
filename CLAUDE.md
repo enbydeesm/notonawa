@@ -34,9 +34,11 @@ live in [considerations.md](considerations.md).
 
 ### Core stack
 
-- **Cloudflare Workers** for the API (`src/`) and static pages (`public/`,
+- **Cloudflare Workers** for the API (`src/`) and static files (`public/`,
   served through the `ASSETS` binding). Anything under `/api/` goes to the
-  Worker; everything else is a static file.
+  Worker (`run_worker_first`); everything else is a static file, and any
+  address that isn't one gets `index.html` (`not_found_handling:
+  "single-page-application"`), the app's only page.
 - **D1** (SQLite) database `rope-journal`, binding `DB`. Schema changes only via
   numbered files in `migrations/`.
 - **Passkeys (WebAuthn) for sign-in**, with app sessions in D1, using
@@ -48,7 +50,9 @@ live in [considerations.md](considerations.md).
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
-  the Worker; each page loads its `public/js/pages/<page>.js` module.
+  the Worker. The app is one page (`index.html`) that stays loaded while you
+  move between views, so what it holds in memory (from step 4b, the unlocked
+  encryption key) survives a tab change: see "Single-page app" below.
 - **Tooling (dev only)**: ESLint, TypeScript (type checks the JS via JSDoc;
   `checkJs`, strict, implicit `any` allowed for now), Vitest with
   `@cloudflare/vitest-plugin` (tests run in the Workers runtime with D1 built
@@ -101,13 +105,16 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/tags/`: tags (`parse.js` parses and matches names, ignoring capitals;
   `db.js`; `routes.js`: `GET /api/tags` most recently used first,
   `DELETE /api/tags/:id`).
-- `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
-  `people.html`, `locations.html`, `account.html`), plus `signin.html` and
-  `privacy.html` (built from PRIVACY.md), `data.html` (export and import;
-  `import-template.csv` is its CSV template), shared `app.css`, and scripts in
-  `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
+- `public/`: `index.html` (the app: a `<template id="view-…">` for each
+  view), `privacy.html` (built from PRIVACY.md; a separate page, opened from
+  the app in a new tab), `import-template.csv` (the "Your data" view's CSV
+  template), shared `app.css`, and scripts in `public/js/`: `app.js` (the
+  shell: shows the view for the address, handles links and Back/Forward),
+  `router.js` (pure: the routes, which link clicks stay in the app),
+  `navigate.js` (`navigate(path, { replace })`: changing view from code),
+  `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
-  + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
   `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
@@ -119,10 +126,21 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   typed codes, recovery codes and their login secret), `recovery-email.js`
   (pure: reading and hashing a recovery email), `webauthn-json.js`
   (pure) and `webauthn.js` (making and using passkeys), `auth-flows.js`
-  (sign-in flows shared by the sign-in and account pages), and
-  `pages/<page>.js` for each page.
+  (sign-in flows shared by the sign-in and account views), and
+  `views/<view>.js` for each view.
   No inline scripts. Ids inside dialogs are prefixed (e.g. `tie-title`) so they
-  don't clash with the page underneath.
+  don't clash with the view underneath.
+- **Single-page app.** Each view module exports `mount(root, { signal })`,
+  run each time the view is shown (its state starts fresh inside it). Its
+  markup is cloned from its template first. `signal` aborts when the view is
+  left: anything outside the view's own elements (listeners on `window` or
+  `document`, observers, timers) must stop with it (`{ signal }`, or
+  `signal.addEventListener("abort", …)`). Change view with links (app.js
+  catches same-origin links to views) or `navigate()`, never
+  `location.href`; use `replace: true` for redirects (signed out, signed in)
+  so Back doesn't land on them. Open dialogs close when the view changes. A
+  new view needs a route in `router.js`, a template in `index.html`, a
+  loader in `app.js` and a module in `views/`.
 - `test/unit/`: pure logic. `test/api/`: requests to the Worker with a real
   D1, signed in by `test/helpers.js` (a session made directly in the
   database); `test/fake-passkey.js` is a software passkey for the sign-in
@@ -207,8 +225,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Light/dark mode** follows the device unless the user picks the other mode
   with "Light / Dark Mode" in the nav's ☰ menu (`nav.js`). The choice (`light`/`dark`) is
   saved in localStorage and applied before the page draws by
-  `public/js/theme-init.js`, a plain script in every page's `<head>`
-  (new pages need it too). `theme.js` holds the pure logic.
+  `public/js/theme-init.js`, a plain script in the `<head>` of `index.html`
+  and `privacy.html`. `theme.js` holds the pure logic.
 - **Layout**: mobile-first single column, `max-width: 640px`, 16px padding.
   Sections are `.card`s; forms stack label above input; `.row` puts two fields
   side by side.
