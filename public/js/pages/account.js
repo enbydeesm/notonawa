@@ -7,6 +7,7 @@ import { renderNav } from "../nav.js";
 import { choose } from "../dialog.js";
 import { formatDate } from "../format.js";
 import { addPasskey, replaceRecoveryCode, withReauth } from "../auth-flows.js";
+import { forgetPasskeys } from "../webauthn.js";
 
 renderNav("/account");
 
@@ -125,5 +126,51 @@ $("#sign-out").addEventListener("click", async () => {
     showMessage($("#sign-out-message"), errorMessage(err), true);
   }
 });
+
+$("#delete-account").addEventListener("click", async () => {
+  const message = $("#delete-message");
+  showMessage(message, "");
+  if (!(await confirmDeleteAccount())) return;
+  try {
+    const { passkey_ids } = await withReauth(() => api("/api/account", { method: "DELETE" }));
+    await forgetPasskeys(passkey_ids);
+    $("main").replaceChildren(
+      h("h1", {}, "Account deleted"),
+      h("section", { className: "card" },
+        h("p", {}, "Your account and everything in your journal have been deleted."),
+        h("p", { className: "hint" }, "Your device may still list a passkey for Rope Journal. You can remove it in your " +
+          "device's or password manager's settings."),
+        h("a", { href: "/signin" }, "Back to the sign-in page")));
+  } catch (err) {
+    showMessage(message, "Couldn't delete your account: " + errorMessage(err), true);
+  }
+});
+
+/**
+ * Asks the user to type "delete" before the final button works, so it can't
+ * be done with a slip of the finger.
+ * @returns {Promise<boolean>}
+ */
+function confirmDeleteAccount() {
+  return new Promise((resolve) => {
+    let confirmed = false;
+    const input = privateField(h("input", { id: "delete-confirm", "aria-describedby": "delete-confirm-hint" }));
+    const button = h("button", { type: "submit", className: "danger solid", disabled: true }, "Delete everything");
+    input.addEventListener("input", () => { button.disabled = input.value.trim().toLowerCase() !== "delete"; });
+    const form = h("form", { onsubmit: (/** @type {Event} */ e) => { e.preventDefault(); confirmed = true; dialog.close(); } },
+      h("label", { for: "delete-confirm", id: "delete-confirm-hint" }, "Type delete to confirm"),
+      input,
+      h("div", { className: "dialog-buttons" },
+        button,
+        h("button", { type: "button", onclick: () => dialog.close() }, "Cancel")));
+    const dialog = h("dialog", { onclose: () => { dialog.remove(); resolve(confirmed); } },
+      h("h2", {}, "Delete your account?"),
+      h("p", {}, "Your journal (every tie, plan, person, location and tag), your passkeys and your recovery code " +
+        "will be deleted straight away. This can't be undone."),
+      form);
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
 
 load().catch((err) => showMessage($("#passkey-message"), "Couldn't load your account: " + errorMessage(err), true));

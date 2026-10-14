@@ -4,7 +4,10 @@
 import { BadInput, NeedsReauth, json, notFound, noContent, readJson } from "../http.js";
 import { parsePasskeyName, parseRecoverySecret } from "../auth/parse.js";
 import { isFresh, sha256Hex } from "../auth/session.js";
-import { getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash } from "./db.js";
+import { clearSessionCookie } from "../auth/cookie.js";
+import {
+  getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash, deleteAccount,
+} from "./db.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -30,6 +33,15 @@ export async function handleAccount(request, env, user, url) {
       fresh: isFresh(user.session),
       ...(await getAccount(db, user.id, user.session.id)),
     });
+  }
+
+  // DELETE /api/account -> { passkey_ids }: deletes my account and everything
+  //   in it, for good (needs a recent sign-in), and signs me out. The page
+  //   uses passkey_ids to tell the browser those passkeys no longer work.
+  if (url.pathname === "/api/account" && request.method === "DELETE") {
+    if (!isFresh(user.session)) throw new NeedsReauth();
+    const passkeyIds = await deleteAccount(db, user.id);
+    return json({ passkey_ids: passkeyIds }, 200, { "set-cookie": clearSessionCookie() });
   }
 
   // PUT /api/account/recovery-code  body { recovery_secret } -> replaces my

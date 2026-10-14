@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, toDateOrNull,
+  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, toDateOrNull, toTimestampOrNull,
 } from "../../src/parse.js";
 import { BadInput } from "../../src/http.js";
 
@@ -82,6 +82,20 @@ describe("toDateOrNull", () => {
   it("rejects other formats and dates that don't exist", () => {
     for (const bad of ["2026-02-30", "2025-02-29", "2026-13-01", "12/10/2026", "2026-1-5", "2026-10-12T00:00:00Z"]) {
       expect(() => toDateOrNull(bad)).toThrow(BadInput);
+    }
+  });
+});
+
+describe("toTimestampOrNull", () => {
+  it("accepts the app's ISO format", () => {
+    expect(toTimestampOrNull("2026-10-12T21:51:00Z")).toBe("2026-10-12T21:51:00Z");
+    expect(toTimestampOrNull(" ")).toBeNull();
+    expect(toTimestampOrNull(null)).toBeNull();
+  });
+
+  it("refuses other formats and times that don't exist", () => {
+    for (const bad of ["2026-10-12", "2026-10-12 21:51:00", "2026-10-12T21:51:00.123Z", "2026-02-30T00:00:00Z", "2026-10-12T25:00:00Z"]) {
+      expect(() => toTimestampOrNull(bad), bad).toThrow("Expected a time like");
     }
   });
 });

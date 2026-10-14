@@ -21,8 +21,8 @@
 - Some information has to stay readable by our server so the app can sort and
   filter it, such as names, titles, dates and ratings. The full list is in
   [What we can and can't read](#what-we-can-and-cant-read).
-- You can export everything, or delete your account and everything in it, at
-  any time.
+- You can export everything, import entries from a file, or delete your
+  account and everything in it, at any time.
 
 ## Who we are
 
@@ -125,7 +125,9 @@ encrypt more of these fields over time.
   written to the browser's storage, its cache or its form history. Our pages
   and data are sent with instructions not to be cached. The browser's
   spellcheck is turned off in the app, because some browsers can send the
-  text being checked to their maker.
+  text being checked to their maker. The one exception is an export, which
+  saves a file wherever you choose (see
+  [Your rights and choices](#your-rights-and-choices)).
 - **The app locks itself.** It forgets your key and everything it decrypted
   after [15] minutes without use, after [5] minutes in the background, when
   you sign out, and when you close the tab. You unlock again with your
@@ -192,21 +194,29 @@ that choice in your browser's local storage (just the word "light" or
 - **When you delete something**, it's removed from our live database straight
   away. Deleted photos are removed from storage straight away.
 - **When you delete your account**, everything in it (journal, photos,
-  passkeys, sessions and locked keys) is deleted straight away.
+  passkeys, sessions and locked keys) is deleted straight away. Your device
+  or password manager may still list your passkey for Rope Journal; where the
+  browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
-  recovery, so deleted data can remain there for up to [30] days before it
+  recovery, so deleted data can remain there for up to 7 days before it
   disappears permanently. Our own backups are encrypted and kept for no more
-  than [N] days. We would only restore from these to recover from a failure,
+  than 7 days. We would only restore from these to recover from a failure,
   never to bring back something you deleted unless you ask us to.
 - **Signed-out sessions** are deleted when you sign out, and expired sessions
-  are cleared regularly.
+  are cleared every day.
 
 ## Your rights and choices
 
 Wherever you live, you can:
 
 - **Export** all your data from the app at any time, including your notes and
-  photos, decrypted on your device into a file only you hold.
+  photos, decrypted on your device into a file only you hold. It contains your
+  whole journal, plus when you created your account and agreed to this
+  policy, and your passkeys' names and dates. The file isn't encrypted, so
+  keep it somewhere safe.
+- **Import** entries from an export, or ties from a spreadsheet (a CSV file).
+  The file is read in your browser, and only the entries in it are sent to
+  us, just as if you'd typed them in.
 - **Correct** anything by editing it in the app.
 - **Delete** individual entries, or your whole account, from the app.
 - **End sessions** on any device, or remove passkeys, from your account

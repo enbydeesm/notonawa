@@ -1,6 +1,6 @@
 // The page links at the top of every page, then the + button and the menu
-// button (☰), which opens a side panel of settings: light/dark mode and the
-// account link so far.
+// button (☰), which opens a side panel of settings: light/dark mode, the
+// account and "Your data" links, and the privacy policy.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
@@ -63,6 +63,10 @@ function openMenu(current) {
         href: "/account", className: "menu-item nav-account",
         "aria-current": current === "/account" ? "page" : null,
       }, personIcon(), h("span", {}, "Account")),
+      h("a", {
+        href: "/data", className: "menu-item nav-data",
+        "aria-current": current === "/data" ? "page" : null,
+      }, dataIcon(), h("span", {}, "Your data")),
       // Pinned to the bottom of the panel. The same page sign-up links to.
       h("a", { href: "/privacy", className: "menu-item menu-privacy" }, privacyIcon(), h("span", {}, "Privacy Policy"))
     )
@@ -153,6 +157,17 @@ function personIcon() {
   icon.append(
     svg("circle", { cx: 12, cy: 8, r: 4 }),
     svg("path", { d: "M4 21a8 8 0 0 1 16 0" })
+  );
+  return icon;
+}
+
+/** A tray with arrows in and out, for exporting and importing. */
+function dataIcon() {
+  const icon = lineIcon();
+  icon.append(
+    svg("path", { d: "M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" }),
+    svg("path", { d: "M9 4v10M6 11l3 3 3-3" }),
+    svg("path", { d: "M15 14V4M12 7l3-3 3 3" })
   );
   return icon;
 }

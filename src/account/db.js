@@ -86,3 +86,22 @@ export async function endOtherSessions(db, userId, keepId) {
 export async function setRecoveryHash(db, userId, recoveryHash) {
   await db.prepare("UPDATE users SET recovery_secret_hash = ? WHERE id = ?").bind(recoveryHash, userId).run();
 }
+
+/**
+ * Deletes my account and everything in it. Every table hangs off users with
+ * ON DELETE CASCADE (directly, or through a parent row), so one DELETE takes
+ * the journal, passkeys, sessions and challenges with it. An invite I used
+ * stays marked used, with used_by cleared; other people's links to me
+ * (people.linked_user_id) are cleared too.
+ * @param {D1Database} db
+ * @param {string} userId
+ * @returns {Promise<string[]>} my passkeys' ids, so the browser can be told
+ *   they're gone (see public/js/pages/account.js)
+ */
+export async function deleteAccount(db, userId) {
+  const [passkeys] = /** @type {D1Result<{ id: string }>[]} */ (await db.batch([
+    db.prepare("SELECT id FROM passkeys WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM users WHERE id = ?").bind(userId),
+  ]));
+  return passkeys.results.map((p) => p.id);
+}

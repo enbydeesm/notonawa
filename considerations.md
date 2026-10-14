@@ -39,8 +39,9 @@ Each step leaves the app working and shippable on its own.
    because the keys hang off passkeys and the recovery code.*
 3. **Account export and deletion**, plus the retention rules in PRIVACY.md:
    JSON export, delete-account (cascades through D1), encrypted operator
-   backups with a fixed retention. *Before encryption while it's simple; steps
-   4–6 each extend it.*
+   backups with a fixed retention. Import was added too. *Built 2026-10-13,
+   not yet deployed; see "Step 3 as built" below.* *Before encryption while
+   it's simple; steps 4–6 each extend it.*
 4. **Encryption foundation.** Per-user random data key (AES-256-GCM), wrapped
    by a key derived from each passkey's PRF output and by the recovery code;
    wrapped copies stored on the server. A dedicated Web Worker holds the
@@ -98,7 +99,8 @@ Each step leaves the app working and shippable on its own.
     `navigator.credentials` plus `PublicKeyCredential.parseCreationOptionsFromJSON`
     / `parseRequestOptionsFromJSON`, with a small hand-written fallback for
     browsers without them.
-  - Steps 3–5: none (WebCrypto does AES-GCM, HKDF and PBKDF2).
+  - Steps 3–5: none (WebCrypto does AES-GCM, HKDF and PBKDF2). Step 3 was
+    built without any: CSV parsing and backup encryption are hand-written.
   - Step 6: none for JPEG, PNG and WebP: redrawing on a canvas and re-encoding
     writes a new file that has no metadata. HEIC is the exception: only Safari
     decodes it. iPhones usually convert to JPEG when the file input
@@ -135,7 +137,77 @@ Each step leaves the app working and shippable on its own.
   fill unknowns in at sign-in.
 - **Rate limit:** 20 requests a minute per IP across `/api/auth/` (Cloudflare's
   rate-limit binding, counted in memory).
-- **Not yet:** account deletion and export (step 3).
+- **Not yet:** account deletion and export (step 3; since built).
+
+### Step 3 as built
+
+- **Export** (`GET /api/data/export`, the "Your data" page): one JSON file,
+  `format: "rope-journal-export"`, `version: 1`. Items keep their ids so the
+  file's links can be followed and rebuilt; deleted links stay as null ids
+  and `location_deleted`. Account details are only dates, the terms version
+  and passkey names: no hashes, public keys or sessions. The page fetches it
+  and saves it from a `blob:` URL (revoked after 10 s) rather than linking to
+  the route, so step 5 can decrypt on the device first.
+- **Photos in exports (step 6), decided now:** the export becomes a `.zip`
+  holding `rope-journal.json` and a `photos/` folder, files named by photo
+  id. Each tie and plan lists its photos in `photos: [{ id, file, caption,
+  position, created_at }]`, `file` being the path inside the zip, so the
+  JSON stays the record of what's attached where (titles repeat and change;
+  ids don't). The browser builds the zip, because only it can decrypt the
+  photos: a store-only zip (JPEGs are already compressed) is ~100 lines with
+  a CRC32, no package. Import then saves the journal first and uploads each
+  photo afterwards, one by one, to the new tie or plan id (R2 uploads can't be
+  in a D1 transaction). `photos` is already in version 1, always empty, so
+  step 6 needs no new version; import will accept both `.json` and `.zip`.
+  Not chosen: base64 inside the JSON (a third bigger, one huge file, photos
+  not viewable) or a separate photo download (the link depends on keeping
+  two files together).
+- **Delete account** (`DELETE /api/account`): needs a fresh session and
+  typing "delete". One `DELETE FROM users` cascades through everything
+  (tested table by table, and that other users are untouched). Then the page
+  calls `PublicKeyCredential.signalUnknownCredential` where the browser has
+  it, so the passkey can disappear from the user's password manager.
+- **Daily cleanup:** a cron trigger (`src/cleanup.js`) deletes ended
+  sessions and expired challenges, as PRIVACY.md promises.
+- **Backups:** `scripts/backup.mjs --remote` exports D1, encrypts it
+  (PBKDF2-SHA256 600k + AES-256-GCM via WebCrypto, header authenticated) and
+  deletes backups older than 7 days, matching D1's own rolling history on
+  the Free plan. **Old backups are only deleted when the script runs**, so
+  it must run at least weekly (or `--prune-only`) for PRIVACY.md's "no more
+  than 7 days" to hold. **Revisit** with a scheduled job on the operator's
+  machine if that's easy to forget. The plaintext backups from earlier
+  migrations were deleted (2026-10-13).
+- **Import**: from an export, or a CSV of ties (one per row:
+  date, title, duration, rating, location, people as `Sam (model); Alex
+  (rigger)`, plans, tags, notes; `/import-template.csv`). Decided:
+  - **CSV is ties only.** People, locations and plans named in it that the
+    journal doesn't have are created.
+  - **Matched by name**, ignoring capitals (exact spelling first, active
+    before archived); the file's "this is me" matches the user's own. A
+    matched item is used as it is, never changed, so its details in the file
+    (notes, profile notes, tags) aren't imported.
+  - **Exact duplicate ties are skipped:** same date, title and notes as one
+    already in the journal. Two identical ties within one file are both kept.
+  - **Fresh ids always.** File ids only link items within the file; the
+    ownership triggers still check every link.
+  - **Sent in parts** because of the Free plan's 10 ms CPU per request:
+    items first (the answer maps file ids to journal ids), then ties in
+    batches of 200, each all-or-nothing. If a batch fails, importing the same
+    file again finishes the job: saved ties are skipped as duplicates, and
+    items match by name. (One catch: two different people with the same name
+    in a file, re-imported after a partial import, both match the first.)
+  - **One statement per table**, not per row: rows go in as JSON and come
+    back out with `json_each`, which stays under D1's 50 queries per request
+    (Free) and 100 bound values per statement. Chunks stay under D1's 2 MB
+    per value.
+  - **Preview first:** both requests take `preview: true` and save nothing;
+    the page shows what's new, what matched and how many ties are skipped
+    before the user confirms.
+  - **Step 5:** once notes are encrypted, the page must encrypt them before
+    sending; it already builds every request, so only that step is new.
+- **Ties import keeps more than the tie form does:** participants' ratings
+  and notes, plan versions, deleted links and timestamps, so an export
+  round-trips exactly (tested).
 
 ### Weighed and not adopted
 

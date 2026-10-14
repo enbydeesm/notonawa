@@ -73,7 +73,16 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
   options|verify`, `/api/auth/recover`, `/api/auth/logout`).
 - `src/account/`: `GET /api/account`, renaming/removing passkeys, ending
-  sessions, replacing the recovery code.
+  sessions, replacing the recovery code, deleting the account
+  (`DELETE /api/account`: one cascading delete).
+- `src/data/`: "Your data". `shape.js` (pure: the export document) and
+  `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
+  `import-plan.js` (pure: matching names, new ids, JSON chunks) and
+  `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`
+  and `/api/data/import/ties` (both take `preview`). See considerations.md,
+  "Step 3 as built".
+- `src/cleanup.js`: the daily cron trigger (ended sessions, expired
+  challenges).
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
@@ -86,12 +95,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `DELETE /api/tags/:id`).
 - `public/`: one HTML page per section (`index.html` = ties, `plans.html`,
   `people.html`, `locations.html`, `account.html`), plus `signin.html` and
-  `privacy.html` (built from PRIVACY.md), shared `app.css`, and scripts in
+  `privacy.html` (built from PRIVACY.md), `data.html` (export and import;
+  `import-template.csv` is its CSV template), shared `app.css`, and scripts in
   `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
-  `resource-page.js` (list/edit pages), `codes.js` and `recovery.js` (pure:
+  `resource-page.js` (list/edit pages), `csv.js`, `import-csv.js` and
+  `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
+  import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
   typed codes, recovery codes and their login secret), `webauthn-json.js`
   (pure) and `webauthn.js` (making and using passkeys), `auth-flows.js`
   (sign-in flows shared by the sign-in and account pages), and
@@ -114,6 +126,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks).
+- `node scripts/backup.mjs --remote`: encrypted backup into `backups/`, and
+  deletes ones older than 7 days (only when it runs: run it at least weekly).
+  `node scripts/restore-backup.mjs <file>` decrypts one.
 - `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database.
 - `npm run dev`: local app. `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
@@ -155,6 +170,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   cancel. The API rejects a delete without the choice.
 - **Multi-statement writes go in one `env.DB.batch([...])`**, which runs as a
   single transaction, so a failure saves nothing.
+- **When a table or column is added, update export and import**
+  (`src/data/`): the export must hold everything in an account, and an
+  export must import back exactly (`test/api/data-import.test.js`). Account
+  deletion relies on every table cascading from `users`; add new tables to
+  `test/api/account-delete.test.js`.
 
 ### Design system
 
@@ -226,7 +246,7 @@ change affects what's collected, stored, readable or kept, update it too.
   derivations apart.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery
-  code. Throw `NeedsReauth`; the page asks for the passkey again
+  code, deleting the account. Throw `NeedsReauth`; the page asks for the passkey again
   (`withReauth`). New sensitive actions should do the same.
 - **Only hashes of secrets are stored**: session tokens, invite codes,
   recovery login secrets.

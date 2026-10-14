@@ -12,6 +12,8 @@ import { handleAccount } from "./account/routes.js";
 import { handleTies } from "./ties/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
+import { handleData } from "./data/routes.js";
+import { cleanUp } from "./cleanup.js";
 
 export default {
   /**
@@ -29,6 +31,16 @@ export default {
       response = errorResponse(err);
     }
     return withSecurityHeaders(response);
+  },
+
+  /**
+   * The daily cron trigger (wrangler.jsonc): clears ended sessions and
+   * expired sign-in challenges.
+   * @param {ScheduledController} _controller
+   * @param {Env} env
+   */
+  async scheduled(_controller, env) {
+    await cleanUp(env.DB);
   },
 };
 
@@ -70,6 +82,7 @@ async function respond(request, env) {
     (await handleTies(request, env, user, url)) ??
     (await handleResources(request, env, user, url)) ??
     (await handleTags(request, env, user, url)) ??
+    (await handleData(request, env, user, url)) ??
     notFound()
   );
 }

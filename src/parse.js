@@ -78,3 +78,21 @@ export function toDateOrNull(value) {
   }
   return text;
 }
+
+/**
+ * A timestamp in the app's format, e.g. 2026-10-11T21:51:00Z (see sql.js NOW),
+ * that actually exists.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function toTimestampOrNull(value) {
+  const text = cleanText(value);
+  if (text === null) return null;
+  // Date rejects an hour like 25 (NaN) but rolls Feb 30 over to March, so
+  // both are checked.
+  const time = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(text) ? new Date(text) : null;
+  const valid = time !== null && !Number.isNaN(time.getTime()) &&
+    time.toISOString().replace(/\.\d{3}Z$/, "Z") === text;
+  if (!valid) throw new BadInput("Expected a time like 2026-10-12T21:51:00Z.");
+  return text;
+}

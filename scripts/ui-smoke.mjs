@@ -8,7 +8,7 @@
 // protocol directly. Your real local database (.wrangler/state) isn't touched.
 
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -193,7 +193,7 @@ async function go(pagePath) {
 
 try {
   console.log("Security headers");
-  for (const pagePath of ["/", "/plans", "/people", "/locations", "/js/api.js"]) {
+  for (const pagePath of ["/", "/plans", "/people", "/locations", "/data", "/js/api.js"]) {
     const res = await fetch(BASE + pagePath);
     check(`${pagePath}: strict CSP, never cached`, [
       res.headers.get("cache-control"),
@@ -253,15 +253,15 @@ try {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("the menu opens with the title, Light / Dark Mode (a half-filled sun), Account and Privacy Policy", await run(`
+  check("the menu opens with the title, Light / Dark Mode (a half-filled sun), Account, Your data and Privacy Policy", await run(`
     await openMenu();
     return [$(".menu-title").textContent, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-theme svg path").getAttribute("fill"), document.querySelectorAll(".menu-theme svg line").length,
       $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["Rope Journal", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
+    ["Rope Journal", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
   check("Privacy Policy sits at the bottom of the panel", await run(`
     const panel = $(".menu-inner").getBoundingClientRect(), row = $(".menu-privacy").getBoundingClientRect();
-    return [Math.round(panel.bottom - row.bottom), row.top - $(".nav-account").getBoundingClientRect().bottom > 100];`), [16, true]);
+    return [Math.round(panel.bottom - row.bottom), row.top - $(".nav-data").getBoundingClientRect().bottom > 100];`), [16, true]);
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
@@ -533,6 +533,65 @@ try {
     await clickDialog("Remove passkey"); await wait(800);
     return [before, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`),
     [["Phone", "New phone"], ["New phone"]]);
+
+  console.log("Your data");
+  const downloads = path.join(workDir, "downloads");
+  await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: downloads });
+  await go("/data");
+  check("the data page is in the menu, and its fields are kept out of form history", await run(`
+    await openMenu(); const current = $(".nav-data").getAttribute("aria-current"); $("dialog.menu-panel").close();
+    return [current, leakyFields()];`), ["page", []]);
+  check("export downloads the whole journal", await run(`
+    $("#export").click(); await wait(1500); return $("#export-message").textContent;`), "Downloaded.");
+  await sleep(500);
+  const exported = readdirSync(downloads);
+  check("…as a dated JSON file", exported.length === 1 && /^rope-journal-\d{4}-\d\d-\d\d\.json$/.test(exported[0]), true);
+  const exportText = exported.length ? readFileSync(path.join(downloads, exported[0]), "utf8") : "{}";
+  const exportDoc = JSON.parse(exportText);
+  check("the file has every tie, and the people", [exportDoc.format, exportDoc.ties?.length, exportDoc.people?.map((p) => p.name).sort()],
+    ["rope-journal-export", 24, ["Alex", "Me"]]);
+  // A location the journal already has, for the CSV to match.
+  const place = exportDoc.locations?.[0]?.name ?? "";
+  // Picks a file in the import box, as if chosen in the file dialog.
+  const chooseFile = (name, type, text) => run(`
+    const dt = new DataTransfer(); dt.items.add(new File([${JSON.stringify(text)}], ${JSON.stringify(name)}, { type: ${JSON.stringify(type)} }));
+    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(1500);
+    return [[...document.querySelectorAll("#import-preview .item")].map(flat), $("#import-go").hidden ? null : $("#import-go").textContent,
+      $("#import-message").textContent];`);
+  const csv = `date,title,people,location,tags\n2026-11-01,Imported one,alex (model); Robin (rigger),${place},imported\n2026-11-02,Imported two,,Beach,\n`;
+  check("a CSV shows what will happen before anything is saved", await chooseFile("ties.csv", "text/csv", csv), [[
+    "Ties | 2 to add",
+    "People | 1 new: Robin | 1 already in your journal: alex",
+    `Locations | 1 new: Beach | 1 already in your journal: ${place}`,
+    "Tags | 1 new: imported",
+  ], "Import 2 ties", ""]);
+  check("importing it adds the ties", await run(`
+    $("#import-go").click(); await wait(2000); const msg = $("#import-message").textContent;
+    const res = await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q: "Imported" }) })).json();
+    return [msg, $("#import-go").hidden, res.ties.map((t) => [t.title, t.location_name, t.participants.map((p) => p.person_name + ":" + p.role).sort()])];`),
+    ["Imported 2 ties.", true, [["Imported two", "Beach", []], ["Imported one", place, ["Alex:model", "Robin:rigger"]]]]);
+  check("a CSV with mistakes lists them by row, and saves nothing", await chooseFile("bad.csv", "text/csv", "date,title\n12/10/2026,x\n"),
+    [[], null, 'Fix these in the file, then choose it again:\nRow 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").']);
+  check("importing the export into the same journal has nothing to add", (await chooseFile(exported[0] ?? "x.json", "application/json", exportText)).slice(1),
+    [null, "Everything in this file is already in your journal."]);
+  check("a file that isn't an export is refused", (await chooseFile("notes.json", "application/json", '{"hello":1}'))[2],
+    "This isn't a Rope Journal export.");
+
+  console.log("Deleting the account");
+  await go("/account");
+  check("delete needs typing 'delete'", await run(`
+    $("#delete-account").click(); await wait(300);
+    const before = $("dialog[open] button.danger.solid").disabled; const leaky = leakyFields();
+    $("#delete-confirm").value = "delet"; $("#delete-confirm").dispatchEvent(new Event("input"));
+    const almost = $("dialog[open] button.danger.solid").disabled;
+    $("#delete-confirm").value = "Delete"; $("#delete-confirm").dispatchEvent(new Event("input"));
+    return [before, almost, $("dialog[open] button.danger.solid").disabled, leaky];`), [true, true, false, []]);
+  check("deleting the account empties it and signs out", await run(`
+    $("dialog[open] button.danger.solid").click(); await wait(1500);
+    return [$("h1").textContent, (await fetch("/api/tags")).status];`), ["Account deleted", 401]);
+  await go("/signin");
+  check("its passkey no longer signs in", await run(`
+    $("#sign-in").click(); await wait(2500); return [location.pathname, $("#sign-in-message").className];`), ["/signin", "message error"]);
 
   check("no errors in the browser console", consoleErrors, []);
 } catch (err) {

@@ -32,6 +32,12 @@
     }
   ],
 
+  // Once a day: delete ended sessions and expired sign-in challenges
+  // (src/cleanup.js).
+  "triggers": {
+    "crons": ["17 3 * * *"]
+  },
+
   "d1_databases": [
     {
       "binding": "DB",

@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import { parseCsv } from "../../public/js/csv.js";
+import { csvToImport } from "../../public/js/import-csv.js";
+import { readExport, remapTies, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
+
+describe("parseCsv", () => {
+  it("reads plain and quoted cells", () => {
+    expect(parseCsv('a,b,c\n1,"two, with comma","say ""hi"""\n')).toEqual([
+      ["a", "b", "c"], ["1", "two, with comma", 'say "hi"'],
+    ]);
+  });
+
+  it("keeps line breaks inside quotes, and handles Windows line endings and a BOM", () => {
+    expect(parseCsv('﻿a,b\r\n"line 1\r\nline 2",x\r\n')).toEqual([["a", "b"], ["line 1\r\nline 2", "x"]]);
+  });
+
+  it("reads the last row without a line break, and empty cells", () => {
+    expect(parseCsv("a,b\n,\n1,")).toEqual([["a", "b"], ["", ""], ["1", ""]]);
+  });
+
+  it("uses semicolons or tabs when the first line has no commas", () => {
+    expect(parseCsv('date;title;people\n2026-10-12;Floor;"Sam (model); Alex (rigger)"')).toEqual([
+      ["date", "title", "people"], ["2026-10-12", "Floor", "Sam (model); Alex (rigger)"],
+    ]);
+    expect(parseCsv("date\ttitle\n2026-10-12\tFloor")).toEqual([["date", "title"], ["2026-10-12", "Floor"]]);
+  });
+
+  it("refuses a quote that's never closed", () => {
+    expect(() => parseCsv('a,b\n"open,1')).toThrow("never closed");
+  });
+});
+
+describe("csvToImport", () => {
+  it("turns rows into ties, naming each person, location and plan once", () => {
+    const { doc, errors } = csvToImport([
+      ["Date", "Title", "Duration", "Rating", "Location", "People", "Plans", "Tags", "Notes"],
+      ["2026-10-12", "Floor", "45", "4", "Studio", "Sam (Model); Alex (rigger)", "TK; Hip harness", "floor; Practice", "Good"],
+      ["", "", "", "", "", "", "", "", ""],
+      ["2026-10-13", "", "", "", "studio", "sam (rigger)", "tk", "", ""],
+    ]);
+    expect(errors).toEqual([]);
+    expect(doc.people).toEqual([{ id: "person-1", name: "Sam" }, { id: "person-2", name: "Alex" }]);
+    expect(doc.locations).toEqual([{ id: "location-1", name: "Studio" }]);
+    expect(doc.plans).toEqual([{ id: "plan-1", title: "TK" }, { id: "plan-2", title: "Hip harness" }]);
+    expect(doc.ties).toEqual([
+      {
+        title: "Floor", tie_date: "2026-10-12", duration_minutes: 45, success_rating: 4, notes: "Good",
+        location_id: "location-1",
+        participants: [{ person_id: "person-1", role: "model" }, { person_id: "person-2", role: "rigger" }],
+        plans: [{ plan_id: "plan-1" }, { plan_id: "plan-2" }],
+        tags: ["floor", "Practice"],
+      },
+      {
+        title: null, tie_date: "2026-10-13", duration_minutes: null, success_rating: null, notes: null,
+        location_id: "location-1", participants: [{ person_id: "person-1", role: "rigger" }],
+        plans: [{ plan_id: "plan-1" }], tags: [],
+      },
+    ]);
+  });
+
+  it("accepts columns in any order, and only date or title", () => {
+    const { doc, errors } = csvToImport([["notes", "title"], ["n", "Only a title"]]);
+    expect(errors).toEqual([]);
+    expect(doc.ties[0]).toMatchObject({ title: "Only a title", notes: "n", tie_date: null });
+  });
+
+  it("names the spreadsheet row of each problem", () => {
+    const { errors } = csvToImport([
+      ["date", "title", "people", "rating", "duration"],
+      ["12/10/2026", "x", "", "", ""],
+      ["", "", "", "", ""],
+      ["2026-10-12", "x", "Sam", "", ""],
+      ["2026-10-12", "x", "Sam (boss)", "", ""],
+      ["2026-10-12", "x", "", "6", ""],
+      ["2026-02-30", "x", "", "", "1.5"],
+      ["", "", "", "", "30"],
+    ]);
+    expect(errors).toEqual([
+      'Row 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").',
+      'Row 4: Give Sam a role, like "Sam (model)".',
+      'Row 5: "boss" isn\'t a role. Use one of: rigger, top, model, bottom, spotter, photographer.',
+      "Row 6: The rating should be a whole number from 1 to 5.",
+      'Row 7: Write the date as year-month-day, like 2026-10-12 (not "2026-02-30").',
+      "Row 8: Add at least a title or a date.",
+    ]);
+  });
+
+  it("refuses unknown columns and files without headings or ties", () => {
+    expect(csvToImport([["date", "titel"], ["2026-10-12", "x"]]).errors)
+      .toEqual(["Unknown column: titel. Use date, title, duration, rating, location, people, plans, tags, notes."]);
+    expect(csvToImport([["2026-10-12", "Floor"]]).errors[0]).toMatch("needs the column names");
+    expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
+  });
+
+  it("stops listing problems after 20", () => {
+    const rows = [["date"], ...Array.from({ length: 30 }, () => ["bad"])];
+    const { errors } = csvToImport(rows);
+    expect(errors).toHaveLength(21);
+    expect(errors[20]).toBe("…and more.");
+  });
+});
+
+describe("import steps", () => {
+  it("reads only Rope Journal exports of a version it knows", () => {
+    expect(readExport({ format: "rope-journal-export", version: 1, ties: [{ title: "x" }] }))
+      .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }] });
+    expect(() => readExport({ hello: 1 })).toThrow("isn't a Rope Journal export");
+    expect(() => readExport(null)).toThrow("isn't a Rope Journal export");
+    expect(() => readExport({ format: "rope-journal-export", version: 2 })).toThrow("newer version");
+  });
+
+  it("swaps the file's ids for the journal's, keeping deleted links", () => {
+    const items = {
+      people: [{ file_id: "p", name: "Sam", id: "P", matched: true }],
+      locations: [{ file_id: "l", name: "Studio", id: "L", matched: false }],
+      plans: [{ file_id: "x", name: "TK", id: "X", matched: false }],
+      new_tags: [],
+    };
+    expect(remapTies([{
+      title: "t", location_id: "l",
+      participants: [{ person_id: "p", role: "model" }, { person_id: null, role: "spotter" }],
+      plans: [{ plan_id: "x", plan_version: 2 }],
+    }], items)).toEqual([{
+      title: "t", location_id: "L",
+      participants: [{ person_id: "P", role: "model" }, { person_id: null, role: "spotter" }],
+      plans: [{ plan_id: "X", plan_version: 2 }],
+    }]);
+  });
+
+  it("names a tie that links to something not in the file", () => {
+    const doc = readExport({ format: "rope-journal-export", version: 1, people: [{ id: "p", name: "Sam" }],
+      ties: [{ title: "ok", participants: [{ person_id: "p", role: "model" }] }, { title: "Floor", location_id: "nowhere" }] });
+    expect(() => checkLinks(doc)).toThrow('Tie 2 ("Floor") links to a location that isn\'t in the file.');
+  });
+
+  it("splits ties into batches", () => {
+    expect(batches([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(batches([])).toEqual([]);
+  });
+
+  it("describes what's new and what's already there", () => {
+    expect(describeItems([
+      { file_id: "a", name: "Sam", id: "1", matched: true },
+      { file_id: "b", name: "Alex", id: null, matched: false },
+      { file_id: "c", name: "Jo", id: null, matched: false },
+    ])).toEqual({ added: "2 new: Alex, Jo", matched: "1 already in your journal: Sam" });
+    expect(describeItems([])).toEqual({ added: null, matched: null });
+  });
+});

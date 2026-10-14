@@ -4,8 +4,7 @@ import { api, errorMessage } from "./api.js";
 import { h, $, showMessage, privateField } from "./dom.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
-
-const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
+import { ROLES } from "./ties-view.js";
 
 const RATINGS = [
   ["", "Not rated"], ["1", "1 – Rough"], ["2", "2"], ["3", "3 – OK"], ["4", "4"], ["5", "5 – Great"],

@@ -5,6 +5,9 @@
 
 import { formatDate } from "./format.js";
 
+/** Same list as the API (src/ties/parse.js). */
+export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
+
 /** @typedef {{ text: string, deleted: boolean }} Label */
 
 /**

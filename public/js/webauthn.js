@@ -54,3 +54,21 @@ async function ask(call) {
     throw err;
   }
 }
+
+/**
+ * Tells the browser (or password manager) that these passkeys no longer work
+ * here, so it can stop offering them. Only some browsers can (the WebAuthn
+ * Signal API); elsewhere the passkeys stay listed until the user removes
+ * them. The site's hostname is its RP_ID (see wrangler.jsonc).
+ * @param {string[]} credentialIds base64url
+ */
+export async function forgetPasskeys(credentialIds) {
+  if (typeof PKC?.signalUnknownCredential !== "function") return;
+  for (const credentialId of credentialIds) {
+    try {
+      await PKC.signalUnknownCredential({ rpId: location.hostname, credentialId });
+    } catch {
+      // Best effort: the account is already deleted either way.
+    }
+  }
+}
