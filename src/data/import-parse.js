@@ -10,7 +10,7 @@
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull } from "../parse.js";
 import { RESOURCES, parseFields } from "../resources/config.js";
-import { ROLES } from "../ties/parse.js";
+import { ROLES, TIE_TYPES } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
 
 export const MAX_ITEMS = 5000; // of each kind, in one items request
@@ -26,7 +26,7 @@ const MAX_ID_LENGTH = 100;
  * }} ProfileNoteInput
  * @typedef {Times & {
  *   file_id: string, name: string, pronouns: string | null, notes: string | null, is_self: 0 | 1,
- *   archived_at: string | null, profile_notes: ProfileNoteInput[],
+ *   default_role: string | null, archived_at: string | null, profile_notes: ProfileNoteInput[],
  * }} PersonInput
  * @typedef {Times & {
  *   file_id: string, name: string, notes: string | null, hard_points: string | null,
@@ -45,7 +45,7 @@ const MAX_ID_LENGTH = 100;
  * }} ImportParticipant
  * @typedef {{ plan_id: string | null, plan_version: number | null }} ImportTiePlan
  * @typedef {Times & {
- *   title: string | null, tie_date: string | null, notes: string | null,
+ *   title: string | null, tie_date: string | null, tie_type: string | null, notes: string | null,
  *   duration_minutes: number | null, success_rating: number | null,
  *   location_id: string | null, location_deleted: 0 | 1,
  *   participants: ImportParticipant[], plans: ImportTiePlan[], tags: string[],
@@ -100,6 +100,7 @@ function parseTie(t) {
   const tie = {
     title: cleanText(t.title),
     tie_date: toDateOrNull(t.tie_date),
+    tie_type: toChoiceOrNull(t.tie_type, TIE_TYPES),
     notes: cleanText(t.notes),
     duration_minutes: toIntOrNull(t.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(t.success_rating, 1, 5),
@@ -171,10 +172,11 @@ function parseImportTiePlans(value) {
 /** @param {Record<string, unknown>} p @returns {PersonInput} */
 function parsePerson(p) {
   const { values } = parseFields(RESOURCES.people, p);
-  const [name, pronouns, notes, isSelf] = /** @type {[string, string | null, string | null, 0 | 1]} */ (values);
+  const [name, pronouns, notes, isSelf, defaultRole] =
+    /** @type {[string, string | null, string | null, 0 | 1, string | null]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(p.id)),
-    name, pronouns, notes, is_self: isSelf,
+    name, pronouns, notes, is_self: isSelf, default_role: defaultRole,
     ...archiveAndTimes(p),
     profile_notes: list(p.profile_notes, "Profile notes", MAX_ITEMS).map((n) => parseProfileNote(asObject(n))),
   };

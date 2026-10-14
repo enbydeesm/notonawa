@@ -5,6 +5,10 @@ import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull } from "../parse.j
 import { parseTagNames } from "../tags/parse.js";
 
 export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
+export const TIE_TYPES = ["suspension", "partial suspension", "floor"];
+/** @typedef {"locations" | "people" | "plans"} RecentType */
+/** @type {RecentType[]} what /api/ties/recent/:type lists */
+export const RECENT_TYPES = ["locations", "people", "plans"];
 
 // Ties per page in the list. One place to change if it becomes adjustable.
 export const PAGE_SIZE = 20;
@@ -16,6 +20,7 @@ const MAX_SEARCH_LENGTH = 200;
  * @typedef {{
  *   title: string | null,
  *   tie_date: string | null,
+ *   tie_type: string | null,
  *   notes: string | null,
  *   duration_minutes: number | null,
  *   success_rating: number | null,
@@ -27,7 +32,7 @@ const MAX_SEARCH_LENGTH = 200;
  */
 
 /**
- * Body: { title, tie_date, duration_minutes, success_rating, notes, location_id,
+ * Body: { title, tie_date, tie_type, duration_minutes, success_rating, notes, location_id,
  *         participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
  * tags are names, so new tags (created on save) and existing ones are sent alike.
  * @param {Record<string, unknown>} body
@@ -37,6 +42,7 @@ export function parseTieInput(body) {
   const tie = {
     title: cleanText(body.title),
     tie_date: toDateOrNull(body.tie_date),
+    tie_type: toChoiceOrNull(body.tie_type, TIE_TYPES),
     notes: cleanText(body.notes),
     duration_minutes: toIntOrNull(body.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(body.success_rating, 1, 5),

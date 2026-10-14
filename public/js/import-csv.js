@@ -5,6 +5,7 @@
 // /import-template.csv):
 //   date      2026-10-12
 //   title
+//   type      suspension, partial suspension or floor
 //   duration  minutes
 //   rating    1 to 5
 //   location  a name
@@ -15,13 +16,14 @@
 // People, locations and plans are matched to the journal's by name when
 // imported; names it doesn't have are added.
 
-import { ROLES } from "./ties-view.js";
+import { ROLES, TIE_TYPES } from "./ties-view.js";
 import { tagKey } from "./tags.js";
 
 /** Column names as written in the file -> the field they fill. */
 const COLUMNS = /** @type {const} */ ({
   date: "date", tie_date: "date",
   title: "title",
+  type: "type", tie_type: "type",
   duration: "duration", duration_minutes: "duration", minutes: "duration",
   rating: "rating", success_rating: "rating",
   location: "location",
@@ -30,7 +32,7 @@ const COLUMNS = /** @type {const} */ ({
   tags: "tags",
   notes: "notes",
 });
-const KNOWN = "date, title, duration, rating, location, people, plans, tags, notes";
+const KNOWN = "date, title, type, duration, rating, location, people, plans, tags, notes";
 const MAX_ERRORS = 20;
 
 /**
@@ -95,6 +97,7 @@ function rowToTie(get, { people, locations, plans }) {
   return {
     title,
     tie_date: date,
+    tie_type: tieType(get.type),
     duration_minutes: wholeNumber(get.duration, 0, 1440, "The duration"),
     success_rating: wholeNumber(get.rating, 1, 5, "The rating"),
     notes: get.notes || null,
@@ -156,6 +159,17 @@ function wholeNumber(cell, min, max, what) {
   const n = Number(cell);
   if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${what} should be a whole number from ${min} to ${max}.`);
   return n;
+}
+
+/**
+ * The type, ignoring capitals, or null if the cell is empty.
+ * @param {string | undefined} cell
+ */
+function tieType(cell) {
+  if (!cell) return null;
+  const type = cell.toLowerCase().replace(/\s+/g, " ");
+  if (!TIE_TYPES.includes(type)) throw new Error(`"${cell}" isn't a type. Use one of: ${TIE_TYPES.join(", ")}.`);
+  return type;
 }
 
 /** @param {string} text */

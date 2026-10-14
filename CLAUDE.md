@@ -89,7 +89,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body,
   so the keyword never goes in a URL) is filtered and paged (20 per page)
   and returns `{ ties, total, page, page_size }`. A tie's `tags` are sent as
-  names; new ones are created when the tie is saved.
+  names; new ones are created when the tie is saved. `tie_type` is one of
+  `TIE_TYPES` (also in `public/js/ties-view.js` and a CHECK in migration
+  0004). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active
+  ones most recently on a tie (by tie date), for the tie form's pickers.
 - `src/tags/`: tags (`parse.js` parses and matches names, ignoring capitals;
   `db.js`; `routes.js`: `GET /api/tags` most recently used first,
   `DELETE /api/tags/:id`).
@@ -100,7 +103,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `public/js/`: `api.js`, `dom.js` (`h`, `$`, `privateField`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
-  (its "Edit tags" dialog) and `tags.js` (pure), `multi-select.js`,
+  (its "Edit tags" dialog) and `tags.js` (pure), `search-picker.js` (its
+  search boxes for the location, people and plans, which can also add one),
+  `search-choices.js` (pure: what those boxes list and offer to add),
+  `rope-rating.js` (ratings drawn as rope hanks), `multi-select.js`,
   `resource-page.js` (list/edit pages), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
   import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
@@ -168,6 +174,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   it from ties) or `linked_ties=keep` (ties show "(plan deleted)"). The UI asks
   with a confirmation dialog: remove from linked ties / just delete the plan /
   cancel. The API rejects a delete without the choice.
+- **Every journal has a "this is me" profile**, named "Me" when the account
+  is made (`newUserStatements`; migration 0005 added one to older accounts).
+  It can be renamed or archived; a unique index allows at most one.
 - **Multi-statement writes go in one `env.DB.batch([...])`**, which runs as a
   single transaction, so a failure saves nothing.
 - **When a table or column is added, update export and import**

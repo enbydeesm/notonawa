@@ -23,7 +23,7 @@ describe("parseFields", () => {
 
   it("ignores fields that aren't part of the resource", () => {
     const { columns } = parseFields(RESOURCES.people, { name: "Sam", owner_id: "someone-else", archived_at: "x" });
-    expect(columns).toEqual(["name", "pronouns", "notes", "is_self"]);
+    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role"]);
   });
 });
 

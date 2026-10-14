@@ -51,6 +51,7 @@ export function planItems(items, existing, newId) {
       id: people[i].id, name: p.name, pronouns: p.pronouns, notes: p.notes,
       // Only one "this is me" per journal: if I have one, it was matched above.
       is_self: p.is_self && !mySelf ? 1 : 0,
+      default_role: p.default_role,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
     }]),
     profileNotes: items.people.flatMap((p, i) => people[i].matched ? [] : p.profile_notes.map((n) => ({
@@ -95,7 +96,7 @@ export function planTies(ties, existingTags, newId) {
     rows: {
       tags: tags.rows,
       ties: ties.map((t, i) => ({
-        id: ids[i], title: t.title, tie_date: t.tie_date, notes: t.notes,
+        id: ids[i], title: t.title, tie_date: t.tie_date, tie_type: t.tie_type, notes: t.notes,
         duration_minutes: t.duration_minutes, success_rating: t.success_rating,
         location_id: t.location_id, location_deleted: t.location_deleted,
         created_at: t.created_at, updated_at: t.updated_at,

@@ -51,7 +51,7 @@ export function exportDocument(rows, exportedAt) {
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
     },
     people: rows.people.map((p) => ({
-      id: p.id, name: p.name, pronouns: p.pronouns, notes: p.notes, is_self: !!p.is_self,
+      id: p.id, name: p.name, pronouns: p.pronouns, notes: p.notes, is_self: !!p.is_self, default_role: p.default_role,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       profile_notes: (notesByPerson.get(p.id) ?? []).map((n) => ({
         type: n.type, description: n.description, noted_on: n.noted_on, is_current: !!n.is_current,
@@ -72,7 +72,7 @@ export function exportDocument(rows, exportedAt) {
     })),
     tags: rows.tags.map((t) => t.name),
     ties: rows.ties.map((t) => ({
-      id: t.id, title: t.title, tie_date: t.tie_date, duration_minutes: t.duration_minutes,
+      id: t.id, title: t.title, tie_date: t.tie_date, tie_type: t.tie_type, duration_minutes: t.duration_minutes,
       success_rating: t.success_rating, notes: t.notes,
       location_id: t.location_id, location_deleted: !!t.location_deleted,
       created_at: t.created_at, updated_at: t.updated_at,

@@ -66,7 +66,7 @@ function comparable(doc) {
 /** Fills the signed-in test user's journal with linked, archived and deleted things. */
 async function fillJournal() {
   const me = await create("/api/people", { name: "Me", is_self: true });
-  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Floor work" });
+  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Floor work", default_role: "model" });
   const gone = await create("/api/people", { name: "Gone" });
   await call(`/api/people/${sam}/archive`, { method: "POST" });
   await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', 'Left shoulder', '2026-01-02')",
@@ -79,7 +79,7 @@ async function fillJournal() {
   await call(`/api/plans/${tk}`, { method: "PUT", body: { title: "TK", stage: "ready", est_difficulty: 3 } });
   await sql("UPDATE plans SET version = 4 WHERE id = ?", tk).run();
   await create("/api/ties", {
-    title: "Floor", tie_date: "2026-10-01", notes: "Went well", success_rating: 4, duration_minutes: 50, location_id: studio,
+    title: "Floor", tie_date: "2026-10-01", tie_type: "partial suspension", notes: "Went well", success_rating: 4, duration_minutes: 50, location_id: studio,
     participants: [{ person_id: me, role: "rigger" }, { person_id: sam, role: "model" }, { person_id: gone, role: "spotter" }],
     plan_ids: [tk, tk2, dropped], tags: ["floor", "Futomomo"],
   });
@@ -153,7 +153,7 @@ describe("importing an export", () => {
 
     const [tie] = (await call("/api/ties/search", { method: "POST", body: {}, cookie: user.cookie })).body.ties;
     expect(tie).toMatchObject({
-      title: "Floor practice", tie_date: "2026-10-12", duration_minutes: 45, success_rating: 4,
+      title: "Floor practice", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4,
       location_name: "Studio", notes: "Went well. Notes can have commas, in quotes.",
       plans: [{ plan_id: plan, plan_title: "Hip harness", plan_version: 2 }],
     });

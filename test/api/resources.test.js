@@ -77,9 +77,23 @@ describe("plans, people and locations", () => {
     expect((await sql("SELECT stage FROM plans WHERE id = ?", id).first())?.stage).toBe("developing");
   });
 
-  it("can add a location already archived (a one-off spot)", async () => {
-    const id = await create("/api/locations", { name: "Hotel", archive_now: true });
-    expect((await call("/api/locations?archived=true")).body.map((/** @type {any} */ l) => l.id)).toContain(id);
+  it("saves a person's default role, which must be one of the roles", async () => {
+    const id = await create("/api/people", { name: "Sam", default_role: "model" });
+    expect((await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id).default_role).toBe("model");
+    const bad = await call("/api/people", { method: "POST", body: { name: "Kit", default_role: "chef" } });
+    expect(bad.status).toBe(400);
+    await call(`/api/people/${id}`, { method: "PUT", body: { name: "Sam", default_role: "" } });
+    expect((await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id).default_role).toBeNull();
+  });
+
+  it("can add a location, person or plan already archived (a one-off)", async () => {
+    for (const [type, body] of /** @type {const} */ ([
+      ["locations", { name: "Hotel" }], ["people", { name: "Once" }], ["plans", { title: "Tried once" }],
+    ])) {
+      const id = await create(`/api/${type}`, { ...body, archive_now: true });
+      expect((await call(`/api/${type}?archived=true`)).body.map((/** @type {any} */ l) => l.id)).toContain(id);
+      expect((await call(`/api/${type}?archived=false`)).body.map((/** @type {any} */ l) => l.id)).not.toContain(id);
+    }
   });
 
   it("stops a plan being a variation of itself", async () => {

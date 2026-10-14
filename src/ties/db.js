@@ -11,6 +11,40 @@ import { matchTags } from "../tags/parse.js";
 const ORDER = "ORDER BY t.tie_date DESC, t.created_at DESC, t.id";
 
 /**
+ * How each kind of item links to ties, as SQL joining ties t to the item x.
+ * Fixed text, never from the request.
+ * @type {Record<import("./parse.js").RecentType, string>}
+ */
+const RECENT_JOINS = {
+  locations: "JOIN locations x ON x.id = t.location_id",
+  people: "JOIN tie_participants tp ON tp.tie_id = t.id JOIN people x ON x.id = tp.person_id",
+  plans: "JOIN tie_plans tpl ON tpl.tie_id = t.id JOIN plans x ON x.id = tpl.plan_id",
+};
+
+/**
+ * Ids of my active locations, people or plans, most recently on a tie first
+ * (by tie date; ties with no date count as oldest). For the tie form's
+ * pickers, so archived ones are left out.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {import("./parse.js").RecentType} type
+ * @param {number} limit
+ * @returns {Promise<string[]>}
+ */
+export async function recentIds(db, ownerId, type, limit) {
+  const { results } = await db.prepare(
+    `SELECT x.id
+       FROM ties t
+       ${RECENT_JOINS[type]}
+      WHERE t.owner_id = ? AND x.owner_id = t.owner_id AND x.archived_at IS NULL
+      GROUP BY x.id
+      ORDER BY MAX(t.tie_date) DESC, MAX(t.created_at) DESC, x.id
+      LIMIT ?`
+  ).bind(ownerId, limit).all();
+  return results.map((r) => /** @type {string} */ (r.id));
+}
+
+/**
  * One page of my ties that match the filters, newest tie date first, each
  * with its location, participants and plans, plus how many match in all.
  * Archived people, locations and plans still show here: archiving only hides
@@ -31,7 +65,7 @@ export async function listTies(db, ownerId, filters) {
   const [count, ties, participants, plans] = await db.batch([
     db.prepare(`SELECT COUNT(*) AS total FROM ties t WHERE ${where}`).bind(...params),
     db.prepare(
-      `SELECT t.id, t.title, t.tie_date, t.duration_minutes, t.success_rating, t.notes, t.created_at,
+      `SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.created_at,
               t.location_id, t.location_deleted, l.name AS location_name
          FROM ties t
          LEFT JOIN locations l ON l.id = t.location_id
@@ -91,9 +125,9 @@ export async function insertTie(db, ownerId, tie) {
   const id = crypto.randomUUID();
   const statements = [
     db.prepare(
-      `INSERT INTO ties (id, owner_id, title, tie_date, location_id, duration_minutes, success_rating, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(id, ownerId, tie.title, tie.tie_date, tie.location_id, tie.duration_minutes, tie.success_rating, tie.notes),
+      `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, duration_minutes, success_rating, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, ownerId, tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.duration_minutes, tie.success_rating, tie.notes),
   ];
   for (const p of tie.participants) {
     statements.push(

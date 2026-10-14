@@ -178,7 +178,7 @@ Each step leaves the app working and shippable on its own.
   machine if that's easy to forget. The plaintext backups from earlier
   migrations were deleted (2026-10-13).
 - **Import**: from an export, or a CSV of ties (one per row:
-  date, title, duration, rating, location, people as `Sam (model); Alex
+  date, title, type, duration, rating, location, people as `Sam (model); Alex
   (rigger)`, plans, tags, notes; `/import-template.csv`). Decided:
   - **CSV is ties only.** People, locations and plans named in it that the
     journal doesn't have are created.

@@ -6,6 +6,7 @@ describe("parseTieInput", () => {
     expect(parseTieInput({
       title: " Floor session ",
       tie_date: "2026-10-12",
+      tie_type: "partial suspension",
       duration_minutes: "45",
       success_rating: "4",
       notes: "",
@@ -16,6 +17,7 @@ describe("parseTieInput", () => {
     })).toEqual({
       title: "Floor session",
       tie_date: "2026-10-12",
+      tie_type: "partial suspension",
       duration_minutes: 45,
       success_rating: 4,
       notes: null,
@@ -37,6 +39,13 @@ describe("parseTieInput", () => {
     for (const bad of ["2026-02-30", "12/10/2026", "yesterday", "2026-10-12T21:00:00Z"]) {
       expect(() => parseTieInput({ title: "x", tie_date: bad })).toThrow("Expected a date like 2026-10-12.");
     }
+  });
+
+  it("only accepts a known type, and none is fine", () => {
+    expect(parseTieInput({ title: "x" }).tie_type).toBeNull();
+    expect(parseTieInput({ title: "x", tie_type: "" }).tie_type).toBeNull();
+    expect(parseTieInput({ title: "x", tie_type: "floor" }).tie_type).toBe("floor");
+    expect(() => parseTieInput({ title: "x", tie_type: "hanging" })).toThrow("Expected one of: suspension, partial suspension, floor.");
   });
 
   it("rejects ratings and durations out of range", () => {

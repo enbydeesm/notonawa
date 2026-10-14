@@ -91,6 +91,9 @@ export function newUserStatements(db, userId, inviteHash, recoveryHash) {
        VALUES (?, ?, ?, ${NOW}, ?)`
     ).bind(userId, userId, recoveryHash, TERMS_VERSION),
     db.prepare(`UPDATE invites SET used_at = ${NOW}, used_by = ? WHERE code_hash = ?`).bind(userId, inviteHash),
+    // Every journal starts with its owner's own profile, renamable on the
+    // People page, so ties can list "Me" from the first one.
+    db.prepare("INSERT INTO people (id, owner_id, name, is_self) VALUES (?, ?, 'Me', 1)").bind(crypto.randomUUID(), userId),
   ];
 }
 

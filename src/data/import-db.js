@@ -27,8 +27,8 @@ const SQL = {
   tags: `INSERT INTO tags (id, owner_id, name)
          SELECT ${j("id")}, ?1, ${j("name")} FROM json_each(?2) j WHERE true
          ON CONFLICT (owner_id, name) DO NOTHING`,
-  people: `INSERT INTO people (id, owner_id, name, pronouns, notes, is_self, archived_at, created_at, updated_at)
-           SELECT ${j("id")}, ?1, ${j("name")}, ${j("pronouns")}, ${j("notes")}, ${j("is_self")},
+  people: `INSERT INTO people (id, owner_id, name, pronouns, notes, is_self, default_role, archived_at, created_at, updated_at)
+           SELECT ${j("id")}, ?1, ${j("name")}, ${j("pronouns")}, ${j("notes")}, ${j("is_self")}, ${j("default_role")},
                   ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
              FROM json_each(?2) j`,
   // The people are new rows of mine (?1 isn't needed: profile notes have no owner).
@@ -55,8 +55,8 @@ const SQL = {
   // An exact duplicate of one of my ties (same date, title and notes) is
   // skipped, so importing the same file twice, or again after a failed
   // batch, adds nothing twice.
-  ties: `INSERT INTO ties (id, owner_id, title, tie_date, location_id, location_deleted, duration_minutes, success_rating, notes, created_at, updated_at)
-         SELECT ${j("id")}, ?1, ${j("title")}, ${j("tie_date")}, ${j("location_id")}, ${j("location_deleted")},
+  ties: `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, location_deleted, duration_minutes, success_rating, notes, created_at, updated_at)
+         SELECT ${j("id")}, ?1, ${j("title")}, ${j("tie_date")}, ${j("tie_type")}, ${j("location_id")}, ${j("location_deleted")},
                 ${j("duration_minutes")}, ${j("success_rating")}, ${j("notes")}, ${time("created_at")}, ${time("updated_at")}
            FROM json_each(?2) j
           WHERE NOT EXISTS (

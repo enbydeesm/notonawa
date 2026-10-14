@@ -111,6 +111,9 @@ const send = (method, params = {}) => new Promise((resolve) => {
 });
 await send("Runtime.enable");
 await send("Page.enable");
+// Headless Chrome isn't a focused window, so focus and blur events wouldn't
+// fire (the tie form's location picker opens and settles on them).
+await send("Emulation.setFocusEmulationEnabled", { enabled: true });
 await send("Log.enable");
 
 // A virtual passkey, like a phone's: discoverable, verifies the user, and can
@@ -130,6 +133,14 @@ const PAGE_HELPERS = `
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change")); };
   const optionValue = (select, text) => [...select.options].find((o) => o.text === text).value;
+  // The tie form's search pickers: what one lists, and picking from one.
+  const pickerList = (box) => [...document.querySelectorAll("#" + box.id + "-list li")].map((li) => li.innerText.replace(/\\n+/g, " | "));
+  const searchIn = (box, text) => { box.focus(); box.value = text; box.dispatchEvent(new Event("input")); };
+  const choosePick = async (box, text, shown = text) => {
+    searchIn(box, text); await wait(50);
+    [...document.querySelectorAll("#" + box.id + "-list .combo-option")].find((o) => o.textContent === shown).click(); await wait(50);
+  };
+  const lastBox = (rows) => [...document.querySelectorAll(rows + " [role=combobox]")].pop();
   const submit = async () => { $("form button[type=submit]").click(); await wait(700); };
   const flat = (el) => el.innerText.replace(/\\n+/g, " | ");
   const items = () => [...document.querySelectorAll(".item")].map(flat);
@@ -294,11 +305,13 @@ try {
   await go("/people");
   check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a:not(.nav-icon)")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
     ["Ties", "Plans", "People*", "Locations"]);
-  check("add people", await run(`
-    set("#name", "Me"); set("[name=is_self]", true); await submit();
-    set("#name", "Sam"); set("#pronouns", "they/them"); await submit();
+  check("a new journal starts with 'Me'; add people, one with a default role", await run(`
+    const first = titles();
+    const roles = [...$("#default_role").options].map((o) => o.text);
+    set("#name", "Sam"); set("#pronouns", "they/them"); set("#default_role", "model"); await submit();
     set("#name", "Alex"); await submit();
-    return titles();`), ["MeYou", "Alex", "Sam"]);
+    return [first, roles, items().find((i) => i.startsWith("Sam |")).split(" | ")[1], titles()];`),
+    [["MeYou"], ["None", "Rigger", "Top", "Model", "Bottom", "Spotter", "Photographer"], "they/them · usually model", ["MeYou", "Alex", "Sam"]]);
   check("second 'this is me' is refused", await run(`set("#name", "Me 2"); set("[name=is_self]", true); await submit(); return $(".message").textContent;`),
     "Couldn't save: You already have a profile marked as you.");
   check("edit fills the form", await run(`set("[name=is_self]", false); set("#name", ""); await clickIn("Sam", "Edit");
@@ -333,10 +346,37 @@ try {
   check("+ opens the log-a-tie dialog; pickers leave out archived items", await run(`
     $(".nav-add").click(); await wait(600);
     $("#tie-add-participant").click(); $("#tie-add-plan").click();
-    return [!!$("dialog[open] #tie-form"), [...$("#tie-location_id").options].map((o) => o.text), [...$(".person").options].map((o) => o.text), leakyFields()];`),
-    [true, ["No location", "Old flat", "Studio"], ["Choose person", "Me (you)", "Sam"], []]);
-  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); $(".person").selectedIndex = 1; $("#tie-save").click(); await wait(500); return $("#tie-message").textContent;`),
-    "Couldn't save: Choose a person and a role for each row, or remove it.");
+    const firstPerson = [lastBox("#tie-participants").value, $(".role").value];
+    const hiddenAtFirst = $("#tie-location").offsetParent === null;
+    $("#tie-location-show").click(); await wait(100);
+    // No ties yet, so the newest added (sorted here: both were added the same second).
+    const locations = [...document.querySelectorAll("#tie-location-list .combo-option")].map((o) => o.textContent).sort();
+    $("#tie-location-remove").click(); await wait(100);
+    const hiddenAgain = [$("#tie-location").offsetParent === null, $("#tie-location-show").hidden];
+    return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
+      document.querySelectorAll(".hank-button.filled").length + "/" + document.querySelectorAll(".hank-button").length,
+      leakyFields()];`),
+    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["Not set", "Suspension", "Partial suspension", "Floor"], "0/5", []]);
+  // Sorted: these were all added within the same second, so "newest" ties.
+  check("people and plans pickers list the active ones", await run(`
+    const person = lastBox("#tie-participants"), plan = lastBox("#tie-plans");
+    person.focus(); await wait(50); const people = pickerList(person).sort(); person.blur();
+    plan.focus(); await wait(50); const plans = pickerList(plan).sort(); plan.blur();
+    return [people, plans];`),
+    [["Me (you)", "Sam"], ["Hip harness", "Hip harness, one-sided"]]);
+  check("typing an archived person's name points to restoring them, not adding another", await run(`
+    const person = lastBox("#tie-participants"); searchIn(person, "ALEX"); await wait(50);
+    const listed = pickerList(person); person.blur(); return [listed, person.value];`),
+    [["No matches.", '"Alex" is archived. Restore it from the People page to use it again.'], "Me (you)"]);
+  check("a plan chosen in one row isn't offered in another", await run(`
+    await choosePick(lastBox("#tie-plans"), "Hip harness");
+    $("#tie-add-plan").click(); await wait(50);
+    const second = lastBox("#tie-plans"); const listed = pickerList(second);
+    second.closest(".picker-row").querySelector("button[aria-label=Remove]").click();
+    return [listed, document.querySelectorAll("#tie-plans .picker-row").length];`),
+    [["Hip harness, one-sided"], 1]);
+  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); await choosePick(lastBox("#tie-participants"), "Me", "Me (you)"); $("#tie-save").click(); await wait(500); return [lastBox("#tie-participants").value, $("#tie-message").textContent];`),
+    ["Me (you)", "Couldn't save: Choose a person and a role for each row, or remove it."]);
   check("Edit tags opens an empty tag dialog", await run(`
     $("#tie-add-tags").click(); await wait(600);
     return [$("#tie-add-tags").getAttribute("aria-label"), $("#tags-heading").textContent, ["autocapitalize", "autocorrect", "spellcheck"].map((a) => $("#tags-search").getAttribute(a)), !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder, leakyFields()];`),
@@ -355,17 +395,60 @@ try {
     $("#tags-ok").click(); await wait(300);
     return [after, tagChips("#tie-tags"), !!$("dialog[open] #tags-search")];`),
     [[["Floor"], ["Floor*", "Futomomo ×"]], ["Floor", "Futomomo"], false]);
+  check("typing searches locations, offering to add a name that isn't one of them", await run(`
+    $("#tie-location-show").click(); await wait(100);
+    const box = $("#tie-location");
+    const typeIn = (v) => { box.value = v; box.dispatchEvent(new Event("input")); };
+    const listed = () => [...document.querySelectorAll("#tie-location-list li")].map((li) => li.innerText.replace(/\\n+/g, " | "));
+    typeIn("STU"); const partial = listed();
+    typeIn("studio"); const exact = listed();
+    typeIn("Garage"); const none = listed();
+    box.blur(); const afterBlur = box.value;
+    return [partial, exact, none, afterBlur, leakyFields()];`),
+    [["Studio", "Add to list | Add & archive"], ["Studio"], ["No matches.", "Add to list | Add & archive"], "", []]);
+  check("'Add & archive' adds the typed name, archived, and picks it", await run(`
+    const box = $("#tie-location"); box.focus(); box.value = "Garage"; box.dispatchEvent(new Event("input"));
+    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add & archive").click(); await wait(800);
+    const saved = (await (await fetch("/api/locations?archived=true")).json()).map((l) => l.name);
+    return [box.value, $("[name=location_id]").value !== "", $("#tie-location-list").hidden, saved.includes("Garage"), !!$("dialog[open] #tie-form")];`),
+    ["Garage", true, true, true, true]);
+  check("'Add to list' adds an active location, which the list then offers", await run(`
+    const box = $("#tie-location"); box.focus(); box.value = "Back garden"; box.dispatchEvent(new Event("input"));
+    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add to list").click(); await wait(800);
+    const picked = box.value;
+    box.focus(); box.value = "back"; box.dispatchEvent(new Event("input"));
+    const listed = [...document.querySelectorAll("#tie-location-list .combo-option")].map((li) => li.innerText);
+    box.blur();
+    return [picked, listed];`),
+    ["Back garden", ["Back garden"]]);
+  check("arrow keys and Enter pick a location without saving the tie", await run(`
+    const box = $("#tie-location"); box.focus(); box.value = "stud"; box.dispatchEvent(new Event("input"));
+    box.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true }));
+    box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    const picked = [box.value, $("#tie-location-list").hidden, !!$("dialog[open] #tie-form")];
+    box.blur(); return picked;`), ["Studio", true, true]);
+  check("tapping a hank fills up to it; tapping the chosen one clears it", await run(`
+    const hanks = document.querySelectorAll(".hank-button"); const value = () => $("[name=success_rating]").value;
+    hanks[1].click(); const two = value(); hanks[1].click(); const cleared = value(); hanks[3].click();
+    return [two, cleared, value(), [...hanks].map((b) => b.classList.contains("filled") ? "x" : "o").join("")];`),
+    ["2", "", "4", "xxxxo"]);
+  check("only the first person row starts with me; picking someone sets their default role, replacing a hand-picked one", await run(`
+    $("#tie-add-participant").click(); await wait(50);
+    const box = lastBox("#tie-participants"), role = () => document.querySelectorAll(".role")[1];
+    const empty = [box.value, role().value];
+    await choosePick(box, "Sam"); const sam = role().value;
+    role().value = "spotter"; await choosePick(box, "Me", "Me (you)"); const me = role().value;
+    role().value = "spotter"; await choosePick(box, "Sam"); const back = role().value;
+    box.blur();
+    return [empty, sam, me, back];`),
+    [["", ""], "model", "", "model"]);
   check("save a full tie: the dialog closes and the list shows it", await run(`
-    set("#tie-location_id", optionValue($("#tie-location_id"), "Studio"));
+    set("#tie-tie_type", "floor");
     document.querySelectorAll(".role")[0].value = "rigger";
-    $("#tie-add-participant").click();
-    const sam = document.querySelectorAll(".person")[1]; sam.value = optionValue(sam, "Sam");
-    document.querySelectorAll(".role")[1].value = "model";
-    $(".plan").value = optionValue($(".plan"), "Hip harness");
-    set("#tie-duration_minutes", "45"); set("#tie-success_rating", "4"); set("#tie-notes", "Smooth transitions");
+    set("#tie-duration_minutes", "45"); set("#tie-notes", "Smooth transitions");
     $("#tie-save").click(); await wait(1000);
     return [!!document.querySelector("dialog"), items()[0].replace(/^Floor session \\| [^·]+· /, "")];`),
-    [false, "Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
+    [false, "Floor · Studio · 45 min · 4/5 | With: Me (rigger), Sam (model) | Plans: Hip harness (v1) | Smooth transitions"]);
   check("Cancel closes the dialog without saving", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
     [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
@@ -413,7 +496,7 @@ try {
   check("filters list everyone A–Z, archived in muted text", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
     return [filterOptions("#people-filter"), filterOptions("#locations-filter")];`),
-    [["Alex (muted)", "Me", "Sam"], ["Hotel (muted)", "Old flat", "Studio"]]);
+    [["Alex (muted)", "Me", "Sam"], ["Back garden", "Garage (muted)", "Hotel (muted)", "Old flat", "Studio"]]);
   check("a filter's search box narrows its list", await run(`
     const box = $("#people-filter input[type=search]"); box.value = "SA"; box.dispatchEvent(new Event("input"));
     const shown = filterOptions("#people-filter"); box.value = ""; box.dispatchEvent(new Event("input"));
@@ -461,12 +544,12 @@ try {
   check("'Just delete the plan'", await run(`await clickIn("Hip harness", "Delete"); await clickDialog("Just delete the plan"); return titles();`), ["Hip harness, one-sided"]);
   await go("/locations");
   check("location delete offers archiving instead", await run(`await clickIn("Studio", "Delete"); const b = dialogButtons(); await clickDialog("Delete permanently"); return [b, titles()];`),
-    [["Archive instead", "Delete permanently", "Cancel"], ["Old flat"]]);
+    [["Archive instead", "Delete permanently", "Cancel"], ["Back garden", "Old flat"]]);
   await go("/people");
   check("delete a person", await run(`await clickIn("Sam", "Delete"); await clickDialog("Delete permanently"); return titles();`), ["MeYou"]);
   await go("/");
   check("tie shows what was deleted", await run(`return items()[0].replace(/^Floor session \\| [^·]+· /, "");`),
-    "(location deleted) · 45 min · 4/5 | With: (person deleted) (model), Me (rigger) | Plans: (plan deleted) | Smooth transitions");
+    "Floor · (location deleted) · 45 min · 4/5 | With: (person deleted) (model), Me (rigger) | Plans: (plan deleted) | Smooth transitions");
 
   console.log("+ on other tabs");
   await go("/plans");

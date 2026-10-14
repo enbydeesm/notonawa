@@ -61,6 +61,17 @@ input, textarea, select {
 textarea { min-height: 90px; resize: vertical; }
 .row { display: flex; gap: 12px; }
 .row > div { flex: 1; min-width: 0; }
+/* Date, type and minutes on one row: the date only as wide as its date,
+   the minutes as wide as three digits, and the type gets the rest. The
+   minutes' spin arrows are hidden so they don't cover the digits. */
+.row > .date-field, .row > .minutes-field { flex: none; }
+/* A row of mixed fields (date, drop-down, number) drawn at one height: each
+   kind otherwise has its own (the date box's calendar icon makes it taller). */
+.same-height :is(input, select) { height: 2.75rem; }
+/* A set width: phone browsers draw the date box much wider than its date. */
+.date-field input { width: calc(10ch + 52px); }
+.minutes-field input { width: calc(3ch + 22px); appearance: textfield; }
+.minutes-field input::-webkit-inner-spin-button, .minutes-field input::-webkit-outer-spin-button { appearance: none; margin: 0; }
 
 button {
   padding: 8px 12px; font: inherit; font-size: 0.9rem; font-weight: 600;
@@ -95,6 +106,10 @@ button.link { border: none; padding: 4px 0; color: var(--accent-ink); font-weigh
 .empty { color: var(--muted); }
 
 .picker-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.picker-row[hidden] { display: none; }
+/* A person row: the name gets 60% and the role 40%. */
+.person-row .combo { flex: 3; }
+.person-row select { flex: 2; }
 .picker-row select { flex: 1; min-width: 0; }
 
 dialog {
@@ -159,12 +174,60 @@ dialog .menu-title { margin: 4px 0 16px; text-align: center; font-size: 1.5rem; 
    share a width so the + buttons line up down the form. The + is as tall as
    the label's text; an invisible margin around it keeps it easy to tap. */
 .label-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
-.label-row label { margin: 0; min-width: 3rem; }
+.label-row label { margin: 0; min-width: 3.75rem; }
 .label-add {
   position: relative; width: 1rem; height: 1rem;
   font-size: 0.95rem; font-weight: 600; border-radius: 4px;
 }
 .label-add::after { content: ""; position: absolute; inset: -12px; }
+
+/* The tie form's location picker: a text box with a list under it that
+   opens when the box is tapped, ending with buttons to add what's typed. */
+.combo { position: relative; flex: 1; min-width: 0; }
+/* At least as wide as the box, wider if a name or the add buttons need it
+   (the box is only half the form's width). */
+.combo-list {
+  position: absolute; z-index: 1; left: 0; top: calc(100% + 4px);
+  min-width: 100%; width: max-content; max-width: min(320px, calc(100vw - 72px));
+  margin: 0; padding: 4px 0; list-style: none; max-height: 240px; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+.combo-option { padding: 8px 10px; cursor: pointer; overflow-wrap: anywhere; }
+.combo-option:hover, .combo-option[aria-selected="true"] { background: var(--line); }
+.combo-empty { padding: 8px 10px; color: var(--muted); font-size: 0.9rem; }
+.combo-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px 4px; border-top: 1px solid var(--line); }
+.combo-actions button { flex: 1; white-space: nowrap; }
+/* A secondary button outlined in the accent. */
+button.outline { border-color: var(--accent-ink); color: var(--text); }
+button.outline.active { background: var(--line); }
+
+/* Ratings as rope hanks: a grey outline, filled in the accent when chosen.
+   The wrap's fill matches the card behind it, so the loop's lines don't show
+   through it. */
+.hank { display: block; width: 100%; height: 100%; }
+.hank path, .hank rect { fill: none; stroke: var(--muted); stroke-width: 1.3; stroke-linejoin: round; }
+.hank .hank-wrap { fill: var(--card); }
+.hank-picker { display: inline-flex; align-items: center; gap: 2px; }
+.hank-button { width: 32px; height: 32px; padding: 3px; border: none; opacity: 0.55; }
+.hank-button.filled { opacity: 1; }
+.hank-button:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+/* --accent-text, not --accent-ink: in dark mode the ink is the same yellow
+   as the fill, and the hank's lines would vanish. */
+.filled .hank path, .filled .hank rect, .hank.filled path, .hank.filled rect { stroke: var(--accent-text); }
+.filled .hank .hank-loop, .filled .hank .hank-wrap, .hank.filled .hank-loop, .hank.filled .hank-wrap { fill: var(--accent); }
+/* Inline, not flex: flex would put the hidden "4/5" on a line of its own
+   when the list's text is copied. */
+.hank-rating { white-space: nowrap; }
+.hank-rating .hank { display: inline-block; width: 15px; height: 15px; margin-right: 1px; vertical-align: -3px; }
+.hank-rating .hank:not(.filled) { opacity: 0.45; }
+
+/* Read by screen readers (and copied with the text) but not shown. Inline,
+   not absolutely placed, so copying keeps it on the same line. */
+.visually-hidden {
+  display: inline-block; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
 
 /* Pop-up forms, e.g. "Log a tie". Taller than the screen scrolls inside. */
 dialog.form-dialog {

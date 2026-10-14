@@ -6,7 +6,7 @@ describe("GET /api/data/export", () => {
   it("exports everything in my account, links and deleted links included", async () => {
     const me = await signedInUser();
     await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES ('pk1', ?, 'PUBLIC-KEY', 'Phone')", me.id).run();
-    const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Likes floor work" });
+    const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Likes floor work", default_role: "model" });
     const gone = await create("/api/people", { name: "Gone" });
     await sql(
       "INSERT INTO profile_notes (id, person_id, type, description) VALUES ('n1', ?, 'limit', 'No neck ties')", sam
@@ -16,7 +16,7 @@ describe("GET /api/data/export", () => {
     const variation = await create("/api/plans", { title: "TK variation", variation_of: base });
     await call(`/api/plans/${variation}/archive`, { method: "POST" });
     const tie = await create("/api/ties", {
-      title: "Floor session", tie_date: "2026-10-12", notes: "Went well", location_id: studio,
+      title: "Floor session", tie_date: "2026-10-12", tie_type: "suspension", notes: "Went well", location_id: studio,
       participants: [{ person_id: sam, role: "model" }, { person_id: gone, role: "spotter" }],
       plan_ids: [base], tags: ["floor"],
     });
@@ -32,7 +32,7 @@ describe("GET /api/data/export", () => {
     expect(doc).toMatchObject({ format: "rope-journal-export", version: 1 });
     expect(doc.account.passkeys).toEqual([{ name: "Phone", created_at: expect.any(String), last_used_at: null }]);
     expect(doc.people).toEqual([expect.objectContaining({
-      id: sam, name: "Sam", pronouns: "they/them", notes: "Likes floor work", is_self: false, archived_at: null,
+      id: sam, name: "Sam", pronouns: "they/them", notes: "Likes floor work", is_self: false, default_role: "model", archived_at: null,
       profile_notes: [expect.objectContaining({ type: "limit", description: "No neck ties", is_current: true })],
     })]);
     expect(doc.locations).toEqual([expect.objectContaining({ id: studio, name: "Studio", latitude: 51.5, longitude: -0.1 })]);
@@ -44,7 +44,7 @@ describe("GET /api/data/export", () => {
     ]));
     expect(doc.tags).toEqual(["floor"]);
     expect(doc.ties).toEqual([expect.objectContaining({
-      id: tie, title: "Floor session", tie_date: "2026-10-12", notes: "Went well", location_id: studio, location_deleted: false,
+      id: tie, title: "Floor session", tie_date: "2026-10-12", tie_type: "suspension", notes: "Went well", location_id: studio, location_deleted: false,
       participants: [
         expect.objectContaining({ person_id: sam, role: "model" }),
         expect.objectContaining({ person_id: null, role: "spotter" }),

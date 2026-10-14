@@ -87,9 +87,9 @@ analytics, advertising or tracking tools of any kind.
 
 **Readable by our server, so the app can list, sort and filter them:**
 
-- tie titles, dates, durations and ratings; who took part and in what role;
+- tie titles, dates, types, durations and ratings; who took part and in what role;
   which plans and location were used
-- people's names and pronouns
+- people's names, pronouns and usual roles
 - location names, map links and coordinates
 - plan titles, stages, difficulty and versions
 - tags

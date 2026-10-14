@@ -33,10 +33,10 @@ describe("parseCsv", () => {
 describe("csvToImport", () => {
   it("turns rows into ties, naming each person, location and plan once", () => {
     const { doc, errors } = csvToImport([
-      ["Date", "Title", "Duration", "Rating", "Location", "People", "Plans", "Tags", "Notes"],
-      ["2026-10-12", "Floor", "45", "4", "Studio", "Sam (Model); Alex (rigger)", "TK; Hip harness", "floor; Practice", "Good"],
-      ["", "", "", "", "", "", "", "", ""],
-      ["2026-10-13", "", "", "", "studio", "sam (rigger)", "tk", "", ""],
+      ["Date", "Title", "Type", "Duration", "Rating", "Location", "People", "Plans", "Tags", "Notes"],
+      ["2026-10-12", "Floor", "Floor", "45", "4", "Studio", "Sam (Model); Alex (rigger)", "TK; Hip harness", "floor; Practice", "Good"],
+      ["", "", "", "", "", "", "", "", "", ""],
+      ["2026-10-13", "", "Partial  Suspension", "", "", "studio", "sam (rigger)", "tk", "", ""],
     ]);
     expect(errors).toEqual([]);
     expect(doc.people).toEqual([{ id: "person-1", name: "Sam" }, { id: "person-2", name: "Alex" }]);
@@ -44,14 +44,14 @@ describe("csvToImport", () => {
     expect(doc.plans).toEqual([{ id: "plan-1", title: "TK" }, { id: "plan-2", title: "Hip harness" }]);
     expect(doc.ties).toEqual([
       {
-        title: "Floor", tie_date: "2026-10-12", duration_minutes: 45, success_rating: 4, notes: "Good",
+        title: "Floor", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4, notes: "Good",
         location_id: "location-1",
         participants: [{ person_id: "person-1", role: "model" }, { person_id: "person-2", role: "rigger" }],
         plans: [{ plan_id: "plan-1" }, { plan_id: "plan-2" }],
         tags: ["floor", "Practice"],
       },
       {
-        title: null, tie_date: "2026-10-13", duration_minutes: null, success_rating: null, notes: null,
+        title: null, tie_date: "2026-10-13", tie_type: "partial suspension", duration_minutes: null, success_rating: null, notes: null,
         location_id: "location-1", participants: [{ person_id: "person-1", role: "rigger" }],
         plans: [{ plan_id: "plan-1" }], tags: [],
       },
@@ -66,14 +66,15 @@ describe("csvToImport", () => {
 
   it("names the spreadsheet row of each problem", () => {
     const { errors } = csvToImport([
-      ["date", "title", "people", "rating", "duration"],
-      ["12/10/2026", "x", "", "", ""],
-      ["", "", "", "", ""],
-      ["2026-10-12", "x", "Sam", "", ""],
-      ["2026-10-12", "x", "Sam (boss)", "", ""],
-      ["2026-10-12", "x", "", "6", ""],
-      ["2026-02-30", "x", "", "", "1.5"],
-      ["", "", "", "", "30"],
+      ["date", "title", "people", "rating", "duration", "type"],
+      ["12/10/2026", "x", "", "", "", ""],
+      ["", "", "", "", "", ""],
+      ["2026-10-12", "x", "Sam", "", "", ""],
+      ["2026-10-12", "x", "Sam (boss)", "", "", ""],
+      ["2026-10-12", "x", "", "6", "", ""],
+      ["2026-02-30", "x", "", "", "1.5", ""],
+      ["", "", "", "", "30", ""],
+      ["2026-10-12", "x", "", "", "", "hanging"],
     ]);
     expect(errors).toEqual([
       'Row 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").',
@@ -82,12 +83,13 @@ describe("csvToImport", () => {
       "Row 6: The rating should be a whole number from 1 to 5.",
       'Row 7: Write the date as year-month-day, like 2026-10-12 (not "2026-02-30").',
       "Row 8: Add at least a title or a date.",
+      'Row 9: "hanging" isn\'t a type. Use one of: suspension, partial suspension, floor.',
     ]);
   });
 
   it("refuses unknown columns and files without headings or ties", () => {
     expect(csvToImport([["date", "titel"], ["2026-10-12", "x"]]).errors)
-      .toEqual(["Unknown column: titel. Use date, title, duration, rating, location, people, plans, tags, notes."]);
+      .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, people, plans, tags, notes."]);
     expect(csvToImport([["2026-10-12", "Floor"]]).errors[0]).toMatch("needs the column names");
     expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
   });

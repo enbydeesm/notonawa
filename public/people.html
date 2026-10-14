@@ -17,8 +17,19 @@
         <label for="name">Name</label>
         <input id="name" name="name" required autocomplete="off" spellcheck="false">
 
-        <label for="pronouns">Pronouns</label>
-        <input id="pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
+        <div class="row">
+          <div>
+            <label for="pronouns">Pronouns</label>
+            <input id="pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="default_role">Default role</label>
+            <!-- The roles are added by people.js, from the same list as the tie form's. -->
+            <select id="default_role" name="default_role">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
 
         <label class="inline"><input type="checkbox" name="is_self"> This is me</label>
 

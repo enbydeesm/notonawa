@@ -4,6 +4,7 @@
 // (never from the request), so they're safe to put in SQL text.
 
 import { BadInput } from "../http.js";
+import { ROLES } from "../ties/parse.js";
 import {
   cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull,
 } from "../parse.js";
@@ -34,6 +35,8 @@ export const RESOURCES = {
     },
     columns: "id, title, stage, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at",
     orderBy: "updated_at DESC",
+    // "Add & archive" in the tie form's plan picker.
+    archiveOnCreate: true,
   },
   people: {
     fields: {
@@ -41,9 +44,13 @@ export const RESOURCES = {
       pronouns: { parse: cleanText },
       notes: { parse: cleanText },
       is_self: { parse: toFlag },
+      // Filled in when they're added to a tie; still changeable there.
+      default_role: { parse: (v) => toChoiceOrNull(v, ROLES) },
     },
-    columns: "id, name, pronouns, notes, is_self, archived_at, created_at, updated_at",
+    columns: "id, name, pronouns, notes, is_self, default_role, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",
+    // "Add & archive" in the tie form's people picker: someone tied with once.
+    archiveOnCreate: true,
   },
   locations: {
     fields: {
@@ -56,7 +63,8 @@ export const RESOURCES = {
     },
     columns: "id, name, notes, hard_points, maps_url, latitude, longitude, archived_at, created_at, updated_at",
     orderBy: "name COLLATE NOCASE",
-    // "Archive now" on the add screen: a one-off spot, saved but kept out of pickers.
+    // "Archive now" on the add screen and "Add & archive" in the tie form: a
+    // one-off spot, saved but kept out of pickers.
     archiveOnCreate: true,
   },
 };

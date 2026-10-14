@@ -59,6 +59,19 @@ describe("constraints", () => {
     await sql("INSERT INTO people (id, owner_id, name, is_self) VALUES (?, ?, 'Them', 1)", newId("p"), them).run();
   });
 
+  it("only allow a known default role, or none", async () => {
+    await sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Sam', 'model')", newId("p"), me).run();
+    await expect(sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Kit', 'chef')", newId("p"), me).run())
+      .rejects.toThrow("CHECK constraint failed");
+  });
+
+  it("only allow a known tie type, or none", async () => {
+    await sql("INSERT INTO ties (id, owner_id, title, tie_type) VALUES (?, ?, 'x', 'partial suspension')", newId("tie"), me).run();
+    await sql("INSERT INTO ties (id, owner_id, title) VALUES (?, ?, 'x')", newId("tie"), me).run();
+    await expect(sql("INSERT INTO ties (id, owner_id, title, tie_type) VALUES (?, ?, 'x', 'Floor')", newId("tie"), me).run())
+      .rejects.toThrow("CHECK constraint failed");
+  });
+
   it("make setting a tie's location clear the deleted-location flag", async () => {
     const loc = newId("loc");
     const tie = newId("tie");

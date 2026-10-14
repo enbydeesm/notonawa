@@ -105,6 +105,9 @@ describe("signing up", () => {
     expect(user).toMatchObject({ terms_version: "2026-10-12-draft", recovery_secret_hash: await sha256Hex(await secretFor(code)) });
     expect(user?.email).toBe(user?.id);
     expect(user?.accepted_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+    // The journal starts with the owner's own profile.
+    expect((await call("/api/people?archived=all", { cookie: done.cookie })).body)
+      .toEqual([expect.objectContaining({ name: "Me", is_self: 1, default_role: null, archived_at: null })]);
     // The user handle in the passkey is the user's id, not anything personal.
     expect(atob(/** @type {string} */ (passkey.userHandle).replace(/-/g, "+").replace(/_/g, "/"))).toBe(user?.id);
     // Only a hash of the session token is stored.

@@ -5,6 +5,7 @@ import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { renderNav, TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
+import { ratingHanks } from "../rope-rating.js";
 import { tieMeta, participantLabel, planLabel } from "../ties-view.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
 
@@ -122,6 +123,7 @@ async function loadFilterOptions() {
 
 /** @param {import("../ties-view.js").Label} label */
 function renderLabel(label) {
+  if (label.rating !== undefined) return ratingHanks(label.rating, label.text);
   return label.deleted ? h("span", { className: "deleted" }, label.text) : label.text;
 }
 
