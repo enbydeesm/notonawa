@@ -22,6 +22,7 @@ const OWNED_ROWS = {
   tie_tags: "SELECT count(*) AS n FROM tie_tags tt JOIN ties t ON t.id = tt.tie_id WHERE t.owner_id = ?",
   invites: "SELECT count(*) AS n FROM invites WHERE used_by = ?",
   key_wraps: "SELECT count(*) AS n FROM key_wraps WHERE user_id = ?",
+  media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -31,6 +32,7 @@ const ORPHANS = [
   "SELECT count(*) AS n FROM tie_participants WHERE tie_id NOT IN (SELECT id FROM ties)",
   "SELECT count(*) AS n FROM tie_plans WHERE tie_id NOT IN (SELECT id FROM ties)",
   "SELECT count(*) AS n FROM tie_tags WHERE tie_id NOT IN (SELECT id FROM ties) OR tag_id NOT IN (SELECT id FROM tags)",
+  "SELECT count(*) AS n FROM media WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)",
 ];
 
 /** @param {string} userId */
@@ -67,9 +69,12 @@ async function userWithEverything() {
   const tag = crypto.randomUUID();
   await sql("INSERT INTO tags (id, owner_id, name) VALUES (?, ?, 'box')", tag, id).run();
   await sql("INSERT INTO plan_tags (plan_id, tag_id) VALUES (?, ?)", plan, tag).run();
-  await post("/api/ties", { tie_date: "2026-01-01",
+  const tie = await post("/api/ties", { tie_date: "2026-01-01",
     title: "Session", location_id: loc, participants: [{ person_id: sam, role: "model" }], plan_ids: [plan], tags: ["box", "floor"],
   });
+  // A photo's row (its file is tested in media.test.js).
+  await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
+             VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, crypto.randomUUID(), id, tie).run();
   return { id, cookie };
 }
 

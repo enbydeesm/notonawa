@@ -3,6 +3,7 @@
 import { json, notFound, noContent, readJson } from "../http.js";
 import { parseTieInput, parseTieUpdate, parseTieFilters, RECENT_TYPES } from "./parse.js";
 import { listTies, getTie, insertTie, updateTie, deleteTie, recentIds, searchIndex } from "./db.js";
+import { deleteObjects } from "../media/storage.js";
 
 // How many recent items the tie form's pickers show before anything is typed.
 const RECENT_COUNT = 5;
@@ -67,9 +68,13 @@ export async function handleTies(request, env, user, url) {
       const tie = parseTieUpdate(await readJson(request));
       return (await updateTie(env.DB, user.id, id, tie)) ? json({ id }) : notFound();
     }
-    // DELETE /api/ties/:id -> delete it for good (its people, plans and tags stay)
+    // DELETE /api/ties/:id -> delete it for good, with its photos (its
+    //   people, plans and tags stay)
     if (request.method === "DELETE") {
-      return (await deleteTie(env.DB, user.id, id)) ? noContent() : notFound();
+      const photoIds = await deleteTie(env.DB, user.id, id);
+      if (!photoIds) return notFound();
+      await deleteObjects(env.PHOTOS, user.id, photoIds);
+      return noContent();
     }
     return null;
   }

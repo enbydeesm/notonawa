@@ -13,6 +13,7 @@ import {
 import { parseRecoveryEmail } from "./parse.js";
 import { parseWrap } from "../keys/parse.js";
 import { hasKey, recoveryWrapStatements } from "../keys/db.js";
+import { deleteAllObjects } from "../media/storage.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -42,11 +43,12 @@ export async function handleAccount(request, env, user, url) {
   }
 
   // DELETE /api/account -> { passkey_ids }: deletes my account and everything
-  //   in it, for good (needs a recent sign-in), and signs me out. The page
+  //   in it, photo files included, for good (needs a recent sign-in), and signs me out. The page
   //   uses passkey_ids to tell the browser those passkeys no longer work.
   if (url.pathname === "/api/account" && request.method === "DELETE") {
     if (!isFresh(user.session)) throw new NeedsReauth();
     const passkeyIds = await deleteAccount(db, user.id);
+    await deleteAllObjects(env.PHOTOS, user.id);
     return json({ passkey_ids: passkeyIds }, 200, { "set-cookie": clearSessionCookie() });
   }
 

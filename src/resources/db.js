@@ -3,6 +3,7 @@
 
 import { NOW } from "../sql.js";
 import { RESOURCES } from "./config.js";
+import { mediaOfStatement } from "../media/db.js";
 
 /** @typedef {import("./config.js").ResourceName} ResourceName */
 
@@ -123,29 +124,29 @@ export async function deleteRow(db, name, ownerId, id) {
 }
 
 /**
- * Plans: delete for good. Returns whether it existed.
+ * Plans: delete for good, with their photos' rows (the caller deletes the
+ * files).
  *   remove: also delete the plan's tie_plans rows, so ties show no trace of it
  *   keep:   tie_plans rows stay with plan_id NULL ("(plan deleted)")
  * @param {D1Database} db
  * @param {string} ownerId
  * @param {string} id
  * @param {"remove" | "keep"} linkedTies
+ * @returns {Promise<string[] | null>} the ids of the photos it had, or null
+ *   if I have no such plan
  */
 export async function deletePlan(db, ownerId, id, linkedTies) {
-  const deleteStatement = db.prepare("DELETE FROM plans WHERE id = ? AND owner_id = ? RETURNING id")
-    .bind(id, ownerId);
-
-  if (linkedTies === "keep") {
-    return (await deleteStatement.first()) !== null;
-  }
-
   // One batch = one transaction, so the links and the plan go together.
-  const [, planResult] = await db.batch([
-    db.prepare(
-      `DELETE FROM tie_plans
-        WHERE plan_id = (SELECT id FROM plans WHERE id = ? AND owner_id = ?)`
-    ).bind(id, ownerId),
-    deleteStatement,
+  const [media, ...rest] = await db.batch([
+    mediaOfStatement(db, ownerId, "plan_id", id),
+    ...(linkedTies === "remove"
+      ? [db.prepare(
+        `DELETE FROM tie_plans
+          WHERE plan_id = (SELECT id FROM plans WHERE id = ? AND owner_id = ?)`
+      ).bind(id, ownerId)]
+      : []),
+    db.prepare("DELETE FROM plans WHERE id = ? AND owner_id = ? RETURNING id").bind(id, ownerId),
   ]);
-  return planResult.results.length > 0;
+  if (rest[rest.length - 1].results.length === 0) return null;
+  return media.results.map((r) => /** @type {{ id: string }} */ (r).id);
 }

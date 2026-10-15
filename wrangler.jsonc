@@ -43,6 +43,17 @@
     "crons": ["17 3 * * *"]
   },
 
+  // Photos, encrypted in the browser (src/media/). A private bucket: no
+  // public access and no r2.dev address; files are only handed back through
+  // the Worker, to their owner. Made with
+  // `npx wrangler r2 bucket create rope-journal-photos --location enam`.
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "rope-journal-photos"
+    }
+  ],
+
   "d1_databases": [
     {
       "binding": "DB",

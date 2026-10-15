@@ -82,8 +82,10 @@ Each step leaves the app working and shippable on its own.
    (`createImageBitmap` applies the EXIF rotation first), makes a thumbnail,
    encrypts both and uploads through an owner-checked Worker route. Shown
    from `blob:` URLs that are revoked on lock. Deleting a tie or the account
-   deletes its R2 objects; export includes decrypted photos. Size limits and
-   HEIC handling (Chrome can't decode it) to be decided.
+   deletes its R2 objects; export includes decrypted photos. *In progress
+   (2026-10-14); decisions in "Step 6 decisions" below.*
+7. **Videos** (after photos; not started). See "Step 7: videos, weighed"
+   below. Step 6 is built so videos need no new migration or export format.
 
 ### Decided along the way
 
@@ -464,6 +466,73 @@ Each step leaves the app working and shippable on its own.
   encrypted is lost.
 - **No sentence on D1's history or backups holding pre-encryption plain
   text** (decided 2026-10-14): only test data exists so far.
+
+### Step 6 decisions
+
+Agreed 2026-10-14, before building:
+
+- **Photos on ties and plans.** A plan's photos belong to the plan, not to
+  one version. A tie that uses a plan doesn't show the plan's photos.
+- **Table `media`** (migration 0010), not `photos`, with `kind` (`photo`;
+  `video` is allowed by the CHECK for step 7, refused by the API) and
+  `mime`. The export keeps the `photos` list step 3 planned, each entry
+  with its `kind`.
+- **One R2 object per photo**, `<owner id>/<photo id>` in the private
+  `rope-journal-photos` bucket (location hint `enam`: users are in the US
+  and Canada; R2's only jurisdictions are EU and FedRAMP). The object is the
+  sealed thumbnail then the sealed full size; `thumb_bytes` says where one
+  ends, and the routes serve each with an R2 range read. One `PUT` per
+  photo, streamed into R2 (almost no Worker CPU).
+- **Ids made by the browser** (`crypto.randomUUID()`), so the sealed photo
+  and its caption are bound to the photo's id and the user: the server
+  can't swap one for another (settles step 5's "Revisit with photos").
+- **Preparing a photo** (browser): the input takes JPEG, PNG and WebP (so
+  iPhones convert HEIC themselves); `createImageBitmap` applies the EXIF
+  rotation; redrawn on a canvas (white behind transparency) and saved as
+  WebP where the browser really makes WebP (Safari's canvas quietly returns
+  PNG: the result's type is checked), else JPEG. Full size at most 2048 px,
+  aiming for 500 KB (up to 3 tries at lower quality); thumbnail 320 px. No
+  "keep the original": it would keep the metadata. A file that won't decode
+  (HEIC in Chrome) gets "Save it as JPEG and try again"; no HEIC decoder.
+- **Limits:** files up to 30 MB going in (only protects the phone's memory:
+  the browser shrinks them); the server stores at most 10 MB an object, 30
+  photos a tie or plan, and 1 GB an account (the sum of `bytes`, checked
+  again inside the INSERT so two uploads at once can't both get past).
+- **Captions** up to 200 characters, sealed; shown under each thumbnail.
+  **Reordering** with "Move earlier" / "Move later" in the photo viewer
+  (simpler on touch screens and with screen readers than dragging; dragging
+  may come later). New photos go last. Captions aren't searched (for now).
+- **Ties list** shows a photo count only, not thumbnails (up to 100
+  decrypts a page). **Revisit** if thumbnails are wanted there.
+- **Deleting** a tie, plan or the account, or starting a new key, deletes
+  the rows in D1 (cascades) and then the R2 files. Rows and files can't
+  change in one transaction, so the daily clean-up deletes files that have
+  had no row for over a day.
+- **Re-importing** a tie that's skipped as a duplicate: it gets the file's
+  photos only if it has none yet, so a failed import can be run again to
+  finish without making copies.
+
+### Step 7: videos, weighed
+
+Not started. What changes from photos (2026-10-14):
+
+- **Metadata:** MP4/MOV files carry GPS, dates and the device model in their
+  own boxes; a canvas can't strip them. Either rewrite the boxes by hand
+  (fast, keeps full quality) or re-encode (WebCodecs plus a muxer package,
+  e.g. mediabunny, which needs approval; slow on phones, but strips
+  everything and shrinks the file a lot).
+- **Size:** about 40 MB a minute for 1080p from an iPhone, about 170 MB for
+  4K. A Worker takes at most 100 MB a request, so uploads need R2 multipart
+  (parts of at least 5 MB).
+- **Encryption** in fixed-size pieces (say 1 MB), each with its number and
+  an "is last" flag in the additional data, so the server can't cut a
+  video short or reorder it.
+- **Playback:** download, decrypt into memory, play from a `blob:` URL
+  (`media-src blob:`). Fine for short clips, heavy on phones for long ones.
+  Streaming would need MediaSource (patchy on iPhone) or a service worker
+  holding the key, which breaks "the key lives only in the crypto Worker".
+- **Thumbnail:** a frame drawn from a `<video>` onto a canvas.
+- To decide then: the longest clip, and rewriting boxes or re-encoding.
 
 ### Weighed and not adopted
 

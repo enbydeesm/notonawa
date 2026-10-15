@@ -95,8 +95,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`
   and `/api/data/import/ties` (both take `preview`). See considerations.md,
   "Step 3 as built".
+- `src/media/`: photos on ties and plans (migration 0010; files in the R2
+  bucket `PHOTOS`). `parse.js` (pure: limits, upload parameters, sealed
+  captions, order), `db.js`, `storage.js` (R2: keys, deleting, the daily
+  sweep of files without a row), `routes.js` (`GET /api/media?tie_id=|
+  plan_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
+  full`, `PATCH /api/media/:id` (caption), `PUT /api/media/order`, `DELETE
+  /api/media/:id`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
-  challenges).
+  challenges; `index.js` also runs the photo sweep).
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
@@ -236,6 +243,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   goes in both lists (`crypto/fields.js`, `src/encryption/config.js`).
   Anything that changes a tie's notes or title, or a plan's title, calls
   `forgetSearch()`.
+- **Photo files live in R2, outside D1's transactions.** Anything that
+  deletes `media` rows (directly or by cascade: a tie, a plan, the account,
+  a new key) must then delete their files (`media/storage.js`); read the
+  photo ids in the same batch as the delete. The daily sweep only catches
+  what a crash left behind.
 - **Wrapped keys (`key_wraps`) are never exported** (useless without the
   user's secrets); they go with their passkey or account.
 - **When a table or column is added, update export and import**

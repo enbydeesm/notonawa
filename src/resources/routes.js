@@ -4,6 +4,7 @@ import { BadInput, json, notFound, noContent, readJson } from "../http.js";
 import { toFlag } from "../parse.js";
 import { RESOURCES, RESOURCE_NAMES, parseFields, checkEdit, parseArchivedFilter } from "./config.js";
 import * as db from "./db.js";
+import { deleteObjects } from "../media/storage.js";
 
 /** @typedef {import("./config.js").ResourceName} ResourceName */
 /** @typedef {import("../auth/user.js").User} User */
@@ -68,8 +69,9 @@ export async function handleResources(request, env, user, url) {
     }
 
     // DELETE /api/people/:id, /api/locations/:id   -> delete for good
-    // DELETE /api/plans/:id?linked_ties=remove|keep -> delete for good; the UI
-    //   must ask what to do with linked ties, so there's no default
+    // DELETE /api/plans/:id?linked_ties=remove|keep -> delete for good, with
+    //   its photos; the UI must ask what to do with linked ties, so there's
+    //   no default
     if (method === "DELETE") {
       let deleted;
       if (name === "plans") {
@@ -77,7 +79,9 @@ export async function handleResources(request, env, user, url) {
         if (linkedTies !== "remove" && linkedTies !== "keep") {
           throw new BadInput("Say what to do with linked ties: linked_ties=remove or linked_ties=keep.");
         }
-        deleted = await db.deletePlan(env.DB, user.id, id, linkedTies);
+        const photoIds = await db.deletePlan(env.DB, user.id, id, linkedTies);
+        if (photoIds) await deleteObjects(env.PHOTOS, user.id, photoIds);
+        deleted = photoIds !== null;
       } else {
         deleted = await db.deleteRow(env.DB, name, user.id, id);
       }

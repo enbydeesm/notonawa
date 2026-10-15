@@ -15,7 +15,8 @@ export default defineConfig([
     },
   },
   // The Worker runs in the Workers runtime (web-standard globals, no DOM).
-  { files: ["src/**/*.js"], languageOptions: { globals: globals.serviceworker } },
+  // FixedLengthStream is Cloudflare's own.
+  { files: ["src/**/*.js"], languageOptions: { globals: { ...globals.serviceworker, FixedLengthStream: "readonly" } } },
   // Pages run in the browser.
   { files: ["public/**/*.js"], languageOptions: { globals: globals.browser } },
   // Worker tests run inside the Workers runtime too.

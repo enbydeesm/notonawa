@@ -16,6 +16,8 @@ import { handleLocations } from "./locations/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
 import { handleData } from "./data/routes.js";
+import { handleMedia } from "./media/routes.js";
+import { sweepOrphans } from "./media/storage.js";
 import { cleanUp } from "./cleanup.js";
 
 export default {
@@ -38,12 +40,13 @@ export default {
 
   /**
    * The daily cron trigger (wrangler.jsonc): clears ended sessions and
-   * expired sign-in challenges.
+   * expired sign-in challenges, and photo files left without a row.
    * @param {ScheduledController} _controller
    * @param {Env} env
    */
   async scheduled(_controller, env) {
     await cleanUp(env.DB);
+    await sweepOrphans(env.DB, env.PHOTOS);
   },
 };
 
@@ -90,6 +93,7 @@ async function respond(request, env) {
     (await handleResources(request, env, user, url)) ??
     (await handleTags(request, env, user, url)) ??
     (await handleData(request, env, user, url)) ??
+    (await handleMedia(request, env, user, url)) ??
     notFound()
   );
 }

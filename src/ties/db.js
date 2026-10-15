@@ -4,6 +4,7 @@ import { tieFilterSql } from "./search.js";
 import { tagNames } from "../tags/db.js";
 import { matchTags } from "../tags/parse.js";
 import { NOW } from "../sql.js";
+import { mediaOfStatement } from "../media/db.js";
 
 /** @typedef {import("./parse.js").TieInput} TieInput */
 /** @typedef {import("./parse.js").TieFilters} TieFilters */
@@ -279,15 +280,21 @@ export async function updateTie(db, ownerId, id, tie) {
 
 /**
  * Deletes one of my ties for good. Its links to people, plans and tags go
- * with it (cascade); the people, plans and tags themselves stay.
+ * with it (cascade), and its photos' rows; the people, plans and tags
+ * themselves stay. The caller deletes the photos' files.
  * @param {D1Database} db
  * @param {string} ownerId
  * @param {string} id
- * @returns {Promise<boolean>} false if I have no such tie
+ * @returns {Promise<string[] | null>} the ids of the photos it had, or null
+ *   if I have no such tie
  */
 export async function deleteTie(db, ownerId, id) {
-  const result = await db.prepare("DELETE FROM ties WHERE id = ? AND owner_id = ?").bind(id, ownerId).run();
-  return result.meta.changes > 0;
+  const [media, result] = await db.batch([
+    mediaOfStatement(db, ownerId, "tie_id", id),
+    db.prepare("DELETE FROM ties WHERE id = ? AND owner_id = ?").bind(id, ownerId),
+  ]);
+  if (result.meta.changes === 0) return null;
+  return media.results.map((r) => /** @type {{ id: string }} */ (r).id);
 }
 
 /**

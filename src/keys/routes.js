@@ -8,6 +8,8 @@ import { parseRecoverySecret } from "../auth/parse.js";
 import { isFresh, sha256Hex } from "../auth/session.js";
 import { parseWrap, parseOptionalWrap } from "./parse.js";
 import { emptyEncryptedStatements } from "../encryption/db.js";
+import { deleteAllMediaStatement } from "../media/db.js";
+import { deleteAllObjects } from "../media/storage.js";
 import {
   getWraps, hasKey, recoveryWrapStatements, passkeyWrapStatements, deleteWrapsStatement, insertWrapStatement,
 } from "./db.js";
@@ -45,8 +47,8 @@ export async function handleKeys(request, env, user, url) {
   //   replace: true starts a new key instead, deleting every old wrap (for
   //   an account whose key can't be unlocked any more) and emptying every
   //   encrypted field, which the new key couldn't read (deleting profile
-  //   notes, which are only a description). 409 if the account
-  //   already has a key and replace isn't set.
+  //   notes, which are only a description) and deleting every photo. 409
+  //   if the account already has a key and replace isn't set.
   if (url.pathname === "/api/keys/setup" && request.method === "POST") {
     if (!isFresh(user.session)) throw new NeedsReauth();
     const body = await readJson(request);
@@ -58,12 +60,15 @@ export async function handleKeys(request, env, user, url) {
     if (passkeyWrap && !passkeyId) throw new BadInput("Sign in with a passkey first.");
     if (!replace && (await hasKey(db, user.id))) return json({ error: "Your journal already has an encryption key." }, 409);
     await db.batch([
-      ...(replace ? [deleteWrapsStatement(db, user.id), ...emptyEncryptedStatements(db, user.id)] : []),
+      ...(replace
+        ? [deleteWrapsStatement(db, user.id), ...emptyEncryptedStatements(db, user.id), deleteAllMediaStatement(db, user.id)]
+        : []),
       ...recoveryWrapStatements(db, user.id, recoveryHash, recoveryWrap),
       ...(passkeyWrap && passkeyId
         ? [insertWrapStatement(db, user.id, passkeyWrap, { kind: "passkey", passkeyId, recoveryHash: null })]
         : []),
     ]);
+    if (replace) await deleteAllObjects(env.PHOTOS, user.id);
     return noContent();
   }
 
