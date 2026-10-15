@@ -4,6 +4,7 @@
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
 import { open, sealOne, forgetSearch } from "./vault.js";
+import { photoSection } from "./photos-ui.js";
 
 // Each resource's kind of record, for sealing and opening its notes (and a
 // plan's description) in the crypto Worker.
@@ -22,11 +23,14 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   confirmDelete: (item: Item) => Promise<DeleteChoice>,
  *   beforeFill?: (item: Item) => void,
  *   onLoad?: (items: Item[], archived: boolean) => void,
+ *   signal?: AbortSignal,
  * }} ResourcePageConfig
  *
  * form: its named fields match the API's fields. Elements with data-add-only
  *   are hidden while editing. Needs a .message, a submit button and a
- *   [data-cancel-edit] button.
+ *   [data-cancel-edit] button. A [data-photos] element (plans only) gets the
+ *   Photos section; a new item's photos are uploaded once it's saved.
+ * signal: aborts when the view is left (its photos are revoked then).
  * confirmDelete: resolves to { query } to delete (query is appended to the
  *   DELETE URL), { archive: true } to archive instead, or null to cancel.
  */
@@ -46,6 +50,32 @@ export function setupResourcePage(config) {
   let editingId = null;
   /** @type {Item[]} */
   let items = [];
+  const photoSlot = /** @type {HTMLElement | null} */ (form.querySelector("[data-photos]"));
+  /** @type {ReturnType<typeof photoSection> | null} */
+  let photos = null;
+
+  /**
+   * A fresh Photos section for the item being edited (or a new one).
+   * @param {string | null} id
+   */
+  function showPhotos(id) {
+    if (!photoSlot) return;
+    photos?.close();
+    photos = photoSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
+    photoSlot.replaceChildren(photos.element);
+  }
+
+  /**
+   * Shows the form as editing this id, keeping what's typed (a new item
+   * that saved, but whose photos didn't all upload).
+   * @param {string} id
+   */
+  function markEditing(id) {
+    editingId = id;
+    heading.textContent = "Edit";
+    submit.textContent = "Save changes";
+    cancel.hidden = false;
+  }
 
   /** @param {Item | null} item */
   function setEditing(item) {
@@ -57,6 +87,7 @@ export function setupResourcePage(config) {
       /** @type {HTMLElement} */ (el).hidden = !!item;
     }
     form.reset();
+    showPhotos(item ? item.id : null);
     if (item) {
       config.beforeFill?.(item);
       for (const el of fields()) {
@@ -157,17 +188,31 @@ export function setupResourcePage(config) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (photos?.busy) {
+      showMessage(message, "Wait for the photos to finish, then save.", true);
+      return;
+    }
     submit.disabled = true;
     showMessage(message, "Saving…");
     try {
       // Notes are sealed here, on the device, before they're sent.
       const body = await sealOne(KINDS[resource], formData());
-      if (editingId) {
-        await api(`/api/${resource}/${editingId}`, { method: "PUT", body });
+      let id = editingId;
+      if (id) {
+        await api(`/api/${resource}/${id}`, { method: "PUT", body });
       } else {
-        await api(`/api/${resource}`, { method: "POST", body });
+        id = /** @type {string} */ ((await api(`/api/${resource}`, { method: "POST", body })).id);
       }
       forgetSearch();
+      if (photos?.waiting) {
+        const problem = await photos.uploadPending({ plan_id: id });
+        if (problem) {
+          markEditing(id);
+          showMessage(message, `Saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
+          await load();
+          return;
+        }
+      }
       setEditing(null);
       showMessage(message, "Saved.");
       await load();
@@ -178,6 +223,7 @@ export function setupResourcePage(config) {
     }
   });
   cancel.addEventListener("click", () => setEditing(null));
+  config.signal?.addEventListener("abort", () => photos?.close());
   archivedToggle.addEventListener("change", load);
 
   setEditing(null);

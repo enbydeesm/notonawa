@@ -1,64 +1,66 @@
 {
-  "name": "rope-app",
-  "main": "src/index.js",
-  "compatibility_date": "2026-10-11",
-  // The app is one page (public/index.html): any address that isn't a file
-  // gets it, and the page shows the view for the address (or "not found").
-  // /api/ always goes to the Worker, so an API 404 stays JSON.
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
-  },
-
-  // No stored request logs: they'd keep IP addresses and URLs on Cloudflare.
-  // Errors can still be watched live with `npx wrangler tail`.
-  "observability": {
-    "enabled": false
-  },
-
-  // Passkeys are tied to RP_ID (the site's domain) for good: moving to a new
-  // domain means everyone adds a new passkey there (with their recovery
-  // code). ORIGIN is the site's address; writes from anywhere else are
-  // refused. Local values are in .dev.vars.
-  "vars": {
-    "RP_ID": "rope-app.juice-rope.workers.dev",
-    "ORIGIN": "https://rope-app.juice-rope.workers.dev"
-  },
-
-  // Sign-in attempts per IP address per minute. Counted in memory by
-  // Cloudflare; nothing is stored.
-  "ratelimits": [
-    {
-      "name": "AUTH_RATE_LIMIT",
-      "namespace_id": "1001",
-      "simple": { "limit": 20, "period": 60 }
-    }
-  ],
-
-  // Once a day: delete ended sessions and expired sign-in challenges
-  // (src/cleanup.js).
-  "triggers": {
-    "crons": ["17 3 * * *"]
-  },
-
-  // Photos, encrypted in the browser (src/media/). A private bucket: no
-  // public access and no r2.dev address; files are only handed back through
-  // the Worker, to their owner. Made with
-  // `npx wrangler r2 bucket create rope-journal-photos --location enam`.
-  "r2_buckets": [
-    {
-      "binding": "PHOTOS",
-      "bucket_name": "rope-journal-photos"
-    }
-  ],
-
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "rope-journal",
-      "database_id": "b1672d04-cd4c-45be-8fa8-bcabf6857bf0"
-    }
-  ]
+	"name": "rope-app",
+	"main": "src/index.js",
+	"compatibility_date": "2026-10-11",
+	// The app is one page (public/index.html): any address that isn't a file
+	// gets it, and the page shows the view for the address (or "not found").
+	// /api/ always goes to the Worker, so an API 404 stays JSON.
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*"
+		]
+	},
+	// No stored request logs: they'd keep IP addresses and URLs on Cloudflare.
+	// Errors can still be watched live with `npx wrangler tail`.
+	"observability": {
+		"enabled": false
+	},
+	// Passkeys are tied to RP_ID (the site's domain) for good: moving to a new
+	// domain means everyone adds a new passkey there (with their recovery
+	// code). ORIGIN is the site's address; writes from anywhere else are
+	// refused. Local values are in .dev.vars.
+	"vars": {
+		"RP_ID": "rope-app.juice-rope.workers.dev",
+		"ORIGIN": "https://rope-app.juice-rope.workers.dev"
+	},
+	// Sign-in attempts per IP address per minute. Counted in memory by
+	// Cloudflare; nothing is stored.
+	"ratelimits": [
+		{
+			"name": "AUTH_RATE_LIMIT",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 20,
+				"period": 60
+			}
+		}
+	],
+	// Once a day: delete ended sessions and expired sign-in challenges
+	// (src/cleanup.js).
+	"triggers": {
+		"crons": [
+			"17 3 * * *"
+		]
+	},
+	// Photos, encrypted in the browser (src/media/). A private bucket: no
+	// public access and no r2.dev address; files are only handed back through
+	// the Worker, to their owner. Made with
+	// `npx wrangler r2 bucket create rope-journal-photos --location enam`.
+	"r2_buckets": [
+		{
+			"binding": "PHOTOS",
+			"bucket_name": "rope-journal-photos",
+			"remote": true
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "rope-journal",
+			"database_id": "b1672d04-cd4c-45be-8fa8-bcabf6857bf0"
+		}
+	]
 }

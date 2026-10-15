@@ -38,7 +38,7 @@
 </ul>
 <p>We don't collect your phone number, real name, contacts or location, or your email address unless you add a recovery email.</p>
 <h3 id="your-journal">Your journal</h3>
-<p>What you choose to write in the app: ties, plans, people, locations, tags, and (once photos are available) photos. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
+<p>What you choose to write in the app: ties, plans, people, locations, tags and photos. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
 <h3 id="technical-information">Technical information</h3>
 <p>To deliver the app and protect it from attacks, our hosting provider, Cloudflare, briefly processes standard connection information such as your IP address, and counts sign-in attempts per IP address for a minute at a time to stop people guessing. We don't store it, and we don't keep request logs. We don't use analytics, advertising or tracking tools of any kind.</p>
 <h2 id="what-we-can-and-cant-read">What we can and can't read</h2>
@@ -58,6 +58,7 @@
   <li>plan titles, stages, difficulty and versions</li>
   <li>tags</li>
   <li>when things were created, changed or archived, and how they link together</li>
+  <li>for each photo: which tie or plan it's on, its place in their order, its size, whether it's a JPEG or WebP, and when it was added (not what it shows)</li>
 </ul>
 <p>This second list is still private to your account: the app never shows it to anyone else, and we don't look at it (see <a href="#our-own-access">Our own access</a>). But because it isn't encrypted on your device, it could be disclosed if our systems were breached or if we were legally required to hand it over. <strong>Keep anything you consider truly sensitive, such as full names, addresses or identifying details, in the notes fields, which are encrypted.</strong> We plan to encrypt more of these fields over time.</p>
 <h2 id="how-encryption-works">How encryption works</h2>
@@ -70,7 +71,7 @@
 </ul>
 <h2 id="how-the-app-protects-your-data-on-your-device">How the app protects your data on your device</h2>
 <ul>
-  <li><strong>Nothing decrypted is saved on your device.</strong> Your notes are decrypted in your browser's memory only while the app is open and unlocked, and are never written to the browser's storage, its cache or its form history. Our pages and data are sent with instructions not to be cached. The browser's spellcheck is turned off in the app, because some browsers can send the text being checked to their maker. The one exception is an export, which saves a file wherever you choose (see <a href="#your-rights-and-choices">Your rights and choices</a>).</li>
+  <li><strong>Nothing decrypted is saved on your device.</strong> Your notes and photos are decrypted in your browser's memory only while the app is open and unlocked, and are never written to the browser's storage, its cache or its form history. Photos on screen are let go of when the app locks. Our pages and data are sent with instructions not to be cached. The browser's spellcheck is turned off in the app, because some browsers can send the text being checked to their maker. The one exception is an export, which saves a file wherever you choose (see <a href="#your-rights-and-choices">Your rights and choices</a>).</li>
   <li><strong>The app locks itself.</strong> It forgets your key and everything it decrypted after [15] minutes without use, after [5] minutes in the background, when you sign out, and when you close or reload the tab. You unlock again with your passkey.</li>
   <li><strong>Decryption happens in a separate, walled-off part of the browser</strong> (a Web Worker), so the rest of the page only ever sees the results it is displaying, and your key can't be copied out of the page. This can't protect what is shown while the app is unlocked from other code running in the page itself, such as a browser extension you've allowed on this site. That's why the app is so strict about which code may run in it (below).</li>
   <li><strong>Searching happens on your device.</strong> What you type in the search box is never sent to us and never appears in the page address, so it doesn't end up in your browser history either. Your notes are decrypted and searched on your device; to show the results a page at a time, the app tells us which entries matched, but not what you searched for.</li>
@@ -79,31 +80,32 @@
 <p>Browsers have limits that no app can fully overcome. Your operating system may copy memory to disk (for example when your computer sleeps or hibernates), and browser extensions you install can see what's on the page. Using full-disk encryption on your devices, and being careful which extensions you allow on this site, protects you further.</p>
 <h2 id="photos">Photos</h2>
 <ul>
-  <li>Before a photo leaves your device, the app removes its hidden metadata, including GPS location, camera details and timestamps.</li>
-  <li>The photo and its thumbnail are then encrypted on your device and stored in a private storage area that isn't reachable from the internet. Photos are only ever handed back to your own signed-in account, and only your device can decrypt them.</li>
+  <li>Before a photo leaves your device, the app removes its hidden metadata, including GPS location, camera details and timestamps, by redrawing it as a new image. It's also made smaller (at most 2048 pixels on its longest side) to save space, and a small thumbnail is made from it. Your original file is never uploaded.</li>
+  <li>The photo, its thumbnail and its caption are then encrypted on your device and stored in a private storage area that isn't reachable from the internet. Photos are only ever handed back to your own signed-in account, and only your device can decrypt them.</li>
+  <li>Each account can store up to [1 GB] of photos, and up to [30] on each tie or plan.</li>
   <li>We never scan, analyse, tag or share your photos, and no other company processes them.</li>
   <li><strong>Only store photos of people who have agreed to it.</strong> You are responsible for having their consent.</li>
 </ul>
 <h2 id="information-about-other-people">Information about other people</h2>
 <p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. Entries about someone stay in your account. If that person also uses Rope Journal, they can't see your entries, and we don't tell them you've written about them.</p>
 <h2 id="where-your-data-is-stored">Where your data is stored</h2>
-<p>Rope Journal runs on Cloudflare (Workers, D1 database and R2 storage), which is our only service provider with access to stored data. Data is stored [in REGION / &quot;in Cloudflare's network, which may include countries other than your own&quot;] and is encrypted at rest by Cloudflare, in addition to our own encryption of your notes and photos.</p>
+<p>Rope Journal runs on Cloudflare (Workers, D1 database and R2 storage), which is our only service provider with access to stored data. We ask Cloudflare to store photos in North America [and the database in REGION]; Cloudflare doesn't guarantee where data is kept, and its network may handle it in other countries. Everything is encrypted at rest by Cloudflare, in addition to our own encryption of your notes and photos.</p>
 <p>When you paste a short Google Maps link (maps.app.goo.gl) into a location, our server asks Google where the link points, to fill in its coordinates. Google sees that request coming from our server, not from you, and it carries only the link. Full Google Maps links are read on our server without contacting Google.</p>
 <h2 id="cookies">Cookies</h2>
 <p>We use one cookie: your session cookie. It's needed to keep you signed in. It can't be read by scripts, is only sent over secure connections and only to Rope Journal, and expires after [30] days, or sooner after [7] days without use. We use no other cookies, local storage for tracking, or similar technologies. If you switch between light and dark mode, the app remembers that choice in your browser's local storage (just the word &quot;light&quot; or &quot;dark&quot;); it never leaves your device.</p>
 <h2 id="how-long-we-keep-your-data">How long we keep your data</h2>
 <ul>
   <li><strong>While you have an account</strong>, we keep what you've stored until you delete it.</li>
-  <li><strong>When you delete something</strong>, it's removed from our live database straight away. Deleted photos are removed from storage straight away.</li>
+  <li><strong>When you delete something</strong>, it's removed from our live database straight away. Deleted photos are removed from storage straight away (deleting a tie or plan deletes its photos too). If that's ever interrupted, a daily clean-up removes what was left within a day or two.</li>
   <li><strong>When you delete your account</strong>, everything in it (journal, photos, passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device or password manager may still list your passkey for Rope Journal; where the browser supports it, the app tells it the passkey no longer works.</li>
-  <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, so deleted data can remain there for up to 7 days before it disappears permanently. Our own backups are encrypted and kept for no more than 7 days. We would only restore from these to recover from a failure, never to bring back something you deleted unless you ask us to.</li>
+  <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, so deleted data can remain there for up to 7 days before it disappears permanently. Our own backups are encrypted and kept for no more than 7 days. Photos aren't in either: once deleted, they're gone. We would only restore from these to recover from a failure, never to bring back something you deleted unless you ask us to.</li>
   <li><strong>Signed-out sessions</strong> are deleted when you sign out, and expired sessions are cleared every day.</li>
 </ul>
 <h2 id="your-rights-and-choices">Your rights and choices</h2>
 <p>Wherever you live, you can:</p>
 <ul>
-  <li><strong>Export</strong> all your data from the app at any time, including your notes and photos, decrypted on your device into a file only you hold. It contains your whole journal, plus when you created your account and agreed to this policy, your passkeys' names and dates, and whether you've set a recovery email (not the address, which we don't have). The file isn't encrypted, so keep it somewhere safe.</li>
-  <li><strong>Import</strong> entries from an export, or ties from a spreadsheet (a CSV file). The file is read in your browser, and only the entries in it are sent to us, just as if you'd typed them in.</li>
+  <li><strong>Export</strong> all your data from the app at any time, including your notes and photos, decrypted on your device into a file only you hold (a .zip when you have photos). It contains your whole journal, plus when you created your account and agreed to this policy, your passkeys' names and dates, and whether you've set a recovery email (not the address, which we don't have). The file isn't encrypted, so keep it somewhere safe.</li>
+  <li><strong>Import</strong> entries from an export, or ties from a spreadsheet (a CSV file). The file is read in your browser, and only the entries in it are sent to us, just as if you'd typed them in. Photos in an export are prepared and encrypted on your device first, as when you add one.</li>
   <li><strong>Correct</strong> anything by editing it in the app.</li>
   <li><strong>Delete</strong> individual entries, or your whole account, from the app.</li>
   <li><strong>End sessions</strong> on any device, or remove passkeys, from your account settings.</li>

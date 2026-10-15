@@ -52,14 +52,16 @@ export async function handleData(request, env, user, url) {
   }
 
   // POST /api/data/import/ties  body { preview, ties, skip }
-  //   preview: true -> { candidates: [{ i, notes }], new_tags }: for each tie
-  //     (by position) my ties that are the same in everything but the notes
-  //     (date, title, type, location, duration, rating, people, plans and
-  //     tags), with their notes, encrypted. The page opens those and decides
-  //     which ties are exact duplicates. Saves nothing.
-  //   otherwise     -> { added, skipped }: adds up to 500 ties (links must be
-  //     my ids, from the items request), leaving out the positions in skip
-  //     (the duplicates the page found), all in one transaction
+  //   preview: true -> { candidates: [{ i, id, notes }], new_tags }: for each
+  //     tie (by position) my ties that are the same in everything but the
+  //     notes (date, title, type, location, duration, rating, people, plans
+  //     and tags), with their ids and notes, encrypted. The page opens those
+  //     and decides which ties are exact duplicates. Saves nothing.
+  //   otherwise     -> { added, skipped, ids }: adds up to 500 ties (links
+  //     must be my ids, from the items request), leaving out the positions
+  //     in skip (the duplicates the page found), all in one transaction.
+  //     ids: each tie's new id by position (null for a skipped one), for
+  //     the page to add its photos to
   if (url.pathname === "/api/data/import/ties" && request.method === "POST") {
     const body = await readImport(request);
     const ties = parseImportTies(body);
@@ -76,7 +78,8 @@ export async function handleData(request, env, user, url) {
     const skip = parseSkip(body.skip, ties.length);
     const plan = planTies(ties.filter((_, i) => !skip.has(i)), existingTags, () => crypto.randomUUID());
     const added = await insertTies(env.DB, user.id, plan.rows);
-    return json({ added, skipped: skip.size });
+    const newIds = plan.rows.ties.map((t) => t.id);
+    return json({ added, skipped: skip.size, ids: ties.map((_, i) => (skip.has(i) ? null : newIds.shift())) });
   }
 
   return null;

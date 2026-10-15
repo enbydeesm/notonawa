@@ -24,9 +24,21 @@ function sameForm(notes) {
  * @returns {number[]}
  */
 export function duplicatePositions(fileTies, candidates) {
-  const found = new Set();
-  for (const { i, notes } of candidates) {
-    if (fileTies[i] && sameForm(fileTies[i].notes) === sameForm(notes)) found.add(i);
+  return [...duplicateMatches(fileTies, candidates).keys()].sort((a, b) => a - b);
+}
+
+/**
+ * The file's ties that duplicate one of mine: position (in the batch) to
+ * my tie's id (the first that matches), where a skipped tie's photos go.
+ * @param {{ notes?: unknown }[]} fileTies the batch, notes in plain text
+ * @param {{ i: number, id?: string, notes: string | null }[]} candidates from the server, notes opened
+ * @returns {Map<number, string>}
+ */
+export function duplicateMatches(fileTies, candidates) {
+  /** @type {Map<number, string>} */
+  const found = new Map();
+  for (const { i, id, notes } of candidates) {
+    if (!found.has(i) && fileTies[i] && sameForm(fileTies[i].notes) === sameForm(notes)) found.set(i, id ?? "");
   }
-  return [...found].sort((a, b) => a - b);
+  return found;
 }

@@ -81,10 +81,22 @@ describe("uploading a photo", () => {
     expect([...full.bytes]).toEqual(Array(30).fill(2));
   });
 
+  it("is counted on the tie in the ties list", async () => {
+    const tie = await newTie();
+    await upload({ tie_id: tie });
+    await upload({ tie_id: tie });
+    const res = await call("/api/ties/search", { method: "POST", body: {} });
+    const found = res.body.ties.find((/** @type {any} */ t) => t.id === tie);
+    expect(found.photo_count).toBe(2);
+    expect((await call(`/api/ties/${tie}`)).body.photo_count).toBe(2);
+  });
+
   it("works on plans too", async () => {
     const plan = await newPlan();
     expect((await upload({ plan_id: plan })).status).toBe(201);
     expect((await call(`/api/media?plan_id=${plan}`)).body).toHaveLength(1);
+    const plans = (await call("/api/plans?archived=false")).body;
+    expect(plans.find((/** @type {any} */ p) => p.id === plan).photo_count).toBe(1);
   });
 
   it("won't add to another user's tie, or one that doesn't exist, and stores nothing", async () => {

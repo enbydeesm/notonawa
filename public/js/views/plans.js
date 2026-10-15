@@ -7,7 +7,11 @@ import { setupResourcePage } from "../resource-page.js";
 /** @type {Record<string, string>} */
 const STAGES = { idea: "Idea", developing: "Developing", ready: "Ready", retired: "Retired" };
 
-export function mount() {
+/**
+ * @param {HTMLElement} _root
+ * @param {{ signal: AbortSignal }} options
+ */
+export function mount(_root, { signal }) {
   /** @type {HTMLSelectElement} */
   const variationSelect = $("#variation_of");
   /** @type {Record<string, any>[]} */
@@ -31,6 +35,7 @@ export function mount() {
 
   setupResourcePage({
     resource: "plans",
+    signal,
     form: $("#form"),
     list: $("#list"),
     archivedToggle: $("#show-archived"),
@@ -47,6 +52,7 @@ export function mount() {
       if (plan.est_difficulty != null) meta.push(`difficulty ${plan.est_difficulty}/5`);
       meta.push(`v${plan.version}`);
       if (plan.variation_of) meta.push(`variation of ${parent ? parent.title : "another plan"}`);
+      if (plan.photo_count) meta.push(plan.photo_count === 1 ? "1 photo" : `${plan.photo_count} photos`);
       return [
         h("div", { className: "item-title" }, plan.title),
         h("div", { className: "item-meta" }, meta.join(" · ")),

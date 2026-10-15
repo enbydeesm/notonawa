@@ -98,10 +98,11 @@ export async function getTie(db, ownerId, id) {
   return assembleTies(ties.results, links[0].results, links[1].results, links[2].results)[0] ?? null;
 }
 
-// A tie's own fields and its location's name, for `ties t`.
+// A tie's own fields, its location's name and how many photos it has, for `ties t`.
 const TIE_COLUMNS = `
   SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.created_at,
-         t.location_id, t.location_deleted, l.name AS location_name
+         t.location_id, t.location_deleted, l.name AS location_name,
+         (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count
     FROM ties t
     LEFT JOIN locations l ON l.id = t.location_id`;
 

@@ -121,6 +121,8 @@
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
+        <div data-photos></div>
+
         <button type="submit" class="primary">Add plan</button>
         <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
         <p class="message"></p>
@@ -269,7 +271,8 @@
         </div>
         <p class="info-text" id="email-info" hidden>Optional. If you lose every passkey and your recovery code, this is
           the only way we can check the account is yours and help you sign in again. We keep only a scrambled copy,
-          so we can't see the address or send you email.</p>
+          so we can't see the address or send you email. Signing in this way doesn't unlock your encrypted notes and
+          photos: only a passkey or recovery code that unlocked them before can.</p>
         <input id="recovery-email" type="email" maxlength="254" autocomplete="off" spellcheck="false">
         <label for="recovery-email-again">Type it again</label>
         <input id="recovery-email-again" type="email" maxlength="254" autocomplete="off" spellcheck="false">
@@ -304,8 +307,8 @@
 
     <section class="card">
       <h2>Export</h2>
-      <p class="hint">Everything in your journal (ties, plans, people, locations and tags) in one file.
-        The file isn't encrypted, so keep it somewhere safe.</p>
+      <p class="hint">Everything in your journal (ties, plans, people, locations and tags) in one file: a .zip with
+        your photos in it if you have any. The file isn't encrypted, so keep it somewhere safe.</p>
       <button type="button" class="primary" id="export">Download my data</button>
       <p class="message" id="export-message"></p>
     </section>
@@ -316,8 +319,8 @@
         (<a href="/import-template.csv" download>download a template</a>). People, locations and plans are matched to
         yours by name, and new ones are added. Ties already in your journal are skipped. You'll see what will happen
         before anything is saved.</p>
-      <label for="import-file">File (.json or .csv)</label>
-      <input type="file" id="import-file" accept=".json,.csv,application/json,text/csv" autocomplete="off" spellcheck="false">
+      <label for="import-file">File (.zip, .json or .csv)</label>
+      <input type="file" id="import-file" accept=".zip,.json,.csv,application/zip,application/json,text/csv" autocomplete="off" spellcheck="false">
       <div id="import-preview" class="import-preview" hidden></div>
       <button type="button" class="primary" id="import-go" hidden>Import</button>
       <p class="message" id="import-message"></p>
@@ -417,7 +420,8 @@
       <h2>That recovery code can't unlock your journal</h2>
       <p class="hint">Your recovery code was replaced when we helped you sign in, and your journal is still locked
         with the old one. An older recovery code can unlock it, or a passkey that unlocked it before. If you have
-        neither, you can start a new encryption key: anything encrypted with the old key can't be read again.</p>
+        neither, you can start a new encryption key: anything encrypted with the old key can't be read again, and
+        your photos are deleted.</p>
       <div class="item-actions">
         <button type="button" data-unlock-show="code">Try another recovery code</button>
         <button type="button" class="danger" id="unlock-new-key">Start a new key</button>

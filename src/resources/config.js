@@ -34,7 +34,8 @@ export const RESOURCES = {
       est_difficulty: { parse: (v) => toIntOrNull(v, 1, 5) },
       variation_of: { parse: cleanText },
     },
-    columns: "id, title, stage, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at",
+    columns: `id, title, stage, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at,
+              (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count`,
     orderBy: "updated_at DESC",
     // "Add & archive" in the tie form's plan picker.
     archiveOnCreate: true,

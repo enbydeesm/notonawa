@@ -129,13 +129,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `navigate.js` (`navigate(path, { replace })`: changing view from code),
   `crypto/keys.js` (pure: the data key, wrapping, the PRF salt),
   `crypto/fields.js` (pure: sealing and opening notes fields),
+  `crypto/media.js` (pure: sealing and opening photos and their captions,
+  bound to the photo's id),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
   code with proof, sign-up, recovery), `search-match.js` (pure: keyword
   matching), `journal-fields.js` (pure: a whole export or import, kind by
   kind), `import-dedupe.js` (pure: import duplicates from candidates),
-  `seal-leftovers.js` (encrypting older plain text), `lock-rules.js` (pure) and `lock.js`
+  `seal-leftovers.js` (encrypting older plain text), `photo-fit.js` (pure:
+  photo sizes, limits, choosing a quality) and `photo-prep.js` (redrawing a
+  photo on a canvas: strips its metadata, shrinks it, makes the thumbnail),
+  `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
+  lock), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
@@ -248,6 +254,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   a new key) must then delete their files (`media/storage.js`); read the
   photo ids in the same batch as the delete. The daily sweep only catches
   what a crash left behind.
+- **Photos are prepared and sealed before they leave the device**
+  (`preparePhoto`, then `vault.sealPhoto`) and shown only from
+  `photoUrl()` (`photo-urls.js`), whose URLs are all revoked on every lock
+  (`onWipe`). The crypto Worker fetches photos itself (`openPhoto` takes an
+  id), as it does the search index. Captions are sealed bound to their
+  photo (`sealCaption`), not through `seal`, so they aren't in the
+  encrypted-columns lists.
 - **Wrapped keys (`key_wraps`) are never exported** (useless without the
   user's secrets); they go with their passkey or account.
 - **When a table or column is added, update export and import**

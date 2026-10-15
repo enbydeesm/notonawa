@@ -152,8 +152,9 @@ describe("importing an export", () => {
       preview: true, ties: [{ title: "New", tie_date: "2026-10-02" }, { title: "Floor", tie_date: "2026-10-01" }, { title: "x", tie_date: "2026-10-03", tags: ["t"] }],
     } });
     // The candidates: my ties the same in all but the notes (encrypted, so
-    // the page compares those).
-    expect(ties.body).toEqual({ candidates: [{ i: 1, notes: null }], new_tags: ["t"] });
+    // the page compares those), with their ids (for a skipped tie's photos).
+    const floor = await sql("SELECT id FROM ties WHERE owner_id = ? AND title = 'Floor'", user.id).first();
+    expect(ties.body).toEqual({ candidates: [{ i: 1, id: floor?.id, notes: null }], new_tags: ["t"] });
 
     expect(await sql("SELECT count(*) AS n FROM people WHERE owner_id = ?", user.id).first()).toEqual({ n: 1 });
     expect(await sql("SELECT count(*) AS n FROM ties WHERE owner_id = ?", user.id).first()).toEqual({ n: 1 });
@@ -203,7 +204,13 @@ describe("importing an export", () => {
     expect(preview.body.candidates.map((/** @type {any} */ c) => c.i).sort((/** @type {number} */ a, /** @type {number} */ b) => a - b)).toEqual([0, 10, 11]);
     expect(duplicatePositions(variants, preview.body.candidates)).toEqual([0, 10]);
     const res = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants, skip: [0, 10] } });
-    expect(res.body).toEqual({ added: 10, skipped: 2 });
+    expect(res.body).toMatchObject({ added: 10, skipped: 2 });
+    // Each tie's new id by position (null for the skipped ones), and those are the ties saved.
+    expect(res.body.ids).toHaveLength(12);
+    expect([res.body.ids[0], res.body.ids[10]]).toEqual([null, null]);
+    const newIds = res.body.ids.filter(Boolean);
+    expect(new Set(newIds).size).toBe(10);
+    for (const id of newIds) expect(await sql("SELECT 1 AS ok FROM ties WHERE id = ? AND owner_id = ?", id, user.id).first()).toEqual({ ok: 1 });
     const bad = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants, skip: [99] } });
     expect(bad.status).toBe(400);
   });

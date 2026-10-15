@@ -14,6 +14,7 @@
 import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./keys.js";
 import { sealRecord, openRecord } from "./fields.js";
 import { matchingTies } from "../search-match.js";
+import { sealPhoto, openPart, sealCaption, openCaption } from "./media.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
 /** @typedef {import("./fields.js").RecordKind} RecordKind */
@@ -36,13 +37,19 @@ export class VaultCore {
    * @param {() => Promise<IndexEntry[]>} [loadIndex] fetches the ties' search
    *   index (notes still sealed): the Worker fetches it itself, so notes of
    *   ties not on screen never reach the page
+   * @param {(mediaId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} [loadPart]
+   *   fetches a sealed part of a photo: the Worker fetches photos itself
+   *   too, so the page only ever asks for one by id
    */
-  constructor(loadIndex) {
+  constructor(loadIndex, loadPart) {
     this.#loadIndex = loadIndex ?? (async () => []);
+    this.#loadPart = loadPart ?? (async () => { throw new Error("No photos here."); });
   }
 
   /** @type {() => Promise<IndexEntry[]>} */
   #loadIndex;
+  /** @type {(mediaId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} */
+  #loadPart;
 
   get unlocked() {
     return this.#key !== null;
@@ -154,6 +161,56 @@ export class VaultCore {
   /** A tie was added, changed or deleted: the next search fetches the index again. */
   forgetSearch() {
     this.#index = null;
+  }
+
+  /**
+   * A prepared photo (metadata already stripped) sealed into the object to
+   * upload, bound to its id.
+   * @param {{ mediaId: string, thumb: ArrayBuffer, full: ArrayBuffer }} args
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async sealPhoto({ mediaId, thumb, full }) {
+    const [key, userId] = this.#unlocked();
+    return sealPhoto(key, { userId, mediaId }, { thumb, full });
+  }
+
+  /**
+   * One of my photos' thumbnail or full size, fetched and opened. Throws
+   * CantOpen if it won't open.
+   * @param {{ mediaId: string, part: "thumb" | "full" }} args
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async openPhoto({ mediaId, part }) {
+    const [key, userId] = this.#unlocked();
+    return openPart(key, { userId, mediaId, part }, await this.#loadPart(mediaId, part));
+  }
+
+  /**
+   * A caption sealed for its photo (null if empty).
+   * @param {{ mediaId: string, caption: unknown }} args
+   * @returns {Promise<string | null>}
+   */
+  async sealCaption({ mediaId, caption }) {
+    const [key, userId] = this.#unlocked();
+    return sealCaption(key, { userId, mediaId }, caption);
+  }
+
+  /**
+   * Photos (as GET /api/media lists them) with their captions opened. A
+   * caption that won't open is null, with unreadable: ["caption"].
+   * @template {{ id: string, caption: string | null }} T
+   * @param {{ records: T[] }} args
+   * @returns {Promise<(T & { unreadable?: string[] })[]>}
+   */
+  async openMedia({ records }) {
+    const [key, userId] = this.#unlocked();
+    return Promise.all(records.map(async (record) => {
+      try {
+        return { ...record, caption: await openCaption(key, { userId, mediaId: record.id }, record.caption) };
+      } catch {
+        return { ...record, caption: null, unreadable: ["caption"] };
+      }
+    }));
   }
 
   /** @returns {[CryptoKey, string]} */

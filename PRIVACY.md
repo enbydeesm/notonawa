@@ -72,9 +72,9 @@ email address unless you add a recovery email.
 
 ### Your journal
 
-What you choose to write in the app: ties, plans, people, locations, tags,
-and (once photos are available) photos. Some of this is encrypted so only you
-can read it, and some isn't (see the next section).
+What you choose to write in the app: ties, plans, people, locations, tags
+and photos. Some of this is encrypted so only you can read it, and some
+isn't (see the next section).
 
 ### Technical information
 
@@ -104,6 +104,8 @@ analytics, advertising or tracking tools of any kind.
 - plan titles, stages, difficulty and versions
 - tags
 - when things were created, changed or archived, and how they link together
+- for each photo: which tie or plan it's on, its place in their order, its
+  size, whether it's a JPEG or WebP, and when it was added (not what it shows)
 
 This second list is still private to your account: the app never shows it to
 anyone else, and we don't look at it (see [Our own access](#our-own-access)).
@@ -137,9 +139,10 @@ encrypt more of these fields over time.
 
 ## How the app protects your data on your device
 
-- **Nothing decrypted is saved on your device.** Your notes are decrypted in
-  your browser's memory only while the app is open and unlocked, and are never
-  written to the browser's storage, its cache or its form history. Our pages
+- **Nothing decrypted is saved on your device.** Your notes and photos are
+  decrypted in your browser's memory only while the app is open and
+  unlocked, and are never written to the browser's storage, its cache or its
+  form history. Photos on screen are let go of when the app locks. Our pages
   and data are sent with instructions not to be cached. The browser's
   spellcheck is turned off in the app, because some browsers can send the
   text being checked to their maker. The one exception is an export, which
@@ -173,11 +176,16 @@ allow on this site, protects you further.
 ## Photos
 
 - Before a photo leaves your device, the app removes its hidden metadata,
-  including GPS location, camera details and timestamps.
-- The photo and its thumbnail are then encrypted on your device and stored
-  in a private storage area that isn't reachable from the internet. Photos are
-  only ever handed back to your own signed-in account, and only your device
-  can decrypt them.
+  including GPS location, camera details and timestamps, by redrawing it as
+  a new image. It's also made smaller (at most 2048 pixels on its longest
+  side) to save space, and a small thumbnail is made from it. Your original
+  file is never uploaded.
+- The photo, its thumbnail and its caption are then encrypted on your
+  device and stored in a private storage area that isn't reachable from the
+  internet. Photos are only ever handed back to your own signed-in account,
+  and only your device can decrypt them.
+- Each account can store up to [1 GB] of photos, and up to [30] on each tie
+  or plan.
 - We never scan, analyse, tag or share your photos, and no other company
   processes them.
 - **Only store photos of people who have agreed to it.** You are responsible
@@ -194,10 +202,12 @@ about them.
 ## Where your data is stored
 
 Rope Journal runs on Cloudflare (Workers, D1 database and R2 storage), which is
-our only service provider with access to stored data. Data is stored
-[in REGION / "in Cloudflare's network, which may include countries other than
-your own"] and is encrypted at rest by Cloudflare, in addition to our own
-encryption of your notes and photos.
+our only service provider with access to stored data. We ask Cloudflare to
+store photos in North America [and the database in REGION]; Cloudflare
+doesn't guarantee where data is kept, and its network may handle it in
+other countries. Everything is
+encrypted at rest by Cloudflare, in addition to our own encryption of your
+notes and photos.
 
 When you paste a short Google Maps link (maps.app.goo.gl) into a location, our
 server asks Google where the link points, to fill in its coordinates. Google
@@ -220,7 +230,9 @@ that choice in your browser's local storage (just the word "light" or
 - **While you have an account**, we keep what you've stored until you delete
   it.
 - **When you delete something**, it's removed from our live database straight
-  away. Deleted photos are removed from storage straight away.
+  away. Deleted photos are removed from storage straight away (deleting a tie
+  or plan deletes its photos too). If that's ever interrupted, a daily
+  clean-up removes what was left within a day or two.
 - **When you delete your account**, everything in it (journal, photos,
   passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
   or password manager may still list your passkey for Rope Journal; where the
@@ -228,7 +240,7 @@ that choice in your browser's local storage (just the word "light" or
 - **Backups.** Our database provider keeps a rolling history for disaster
   recovery, so deleted data can remain there for up to 7 days before it
   disappears permanently. Our own backups are encrypted and kept for no more
-  than 7 days. We would only restore from these to recover from a failure,
+  than 7 days. Photos aren't in either: once deleted, they're gone. We would only restore from these to recover from a failure,
   never to bring back something you deleted unless you ask us to.
 - **Signed-out sessions** are deleted when you sign out, and expired sessions
   are cleared every day.
@@ -238,14 +250,16 @@ that choice in your browser's local storage (just the word "light" or
 Wherever you live, you can:
 
 - **Export** all your data from the app at any time, including your notes and
-  photos, decrypted on your device into a file only you hold. It contains your
+  photos, decrypted on your device into a file only you hold (a .zip when
+  you have photos). It contains your
   whole journal, plus when you created your account and agreed to this
   policy, your passkeys' names and dates, and whether you've set a recovery
   email (not the address, which we don't have). The file isn't encrypted, so
   keep it somewhere safe.
 - **Import** entries from an export, or ties from a spreadsheet (a CSV file).
   The file is read in your browser, and only the entries in it are sent to
-  us, just as if you'd typed them in.
+  us, just as if you'd typed them in. Photos in an export are prepared and
+  encrypted on your device first, as when you add one.
 - **Correct** anything by editing it in the app.
 - **Delete** individual entries, or your whole account, from the app.
 - **End sessions** on any device, or remove passkeys, from your account

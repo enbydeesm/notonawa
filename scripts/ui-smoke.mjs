@@ -826,6 +826,113 @@ try {
       items().some((i) => i.includes("Written before encryption")), document.querySelector(".toast") === null];`),
     [true, true, true, true]);
 
+  console.log("Photos");
+  await go("/");
+  // A JPEG with metadata written into it, as a camera would (an Exif
+  // segment holding a made-up GPS note), as if picked in the file dialog.
+  // prefix: the form's ("tie" or "plan").
+  const pickPhoto = (prefix, width, height, name) => run(`
+    const canvas = document.createElement("canvas"); canvas.width = ${width}; canvas.height = ${height};
+    const ctx = canvas.getContext("2d"); ctx.fillStyle = "#c33"; ctx.fillRect(0, 0, ${width}, ${height});
+    ctx.fillStyle = "#33c"; ctx.fillRect(0, 0, ${width} / 2, ${height} / 2);
+    const jpeg = new Uint8Array(await (await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9))).arrayBuffer());
+    const note = new TextEncoder().encode("Exif\\0\\0SECRET-GPS-48.8584N");
+    const app1 = new Uint8Array([0xff, 0xe1, 0, note.length + 2, ...note]);
+    const file = new File([jpeg.slice(0, 2), app1, jpeg.slice(2)], ${JSON.stringify(name)}, { type: "image/jpeg" });
+    const dt = new DataTransfer(); dt.items.add(file);
+    $("#${prefix}-photo-input").files = dt.files; $("#${prefix}-photo-input").dispatchEvent(new Event("change"));
+    // Until it's prepared (and uploaded, on a saved tie): up to 10 seconds.
+    await wait(300);
+    for (let i = 0; i < 100 && /Preparing|Uploading/.test($("#${prefix}-photos-message").textContent); i++) await wait(100);
+    await wait(500);
+    return [new TextDecoder().decode(await file.arrayBuffer()).includes("SECRET-GPS"),
+      document.querySelectorAll("#${prefix}-photos .photo-tile img").length, $("#${prefix}-photos-message").textContent];`);
+  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Photo test");`);
+  check("a new tie's photo is prepared and waits for the tie to be saved",
+    await pickPhoto("tie", 3000, 1000, "camera.jpg"), [true, 1, ""]);
+  check("…and is uploaded when it's saved, counted on the card", await run(`
+    $("#tie-save").click(); await wait(2500); await settle();
+    const c = [...document.querySelectorAll(".tie-card")].find((x) => x.querySelector(".tie-title").innerText === "Photo test");
+    return [!!document.querySelector("dialog"), c?.querySelector(".tie-photos")?.innerText ?? null];`), [false, "1 photo"]);
+  check("the server only has it encrypted", await run(`
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const sealed = new Uint8Array(await (await fetch("/api/media/" + photo.id + "/full")).arrayBuffer());
+    const text = new TextDecoder("latin1").decode(sealed);
+    return [photo.mime, sealed[0] === 0xff && sealed[1] === 0xd8, text.includes("SECRET-GPS"), text.includes("Exif"), text.includes("WEBP")];`),
+    ["image/webp", false, false, false, false]);
+  check("opened on the device: shrunk, with no metadata left", await run(`
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await wait(1500);
+    $("#tie-photos .photo-thumb").click(); await wait(1500);
+    const img = $("dialog[open] .photo-full");
+    // The bytes shown, read through the app (the CSP's connect-src keeps
+    // fetch off blob: URLs).
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const bytes = new Uint8Array(await (await import("/js/vault.js")).openPhoto(photo.id, "full"));
+    const text = new TextDecoder("latin1").decode(bytes);
+    return [img.src.startsWith("blob:"), img.naturalWidth, img.naturalHeight, text.startsWith("RIFF") && text.slice(8, 12) === "WEBP",
+      text.includes("SECRET-GPS"), text.includes("Exif"), bytes.length < 500 * 1024, $("#tie-photo-earlier").disabled, leakyFields()];`),
+    [true, 2048, 683, true, false, false, true, true, []]);
+  check("a caption is saved encrypted and shown under the thumbnail", await run(`
+    set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await wait(1000);
+    const shown = $("#tie-photos figcaption")?.textContent;
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    return [shown, /^e1\\./.test(photo.caption), photo.caption.includes("Front")];`), ["Front view", true, false]);
+  check("on a saved tie, a photo uploads straight away",
+    (await pickPhoto("tie", 400, 600, "second.jpg")).slice(1), [2, ""]);
+  check("…moved earlier, the new order is saved", await run(`
+    document.querySelectorAll("#tie-photos .photo-thumb")[1].click(); await wait(1200);
+    $("#tie-photo-earlier").click(); await wait(800);
+    const shown = [...document.querySelectorAll("#tie-photos .photo-tile")].map((t) => t.querySelector("figcaption")?.textContent ?? "");
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    return [shown, listed.map((p) => p.caption === null)];`), [["", "Front view"], [true, false]]);
+  check("locking revokes the photos shown", await run(`
+    const src = $("#tie-photos .photo-thumb img").src;
+    const loads = (url) => new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(true); i.onerror = () => resolve(false); i.src = url; });
+    const before = await loads(src);
+    (await import("/js/vault.js")).lock(); await wait(500);
+    return [before, await loads(src), [...document.querySelectorAll("img")].some((i) => i.src.startsWith("blob:"))];`), [true, false, false]);
+  await go("/");
+  check("deleting a photo asks first, then removes it", await run(`
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await wait(1500);
+    $("#tie-photos .photo-thumb").click(); await wait(1200);
+    $("#tie-photo-delete").click(); await wait(300);
+    const asked = [...document.querySelectorAll("dialog")].pop().querySelector("h2").textContent;
+    [...[...document.querySelectorAll("dialog")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete photo").click(); await wait(1000);
+    return [asked, document.querySelectorAll("#tie-photos .photo-tile").length];`), ["Delete this photo?", 1]);
+  check("…and deleting the tie deletes the rest", await run(`
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    $("#tie-delete").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await wait(1000);
+    return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 23 of 23 ties"]);
+
+  await go("/plans");
+  await run(`set("#title", "Photo plan");`);
+  check("a new plan's photo waits for the plan to be saved", await pickPhoto("plan", 800, 600, "plan.jpg"), [true, 1, ""]);
+  check("…is uploaded when it's saved, and counted in the list", await run(`
+    await submit(); await wait(2000);
+    return [$("#form > .message").textContent, items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
+    ["Saved.", true]);
+  check("editing the plan shows its photo", await run(`
+    await clickIn("Photo plan", "Edit"); await wait(1500);
+    const shown = document.querySelectorAll("#plan-photos .photo-tile img").length;
+    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Photo plan");
+    const [photo] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
+    const res = await fetch("/api/plans/" + plan.id + "?linked_ties=keep", { method: "DELETE" });
+    return [shown, photo.mime, res.status, (await fetch("/api/media/" + photo.id + "/thumb")).status];`),
+    [1, "image/webp", 204, 404]);
+
   console.log("Deleting");
   await go("/plans");
   check("plan delete dialog has the three options", await run(`await clickIn("Hip harness", "Delete"); return dialogButtons();`),
@@ -1020,6 +1127,52 @@ try {
     [null, "Everything in this file is already in your journal."]);
   check("a file that isn't an export is refused", (await chooseFile("notes.json", "application/json", '{"hello":1}'))[2],
     "This isn't a Rope Journal export.");
+
+  // With photos, the export is a zip that imports back.
+  const photoTie = await run(`
+    const id = await post("/api/ties", { title: "Zip test", tie_date: "2026-11-05" });
+    const canvas = document.createElement("canvas"); canvas.width = 300; canvas.height = 200;
+    canvas.getContext("2d").fillRect(0, 0, 150, 100);
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+    const prepared = await (await import("/js/photo-prep.js")).preparePhoto(new File([blob], "x.jpg", { type: "image/jpeg" }));
+    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
+    return id;`);
+  const zipDownloads = path.join(workDir, "downloads-zip");
+  await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: zipDownloads });
+  check("with photos, export downloads a zip", await run(`
+    $("#export").click(); for (let i = 0; i < 50 && !/Downloaded|Couldn't/.test($("#export-message").textContent); i++) await wait(100);
+    return $("#export-message").textContent;`), "Downloaded.");
+  await sleep(800);
+  const zipped = readdirSync(zipDownloads);
+  const { readZip } = await import("../public/js/zip.js");
+  const zipBytes = zipped.length ? readFileSync(path.join(zipDownloads, zipped[0])) : Buffer.alloc(0);
+  const zipFiles = zipped.length ? await readZip(zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.length)) : new Map();
+  const zipDoc = JSON.parse(new TextDecoder().decode(zipFiles.get("rope-journal.json") ?? new TextEncoder().encode("{}")));
+  const zipPhoto = zipDoc.ties?.find((t) => t.title === "Zip test")?.photos?.[0];
+  const photoBytes = zipPhoto ? zipFiles.get(zipPhoto.file) : null;
+  check("…holding the journal and the photo, decrypted, with its caption", [
+    /^rope-journal-\d{4}-\d\d-\d\d\.zip$/.test(zipped[0] ?? ""), zipPhoto?.caption, zipPhoto?.file?.startsWith("photos/"),
+    photoBytes ? new TextDecoder("latin1").decode(photoBytes.subarray(0, 12)).replace(/^RIFF.{4}/s, "RIFF") : null,
+  ], [true, "Zip caption", true, "RIFFWEBP"]);
+  // The photo is deleted, then the zip imported: it comes back on the tie.
+  await run(`const [m] = await (await fetch("/api/media?tie_id=${photoTie}")).json(); await fetch("/api/media/" + m.id, { method: "DELETE" });`);
+  const chooseZip = () => run(`
+    const bytes = Uint8Array.from(atob(${JSON.stringify(zipBytes.toString("base64"))}), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer(); dt.items.add(new File([bytes], ${JSON.stringify(zipped[0] ?? "x.zip")}, { type: "application/zip" }));
+    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(2000);
+    return [[...document.querySelectorAll("#import-preview .item")].map(flat).filter((t) => t.startsWith("Photos")), $("#import-go").hidden ? null : $("#import-go").textContent];`);
+  check("importing the zip previews its photos", await chooseZip(),
+    [["Photos | 1 in the file (added to ties and plans that don't already have photos)"], "Import"]);
+  check("…and puts the photo back on its tie, with its caption", await run(`
+    $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
+    const listed = await (await fetch("/api/media?tie_id=${photoTie}")).json();
+    const opened = await (await import("/js/vault.js")).openMedia(listed);
+    return [$("#import-message").textContent, opened.map((p) => p.caption)];`),
+    ["Imported 0 ties. Skipped 27 ties already in your journal. Added 1 photo.", ["Zip caption"]]);
+  check("importing it again doesn't add the photo twice", (await chooseZip(), await run(`
+    $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
+    return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
+    ["Imported 0 ties. Skipped 27 ties already in your journal. Skipped 1 photo on ties or plans that already have photos.", 1]);
 
   console.log("Deleting the account");
   await go("/account");

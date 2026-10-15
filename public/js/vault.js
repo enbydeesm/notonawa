@@ -32,12 +32,22 @@ let nextId = 0;
 const waiting = new Map();
 /** @type {Set<() => void>} */
 const lockListeners = new Set();
+/** @type {Set<() => void>} */
+const wipers = new Set();
 
 /** A secret didn't unlock (the Worker said "wrong-secret"). */
 export class WrongSecret extends Error {
   constructor() {
     super("That doesn't unlock your journal.");
     this.name = "WrongSecret";
+  }
+}
+
+/** Something of mine that won't decrypt (the Worker said "cant-open"). */
+export class CantOpen extends Error {
+  constructor() {
+    super("This can't be decrypted.");
+    this.name = "CantOpen";
   }
 }
 
@@ -52,7 +62,8 @@ function start() {
     waiting.delete(id);
     if (error === undefined) call.resolve(result);
     else call.reject(error === "wrong-secret" ? new WrongSecret()
-      : error === "too-long" ? new Error("That's too long to save. Shorten the notes, please.") : new Error(error));
+      : error === "too-long" ? new Error("That's too long to save. Shorten the notes, please.")
+      : error === "cant-open" ? new CantOpen() : new Error(error));
   });
   started.addEventListener("error", () => fail(new Error("The encryption part of the app stopped. Reload the page.")));
   worker = started;
@@ -175,6 +186,50 @@ export function forgetSearch() {
 }
 
 /**
+ * A prepared photo (metadata already stripped) sealed for upload, bound to
+ * its id. The two buffers are handed to the Worker, so they're emptied here.
+ * @param {string} mediaId made with crypto.randomUUID()
+ * @param {ArrayBuffer} thumb
+ * @param {ArrayBuffer} full
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function sealPhoto(mediaId, thumb, full) {
+  return call("sealPhoto", { mediaId, thumb, full }, [thumb, full]);
+}
+
+/**
+ * One of my photos' thumbnail or full size, decrypted. The Worker fetches
+ * it itself. Throws CantOpen if it won't decrypt.
+ * @param {string} mediaId
+ * @param {"thumb" | "full"} part
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openPhoto(mediaId, part) {
+  return call("openPhoto", { mediaId, part });
+}
+
+/**
+ * A caption sealed for its photo (null if empty).
+ * @param {string} mediaId
+ * @param {string} caption
+ * @returns {Promise<string | null>}
+ */
+export function sealCaption(mediaId, caption) {
+  return call("sealCaption", { mediaId, caption });
+}
+
+/**
+ * Photos as GET /api/media lists them, with captions opened (null, and
+ * unreadable: ["caption"], if one won't).
+ * @template {{ id: string, caption: string | null }} T
+ * @param {T[]} records
+ * @returns {Promise<(T & { unreadable?: string[] })[]>}
+ */
+export function openMedia(records) {
+  return call("openMedia", { records });
+}
+
+/**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock
  *   listeners (the page is showing something else, e.g. "Account deleted")
@@ -185,6 +240,7 @@ export function lock({ quiet = false } = {}) {
     worker = null;
     fail(new Error("Locked."));
   }
+  for (const wipe of wipers) wipe();
   if (!unlocked) return;
   unlocked = false;
   if (!quiet) for (const listener of lockListeners) listener();
@@ -193,4 +249,12 @@ export function lock({ quiet = false } = {}) {
 /** @param {() => void} listener called after the journal locks */
 export function onLock(listener) {
   lockListeners.add(listener);
+}
+
+/**
+ * @param {() => void} wipe called on every lock, quiet ones too, to drop
+ *   decrypted things the page holds outside the Worker (photos' blob: URLs)
+ */
+export function onWipe(wipe) {
+  wipers.add(wipe);
 }

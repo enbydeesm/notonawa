@@ -207,7 +207,7 @@ export function mount(_root, { signal }) {
 
   /**
    * A tie as a card: title (tap to edit) and date; type and location, and the
-   * rating; who took part, on one line; and its tags.
+   * rating; who took part, on one line; its tags; and how many photos.
    * @param {Record<string, any>} tie
    */
   function renderTie(tie) {
@@ -229,6 +229,9 @@ export function mount(_root, { signal }) {
         : null,
       tie.tags.length
         ? h("div", { className: "tag-row tie-tags" }, tie.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
+        : null,
+      tie.photo_count
+        ? h("div", { className: "tie-photos" }, tie.photo_count === 1 ? "1 photo" : `${tie.photo_count} photos`)
         : null
     );
   }

@@ -2,11 +2,11 @@
 
 /**
  * @param {string} name file name, e.g. rope-journal-2026-10-13.json
- * @param {string} text
+ * @param {string | Blob} content
  * @param {string} type e.g. application/json
  */
-export function saveFile(name, text, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function saveFile(name, content, type) {
+  const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));
   const link = document.createElement("a");
   link.href = url;
   link.download = name;

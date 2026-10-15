@@ -82,8 +82,9 @@ Each step leaves the app working and shippable on its own.
    (`createImageBitmap` applies the EXIF rotation first), makes a thumbnail,
    encrypts both and uploads through an owner-checked Worker route. Shown
    from `blob:` URLs that are revoked on lock. Deleting a tie or the account
-   deletes its R2 objects; export includes decrypted photos. *In progress
-   (2026-10-14); decisions in "Step 6 decisions" below.*
+   deletes its R2 objects; export includes decrypted photos. *Built
+   2026-10-14, not yet deployed; see "Step 6 decisions" and "Step 6 as
+   built" below.*
 7. **Videos** (after photos; not started). See "Step 7: videos, weighed"
    below. Step 6 is built so videos need no new migration or export format.
 
@@ -511,6 +512,55 @@ Agreed 2026-10-14, before building:
 - **Re-importing** a tie that's skipped as a duplicate: it gets the file's
   photos only if it has none yet, so a failed import can be run again to
   finish without making copies.
+
+### Step 6 as built
+
+- **Sealed format:** each part (thumbnail, full size) is a 12-byte IV and
+  its AES-GCM ciphertext, with additional data
+  `rope-journal|media|v1|<user>|<photo id>|thumb|full|caption`
+  (`crypto/media.js`). One piece per part: photos are small. Videos will
+  need a format in pieces with its own version (not built now, despite the
+  earlier idea of using it for photos too: it bought nothing yet).
+- **The crypto Worker** gained `sealPhoto`, `openPhoto` (fetches the part by
+  id itself, like the search index), `sealCaption` and `openMedia`; results
+  that are buffers are transferred, not copied. Captions are sealed bound
+  to their photo, not through `seal`, so they're not in the
+  encrypted-columns lists.
+- **Locking** now also runs `onWipe` hooks, even for a quiet lock (account
+  deleted): `photo-urls.js` revokes every `blob:` URL and empties the
+  images showing them.
+- **CSP:** `img-src 'self' blob:`. `connect-src 'self'` still keeps `fetch`
+  off `blob:` URLs (the app never needs that; the walkthrough reads photos
+  through `openPhoto` instead).
+- **WebP check:** a 2×2 canvas with something drawn on it is encoded once;
+  a blank one came back as JPEG in headless Chrome.
+- **The Photos section** (`photos-ui.js`) on something already saved saves
+  each change as it's made (add, caption, move, delete). On a new tie or
+  plan the photos wait in the form and upload after it's saved; if one
+  fails, the form stays open as an edit of the saved item and saving again
+  retries the rest.
+- **Export:** a `.json` as before when there are no photos, a `.zip` when
+  there are (`zip.js`, stored, checked against `unzip -t`). A photo that
+  can't be decrypted is listed with `file: null`; unreadable captions are
+  counted with the notes.
+- **Import** reads `.zip` (stored or deflated) as well as `.json` and CSV.
+  Photo lists come off the file before anything is sealed or sent
+  (`import-photos.js`), so a plain caption is never sent. Each photo is
+  prepared again (a zip from elsewhere could hold metadata). The ties
+  request now answers each tie's new id, and the duplicate candidates
+  their ids. **Known gap:** if an import stops part-way through one tie's
+  photos, running it again skips that tie (it has some photos already).
+- **Backups** (`scripts/backup.mjs`) are of D1 only: photos aren't backed
+  up, which PRIVACY.md says.
+- **Deploying:** create the bucket (`npx wrangler r2 bucket create
+  rope-journal-photos --location enam`, public access left off), apply
+  migration 0010, then deploy.
+- **Not built (yet):** thumbnails on tie cards, dragging to reorder,
+  captions in keyword search, videos (step 7).
+- **The UI walkthrough sometimes hangs** on a step ("took over a minute")
+  or meets an Internal Server Error while unlocking. Seen on the phase 1
+  commit too (1 run in 2), before any photo UI or photo steps, so not
+  caused by them. **Revisit:** find the cause.
 
 ### Step 7: videos, weighed
 

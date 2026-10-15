@@ -5,10 +5,28 @@ import { exportDocument, exportFileName } from "../../src/data/shape.js";
 const EMPTY = {
   user: { created_at: "2026-01-01T00:00:00Z", accepted_at: "2026-01-01T00:00:00Z", terms_version: "1" },
   passkeys: [], people: [], profileNotes: [], locations: [], plans: [], planTags: [], tags: [],
-  ties: [], participants: [], tiePlans: [], tieTags: [],
+  ties: [], participants: [], tiePlans: [], tieTags: [], media: [],
 };
 
 describe("exportDocument", () => {
+  it("lists each tie's and plan's photos, in order, with where each file goes in the zip", () => {
+    const doc = exportDocument({
+      ...EMPTY,
+      ties: [{ id: "t1" }],
+      plans: [{ id: "p1" }],
+      media: [
+        { id: "m2", tie_id: "t1", plan_id: null, kind: "photo", mime: "image/jpeg", caption: null, position: 0, created_at: "2026-10-02T00:00:00Z" },
+        { id: "m1", tie_id: "t1", plan_id: null, kind: "photo", mime: "image/webp", caption: "e1.x.y", position: 1, created_at: "2026-10-01T00:00:00Z" },
+        { id: "m3", tie_id: null, plan_id: "p1", kind: "photo", mime: "image/webp", caption: null, position: 0, created_at: "2026-10-03T00:00:00Z" },
+      ],
+    }, "2026-10-13T10:00:00Z");
+    expect(doc.ties[0].photos).toEqual([
+      { id: "m2", kind: "photo", mime: "image/jpeg", file: "photos/m2.jpg", caption: null, position: 0, created_at: "2026-10-02T00:00:00Z" },
+      { id: "m1", kind: "photo", mime: "image/webp", file: "photos/m1.webp", caption: "e1.x.y", position: 1, created_at: "2026-10-01T00:00:00Z" },
+    ]);
+    expect(doc.plans[0].photos.map((/** @type {any} */ p) => p.file)).toEqual(["photos/m3.webp"]);
+  });
+
   it("labels the file with its format, version and time", () => {
     expect(exportDocument(EMPTY, "2026-10-13T10:00:00Z")).toMatchObject({
       format: "rope-journal-export", version: 1, exported_at: "2026-10-13T10:00:00Z",

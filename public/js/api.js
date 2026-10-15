@@ -23,14 +23,16 @@ export class ApiError extends Error {
  * Signed out (or signed in with a recovery code and no passkey yet), it goes
  * to the sign-in view instead, unless it's already there.
  * @param {string} path
- * @param {{ method?: string, body?: unknown }} [options]
+ * @param {{ method?: string, body?: unknown }} [options] body: sent as JSON,
+ *   or as it is if it's an ArrayBuffer (a sealed photo)
  * @returns {Promise<any>}
  */
 export async function api(path, { method = "GET", body } = {}) {
+  const raw = body instanceof ArrayBuffer;
   const res = await fetch(path, {
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined ? undefined : { "content-type": raw ? "application/octet-stream" : "application/json" },
+    body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
   });
   if (res.status === 204) return null;
   /** @type {any} */

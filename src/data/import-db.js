@@ -96,7 +96,7 @@ const SQL = {
             SELECT ${j("tie_id")}, t.id FROM json_each(?2) j
               JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}
              WHERE ${TIE_INSERTED}`,
-  candidates: `SELECT ${j("i")} AS i, x.notes FROM json_each(?2) j JOIN ties x ON ${SAME_BUT_NOTES}`,
+  candidates: `SELECT ${j("i")} AS i, x.id, x.notes FROM json_each(?2) j JOIN ties x ON ${SAME_BUT_NOTES}`,
 };
 
 /**
@@ -159,16 +159,17 @@ export async function insertTies(db, ownerId, rows) {
 /**
  * Which of my ties each of these ties (by position) might duplicate: the
  * same in everything but the notes, with those notes (encrypted) for the
- * page to compare.
+ * page to compare, and their ids (a skipped tie's photos go on the one it
+ * duplicates).
  * @param {D1Database} db
  * @param {string} ownerId
  * @param {ReturnType<typeof import("./import-plan.js").planTies>["rows"]["ties"]} ties
- * @returns {Promise<{ i: number, notes: string | null }[]>}
+ * @returns {Promise<{ i: number, id: string, notes: string | null }[]>}
  */
 export async function duplicateCandidates(db, ownerId, ties) {
   const rows = ties.map((t, i) => ({ ...t, i }));
   const results = await runBatch(db, statements(db, SQL.candidates, ownerId, rows));
-  return results.flatMap((r) => /** @type {{ i: number, notes: string | null }[]} */ (r.results));
+  return results.flatMap((r) => /** @type {{ i: number, id: string, notes: string | null }[]} */ (r.results));
 }
 
 /**

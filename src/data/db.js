@@ -39,11 +39,14 @@ export async function readAccount(db, userId) {
         WHERE t.owner_id = ? ORDER BY tp.rowid`),
     q(`SELECT tt.tie_id, tg.name FROM tie_tags tt JOIN tags tg ON tg.id = tt.tag_id
         WHERE tg.owner_id = ? ORDER BY tg.name COLLATE NOCASE`),
+    // Photos' rows; the page fetches the files and decrypts them.
+    q(`SELECT id, tie_id, plan_id, kind, mime, caption, position, created_at
+         FROM media WHERE owner_id = ? ORDER BY position, created_at`),
   ]);
-  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags] =
+  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
-    ties, participants, tiePlans, tieTags,
+    ties, participants, tiePlans, tieTags, media,
   };
 }

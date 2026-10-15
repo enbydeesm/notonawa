@@ -12,6 +12,7 @@ import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { sealOne, forgetSearch } from "./vault.js";
+import { photoSection } from "./photos-ui.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -36,6 +37,9 @@ export function openTieForm(tie = null) {
 function showTieForm(tie) {
   return new Promise((resolve) => {
     let saved = false;
+    // The tie's id once it's saved: a new tie whose photos didn't all
+    // upload stays open, and saving again edits it rather than adding another.
+    let savedId = tie?.id ?? null;
     // Each kind's items, shared by its pickers (so one added in one row is
     // offered in the others). Filled in once loaded.
     const sources = {
@@ -73,6 +77,7 @@ function showTieForm(tie) {
     const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
+    const photos = photoSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
 
     const form = h("form", { id: "tie-form", onsubmit: save },
       h("label", { htmlFor: "tie-title" }, "Title"),
@@ -105,6 +110,7 @@ function showTieForm(tie) {
         ratingPicker({ name: "success_rating", labelledBy: "tie-rating-label", value: tie?.success_rating ?? null })),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       privateField(h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" })),
+      photos.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -119,6 +125,7 @@ function showTieForm(tie) {
       h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie"),
       form);
     dialog.addEventListener("close", () => {
+      photos.close();
       dialog.remove();
       resolve(saved);
     });
@@ -274,7 +281,7 @@ function showTieForm(tie) {
 
       data.plan_ids = chosenPlans();
       data.tags = tags;
-      if (tie) {
+      if (savedId) {
         /** @param {HTMLElement} rows */
         const kept = (rows) => [...rows.querySelectorAll(".kept-deleted")].map((row) => /** @type {HTMLElement} */ (row).dataset.linkId);
         data.keep_deleted = { participants: kept(participantRows), plans: kept(planRows), location: !deletedLocationRow.hidden };
@@ -336,16 +343,27 @@ function showTieForm(tie) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
+      if (photos.busy) {
+        showMessage(message, "Wait for the photos to finish, then save.", true);
+        return;
+      }
       saveButton.disabled = true;
       showMessage(message, "Saving…");
       try {
         // The notes are sealed here, on the device, before they're sent.
         const body = await sealOne("tie", collectTie());
-        if (tie) await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "PUT", body });
-        else await api("/api/ties", { method: "POST", body });
+        if (savedId) await api(`/api/ties/${encodeURIComponent(savedId)}`, { method: "PUT", body });
+        else savedId = (await api("/api/ties", { method: "POST", body })).id;
         // The search index has this tie's old notes (or none): fetch it afresh.
         forgetSearch();
         saved = true;
+        if (photos.waiting) {
+          const problem = await photos.uploadPending({ tie_id: /** @type {string} */ (savedId) });
+          if (problem) {
+            showMessage(message, `The tie is saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
+            return;
+          }
+        }
         dialog.close();
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);

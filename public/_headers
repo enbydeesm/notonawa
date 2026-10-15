@@ -7,13 +7,14 @@
 # Types means the browser refuses innerHTML and similar string-to-HTML calls
 # outright (we never use them; see dom.js). Its one policy, crypto-worker,
 # lets through only the crypto Worker's URL (vault.js), which worker-src
-# 'self' allows to start.
+# 'self' allows to start. img-src blob: shows photos decrypted on the
+# device (photo-urls.js); nothing else makes blob: URLs for images.
 #
 # no-store everywhere, including JS and CSS: it's simpler than listing page
 # paths, and keeps pages with journal data out of the back/forward cache.
 /*
   Cache-Control: no-store
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types crypto-worker
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types crypto-worker
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()

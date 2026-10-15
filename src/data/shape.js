@@ -5,8 +5,9 @@
 // plans) can be followed in the file and rebuilt by import. Deleted links stay
 // as they are in the app: a participant or plan link with a null id, and
 // location_deleted on a tie. Tags are listed by name, as the app sends them.
-// `photos` is always empty for now: it's where step 6 will list each photo,
-// pointing at its file inside a .zip export (see considerations.md).
+// Each tie and plan lists its photos, with `file`: where the page puts the
+// photo in the .zip it saves (the server can't decrypt photos, so the page
+// fetches and decrypts each one; captions are still sealed here).
 
 export const EXPORT_FORMAT = "rope-journal-export";
 export const EXPORT_VERSION = 1;
@@ -26,6 +27,7 @@ export const EXPORT_VERSION = 1;
  *   participants: Row[],
  *   tiePlans: Row[],
  *   tieTags: Row[],
+ *   media: Row[],
  * }} AccountRows
  */
 
@@ -39,6 +41,8 @@ export function exportDocument(rows, exportedAt) {
   const participantsByTie = groupBy(rows.participants, "tie_id");
   const plansByTie = groupBy(rows.tiePlans, "tie_id");
   const tagsByTie = groupBy(rows.tieTags, "tie_id");
+  const photosByTie = groupBy(rows.media.filter((m) => m.tie_id), "tie_id");
+  const photosByPlan = groupBy(rows.media.filter((m) => m.plan_id), "plan_id");
 
   return {
     format: EXPORT_FORMAT,
@@ -71,7 +75,7 @@ export function exportDocument(rows, exportedAt) {
       est_difficulty: p.est_difficulty, variation_of: p.variation_of, version: p.version,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       tags: (tagsByPlan.get(p.id) ?? []).map((t) => t.name),
-      photos: [],
+      photos: (photosByPlan.get(p.id) ?? []).map(photoEntry),
     })),
     tags: rows.tags.map((t) => t.name),
     ties: rows.ties.map((t) => ({
@@ -85,9 +89,29 @@ export function exportDocument(rows, exportedAt) {
       })),
       plans: (plansByTie.get(t.id) ?? []).map((p) => ({ plan_id: p.plan_id, plan_version: p.plan_version })),
       tags: (tagsByTie.get(t.id) ?? []).map((x) => x.name),
-      photos: [],
+      photos: (photosByTie.get(t.id) ?? []).map(photoEntry),
     })),
   };
+}
+
+/**
+ * A photo as the export lists it.
+ * @param {Row} m
+ */
+function photoEntry(m) {
+  return {
+    id: m.id, kind: m.kind, mime: m.mime, file: photoFile(m.id, m.mime),
+    caption: m.caption, position: m.position, created_at: m.created_at,
+  };
+}
+
+/**
+ * Where a photo goes inside the export's zip, e.g. photos/<id>.webp.
+ * @param {string} id
+ * @param {string} mime
+ */
+export function photoFile(id, mime) {
+  return `photos/${id}.${mime === "image/webp" ? "webp" : "jpg"}`;
 }
 
 /**
