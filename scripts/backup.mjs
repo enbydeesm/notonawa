@@ -1,4 +1,4 @@
-// Takes an encrypted backup of the rope-journal database, and deletes
+// Takes an encrypted backup of the notonawa database, and deletes
 // backups older than RETENTION_DAYS (7, matching D1's own history).
 //
 //   node scripts/backup.mjs --remote          back up the real database
@@ -47,10 +47,10 @@ try {
     const flags = targetFlags(args);
     const target = flags.includes("--remote") ? "remote" : "local";
     // mkdtemp makes the folder readable only by you.
-    const work = mkdtempSync(path.join(tmpdir(), "rope-backup-"));
+    const work = mkdtempSync(path.join(tmpdir(), "notonawa-backup-"));
     try {
       const dump = path.join(work, "dump.sql");
-      const run = spawnSync("npx", ["wrangler", "d1", "export", "rope-journal", ...flags, "--output", dump], { encoding: "utf8" });
+      const run = spawnSync("npx", ["wrangler", "d1", "export", "notonawa", ...flags, "--output", dump], { encoding: "utf8" });
       if (run.status !== 0) throw new Error(`wrangler d1 export failed:\n${run.stdout}${run.stderr}`);
       const file = path.join(BACKUPS, backupName(target, Date.now()));
       writeFileSync(file, await encryptBackup(readFileSync(dump), secret), { mode: 0o600 });

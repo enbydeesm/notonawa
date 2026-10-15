@@ -36,7 +36,7 @@ describe("typeFromName and journalEntry", () => {
       .toEqual(["image/webp", "image/jpeg", "image/jpeg", "image/png", ""]);
   });
   it("find the journal in the zip", () => {
-    expect(journalEntry(["photos/a.webp", "rope-journal.json"])).toBe("rope-journal.json");
+    expect(journalEntry(["photos/a.webp", "notonawa.json"])).toBe("notonawa.json");
     expect(journalEntry(["export/my-journal.json", "photos/a.webp", "__MACOSX/._x"])).toBe("export/my-journal.json");
     expect(journalEntry(["a.json", "b.json"])).toBeNull();
     expect(journalEntry(["photos/a.webp"])).toBeNull();

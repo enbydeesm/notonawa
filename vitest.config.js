@@ -1,4 +1,4 @@
-// Tests run inside the Workers runtime with a local D1 database, using the
+// Tests run inside the Workers runtime with a local D1 database and R2, using the
 // bindings from wrangler.jsonc. test/apply-migrations.js builds the schema
 // from migrations/ before each test file.
 import path from "node:path";
@@ -9,6 +9,8 @@ export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
       wrangler: { configPath: "./wrangler.jsonc" },
+      // Never the real D1 or R2, even though wrangler.jsonc marks them remote.
+      remoteBindings: false,
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(import.meta.dirname, "migrations")),

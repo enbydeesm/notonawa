@@ -83,8 +83,8 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's name. Search for "Rope Journal" when it's renamed.
-      h("h2", { className: "menu-title" }, "Rope Journal"),
+      // The app's name. Search for "NotoNawa" when it's renamed.
+      h("h2", { className: "menu-title" }, "NotoNawa"),
       theme.row,
       h("a", {
         href: "/account", className: "menu-item nav-account",

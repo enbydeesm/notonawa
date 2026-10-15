@@ -19,7 +19,7 @@ const BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
  * @returns {{ invite: string }} the invite code, normalised
  */
 export function parseSignUp(body) {
-  if (body.adult !== true) throw new BadInput("Rope Journal is for adults only. Please confirm you're 18 or older.");
+  if (body.adult !== true) throw new BadInput("NotoNawa is for adults only. Please confirm you're 18 or older.");
   if (body.consent !== true) throw new BadInput("Please agree to the privacy policy to create an account.");
   const invite = normaliseCode(body.invite);
   if (!invite || invite.length !== INVITE_LENGTH) throw new BadInput("That invite code doesn't look right.");

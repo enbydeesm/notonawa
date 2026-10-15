@@ -1,6 +1,6 @@
-# Rope Journal Privacy Policy
+# NotoNawa Privacy Policy
 
-> **DRAFT: ** This policy describes how Rope Journal will
+> **DRAFT: ** This policy describes how NotoNawa will
 > handle data once the work planned in the privacy and accounts
 > roadmap is finished. Some of it isn't true of the app today, 
 > and some [information] is yet to be filled in.
@@ -9,7 +9,7 @@
 
 ## The short version
 
-- Rope Journal is a private journal for rope practice. It is built so that
+- NotoNawa is a private journal for rope practice. It is built so that
   **the most sensitive parts, your notes and your photos, are encrypted on
   your device before they leave it.** We can't read them, and neither can
   anyone who gets hold of our servers.
@@ -30,10 +30,10 @@
 
 ## Who we are
 
-Rope Journal is run by [OPERATOR NAME] ("we", "us"), [LOCATION / COUNTRY].
-Contact us about privacy at [CONTACT EMAIL].
+NotoNawa is run by Mx_Piggie ("we", "us"), Seattle, WA, USA.
+Contact us about privacy at contact@notonawa.app.
 
-Rope Journal is for adults only. You must be 18 or older to create an
+NotoNawa is for adults only. You must be 18 or older to create an
 account.
 
 ## What we collect
@@ -43,7 +43,7 @@ account.
 - **A passkey.** When you create a passkey, your device keeps the secret part.
   We store only the public part, an ID for it, the name you give it (e.g.
   "My phone") and when it was created and last used. A passkey can't be
-  used to identify you outside Rope Journal.
+  used to identify you outside NotoNawa.
 - **Your sessions.** When you sign in we give your browser a random session
   token in a cookie. We store a scrambled (hashed) copy of it, which passkey
   you signed in with, when the session started, and when it was last used
@@ -201,9 +201,9 @@ about them.
 
 ## Where your data is stored
 
-Rope Journal runs on Cloudflare (Workers, D1 database and R2 storage), which is
+NotoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is
 our only service provider with access to stored data. We ask Cloudflare to
-store photos in North America [and the database in REGION]; Cloudflare
+store photos in North America [and the database in enam]; Cloudflare
 doesn't guarantee where data is kept, and its network may handle it in
 other countries. Everything is
 encrypted at rest by Cloudflare, in addition to our own encryption of your
@@ -219,7 +219,7 @@ Google.
 
 We use one cookie: your session cookie. It's needed to keep you signed in. It
 can't be read by scripts, is only sent over secure connections and only to
-Rope Journal, and expires after [30] days, or sooner after [7] days without
+NotoNawa, and expires after [30] days, or sooner after [7] days without
 use. We use no other cookies, local storage for tracking, or similar
 technologies. If you switch between light and dark mode, the app remembers
 that choice in your browser's local storage (just the word "light" or
@@ -235,7 +235,7 @@ that choice in your browser's local storage (just the word "light" or
   clean-up removes what was left within a day or two.
 - **When you delete your account**, everything in it (journal, photos,
   passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
-  or password manager may still list your passkey for Rope Journal; where the
+  or password manager may still list your passkey for NotoNawa; where the
   browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
   recovery, so deleted data can remain there for up to 7 days before it
@@ -264,8 +264,8 @@ Wherever you live, you can:
 - **Delete** individual entries, or your whole account, from the app.
 - **End sessions** on any device, or remove passkeys, from your account
   settings.
-- **Contact us** at [CONTACT EMAIL] with any privacy question or request. We
-  will respond within [30] days.
+- **Contact us** at contact@notonawa.app with any privacy question or request. We
+  will respond within 10 days.
 
 Depending on where you live (for example the EU, UK or California), you may
 have further rights under laws such as the GDPR or CCPA, including the right
@@ -279,7 +279,7 @@ time by deleting your data or your account.
 
 ## Our own access
 
-The only person who can access Rope Journal's systems is [OPERATOR NAME],
+The only person who can access NotoNawa's systems is Mx_Piggie,
 using an account protected by a hardware security key. We don't browse users'
 data. We would look at the readable parts of an account only when you ask us
 to (for example to help with a problem), or when the law requires it.
@@ -334,4 +334,4 @@ we will ask for your agreement first.
 
 ## Contact
 
-[OPERATOR NAME] · [CONTACT EMAIL]
+Mx_Piggie · contact@notonawa.app

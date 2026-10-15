@@ -5,7 +5,8 @@
 // File: "RJB1" | PBKDF2 iterations (uint32, big-endian) | salt (16 bytes) |
 // IV (12 bytes) | AES-256-GCM ciphertext with its tag. The key comes from a
 // passphrase with PBKDF2-SHA256. The iteration count is in the header so it
-// can be raised later without breaking old backups.
+// can be raised later without breaking old backups. "RJB1" is from the
+// app's old name (Rope Journal); it stays so old backups still open.
 
 export const RETENTION_DAYS = 7; // matches D1's own rolling history on the Free plan
 export const ITERATIONS = 600_000; // OWASP's figure for PBKDF2-SHA256
@@ -14,7 +15,8 @@ const MAX_ITERATIONS = 10_000_000;
 
 const MAGIC = new TextEncoder().encode("RJB1");
 const HEADER = MAGIC.length + 4 + 16 + 12;
-const NAME = /^rope-journal-(remote|local)-(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z\.sql\.enc$/;
+// rope-journal-…: backups taken before the app was renamed.
+const NAME = /^(?:notonawa|rope-journal)-(remote|local)-(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z\.sql\.enc$/;
 
 /**
  * @param {string} passphrase
@@ -62,7 +64,7 @@ export async function decryptBackup(file, passphrase) {
   // .buffer directly would start somewhere else entirely.
   file = new Uint8Array(file);
   if (file.length < HEADER + 16 || !MAGIC.every((b, i) => file[i] === b)) {
-    throw new Error("This isn't a Rope Journal backup.");
+    throw new Error("This isn't a NotoNawa backup.");
   }
   const header = file.slice(0, HEADER);
   const iterations = new DataView(header.buffer).getUint32(MAGIC.length);
@@ -80,13 +82,13 @@ export async function decryptBackup(file, passphrase) {
 
 /**
  * The file name for a backup taken now, e.g.
- * rope-journal-remote-20261013T174200Z.sql.enc
+ * notonawa-remote-20261013T174200Z.sql.enc
  * @param {"remote" | "local"} target
  * @param {number} now
  */
 export function backupName(target, now) {
   const stamp = new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z").replace(/[-:]/g, "");
-  return `rope-journal-${target}-${stamp}.sql.enc`;
+  return `notonawa-${target}-${stamp}.sql.enc`;
 }
 
 /**

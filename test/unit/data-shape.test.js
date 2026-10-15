@@ -29,7 +29,7 @@ describe("exportDocument", () => {
 
   it("labels the file with its format, version and time", () => {
     expect(exportDocument(EMPTY, "2026-10-13T10:00:00Z")).toMatchObject({
-      format: "rope-journal-export", version: 1, exported_at: "2026-10-13T10:00:00Z",
+      format: "notonawa-export", version: 1, exported_at: "2026-10-13T10:00:00Z",
       account: { created_at: "2026-01-01T00:00:00Z", terms_version: "1", recovery_email_set: false, passkeys: [] },
       people: [], locations: [], plans: [], tags: [], ties: [],
     });
@@ -87,6 +87,6 @@ describe("exportDocument", () => {
 
 describe("exportFileName", () => {
   it("names the file after the day", () => {
-    expect(exportFileName("2026-10-13T23:59:00Z")).toBe("rope-journal-2026-10-13.json");
+    expect(exportFileName("2026-10-13T23:59:00Z")).toBe("notonawa-2026-10-13.json");
   });
 });

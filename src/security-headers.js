@@ -11,8 +11,8 @@ export const SECURITY_HEADERS = Object.freeze({
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
   "referrer-policy": "no-referrer",
-  // No includeSubDomains while the app is on workers.dev (see considerations.md).
-  "strict-transport-security": "max-age=31536000",
+  // includeSubDomains: .app is HTTPS-only anyway (see considerations.md).
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
 });

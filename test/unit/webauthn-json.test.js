@@ -20,14 +20,14 @@ describe("base64url", () => {
 describe("options from the server", () => {
   it("turn ids and challenges into bytes for create()", () => {
     const options = creationOptionsFromJSON({
-      challenge: "AAE", rp: { name: "Rope Journal" }, user: { id: "AgM", name: "x" },
+      challenge: "AAE", rp: { name: "NotoNawa" }, user: { id: "AgM", name: "x" },
       excludeCredentials: [{ id: "BAU", transports: ["internal"] }],
     });
     expect([...options.challenge]).toEqual([0, 1]);
     expect([...options.user.id]).toEqual([2, 3]);
     expect(options.excludeCredentials[0]).toMatchObject({ type: "public-key", transports: ["internal"] });
     expect([...options.excludeCredentials[0].id]).toEqual([4, 5]);
-    expect(options.rp).toEqual({ name: "Rope Journal" });
+    expect(options.rp).toEqual({ name: "NotoNawa" });
   });
 
   it("turn the challenge into bytes for get(), with no passkey list", () => {

@@ -54,7 +54,7 @@ const encode = (/** @type {string} */ text) => /** @type {Uint8Array<ArrayBuffer
  * @param {string} field
  */
 function additionalData(userId, table, field) {
-  return encode(`rope-journal|field|v1|${userId}|${table}.${field}`);
+  return encode(`notonawa|field|v1|${userId}|${table}.${field}`);
 }
 
 /**

@@ -32,7 +32,7 @@ export async function loginSecret(code) {
   const encode = (/** @type {string} */ text) => new TextEncoder().encode(text);
   const key = await crypto.subtle.importKey("raw", encode(code), "HKDF", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
-    { name: "HKDF", hash: "SHA-256", salt: encode("rope-journal recovery"), info: encode("login") },
+    { name: "HKDF", hash: "SHA-256", salt: encode("notonawa recovery"), info: encode("login") },
     key,
     256
   );

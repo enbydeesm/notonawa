@@ -225,7 +225,7 @@ describe("importing an export", () => {
 
     const { doc, errors } = csvToImport(parseCsv(template));
     expect(errors).toEqual([]);
-    const result = await importFile({ format: "rope-journal-export", version: 1, ...doc }, user.cookie);
+    const result = await importFile({ format: "notonawa-export", version: 1, ...doc }, user.cookie);
     expect([result.added, result.skipped]).toEqual([1, 0]);
     expect(result.items.people.map((/** @type {any} */ p) => [p.name, p.matched])).toEqual([["Sam", true], ["Alex", false]]);
 
@@ -246,7 +246,7 @@ describe("importing an export", () => {
   it("uses each plan's current version when the file doesn't say", async () => {
     const user = await newUser();
     const items = await importFile({
-      format: "rope-journal-export", version: 1,
+      format: "notonawa-export", version: 1,
       plans: [{ id: "p", title: "TK", version: 3 }],
       ties: [{ title: "Tie", tie_date: "2026-01-01", plans: [{ plan_id: "p" }] }],
     }, user.cookie);

@@ -1,10 +1,10 @@
 // Decrypts a backup made by scripts/backup.mjs back into SQL.
 //
-//   node scripts/restore-backup.mjs backups/rope-journal-remote-20261013T174200Z.sql.enc
+//   node scripts/restore-backup.mjs backups/notonawa-remote-20261013T174200Z.sql.enc
 //
 // Writes the .sql next to it (without .enc), readable only by you. It doesn't
 // load it anywhere: to look at it, load it into a throwaway local database,
-//   npx wrangler d1 execute rope-journal --local --persist-to <new folder> --file <the .sql>
+//   npx wrangler d1 execute notonawa --local --persist-to <new folder> --file <the .sql>
 // and delete the .sql when you're done (it's unencrypted journal data).
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";

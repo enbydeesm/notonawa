@@ -1,4 +1,4 @@
-# Rope Journal: instructions for Claude
+# NotoNawa: instructions for Claude
 
 A private rope journal: plan ties, log what happened, and keep notes on the
 people and places involved. Design ideas we've weighed, and planned features,
@@ -21,7 +21,7 @@ live in [considerations.md](considerations.md).
   it could lose data. Database backups/exports go in `backups/` (git-ignored:
   they contain journal data).
 - **Never edit a migration that's been applied to the remote database**; add a
-  new one. Check with `npx wrangler d1 migrations list rope-journal --remote`.
+  new one. Check with `npx wrangler d1 migrations list notonawa --remote`.
   Test every migration on a copy of the local database first
   (`--persist-to <copy of .wrangler/state>`), seeded with linked data.
 - **Record design decisions** that we weigh but don't adopt, and planned
@@ -39,7 +39,7 @@ live in [considerations.md](considerations.md).
   Worker (`run_worker_first`); everything else is a static file, and any
   address that isn't one gets `index.html` (`not_found_handling:
   "single-page-application"`), the app's only page.
-- **D1** (SQLite) database `rope-journal`, binding `DB`. Schema changes only via
+- **D1** (SQLite) database `notonawa`, binding `DB`. Schema changes only via
   numbered files in `migrations/`.
 - **Passkeys (WebAuthn) for sign-in**, with app sessions in D1, using
   `@simplewebauthn/server`. Sign-up is invite-only (`scripts/invite.mjs`).

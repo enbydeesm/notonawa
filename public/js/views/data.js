@@ -4,7 +4,7 @@
 // Notes are encrypted: an export opens them on the device before the file
 // is saved, and an import seals them before anything is sent.
 //
-// With photos, an export is a .zip: rope-journal.json and a photos/
+// With photos, an export is a .zip: notonawa.json and a photos/
 // folder, each photo decrypted here. Importing one saves the journal first,
 // then prepares, seals and uploads each photo (import-photos.js).
 
@@ -65,7 +65,7 @@ async function buildExport(progress) {
   const sealed = await api("/api/data/export");
   // Opened here, on the device: the file has the notes in plain text.
   const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
-  const name = `rope-journal-${doc.exported_at.slice(0, 10)}`;
+  const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
   /** @type {any[]} */
   const entries = [...doc.ties, ...doc.plans].flatMap((x) => x.photos ?? []);
   if (entries.length === 0) {
@@ -92,7 +92,7 @@ async function buildExport(progress) {
     }
   }
   const json = /** @type {Uint8Array<ArrayBuffer>} */ (new TextEncoder().encode(JSON.stringify(doc, null, 2)));
-  const zip = new Blob(makeZip([{ name: "rope-journal.json", data: json }, ...files], new Date(doc.exported_at)), { type: "application/zip" });
+  const zip = new Blob(makeZip([{ name: "notonawa.json", data: json }, ...files], new Date(doc.exported_at)), { type: "application/zip" });
   return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable: unreadable + unreadableCaptions, missing };
 }
 
@@ -252,7 +252,7 @@ export function mount() {
     if (looksLikeZip(new Uint8Array(buffer))) {
       const files = await readZip(buffer);
       const name = journalEntry(files.keys());
-      if (!name) throw new Error("This zip file isn't a Rope Journal export.");
+      if (!name) throw new Error("This zip file isn't a NotoNawa export.");
       return { doc: readExport(parseJson(new TextDecoder().decode(files.get(name)))), files };
     }
     const text = new TextDecoder().decode(buffer);
@@ -269,7 +269,7 @@ export function mount() {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error("Choose a Rope Journal export (.json or .zip) or a CSV file.");
+      throw new Error("Choose a NotoNawa export (.json or .zip) or a CSV file.");
     }
   }
 

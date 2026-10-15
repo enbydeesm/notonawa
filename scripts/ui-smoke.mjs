@@ -53,7 +53,7 @@ async function waitFor(url, what) {
 // --- start the app on a fresh database -------------------------------------
 
 const dbDir = path.join(workDir, "state");
-const migrate = spawnSync("npx", ["wrangler", "d1", "migrations", "apply", "rope-journal", "--local", "--persist-to", dbDir], { encoding: "utf8" });
+const migrate = spawnSync("npx", ["wrangler", "d1", "migrations", "apply", "notonawa", "--local", "--persist-to", dbDir], { encoding: "utf8" });
 if (migrate.status !== 0) {
   console.error(migrate.stdout, migrate.stderr);
   cleanup();
@@ -80,6 +80,12 @@ config.main = path.join(projectDir, config.main);
 config.assets.directory = path.join(projectDir, config.assets.directory);
 config.ratelimits = config.ratelimits.map((r) => ({ ...r, simple: { ...r.simple, limit: 1000 } }));
 for (const db of config.d1_databases) db.migrations_dir = path.join(projectDir, "migrations");
+// Local D1 and R2 only: wrangler.jsonc marks them remote for `npm run dev`,
+// and this walkthrough must never touch the real ones.
+for (const binding of [...config.d1_databases, ...config.r2_buckets]) delete binding.remote;
+// No routes either: with the notonawa.app route in the config, signing up
+// with a passkey fails under wrangler dev on localhost.
+delete config.routes;
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -350,7 +356,7 @@ try {
   await go("/plans", { unlock: false });
   check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
     return [location.pathname, ...(() => { ${shown} })()];`),
-    ["/plans", "Unlock · Rope Journal", "Rope Journal", true, "unlock-choose", false]);
+    ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
@@ -358,7 +364,7 @@ try {
     const login = JSON.parse(sent.find(([url]) => url.endsWith("/api/auth/login/verify"))[1]);
     return [location.pathname, document.title, $("#view h1").textContent, login.prf, JSON.stringify(login.response.clientExtensionResults),
       sent.some(([, body]) => body.includes("results"))];`),
-    ["/plans", "Plans · Rope Journal", "Plans", true, JSON.stringify({ prf: {} }), false]);
+    ["/plans", "Plans · NotoNawa", "Plans", true, JSON.stringify({ prf: {} }), false]);
   await go("/", { unlock: false });
   check("the recovery code unlocks too; a wrong one says so", await run(`
     [...document.querySelectorAll("[data-unlock-show=code]")][0].click(); await wait(100);
@@ -373,7 +379,7 @@ try {
 
   // An account from before encryption: no key yet.
   const userId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
-  spawnSync("npx", ["wrangler", "d1", "execute", "rope-journal", "--local", "--persist-to", dbDir,
+  spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", "--local", "--persist-to", dbDir,
     "--command", `DELETE FROM key_wraps WHERE user_id = '${userId}'`], { encoding: "utf8" });
   await go("/", { unlock: false });
   check("an account without a key is asked to set one up after the passkey", await run(`
@@ -427,7 +433,7 @@ try {
     return [$(".menu-title").textContent, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-theme svg path").getAttribute("fill"), document.querySelectorAll(".menu-theme svg line").length,
       $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["Rope Journal", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
+    ["NotoNawa", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
   check("Privacy Policy sits at the bottom of the panel", await run(`
     const panel = $(".menu-inner").getBoundingClientRect(), row = $(".menu-privacy").getBoundingClientRect();
     return [Math.round(panel.bottom - row.bottom), row.top - $(".nav-data").getBoundingClientRect().bottom > 100];`), [16, true]);
@@ -466,12 +472,12 @@ try {
     $("nav a[aria-current=page]")?.textContent ?? null, document.activeElement === $("#view h1")];`;
   check("a tab changes the view without loading a new page, with its title, tab and focus", await run(`
     window.marker = 1; $("nav a[href='/plans']").click(); await wait(800); ${viewState}`),
-    ["/plans", "Plans · Rope Journal", "Plans", true, "Plans", true]);
+    ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true]);
   check("Back and Forward change the view, still without a page load", await run(`
     history.back(); await wait(800); const back = (() => { ${viewState} })();
     history.forward(); await wait(800); return [back, (() => { ${viewState} })()];`), [
-    ["/", "Rope Journal", "Rope Journal", true, "Ties", true],
-    ["/plans", "Plans · Rope Journal", "Plans", true, "Plans", true],
+    ["/", "NotoNawa", "NotoNawa", true, "Ties", true],
+    ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true],
   ]);
   check("Back to the Ties list brings back its sort order", await run(`
     $("nav a[href='/']").click(); await wait(800); $("#sort").click(); await settle();
@@ -487,7 +493,7 @@ try {
   await go("/people");
   check("an address loaded directly (a bookmark or refresh) shows its view", await run(`
     return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.textContent, $("nav").hidden];`),
-    ["People · Rope Journal", "People", "People", false]);
+    ["People · NotoNawa", "People", "People", false]);
   await go("/nope");
   // "Not found" doesn't need the key, so after loading it the journal is
   // locked, and the ties ask to unlock first.
@@ -495,7 +501,7 @@ try {
     const shown = [document.title, $("#view h1").textContent, $("nav a[aria-current=page]") === null];
     window.marker = 1; $("#view a[href='/']").click(); await wait(800);
     return [...shown, location.pathname, document.title, $("#unlock-choose")?.hidden === false, window.marker === 1];`),
-    ["Page not found · Rope Journal", "Page not found", true, "/", "Unlock · Rope Journal", true, true]);
+    ["Page not found · NotoNawa", "Page not found", true, "/", "Unlock · NotoNawa", true, true]);
 
   console.log("People");
   await go("/people");
@@ -815,7 +821,7 @@ try {
     return [titles().includes("Knot test"), $("#tie-count").textContent];`), [false, "Showing 23 of 23 ties"]);
 
   // Notes written before encryption: plain text in the database.
-  spawnSync("npx", ["wrangler", "d1", "execute", "rope-journal", "--local", "--persist-to", dbDir,
+  spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", "--local", "--persist-to", dbDir,
     "--command", "UPDATE people SET notes = 'Written before encryption' WHERE name = 'Sam'"], { encoding: "utf8" });
   await go("/people");
   await sleep(1500);
@@ -1028,7 +1034,7 @@ try {
   await run(`$("#sign-out").click();`);
   await sleep(1500);
   check("sign out goes to the sign-in page, without the nav, and the journal stays locked", await run(`
-    return [location.pathname, $("nav").hidden, document.title, (await fetch("/api/tags")).status];`), ["/signin", true, "Sign in · Rope Journal", 401]);
+    return [location.pathname, $("nav").hidden, document.title, (await fetch("/api/tags")).status];`), ["/signin", true, "Sign in · NotoNawa", 401]);
 
   console.log("Signing in");
   await go("/signin");
@@ -1091,11 +1097,11 @@ try {
     $("#export").click(); await wait(1500); return $("#export-message").textContent;`), "Downloaded.");
   await sleep(500);
   const exported = readdirSync(downloads);
-  check("…as a dated JSON file", exported.length === 1 && /^rope-journal-\d{4}-\d\d-\d\d\.json$/.test(exported[0]), true);
+  check("…as a dated JSON file", exported.length === 1 && /^notonawa-\d{4}-\d\d-\d\d\.json$/.test(exported[0]), true);
   const exportText = exported.length ? readFileSync(path.join(downloads, exported[0]), "utf8") : "{}";
   const exportDoc = JSON.parse(exportText);
   check("the file has every tie, and the people", [exportDoc.format, exportDoc.ties?.length, exportDoc.people?.map((p) => p.name).sort()],
-    ["rope-journal-export", 24, ["Alex", "Me"]]);
+    ["notonawa-export", 24, ["Alex", "Me"]]);
   check("…with the notes decrypted on the device, nothing left encrypted",
     // "Floor session" was renamed when editing was checked.
     [exportDoc.ties?.find((t) => t.title?.startsWith("Floor session"))?.notes ?? null, exportText.includes('"e1.')],
@@ -1126,7 +1132,7 @@ try {
   check("importing the export into the same journal has nothing to add", (await chooseFile(exported[0] ?? "x.json", "application/json", exportText)).slice(1),
     [null, "Everything in this file is already in your journal."]);
   check("a file that isn't an export is refused", (await chooseFile("notes.json", "application/json", '{"hello":1}'))[2],
-    "This isn't a Rope Journal export.");
+    "This isn't a NotoNawa export.");
 
   // With photos, the export is a zip that imports back.
   const photoTie = await run(`
@@ -1147,11 +1153,11 @@ try {
   const { readZip } = await import("../public/js/zip.js");
   const zipBytes = zipped.length ? readFileSync(path.join(zipDownloads, zipped[0])) : Buffer.alloc(0);
   const zipFiles = zipped.length ? await readZip(zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.length)) : new Map();
-  const zipDoc = JSON.parse(new TextDecoder().decode(zipFiles.get("rope-journal.json") ?? new TextEncoder().encode("{}")));
+  const zipDoc = JSON.parse(new TextDecoder().decode(zipFiles.get("notonawa.json") ?? new TextEncoder().encode("{}")));
   const zipPhoto = zipDoc.ties?.find((t) => t.title === "Zip test")?.photos?.[0];
   const photoBytes = zipPhoto ? zipFiles.get(zipPhoto.file) : null;
   check("…holding the journal and the photo, decrypted, with its caption", [
-    /^rope-journal-\d{4}-\d\d-\d\d\.zip$/.test(zipped[0] ?? ""), zipPhoto?.caption, zipPhoto?.file?.startsWith("photos/"),
+    /^notonawa-\d{4}-\d\d-\d\d\.zip$/.test(zipped[0] ?? ""), zipPhoto?.caption, zipPhoto?.file?.startsWith("photos/"),
     photoBytes ? new TextDecoder("latin1").decode(photoBytes.subarray(0, 12)).replace(/^RIFF.{4}/s, "RIFF") : null,
   ], [true, "Zip caption", true, "RIFFWEBP"]);
   // The photo is deleted, then the zip imported: it comes back on the tie.

@@ -20,14 +20,14 @@ describe("makeZip and readZip", () => {
   it("round-trip files, with UTF-8 names and binary data", async () => {
     const photo = new Uint8Array(70_000).map((_, i) => (i * 31) % 256);
     const buffer = await joined(makeZip([
-      { name: "rope-journal.json", data: text('{"a":"ö"}') },
+      { name: "notonawa.json", data: text('{"a":"ö"}') },
       { name: "photos/ö-1.webp", data: photo },
       { name: "empty.txt", data: new Uint8Array() },
     ], new Date(2026, 9, 14, 21, 30, 10)));
     expect(looksLikeZip(new Uint8Array(buffer))).toBe(true);
     const files = await readZip(buffer);
-    expect([...files.keys()]).toEqual(["rope-journal.json", "photos/ö-1.webp", "empty.txt"]);
-    expect(new TextDecoder().decode(files.get("rope-journal.json"))).toBe('{"a":"ö"}');
+    expect([...files.keys()]).toEqual(["notonawa.json", "photos/ö-1.webp", "empty.txt"]);
+    expect(new TextDecoder().decode(files.get("notonawa.json"))).toBe('{"a":"ö"}');
     expect(files.get("photos/ö-1.webp")).toEqual(photo);
     expect(files.get("empty.txt")?.length).toBe(0);
   });

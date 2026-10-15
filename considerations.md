@@ -99,7 +99,7 @@ Each step leaves the app working and shippable on its own.
   changes from review, in "Step 4b as built"):
   - Sign-in is discoverable (no `allowCredentials`), so PRF can't use
     `evalByCredential`: one fixed app-wide salt in `prf.eval.first`, and
-    HKDF(PRF output, a random salt per wrap, info "rope-journal wrap v1")
+    HKDF(PRF output, a random salt per wrap, info "notonawa wrap v1")
     gives the wrapping key. The recovery code's wrapping key uses HKDF with
     another `info` than "login".
   - Each wrap is bound to its user, wrap id and version as AES-GCM
@@ -135,10 +135,10 @@ Each step leaves the app working and shippable on its own.
   with `autocomplete="off"`. Basic spellcheck is local, but Chrome's opt-in
   "enhanced" spellcheck sends the text to Google, and we can't tell which one
   a user has on.
-- **HSTS without `includeSubDomains`** for now (2026-10-12): the app is on
-  `workers.dev`, whose other subdomains aren't ours. **Revisit** when the app
-  moves to a custom domain: add `includeSubDomains` if every subdomain there
-  serves HTTPS, and consider preload.
+- **HSTS with `includeSubDomains`** (2026-10-14): the app moved from
+  `workers.dev` (whose other subdomains aren't ours) to `notonawa.app`. The
+  whole `.app` TLD is on browsers' HSTS preload list, so every subdomain is
+  HTTPS-only regardless; preloading the domain itself would add nothing.
 - **No stored request logs** (`observability.enabled: false`). Errors are
   only visible live with `wrangler tail`. Accepted (2026-10-12).
 - **Packages per step** (each still needs approval when its step starts):
@@ -193,14 +193,14 @@ Each step leaves the app working and shippable on its own.
 ### Step 3 as built
 
 - **Export** (`GET /api/data/export`, the "Your data" page): one JSON file,
-  `format: "rope-journal-export"`, `version: 1`. Items keep their ids so the
+  `format: "notonawa-export"`, `version: 1`. Items keep their ids so the
   file's links can be followed and rebuilt; deleted links stay as null ids
   and `location_deleted`. Account details are only dates, the terms version
   and passkey names: no hashes, public keys or sessions. The page fetches it
   and saves it from a `blob:` URL (revoked after 10 s) rather than linking to
   the route, so step 5 can decrypt on the device first.
 - **Photos in exports (step 6), decided now:** the export becomes a `.zip`
-  holding `rope-journal.json` and a `photos/` folder, files named by photo
+  holding `notonawa.json` and a `photos/` folder, files named by photo
   id. Each tie and plan lists its photos in `photos: [{ id, file, caption,
   position, created_at }]`, `file` being the path inside the zip, so the
   JSON stays the record of what's attached where (titles repeat and change;
@@ -350,11 +350,11 @@ Each step leaves the app working and shippable on its own.
   misuse a little, not entirely.
 - **Keys** (`public/js/crypto/keys.js`): one random AES-256-GCM data key per
   user. Wraps use AES-GCM `wrapKey` with a key from HKDF-SHA256(secret, a
-  random 16-byte salt per wrap, info `"rope-journal wrap v1 <kind> <user
-  id>"`); the additional data is `rope-journal|v<version>|<user
+  random 16-byte salt per wrap, info `"notonawa wrap v1 <kind> <user
+  id>"`); the additional data is `notonawa|v<version>|<user
   id>|<wrap id>|<kind>`. The secret is a passkey's PRF output, or the
   recovery code (160 random bits, so HKDF is enough). The PRF salt is fixed
-  (`SHA-256("rope-journal prf v1")`): sign-in has no username, so it can't
+  (`SHA-256("notonawa prf v1")`): sign-in has no username, so it can't
   be per user before a passkey is chosen (Copilot's review suggested a
   per-user salt); the user id went into the HKDF info instead.
 - **The Worker** (`crypto-worker.js`, logic in `crypto/vault-core.js`): holds
@@ -419,7 +419,7 @@ Each step leaves the app working and shippable on its own.
 
 - **Format:** `e1.<iv>.<ciphertext>` (base64url) in the same columns (no
   migration). AES-256-GCM with the data key; the additional data is
-  `rope-journal|field|v1|<user>|<table>.<field>`. Text is trimmed and empty
+  `notonawa|field|v1|<user>|<table>.<field>`. Text is trimmed and empty
   text stored as null, as `cleanText` did. `crypto/fields.js` (browser) and
   `encryptedText` in `src/parse.js` (server) check the same pattern; a unit
   test keeps them, and the two lists of encrypted columns
@@ -479,7 +479,7 @@ Agreed 2026-10-14, before building:
   `mime`. The export keeps the `photos` list step 3 planned, each entry
   with its `kind`.
 - **One R2 object per photo**, `<owner id>/<photo id>` in the private
-  `rope-journal-photos` bucket (location hint `enam`: users are in the US
+  `notonawa-photos` bucket (location hint `enam`: users are in the US
   and Canada; R2's only jurisdictions are EU and FedRAMP). The object is the
   sealed thumbnail then the sealed full size; `thumb_bytes` says where one
   ends, and the routes serve each with an R2 range read. One `PUT` per
@@ -517,7 +517,7 @@ Agreed 2026-10-14, before building:
 
 - **Sealed format:** each part (thumbnail, full size) is a 12-byte IV and
   its AES-GCM ciphertext, with additional data
-  `rope-journal|media|v1|<user>|<photo id>|thumb|full|caption`
+  `notonawa|media|v1|<user>|<photo id>|thumb|full|caption`
   (`crypto/media.js`). One piece per part: photos are small. Videos will
   need a format in pieces with its own version (not built now, despite the
   earlier idea of using it for photos too: it bought nothing yet).
@@ -553,7 +553,7 @@ Agreed 2026-10-14, before building:
 - **Backups** (`scripts/backup.mjs`) are of D1 only: photos aren't backed
   up, which PRIVACY.md says.
 - **Deploying:** create the bucket (`npx wrangler r2 bucket create
-  rope-journal-photos --location enam`, public access left off), apply
+  notonawa-photos --location enam`, public access left off), apply
   migration 0010, then deploy.
 - **Not built (yet):** thumbnails on tie cards, dragging to reorder,
   captions in keyword search, videos (step 7).

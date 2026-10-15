@@ -6,7 +6,7 @@
  * This blocks cross-site request forgery even in a browser that ignores the
  * cookie's SameSite setting.
  * @param {Request} request
- * @param {string} origin the app's own, e.g. https://rope-app.example.workers.dev
+ * @param {string} origin the app's own, e.g. https://notonawa.app
  */
 export function isAllowedOrigin(request, origin) {
   if (request.method === "GET" || request.method === "HEAD") return true;

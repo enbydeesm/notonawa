@@ -42,7 +42,7 @@ describe("encrypted backups", () => {
     const header = file.slice();
     header[10] ^= 1; // in the salt: authenticated, so it's caught
     await expect(decryptBackup(header, "correct horse battery")).rejects.toThrow();
-    await expect(decryptBackup(text("-- plain SQL dump, long enough to pass the size check......"), "x")).rejects.toThrow("isn't a Rope Journal backup");
+    await expect(decryptBackup(text("-- plain SQL dump, long enough to pass the size check......"), "x")).rejects.toThrow("isn't a NotoNawa backup");
   });
 });
 
@@ -50,19 +50,22 @@ describe("backup names and retention", () => {
   const now = Date.UTC(2026, 9, 13, 12, 0, 0);
 
   it("names a backup by where it's from and when", () => {
-    expect(backupName("remote", now)).toBe("rope-journal-remote-20261013T120000Z.sql.enc");
+    expect(backupName("remote", now)).toBe("notonawa-remote-20261013T120000Z.sql.enc");
   });
 
   it("picks out backups older than 7 days, and nothing else", () => {
     expect(expiredBackups([
-      "rope-journal-remote-20261006T115959Z.sql.enc", // 7 days and a second: expired
-      "rope-journal-remote-20261006T120000Z.sql.enc", // exactly 7 days: kept
-      "rope-journal-local-20261001T000000Z.sql.enc",
-      "rope-journal-remote-20261013T110000Z.sql.enc",
-      "notes.sql", "rope-journal-remote-20201006T115959Z.sql", ".DS_Store",
+      "notonawa-remote-20261006T115959Z.sql.enc", // 7 days and a second: expired
+      "notonawa-remote-20261006T120000Z.sql.enc", // exactly 7 days: kept
+      "notonawa-local-20261001T000000Z.sql.enc",
+      "notonawa-remote-20261013T110000Z.sql.enc",
+      "rope-journal-remote-20261005T000000Z.sql.enc", // from before the rename: still expires
+      "rope-journal-remote-20261012T000000Z.sql.enc",
+      "notes.sql", "notonawa-remote-20201006T115959Z.sql", ".DS_Store",
     ], now)).toEqual([
-      "rope-journal-remote-20261006T115959Z.sql.enc",
-      "rope-journal-local-20261001T000000Z.sql.enc",
+      "notonawa-remote-20261006T115959Z.sql.enc",
+      "notonawa-local-20261001T000000Z.sql.enc",
+      "rope-journal-remote-20261005T000000Z.sql.enc",
     ]);
   });
 });

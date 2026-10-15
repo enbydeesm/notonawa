@@ -28,7 +28,7 @@ const IV_BYTES = 12;
  * @param {MediaPart} part
  */
 function additionalData(userId, mediaId, part) {
-  return new TextEncoder().encode(`rope-journal|media|v1|${userId}|${mediaId}|${part}`);
+  return new TextEncoder().encode(`notonawa|media|v1|${userId}|${mediaId}|${part}`);
 }
 
 /**

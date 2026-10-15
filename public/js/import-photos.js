@@ -73,14 +73,14 @@ export function typeFromName(name) {
 }
 
 /**
- * The journal file inside an export's zip: rope-journal.json, or failing
+ * The journal file inside an export's zip: notonawa.json, or failing
  * that the only .json file in it.
  * @param {Iterable<string>} names
  * @returns {string | null}
  */
 export function journalEntry(names) {
   const all = [...names];
-  if (all.includes("rope-journal.json")) return "rope-journal.json";
+  if (all.includes("notonawa.json")) return "notonawa.json";
   const json = all.filter((n) => /\.json$/i.test(n) && !n.split("/").pop()?.startsWith("."));
   return json.length === 1 ? json[0] : null;
 }

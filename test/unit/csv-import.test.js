@@ -106,12 +106,12 @@ describe("csvToImport", () => {
 });
 
 describe("import steps", () => {
-  it("reads only Rope Journal exports of a version it knows", () => {
-    expect(readExport({ format: "rope-journal-export", version: 1, ties: [{ title: "x" }] }))
+  it("reads only NotoNawa exports of a version it knows", () => {
+    expect(readExport({ format: "notonawa-export", version: 1, ties: [{ title: "x" }] }))
       .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }] });
-    expect(() => readExport({ hello: 1 })).toThrow("isn't a Rope Journal export");
-    expect(() => readExport(null)).toThrow("isn't a Rope Journal export");
-    expect(() => readExport({ format: "rope-journal-export", version: 2 })).toThrow("newer version");
+    expect(() => readExport({ hello: 1 })).toThrow("isn't a NotoNawa export");
+    expect(() => readExport(null)).toThrow("isn't a NotoNawa export");
+    expect(() => readExport({ format: "notonawa-export", version: 2 })).toThrow("newer version");
   });
 
   it("swaps the file's ids for the journal's, keeping deleted links", () => {
@@ -133,7 +133,7 @@ describe("import steps", () => {
   });
 
   it("names a tie that links to something not in the file", () => {
-    const doc = readExport({ format: "rope-journal-export", version: 1, people: [{ id: "p", name: "Sam" }],
+    const doc = readExport({ format: "notonawa-export", version: 1, people: [{ id: "p", name: "Sam" }],
       ties: [{ title: "ok", participants: [{ person_id: "p", role: "model" }] }, { title: "Floor", location_id: "nowhere" }] });
     expect(() => checkLinks(doc)).toThrow('Tie 2 ("Floor") links to a location that isn\'t in the file.');
   });

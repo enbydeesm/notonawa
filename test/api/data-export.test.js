@@ -27,12 +27,12 @@ describe("GET /api/data/export", () => {
 
     const res = await SELF.fetch(`${ORIGIN}/api/data/export`, { headers: { cookie: me.cookie } });
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-disposition")).toMatch(/^attachment; filename="rope-journal-\d{4}-\d\d-\d\d\.json"$/);
+    expect(res.headers.get("content-disposition")).toMatch(/^attachment; filename="notonawa-\d{4}-\d\d-\d\d\.json"$/);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const text = await res.text();
     const doc = JSON.parse(text);
 
-    expect(doc).toMatchObject({ format: "rope-journal-export", version: 1 });
+    expect(doc).toMatchObject({ format: "notonawa-export", version: 1 });
     expect(doc.account.recovery_email_set).toBe(true);
     expect(doc.account.passkeys).toEqual([{ name: "Phone", created_at: expect.any(String), last_used_at: null }]);
     expect(doc.people).toEqual([expect.objectContaining({

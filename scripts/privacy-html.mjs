@@ -55,7 +55,7 @@ const page = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Privacy policy · Rope Journal</title>
+  <title>Privacy policy · NotoNawa</title>
   <link rel="stylesheet" href="/app.css">
   <script src="/js/theme-init.js"></script>
 </head>

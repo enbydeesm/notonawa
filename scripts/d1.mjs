@@ -1,4 +1,4 @@
-// Runs SQL against the rope-journal database with wrangler, for the scripts
+// Runs SQL against the notonawa database with wrangler, for the scripts
 // in this folder. Local by default; --remote for the real one, or
 // --persist-to <dir> for a throwaway local copy (the UI smoke test uses this).
 
@@ -23,7 +23,7 @@ export function targetFlags(args) {
  * @returns {{ results: Record<string, unknown>[] }}
  */
 export function d1(sql, flags) {
-  const run = spawnSync("npx", ["wrangler", "d1", "execute", "rope-journal", ...flags, "--json", "--command", sql], { encoding: "utf8" });
+  const run = spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", ...flags, "--json", "--command", sql], { encoding: "utf8" });
   if (run.status !== 0) {
     console.error(run.stdout, run.stderr);
     process.exit(1);

@@ -9,7 +9,7 @@
 // photo in the .zip it saves (the server can't decrypt photos, so the page
 // fetches and decrypts each one; captions are still sealed here).
 
-export const EXPORT_FORMAT = "rope-journal-export";
+export const EXPORT_FORMAT = "notonawa-export";
 export const EXPORT_VERSION = 1;
 
 /**
@@ -115,11 +115,11 @@ export function photoFile(id, mime) {
 }
 
 /**
- * The export's file name, e.g. rope-journal-2026-10-13.json.
+ * The export's file name, e.g. notonawa-2026-10-13.json.
  * @param {string} exportedAt ISO timestamp
  */
 export function exportFileName(exportedAt) {
-  return `rope-journal-${exportedAt.slice(0, 10)}.json`;
+  return `notonawa-${exportedAt.slice(0, 10)}.json`;
 }
 
 /**

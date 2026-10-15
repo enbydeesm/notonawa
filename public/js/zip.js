@@ -1,4 +1,4 @@
-// Zip files for exports with photos: rope-journal.json and a photos/
+// Zip files for exports with photos: notonawa.json and a photos/
 // folder. Written "stored" (not compressed): photos are already compressed,
 // and the JSON is small next to them. Read either way, as someone may unzip
 // and zip an export again (deflated entries are inflated with the

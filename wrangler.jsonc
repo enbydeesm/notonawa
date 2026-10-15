@@ -1,5 +1,5 @@
 {
-	"name": "rope-app",
+	"name": "notonawa",
 	"main": "src/index.js",
 	"compatibility_date": "2026-10-11",
 	// The app is one page (public/index.html): any address that isn't a file
@@ -23,8 +23,8 @@
 	// code). ORIGIN is the site's address; writes from anywhere else are
 	// refused. Local values are in .dev.vars.
 	"vars": {
-		"RP_ID": "rope-app.juice-rope.workers.dev",
-		"ORIGIN": "https://rope-app.juice-rope.workers.dev"
+		"RP_ID": "notonawa.app",
+		"ORIGIN": "https://notonawa.app"
 	},
 	// Sign-in attempts per IP address per minute. Counted in memory by
 	// Cloudflare; nothing is stored.
@@ -48,19 +48,28 @@
 	// Photos, encrypted in the browser (src/media/). A private bucket: no
 	// public access and no r2.dev address; files are only handed back through
 	// the Worker, to their owner. Made with
-	// `npx wrangler r2 bucket create rope-journal-photos --location enam`.
+	// `npx wrangler r2 bucket create notonawa-photos --location enam`.
 	"r2_buckets": [
 		{
 			"binding": "PHOTOS",
-			"bucket_name": "rope-journal-photos",
+			"bucket_name": "notonawa-photos",
 			"remote": true
 		}
 	],
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "rope-journal",
-			"database_id": "b1672d04-cd4c-45be-8fa8-bcabf6857bf0"
+			"database_name": "notonawa",
+			"database_id": "6649d49d-4f4a-4974-8514-61867c68be49",
+			"remote": true
 		}
-	]
+	],
+	// The app lives only on its own domain; the workers.dev address is off.
+	"routes": [
+		{
+			"pattern": "notonawa.app",
+			"custom_domain": true
+		}
+	],
+	"workers_dev": false
 }

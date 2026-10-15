@@ -12,20 +12,20 @@
 
 /** @type {Route[]} */
 export const ROUTES = [
-  { path: "/", view: "ties", title: "Rope Journal", nav: true, needsKey: true },
-  { path: "/plans", view: "plans", title: "Plans · Rope Journal", nav: true, needsKey: true },
-  { path: "/people", view: "people", title: "People · Rope Journal", nav: true, needsKey: true },
-  { path: "/locations", view: "locations", title: "Locations · Rope Journal", nav: true, needsKey: true },
-  { path: "/account", view: "account", title: "Account · Rope Journal", nav: true, needsKey: true },
-  { path: "/data", view: "data", title: "Your data · Rope Journal", nav: true, needsKey: true },
-  { path: "/signin", view: "signin", title: "Sign in · Rope Journal", nav: false, needsKey: false },
+  { path: "/", view: "ties", title: "NotoNawa", nav: true, needsKey: true },
+  { path: "/plans", view: "plans", title: "Plans · NotoNawa", nav: true, needsKey: true },
+  { path: "/people", view: "people", title: "People · NotoNawa", nav: true, needsKey: true },
+  { path: "/locations", view: "locations", title: "Locations · NotoNawa", nav: true, needsKey: true },
+  { path: "/account", view: "account", title: "Account · NotoNawa", nav: true, needsKey: true },
+  { path: "/data", view: "data", title: "Your data · NotoNawa", nav: true, needsKey: true },
+  { path: "/signin", view: "signin", title: "Sign in · NotoNawa", nav: false, needsKey: false },
 ];
 
 /** @type {Route} */
-export const NOT_FOUND = { path: null, view: "not-found", title: "Page not found · Rope Journal", nav: true, needsKey: false };
+export const NOT_FOUND = { path: null, view: "not-found", title: "Page not found · NotoNawa", nav: true, needsKey: false };
 
 /** Shown in place of a view that needs the key while the journal is locked. @type {Route} */
-export const UNLOCK = { path: null, view: "unlock", title: "Unlock · Rope Journal", nav: false, needsKey: false };
+export const UNLOCK = { path: null, view: "unlock", title: "Unlock · NotoNawa", nav: false, needsKey: false };
 
 /**
  * The route for a path, ignoring a trailing slash ("/plans/" is Plans).

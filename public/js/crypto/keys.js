@@ -7,7 +7,7 @@
 // make, either from a passkey's PRF output or from the recovery code:
 //
 //   wrapping key = HKDF-SHA256(secret, random salt per wrap,
-//                              "rope-journal wrap v1 <kind> <user id>")
+//                              "notonawa wrap v1 <kind> <user id>")
 //
 // Each wrap is bound to its user, its own id, its kind and its version as
 // AES-GCM additional data, so the server can't pass one wrap off as another
@@ -34,7 +34,7 @@ const encode = (/** @type {string} */ text) => /** @type {Uint8Array<ArrayBuffer
  * @returns {Promise<Uint8Array<ArrayBuffer>>} 32 bytes
  */
 export async function prfSalt() {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", encode("rope-journal prf v1")));
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", encode("notonawa prf v1")));
 }
 
 /**
@@ -63,7 +63,7 @@ export async function newDataKey() {
 async function wrappingKey(kind, secret, salt, userId) {
   const material = await crypto.subtle.importKey("raw", secret, "HKDF", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt, info: encode(`rope-journal wrap v1 ${kind} ${userId}`) },
+    { name: "HKDF", hash: "SHA-256", salt, info: encode(`notonawa wrap v1 ${kind} ${userId}`) },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -78,7 +78,7 @@ async function wrappingKey(kind, secret, salt, userId) {
  * @param {number} version
  */
 export function additionalData(userId, wrapId, kind, version) {
-  return encode(`rope-journal|v${version}|${userId}|${wrapId}|${kind}`);
+  return encode(`notonawa|v${version}|${userId}|${wrapId}|${kind}`);
 }
 
 /**

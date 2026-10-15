@@ -9,13 +9,13 @@ const mark = async (kind, records) => records.map((r) => ({ ...r, kind }));
 describe("convertJournal", () => {
   it("converts every kind, children included, keeping them in place", async () => {
     const doc = {
-      format: "rope-journal-export",
+      format: "notonawa-export",
       people: [{ id: "p1", profile_notes: [{ description: "a" }, { description: "b" }] }, { id: "p2" }, { id: "p3", profile_notes: [{ description: "c" }] }],
       locations: [{ id: "l1" }], plans: [{ id: "x" }], tags: ["floor"],
       ties: [{ id: "t1", participants: [{ person_id: "p1" }] }, { id: "t2", participants: [] }],
     };
     const out = await convertJournal(doc, mark);
-    expect(out.format).toBe("rope-journal-export");
+    expect(out.format).toBe("notonawa-export");
     expect(out.tags).toEqual(["floor"]);
     expect(out.people.map((p) => [p.kind, (p.profile_notes ?? []).map((/** @type {any} */ n) => `${n.kind}:${n.description}`)])).toEqual([
       ["person", ["profileNote:a", "profileNote:b"]], ["person", []], ["person", ["profileNote:c"]],

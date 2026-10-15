@@ -1,7 +1,7 @@
 // Saving a file the page made (an export) to the user's device.
 
 /**
- * @param {string} name file name, e.g. rope-journal-2026-10-13.json
+ * @param {string} name file name, e.g. notonawa-2026-10-13.json
  * @param {string | Blob} content
  * @param {string} type e.g. application/json
  */
