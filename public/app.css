@@ -42,6 +42,12 @@ a { color: var(--accent-ink); }
 nav { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; }
 nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
 nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
+/* display: flex above would otherwise override [hidden] (see showNav). */
+nav[hidden] { display: none; }
+
+/* The app's logo on Sign in and Unlock, which have no nav. */
+.app-title { text-align: center; }
+.app-title img { display: block; width: 220px; max-width: 100%; height: auto; margin: 0 auto; }
 
 .card {
   background: var(--card); border: 1px solid var(--line);
@@ -192,7 +198,8 @@ dialog.menu-panel {
 @media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
 .menu-privacy { margin-top: auto; }
-dialog .menu-title { margin: 4px 0 16px; text-align: center; font-size: 1.5rem; font-weight: 400; color: var(--accent-ink); }
+dialog .menu-title { margin: 4px 0 16px; text-align: center; }
+.menu-title img { display: block; width: 160px; max-width: 100%; height: auto; margin: 0 auto; }
 .menu-item {
   display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
   border: none; border-radius: 8px; background: transparent; color: var(--text);

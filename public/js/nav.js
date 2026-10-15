@@ -83,8 +83,8 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's name. Search for "NotoNawa" when it's renamed.
-      h("h2", { className: "menu-title" }, "NotoNawa"),
+      // The app's logo. Search for "NotoNawa" when it's renamed.
+      h("h2", { className: "menu-title" }, h("img", { src: "/img/logo.png", alt: "NotoNawa" })),
       theme.row,
       h("a", {
         href: "/account", className: "menu-item nav-account",

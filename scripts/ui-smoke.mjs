@@ -220,6 +220,8 @@ const PAGE_HELPERS = `
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
   const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
+  // Whether the logo image in sel has loaded, and its alt text.
+  const logo = (sel) => { const img = $(sel); return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null]; };
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
@@ -316,9 +318,21 @@ try {
       res.headers.get("x-frame-options"),
     ], ["no-store", true, true, "DENY"]);
   }
+  console.log("Logo and icons");
+  const manifest = await (await fetch(BASE + "/manifest.webmanifest")).json();
+  check("the manifest names the app and its icons", [manifest.name, manifest.icons.map((i) => i.sizes)], ["NotoNawa", ["192x192", "512x512"]]);
+  const page = await (await fetch(BASE + "/")).text();
+  const linked = [...page.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="([^"]+)"/g)].map((m) => m[1]);
+  check("the page links a tab icon and a home-screen icon", linked.length, 2);
+  for (const path of [...linked, ...manifest.icons.map((i) => i.src), "/img/logo.png"]) {
+    const res = await fetch(BASE + path);
+    check(`${path} is a PNG`, [res.status, res.headers.get("content-type")], [200, "image/png"]);
+  }
   console.log("Signing up");
   await go("/");
-  check("signed out, the journal goes to the sign-in page", await run(`return [location.pathname, visibleCard()];`), ["/signin", "choose"]);
+  check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
+    return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
+    ["/signin", "choose", "none", "center", [true, "NotoNawa"]]);
   check("the sign-up form's fields are kept out of form history and spellcheck", await run(`
     [...document.querySelectorAll("[data-show=signup]")][0].click(); return [visibleCard(), leakyFields()];`), ["signup", []]);
   check("sign-up needs 18+ and consent", await run(`
@@ -351,12 +365,13 @@ try {
     return [k.has_key, k.passkey !== null, k.recovery?.current ?? null];`);
   check("signing up made a key, wrapped for the passkey and the recovery code", await keysNow(), [true, true, true]);
   // What the visible view is: its heading, and the Unlock card showing (if any).
-  const shown = `return [document.title, $("#view h1").textContent, $("nav").hidden,
+  const shown = `return [document.title, $("#view h1").textContent || $("#view h1 img")?.alt, getComputedStyle($("nav")).display === "none",
     [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id ?? null, $("#tie-count") !== null];`;
   await go("/plans", { unlock: false });
   check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
     return [location.pathname, ...(() => { ${shown} })()];`),
     ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
+  check("Unlock shows the logo", await run(`return logo("#view h1 img");`), [true, "NotoNawa"]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
@@ -428,9 +443,9 @@ try {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("the menu opens with the title, Light / Dark Mode (a half-filled sun), Account, Your data and Privacy Policy", await run(`
+  check("the menu opens with the logo, Light / Dark Mode (a half-filled sun), Account, Your data and Privacy Policy", await run(`
     await openMenu();
-    return [$(".menu-title").textContent, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
+    return [$(".menu-title img").alt, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-theme svg path").getAttribute("fill"), document.querySelectorAll(".menu-theme svg line").length,
       $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
     ["NotoNawa", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
@@ -440,6 +455,8 @@ try {
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
+  check("the logo is at the top of the menu", await run(`
+    return [...logo(".menu-title img"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);

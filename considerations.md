@@ -765,3 +765,22 @@ and all; the search returns `all_total`).
   if sent back in `keep_deleted`.
 - **Deleting** a tie asks first. Its people, plans and tags stay; there's no
   archive for ties.
+
+## Planned: final logo and icon files
+
+For now every image in `public/img/` is the same placeholder (230×191, the
+whole logo with its wording). Each spot has its own file so the final
+versions can be swapped in one at a time, with no code changes.
+
+| File | Where it shows | What it should be |
+| --- | --- | --- |
+| `logo.png` | Top centre of Sign in (and Create an account and Use a recovery code, the same page), Unlock, and the top of the menu. Shown 220px wide on Sign in and Unlock, 160px in the menu. | The full logo with wording, transparent background, at least 660px wide (3× the largest size, for sharp phone screens). Readable on the light background (`#faf8f5`) as well as the dark one (`#201f1d` in the menu): the white wording in the placeholder disappears in light mode. Or an SVG. |
+| `favicon.png` | The browser tab (app and privacy policy). | The book and knot only, no wording (it can't be read at this size). Square, 32×32 or 48×48, transparent background. An SVG (`favicon.svg`, `type="image/svg+xml"`) would be sharper at every size. |
+| `apple-touch-icon.png` | The icon for "Add to Home Screen" on iPhone and iPad. | Square, 180×180, solid background (iOS fills transparency with black), the book and knot with about 10% padding. iOS rounds the corners itself. |
+| `icon-192.png` | The Android/Chrome home-screen icon (`manifest.webmanifest`). | Square, 192×192, the book and knot. |
+| `icon-512.png` | The Android splash screen and app installs (`manifest.webmanifest`). | Square, 512×512, the book and knot. |
+
+If a file's format or size changes, update its `<link>` in `index.html` and
+`scripts/privacy-html.mjs` (then run `node scripts/privacy-html.mjs`), or the
+`icons` list in `manifest.webmanifest`. The manifest's colours (`#161514`) are
+the dark theme's background.
