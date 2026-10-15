@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   fromBase64url, toBase64url, creationOptionsFromJSON, requestOptionsFromJSON,
-  registrationToJSON, authenticationToJSON,
+  registrationToJSON, authenticationToJSON, withoutPrfResults,
 } from "../../public/js/webauthn-json.js";
 
 const bytes = (/** @type {number[]} */ ...b) => Uint8Array.from(b);
@@ -57,5 +57,24 @@ describe("answers for the server", () => {
     expect(authenticationToJSON({ ...common, response }).response)
       .toEqual({ clientDataJSON: "Ag", authenticatorData: "Aw", signature: "BA", userHandle: "BQ" });
     expect(authenticationToJSON({ ...common, response: { ...response, userHandle: null } }).response.userHandle).toBeUndefined();
+  });
+});
+
+describe("withoutPrfResults", () => {
+  it("takes the PRF output out of an answer, keeping whether it was given and the rest", () => {
+    const answer = {
+      id: "id1", response: { clientDataJSON: "Ag" },
+      clientExtensionResults: { credProps: { rk: true }, prf: { enabled: true, results: { first: "c2VjcmV0" } } },
+    };
+    const sent = withoutPrfResults(answer);
+    expect(sent).toEqual({ id: "id1", response: { clientDataJSON: "Ag" }, clientExtensionResults: { credProps: { rk: true }, prf: { enabled: true } } });
+    expect(JSON.stringify(sent)).not.toContain("c2VjcmV0");
+    // The original isn't changed (the caller still needs the output).
+    expect(answer.clientExtensionResults.prf.results.first).toBe("c2VjcmV0");
+  });
+
+  it("leaves an answer without PRF as it is", () => {
+    const answer = { id: "id1", clientExtensionResults: {} };
+    expect(withoutPrfResults(answer)).toBe(answer);
   });
 });

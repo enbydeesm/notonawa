@@ -5,7 +5,9 @@ import { api, errorMessage } from "../api.js";
 import { h, $, showMessage, privateField, infoButton } from "../dom.js";
 import { choose } from "../dialog.js";
 import { formatDate } from "../format.js";
-import { addPasskey, replaceRecoveryCode, withReauth } from "../auth-flows.js";
+import { withReauth } from "../auth-flows.js";
+import { addPasskey, replaceRecoveryCode } from "../key-flows.js";
+import { lock } from "../vault.js";
 import { forgetPasskeys } from "../webauthn.js";
 import { showNav } from "../nav.js";
 import { navigate } from "../navigate.js";
@@ -54,6 +56,9 @@ export function mount(root) {
     return h("div", { className: "item" },
       h("div", { className: "item-title" }, passkey.name),
       h("div", { className: "item-meta" }, `Added ${day(passkey.created_at)} · Last used ${day(passkey.last_used_at)}`),
+      h("div", { className: "item-meta" }, passkey.unlocks
+        ? "Unlocks your journal"
+        : "Signs in only: unlock with your recovery code (once, if it can unlock after that)"),
       h("div", { className: "item-actions" },
         h("button", { type: "button", onclick: rename }, "Rename"),
         count > 1 ? h("button", { type: "button", className: "danger", onclick: remove }, "Remove") : null));
@@ -162,7 +167,9 @@ export function mount(root) {
     e.preventDefault();
     const name = /** @type {HTMLInputElement} */ ($("#add-name"));
     attempt($("#passkey-message"), async () => {
-      await withReauth(() => addPasskey(name.value));
+      // Asks for a passkey (or the recovery code) first, as proof: the key is
+      // wrapped for the new passkey.
+      await addPasskey(name.value);
       name.value = "";
     });
   });
@@ -176,12 +183,13 @@ export function mount(root) {
       message: "Your current code will stop working.",
       choices: [{ label: "Make a new code", value: "new" }],
     });
-    if (ok) await withReauth(replaceRecoveryCode);
+    if (ok) await replaceRecoveryCode();
   }));
 
   $("#sign-out").addEventListener("click", async () => {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
+      lock();
       navigate("/signin", { replace: true });
     } catch (err) {
       showMessage($("#sign-out-message"), errorMessage(err), true);
@@ -194,6 +202,7 @@ export function mount(root) {
     if (!(await confirmDeleteAccount())) return;
     try {
       const { passkey_ids } = await withReauth(() => api("/api/account", { method: "DELETE" }));
+      lock({ quiet: true });
       await forgetPasskeys(passkey_ids);
       showNav(false);
       root.replaceChildren(

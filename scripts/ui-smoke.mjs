@@ -8,7 +8,7 @@
 // protocol directly. Your real local database (.wrangler/state) isn't touched.
 
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -67,10 +67,26 @@ if (invite.status !== 0) {
   process.exit(1);
 }
 const INVITE = invite.stdout.trim();
+
+// The app's own wrangler.jsonc, with a higher sign-in rate limit: every page
+// load here locks the journal and unlocking signs in, so this walkthrough
+// signs in far more often a minute than a person would (the limit itself is
+// tested in test/api/auth.test.js). Paths are made absolute, as the copy
+// lives in the work folder. Only whole-line comments are stripped (the file
+// has URLs with // in them).
+const projectDir = path.resolve(import.meta.dirname, "..");
+const config = JSON.parse(readFileSync(path.join(projectDir, "wrangler.jsonc"), "utf8").replace(/^\s*\/\/.*$/gm, ""));
+config.main = path.join(projectDir, config.main);
+config.assets.directory = path.join(projectDir, config.assets.directory);
+config.ratelimits = config.ratelimits.map((r) => ({ ...r, simple: { ...r.simple, limit: 1000 } }));
+for (const db of config.d1_databases) db.migrations_dir = path.join(projectDir, "migrations");
+const configPath = path.join(workDir, "wrangler.json");
+writeFileSync(configPath, JSON.stringify(config, null, 2));
+
 children.push(spawn("npx", [
-  "wrangler", "dev", "--persist-to", dbDir, "--port", String(PORT),
+  "wrangler", "dev", "--config", configPath, "--persist-to", dbDir, "--port", String(PORT),
   "--var", `ORIGIN:${BASE}`, "--var", "RP_ID:localhost",
-], { stdio: "ignore" }));
+], { stdio: "ignore", cwd: projectDir }));
 await waitFor(`${BASE}/`, "wrangler dev");
 
 // --- start Chrome and connect ------------------------------------------------
@@ -119,10 +135,11 @@ await send("Log.enable");
 // A virtual passkey, like a phone's: discoverable, verifies the user, and can
 // derive encryption keys (PRF). Chrome answers passkey requests with it.
 await send("WebAuthn.enable", { enableUI: false });
-const addAuthenticator = async () => (await send("WebAuthn.addVirtualAuthenticator", {
+// prf: false is a device that can sign in but not unlock (no PRF).
+const addAuthenticator = async ({ prf = true } = {}) => (await send("WebAuthn.addVirtualAuthenticator", {
   options: {
     protocol: "ctap2", ctap2Version: "ctap2_1", transport: "internal", hasResidentKey: true,
-    hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf: true,
+    hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf: prf,
   },
 })).result.authenticatorId;
 let authenticatorId = await addAuthenticator();
@@ -204,9 +221,43 @@ async function run(code) {
   return res.result?.result?.value;
 }
 
-async function go(pagePath) {
+// The recovery code that currently unlocks the journal (each new one shown
+// replaces it).
+let currentCode = "";
+
+// Loads a page. Loading locks the journal (the key is only in memory), so
+// unless told not to, this unlocks it again: with the passkey, or the
+// recovery code if the passkey can't unlock.
+async function go(pagePath, { unlock = true } = {}) {
   await send("Page.navigate", { url: BASE + pagePath });
   await sleep(1200);
+  if (!unlock) return;
+  // Steps through Unlock until it's gone (up to 10 seconds), rather than
+  // guessing how long a sign-in takes.
+  const state = await run(`
+    let usedPasskey = false, usedCode = false;
+    for (let i = 0; i < 100; i++) {
+      const choose = $("#unlock-choose"), code = $("#unlock-code");
+      if (!choose) return "done";
+      if (!choose.hidden && !usedPasskey) { usedPasskey = true; $("#unlock-passkey").click(); }
+      if (!code.hidden && !usedCode) {
+        usedCode = true; $("#unlock-code-input").value = ${JSON.stringify(currentCode)}; $("#unlock-code-form button[type=submit]").click();
+      }
+      await wait(100);
+    }
+    return "stuck: " + JSON.stringify([document.title, location.pathname,
+      [...document.querySelectorAll("#view > section.card")].filter((c) => !c.hidden).map((c) => c.id),
+      [...document.querySelectorAll("#view .message")].map((m) => m.textContent).filter(Boolean),
+      [...document.querySelectorAll("dialog[open]")].map((d) => d.innerText.slice(0, 120))]);`);
+  if (state !== "done") throw new Error(`Couldn't unlock to show ${pagePath}: ${state}`);
+  await sleep(600);
+}
+
+// Runs a script from scripts/ against the walkthrough's database.
+function script(name, ...args) {
+  const done = spawnSync("node", [`scripts/${name}`, ...args, "--persist-to", dbDir], { encoding: "utf8" });
+  if (done.status !== 0) throw new Error(`${name} failed: ${done.stdout} ${done.stderr}`);
+  return done.stdout.trim();
 }
 
 // --- the walkthrough -----------------------------------------------------------
@@ -239,6 +290,7 @@ try {
     const before = recoveryDialog(); $("#recovery-saved").click();
     return [before[1], $("dialog[open] button.primary").disabled];`), [true, false]);
   check("the recovery code is 32 characters in groups of 4", /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(recoveryCode ?? ""), true);
+  currentCode = recoveryCode ?? "";
   await run(`$("dialog[open] button.primary").click();`);
   await sleep(1500);
   check("Done goes to the journal, signed in", await run(`return [location.pathname, $("#tie-count") !== null];`), ["/", true]);
@@ -250,6 +302,66 @@ try {
     await go(pagePath);
     check(`${pagePath}: every field is kept out of form history and spellcheck`, await run(`return leakyFields();`), []);
   }
+
+  console.log("Locking and unlocking");
+  const keysNow = () => run(`const k = await (await fetch("/api/keys")).json();
+    return [k.has_key, k.passkey !== null, k.recovery?.current ?? null];`);
+  check("signing up made a key, wrapped for the passkey and the recovery code", await keysNow(), [true, true, true]);
+  // What the visible view is: its heading, and the Unlock card showing (if any).
+  const shown = `return [document.title, $("#view h1").textContent, $("nav").hidden,
+    [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id ?? null, $("#tie-count") !== null];`;
+  await go("/plans", { unlock: false });
+  check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
+    return [location.pathname, ...(() => { ${shown} })()];`),
+    ["/plans", "Unlock · Rope Journal", "Rope Journal", true, "unlock-choose", false]);
+  check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
+    const sent = []; const realFetch = window.fetch;
+    window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
+    $("#unlock-passkey").click(); await wait(2500); window.fetch = realFetch;
+    const login = JSON.parse(sent.find(([url]) => url.endsWith("/api/auth/login/verify"))[1]);
+    return [location.pathname, document.title, $("#view h1").textContent, login.prf, JSON.stringify(login.response.clientExtensionResults),
+      sent.some(([, body]) => body.includes("results"))];`),
+    ["/plans", "Plans · Rope Journal", "Plans", true, JSON.stringify({ prf: {} }), false]);
+  await go("/", { unlock: false });
+  check("the recovery code unlocks too; a wrong one says so", await run(`
+    [...document.querySelectorAll("[data-unlock-show=code]")][0].click(); await wait(100);
+    $("#unlock-code-input").value = "0000-0000-0000-0000-0000-0000-0000-0000"; $("#unlock-code-form button[type=submit]").click(); await wait(1200);
+    const wrong = $("#unlock-code-message").textContent;
+    $("#unlock-code-input").value = ${JSON.stringify(currentCode)}; $("#unlock-code-form button[type=submit]").click(); await wait(1500);
+    return [wrong, $("#tie-count") !== null, leakyFields()];`),
+    ["That recovery code doesn't unlock your journal.", true, []]);
+  check("nothing is kept in the browser's storage but the theme", await run(`
+    return [Object.keys(localStorage).filter((k) => k !== "theme"), sessionStorage.length, (await indexedDB.databases()).length];`),
+    [[], 0, 0]);
+
+  // An account from before encryption: no key yet.
+  const userId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
+  spawnSync("npx", ["wrangler", "d1", "execute", "rope-journal", "--local", "--persist-to", dbDir,
+    "--command", `DELETE FROM key_wraps WHERE user_id = '${userId}'`], { encoding: "utf8" });
+  await go("/", { unlock: false });
+  check("an account without a key is asked to set one up after the passkey", await run(`
+    $("#unlock-passkey").click(); await wait(2500); return [...(() => { ${shown} })()].slice(3);`), ["unlock-setup", false]);
+  const setupCode = await run(`
+    $("#unlock-setup-go").click(); await wait(2000); const code = $("#recovery-code")?.textContent;
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1500); return code;`);
+  check("setting up shows a new recovery code, then the journal", [setupCode !== recoveryCode, await run(`return $("#tie-count") !== null;`)], [true, true]);
+  check("…and the key is wrapped for both again", await keysNow(), [true, true, true]);
+  currentCode = setupCode ?? "";
+
+  // The operator gives the account a new recovery code (someone locked out).
+  const operatorCode = script("recovery-code.mjs", userId, "--quiet");
+  check("after the operator's reset, the recovery wrap no longer matches the code", await keysNow(), [true, true, false]);
+  await go("/", { unlock: false });
+  const afterReset = await run(`
+    $("#unlock-passkey").click(); await wait(3000);
+    const shownCode = $("#recovery-code")?.textContent; const intro = $("dialog[open] p")?.textContent;
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200);
+    return [shownCode, intro, $("#tie-count") !== null];`);
+  check("unlocking with the passkey then makes a new code, as the old one shouldn't keep working",
+    [afterReset[0] !== operatorCode && /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(afterReset[0] ?? ""), afterReset[1], afterReset[2]],
+    [true, "Your recovery code was replaced, so here's a new one that also unlocks your journal.", true]);
+  check("…and the recovery wrap matches again", await keysNow(), [true, true, true]);
+  currentCode = afterReset[0] ?? "";
 
   console.log("Light and dark mode");
   const deviceMode = (value) => send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value }] });
@@ -340,11 +452,13 @@ try {
     return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.textContent, $("nav").hidden];`),
     ["People · Rope Journal", "People", "People", false]);
   await go("/nope");
-  check("an unknown address says so, and links back to the ties", await run(`
+  // "Not found" doesn't need the key, so after loading it the journal is
+  // locked, and the ties ask to unlock first.
+  check("an unknown address says so, and links back to the ties (to unlock first)", await run(`
     const shown = [document.title, $("#view h1").textContent, $("nav a[aria-current=page]") === null];
     window.marker = 1; $("#view a[href='/']").click(); await wait(800);
-    return [...shown, location.pathname, $("#tie-count") !== null, window.marker === 1];`),
-    ["Page not found · Rope Journal", "Page not found", true, "/", true, true]);
+    return [...shown, location.pathname, document.title, $("#unlock-choose")?.hidden === false, window.marker === 1];`),
+    ["Page not found · Rope Journal", "Page not found", true, "/", "Unlock · Rope Journal", true, true]);
 
   console.log("People");
   await go("/people");
@@ -723,9 +837,10 @@ try {
     return [changing, back, $("#email-form").hidden, (await (await fetch("/api/account")).json()).has_recovery_email];`),
     [[false, false, true], [true, false], false, false]);
   const newRecovery = await run(`
-    $("#new-code").click(); await wait(300); await clickDialog("Make a new code"); await wait(600);
+    $("#new-code").click(); await wait(300); await clickDialog("Make a new code"); await wait(2500);
     const code = $("#recovery-code").textContent; await finishRecoveryDialog(); return code;`);
   check("make a new recovery code, shown once", [/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(newRecovery ?? ""), newRecovery !== recoveryCode], [true, true]);
+  currentCode = newRecovery ?? "";
   await run(`$("#sign-out").click();`);
   await sleep(1500);
   check("sign out goes to the sign-in page, without the nav, and the journal stays locked", await run(`
@@ -738,9 +853,10 @@ try {
   check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 24 of 24 ties"]);
 
   console.log("Recovery");
-  // Lose the phone: its passkey is gone, a new device has a new authenticator.
+  // Lose the phone: its passkey is gone. The new device has a new
+  // authenticator, one without PRF: it can sign in but not unlock.
   await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
-  authenticatorId = await addAuthenticator();
+  authenticatorId = await addAuthenticator({ prf: false });
   await run(`await fetch("/api/auth/logout", { method: "POST" });`);
   await go("/signin");
   check("signing in without a passkey for this site fails gently", await run(`
@@ -757,11 +873,21 @@ try {
     $("#new-passkey-name").value = "New phone"; $("#add-passkey-form button[type=submit]").click(); await wait(2500);
     const shown = recoveryDialog()[0]; $("#recovery-saved").click(); $("dialog[open] button.primary").click(); return shown;`);
   await sleep(1500);
-  check("adding a passkey finishes signing in, with a new recovery code", [
+  check("adding a passkey finishes signing in, unlocked with the code, with a new recovery code", [
     /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(shownAfterRecovery ?? ""),
     ...await run(`return [location.pathname, $("#tie-count").textContent];`),
   ], [true, "/", "Showing 24 of 24 ties"]);
-  await go("/account");
+  currentCode = shownAfterRecovery ?? "";
+  await go("/account", { unlock: false });
+  check("a passkey that can't unlock signs in, then asks for the recovery code", await run(`
+    $("#unlock-passkey").click(); await wait(2500);
+    const why = [$("#unlock-code").hidden, $("#unlock-code-why").textContent];
+    $("#unlock-code-input").value = ${JSON.stringify(shownAfterRecovery)}; $("#unlock-code-form button[type=submit]").click(); await wait(1500);
+    return [...why, $("#view h1").textContent];`),
+    [false, "This passkey can't unlock your journal (its device doesn't support it), so use your recovery code.", "Account"]);
+  check("the account page says which passkeys unlock", await run(`
+    return [...$("#passkeys").querySelectorAll(".item")].map((i) => [i.querySelector(".item-title").textContent, i.querySelectorAll(".item-meta")[1].textContent]);`),
+    [["Phone", "Unlocks your journal"], ["New phone", "Signs in only: unlock with your recovery code (once, if it can unlock after that)"]]);
   check("the lost phone's passkey can then be removed", await run(`
     const before = [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent);
     const phone = [...$("#passkeys").querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Phone");

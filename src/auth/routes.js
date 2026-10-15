@@ -13,6 +13,8 @@ import {
 } from "./parse.js";
 import { isFresh, lifetimeMs, sha256Hex } from "./session.js";
 import { getUser } from "./user.js";
+import { parseWrap, parseOptionalWrap } from "../keys/parse.js";
+import { insertWrapStatement } from "../keys/db.js";
 import { registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication } from "./webauthn.js";
 
 /** @typedef {import("./session.js").SessionKind} SessionKind */
@@ -54,25 +56,32 @@ export async function handleAuth(request, env, url) {
   }
 
   // POST /api/auth/register/verify
-  //   body { response, name, prf_capable, recovery_secret (new accounts only) }
-  //   -> saves the passkey. A new account is created and signed in; a
-  //   recovery session becomes a full one.
+  //   body { response, name, prf_capable, passkey_wrap?, and for new accounts
+  //   recovery_secret and recovery_wrap }
+  //   -> saves the passkey, with the encryption key wrapped for it if it
+  //   gave PRF output. A new account is created with its key (wrapped for
+  //   its recovery code) and signed in; a recovery session becomes a full one.
   if (url.pathname === "/api/auth/register/verify") {
     const body = await readJson(request);
     const response = parseCredential(body.response);
     const name = parsePasskeyName(body.name);
     const prfCapable = parsePrfCapable(body.prf_capable);
+    const passkeyWrap = parseOptionalWrap(body.passkey_wrap, "passkey");
     const challenge = await takeChallenge(db, challengeOf(response), "register");
     if (!challenge) throw new BadInput(TOO_SLOW);
     const credential = await verifyRegistration(env, response, challenge.challenge);
     if (!credential) throw new BadInput("Couldn't verify that passkey. Please try again.");
     const passkey = { ...credential, name, prf_capable: prfCapable };
+    /** @param {string} userId */
+    const wrapStatements = (userId) => (passkeyWrap
+      ? [insertWrapStatement(db, userId, passkeyWrap, { kind: "passkey", passkeyId: passkey.id, recoveryHash: null })]
+      : []);
 
     // Adding a passkey to an existing account: still signed in as them?
     if (challenge.user_id) {
       const user = await getUser(request, env);
       if (!user || user.id !== challenge.user_id) return json({ error: "Not signed in" }, 401);
-      const statements = [insertPasskeyStatement(db, user.id, passkey)];
+      const statements = [insertPasskeyStatement(db, user.id, passkey), ...wrapStatements(user.id)];
       if (user.session.kind !== "recovery") {
         await db.batch(statements);
         return json({ ok: true });
@@ -86,11 +95,14 @@ export async function handleAuth(request, env, url) {
     // A new account.
     if (!challenge.new_user_id || !challenge.invite_hash) throw new BadInput(TOO_SLOW);
     const recoveryHash = await sha256Hex(parseRecoverySecret(body.recovery_secret));
+    const recoveryWrap = parseWrap(body.recovery_wrap, "recovery");
     const userId = challenge.new_user_id;
     const { token, statements: start } = await newSessionStatements(db, userId, { kind: "full", passkeyId: passkey.id });
     await db.batch([
       ...newUserStatements(db, userId, challenge.invite_hash, recoveryHash),
       insertPasskeyStatement(db, userId, passkey),
+      insertWrapStatement(db, userId, recoveryWrap, { kind: "recovery", passkeyId: null, recoveryHash }),
+      ...wrapStatements(userId),
       ...start,
     ]);
     return signedIn(token, "full");
@@ -103,10 +115,13 @@ export async function handleAuth(request, env, url) {
     return json(options);
   }
 
-  // POST /api/auth/login/verify  body { response } -> signs in. Signing in
-  //   again while signed in (to confirm it's you) replaces the old session.
+  // POST /api/auth/login/verify  body { response, prf } -> signs in.
+  //   Signing in again while signed in (to confirm it's you) replaces the
+  //   old session. prf: true if the passkey gave PRF output (never the
+  //   output itself), which records that it can unlock.
   if (url.pathname === "/api/auth/login/verify") {
-    const response = parseCredential((await readJson(request)).response);
+    const body = await readJson(request);
+    const response = parseCredential(body.response);
     const challenge = await takeChallenge(db, challengeOf(response), "login");
     if (!challenge) throw new BadInput(TOO_SLOW);
     const passkey = await findPasskey(db, response.id);
@@ -117,7 +132,7 @@ export async function handleAuth(request, env, url) {
     const current = await getUser(request, env);
     const { token, statements: start } = await newSessionStatements(db, passkey.user_id, { kind: "full", passkeyId: passkey.id });
     await db.batch([
-      usedPasskeyStatement(db, passkey.id, result.counter),
+      usedPasskeyStatement(db, passkey.id, result.counter, body.prf === true),
       ...(current ? [deleteSessionStatement(db, current.session.id)] : []),
       ...start,
     ]);

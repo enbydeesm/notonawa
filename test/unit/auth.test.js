@@ -20,7 +20,7 @@ const DAY = 24 * 60 * MIN;
  * @returns {import("../../src/auth/session.js").Session}
  */
 const session = (changes) => ({
-  id: "s", user_id: "u", kind: "full",
+  id: "s", user_id: "u", kind: "full", passkey_id: null,
   created_at: isoAt(NOW - DAY), last_used_at: isoAt(NOW - MIN), expires_at: isoAt(NOW + DAY),
   ...changes,
 });
@@ -99,6 +99,8 @@ describe("request guards", () => {
     expect(allowedInRecovery("GET", "/api/account")).toBe(true);
     expect(allowedInRecovery("PUT", "/api/account/recovery-code")).toBe(false);
     expect(allowedInRecovery("PUT", "/api/account/recovery-email")).toBe(false);
+    expect(allowedInRecovery("GET", "/api/keys")).toBe(true);
+    expect(allowedInRecovery("POST", "/api/keys/setup")).toBe(false);
     expect(allowedInRecovery("GET", "/api/tags")).toBe(false);
   });
 

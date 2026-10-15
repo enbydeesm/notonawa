@@ -3,24 +3,29 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "account" | "data" | "signin" | "not-found"} ViewName
- * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean }} Route
+ * @typedef {"ties" | "plans" | "people" | "locations" | "account" | "data" | "signin" | "not-found" | "unlock"} ViewName
+ * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
+ *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
+ *   view is shown in its place, at the same address)
  */
 
 /** @type {Route[]} */
 export const ROUTES = [
-  { path: "/", view: "ties", title: "Rope Journal", nav: true },
-  { path: "/plans", view: "plans", title: "Plans · Rope Journal", nav: true },
-  { path: "/people", view: "people", title: "People · Rope Journal", nav: true },
-  { path: "/locations", view: "locations", title: "Locations · Rope Journal", nav: true },
-  { path: "/account", view: "account", title: "Account · Rope Journal", nav: true },
-  { path: "/data", view: "data", title: "Your data · Rope Journal", nav: true },
-  { path: "/signin", view: "signin", title: "Sign in · Rope Journal", nav: false },
+  { path: "/", view: "ties", title: "Rope Journal", nav: true, needsKey: true },
+  { path: "/plans", view: "plans", title: "Plans · Rope Journal", nav: true, needsKey: true },
+  { path: "/people", view: "people", title: "People · Rope Journal", nav: true, needsKey: true },
+  { path: "/locations", view: "locations", title: "Locations · Rope Journal", nav: true, needsKey: true },
+  { path: "/account", view: "account", title: "Account · Rope Journal", nav: true, needsKey: true },
+  { path: "/data", view: "data", title: "Your data · Rope Journal", nav: true, needsKey: true },
+  { path: "/signin", view: "signin", title: "Sign in · Rope Journal", nav: false, needsKey: false },
 ];
 
 /** @type {Route} */
-export const NOT_FOUND = { path: null, view: "not-found", title: "Page not found · Rope Journal", nav: true };
+export const NOT_FOUND = { path: null, view: "not-found", title: "Page not found · Rope Journal", nav: true, needsKey: false };
+
+/** Shown in place of a view that needs the key while the journal is locked. @type {Route} */
+export const UNLOCK = { path: null, view: "unlock", title: "Unlock · Rope Journal", nav: false, needsKey: false };
 
 /**
  * The route for a path, ignoring a trailing slash ("/plans/" is Plans).

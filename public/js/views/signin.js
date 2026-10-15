@@ -1,11 +1,12 @@
-// Sign-in view: sign in with a passkey, create an account with an invite,
-// or get back in with a recovery code (then add a passkey).
+// Sign-in view: sign in (and unlock) with a passkey, create an account with
+// an invite, or get back in with a recovery code (then add a passkey).
+// Anything left to do to unlock (the recovery code, setting up the key) is
+// the Unlock view's, which the journal shows next.
 
 import { api, errorMessage } from "../api.js";
 import { $, showMessage } from "../dom.js";
-import { createPasskey } from "../webauthn.js";
-import { newRecoveryCode } from "../recovery.js";
-import { signInWithPasskey, addPasskey, recoverySecret, replaceRecoveryCode, showRecoveryCode } from "../auth-flows.js";
+import { recoverySecret } from "../auth-flows.js";
+import { signInAndUnlock, signUp, finishRecovery } from "../key-flows.js";
 import { navigate } from "../navigate.js";
 
 // Into the journal. Replacing this entry, so Back doesn't return here (it
@@ -39,9 +40,14 @@ export async function mount() {
   }
 
   $("#sign-in").addEventListener("click", () => attempt($("#sign-in-message"), async () => {
-    await signInWithPasskey();
+    await signInAndUnlock();
     toJournal();
   }));
+
+  // The recovery code that signed in, until a passkey is added: it unlocks
+  // the journal to wrap the key for the new passkey. Only in memory.
+  /** @type {string | null} */
+  let recoveryCode = null;
 
   $("#signup-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -50,18 +56,8 @@ export async function mount() {
       const value = (id) => /** @type {HTMLInputElement} */ ($(id)).value;
       /** @param {string} id */
       const checked = (id) => /** @type {HTMLInputElement} */ ($(id)).checked;
-      // The recovery code is made here and never sent: only a secret derived from it.
-      const code = newRecoveryCode();
-      const options = await api("/api/auth/register/options", {
-        method: "POST", body: { invite: value("#invite"), adult: checked("#adult"), consent: checked("#consent") },
-      });
-      const { response, prfCapable } = await createPasskey(options);
-      await api("/api/auth/register/verify", {
-        method: "POST",
-        body: { response, name: value("#passkey-name"), prf_capable: prfCapable, recovery_secret: await recoverySecret(code) },
-      });
+      await signUp({ invite: value("#invite"), adult: checked("#adult"), consent: checked("#consent"), name: value("#passkey-name") });
       showMessage($("#signup-message"), "");
-      await showRecoveryCode(code);
       toJournal();
     });
   });
@@ -71,7 +67,9 @@ export async function mount() {
     attempt($("#recover-message"), async () => {
       const code = /** @type {HTMLInputElement} */ ($("#code"));
       await api("/api/auth/recover", { method: "POST", body: { recovery_secret: await recoverySecret(code.value) } });
+      recoveryCode = code.value;
       code.value = "";
+      showMessage($("#recover-message"), "");
       show("add-passkey");
     });
   });
@@ -79,17 +77,22 @@ export async function mount() {
   $("#add-passkey-form").addEventListener("submit", (e) => {
     e.preventDefault();
     attempt($("#add-passkey-message"), async () => {
-      await addPasskey(/** @type {HTMLInputElement} */ ($("#new-passkey-name")).value);
-      // The old code got you in; replace it now that there's a passkey.
-      await replaceRecoveryCode();
+      if (!recoveryCode) {
+        show("recover");
+        throw new Error("Enter your recovery code again, please.");
+      }
+      // Adds the passkey, unlocks with the code, and replaces the code.
+      await finishRecovery(recoveryCode, /** @type {HTMLInputElement} */ ($("#new-passkey-name")).value);
+      recoveryCode = null;
       toJournal();
     });
   });
 
-  // Already signed in? Go to the journal, or finish a recovery.
+  // Already signed in? Go to the journal. Part-way through a recovery (the
+  // page was reloaded)? The code is needed again, to unlock.
   try {
     const account = await api("/api/account");
-    if (account.session_kind === "recovery") show("add-passkey");
+    if (account.session_kind === "recovery") show("recover");
     else toJournal();
   } catch {
     show("choose");

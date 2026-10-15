@@ -7,14 +7,20 @@
 // Each view gets an AbortSignal that fires when it's left: listeners on the
 // window or document, observers and timers hang off it, so nothing from one
 // view keeps running in the next.
+//
+// Views that need the encryption key show the Unlock view instead while the
+// journal is locked, and are drawn again when it locks (lock.js), so nothing
+// decrypted stays on the page.
 
-import { matchRoute, inAppTarget } from "./router.js";
+import { matchRoute, inAppTarget, UNLOCK } from "./router.js";
 import { setNavigator } from "./navigate.js";
 import { renderNav, showNav, setCurrent } from "./nav.js";
 import { $ } from "./dom.js";
+import { isUnlocked, onLock } from "./vault.js";
+import { watchForLock } from "./lock.js";
 
 /**
- * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal }) => unknown }} ViewModule
+ * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
  * @type {Record<import("./router.js").ViewName, () => Promise<ViewModule>>}
  */
 const VIEWS = {
@@ -26,6 +32,7 @@ const VIEWS = {
   data: () => import("./views/data.js"),
   signin: () => import("./views/signin.js"),
   "not-found": () => import("./views/not-found.js"),
+  unlock: () => import("./views/unlock.js"),
 };
 
 const root = $("#view");
@@ -50,7 +57,8 @@ history.scrollRestoration = "manual";
  *   within a view are left to the view, e.g. the Ties list's pages).
  */
 async function show({ fresh, scroll, focus }) {
-  const route = matchRoute(location.pathname);
+  const addressed = matchRoute(location.pathname);
+  const route = addressed.needsKey && !isUnlocked() ? UNLOCK : addressed;
   if (!fresh && route.view === currentView) return;
   const id = ++latestShow;
   const module = await VIEWS[route.view]();
@@ -64,10 +72,13 @@ async function show({ fresh, scroll, focus }) {
 
   document.title = route.title;
   showNav(route.nav);
-  setCurrent(route.path);
+  setCurrent(addressed.path);
   const template = /** @type {HTMLTemplateElement} */ ($(`#view-${route.view}`));
   root.replaceChildren(template.content.cloneNode(true));
-  await module.mount(root, { signal: controller.signal });
+  // unlocked: the Unlock view calls it once the journal is unlocked, to draw
+  // the view the address is for.
+  const unlocked = () => show({ fresh: true, scroll: 0, focus: true });
+  await module.mount(root, { signal: controller.signal, unlocked });
 
   window.scrollTo(0, scroll);
   // Tell screen readers the view changed: focus its heading (not on the
@@ -95,6 +106,10 @@ function go(path, replace) {
 }
 
 setNavigator(go);
+watchForLock();
+// Locked (by time, sign-out or the session ending): draw the view again,
+// which shows Unlock in place of anything that needs the key.
+onLock(() => show({ fresh: true, scroll: 0, focus: true }));
 
 // Registered before any view's own popstate listener, so a view being left
 // is aborted (and its listener skipped) before it reacts.

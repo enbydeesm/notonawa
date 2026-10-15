@@ -7,6 +7,8 @@ describe("GET /api/data/export", () => {
     const me = await signedInUser();
     await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES ('pk1', ?, 'PUBLIC-KEY', 'Phone')", me.id).run();
     await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT' WHERE id = ?", me.id).run();
+    await sql(`INSERT INTO key_wraps (id, user_id, kind, passkey_id, salt, iv, wrapped, version)
+               VALUES ('w1', ?, 'passkey', 'pk1', 'WRAP-SALT', 'WRAP-IV', 'WRAPPED-KEY', 1)`, me.id).run();
     const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Likes floor work", default_role: "model" });
     const gone = await create("/api/people", { name: "Gone" });
     await sql(
@@ -58,6 +60,7 @@ describe("GET /api/data/export", () => {
     // No secrets: no public keys, hashes or session details.
     expect(text).not.toContain("PUBLIC-KEY");
     expect(text).not.toMatch(/EMAIL-HASH|EMAIL-SALT/);
+    expect(text).not.toMatch(/WRAP-SALT|WRAP-IV|WRAPPED-KEY/);
     expect(text).not.toMatch(/"[a-z_]*(hash|token|session|public_key)[a-z_]*":/);
   });
 

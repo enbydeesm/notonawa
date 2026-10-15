@@ -64,7 +64,8 @@ Each step leaves the app working and shippable on its own.
    Lock (drop key and plaintext, clear rendered notes) after 15 min idle,
    5 min hidden, on sign-out and on `pagehide`; unlock with the passkey.
    Nothing decrypted goes to localStorage, sessionStorage, IndexedDB or a
-   service-worker cache.
+   service-worker cache. *Built 2026-10-14, not yet deployed; see "Step 4b
+   as built" below.*
 5. **Encrypted notes and on-device search.** Encrypt the free-text fields:
    `ties.notes`, `tie_participants.notes`, `people.notes`,
    `profile_notes.description`, `locations.notes`,
@@ -90,8 +91,8 @@ Each step leaves the app working and shippable on its own.
   email would be another identifier to protect. Recovery is via a second
   passkey or the recovery code, and as a last resort the operator (only for
   accounts with a recovery email; see "Step 3b as built").
-- **Step 4 design notes** (2026-10-14, from planning; details settle when 4b
-  is built):
+- **Step 4 design notes** (2026-10-14, from planning; as built, with the
+  changes from review, in "Step 4b as built"):
   - Sign-in is discoverable (no `allowCredentials`), so PRF can't use
     `evalByCredential`: one fixed app-wide salt in `prf.eval.first`, and
     HKDF(PRF output, a random salt per wrap, info "rope-journal wrap v1")
@@ -329,6 +330,87 @@ Each step leaves the app working and shippable on its own.
 - **A missing file** (e.g. a mistyped script path) also gets `index.html`,
   which `nosniff` refuses to run as a script, so it fails loudly.
 
+### Step 4b as built
+
+- **Threat model, plainly:** the crypto Worker keeps the key from being
+  *taken* (it's non-extractable, never sent anywhere, and only wrapped again
+  with proof). It doesn't stop the key being *used* by script running in
+  the page while unlocked: injected script or a browser extension could ask
+  for and read what's shown. The defences against that are keeping such
+  script out (strict CSP with Trusted Types, no third-party code) and
+  limiting where data could go (`connect-src 'self'` stops `fetch` to other
+  sites; it could still be written into a readable field through our own
+  API, or carried off by navigating the page). PRIVACY.md says so. Step 5's
+  Worker operations will act on whole records (decrypt a tie's notes for
+  display, search), never a general `decrypt(ciphertext)`: that limits
+  misuse a little, not entirely.
+- **Keys** (`public/js/crypto/keys.js`): one random AES-256-GCM data key per
+  user. Wraps use AES-GCM `wrapKey` with a key from HKDF-SHA256(secret, a
+  random 16-byte salt per wrap, info `"rope-journal wrap v1 <kind> <user
+  id>"`); the additional data is `rope-journal|v<version>|<user
+  id>|<wrap id>|<kind>`. The secret is a passkey's PRF output, or the
+  recovery code (160 random bits, so HKDF is enough). The PRF salt is fixed
+  (`SHA-256("rope-journal prf v1")`): sign-in has no username, so it can't
+  be per user before a passkey is chosen (Copilot's review suggested a
+  per-user salt); the user id went into the HKDF info instead.
+- **The Worker** (`crypto-worker.js`, logic in `crypto/vault-core.js`): holds
+  the key non-extractable; `setup`, `unlock`, `addWrap`, `status`. Every
+  wrap it hands out has been unwrapped once first. `addWrap` needs proof (an
+  existing wrap and its secret, given just now), so a script in the page
+  can't have the key wrapped for a secret it chose. PRF output is
+  transferred to it (the page's buffer is emptied), and it zeroes PRF bytes
+  after use; a typed recovery code is a string and can't be wiped.
+- **`vault.js`** starts the Worker through the Trusted Types policy
+  `crypto-worker` (allows only `/js/crypto-worker.js`; the CSP now has
+  `trusted-types crypto-worker` and `worker-src 'self'`). Locking is
+  `worker.terminate()`.
+- **PRF output is never sent.** `toJSON()` (and our fallback) copy the
+  extension results, PRF output included; `withoutPrfResults` takes it out
+  of every answer sent, and the walkthrough checks no request body has it.
+  Sign-in sends only `prf: true`, which fills in `prf_capable`.
+- **`prfOutputFor(credentialId)` is not a sign-in**: a `get()` with a
+  challenge made in the browser, whose answer is never sent. It only gets
+  PRF output from a passkey just made (devices that don't give it at
+  creation), and must never stand in for proof of identity.
+- **Server** (migration 0009, `src/keys/`): `key_wraps` (one per passkey,
+  one recovery wrap per user, cascades with passkeys and users, replaced
+  never updated, an ownership trigger). `GET /api/keys` (also in a recovery
+  session), `POST /api/keys/setup` (fresh session; once, or `replace`),
+  `PUT /api/keys/passkeys/:id` (fresh session). Sign-up needs the recovery
+  wrap; adding a passkey takes its wrap; replacing the recovery code needs
+  the new wrap once there's a key. Export leaves wraps out.
+- **Recovery wraps remember their code** (the login secret's hash). After an
+  operator reset the wrap no longer matches, `GET /api/keys` says
+  `current: false`, and the next unlock (with a passkey or an older code)
+  makes a new recovery code at once, so the old one doesn't keep working
+  (from Copilot's review). In-app rotation always replaced the wrap.
+- **Prompts:** sign-in and unlock 1; sign-up 1–2; add a passkey 2–3
+  (proof first, as a server-checked sign-in that also freshens the session,
+  then create, then maybe `prfOutputFor`); new recovery code 1; recovery
+  sign-in 1–2. A passkey without a wrap unlocks with the code once, which
+  wraps the key for it if it gives PRF output.
+- **Locking** (`lock-rules.js`, `lock.js`): 15 minutes without taps, keys or
+  scrolling; 5 minutes hidden (checked on return too, as background timers
+  are slowed); `pagehide`; sign-out; the session ending (api.js). Routes
+  have `needsKey`; while locked, app.js shows the Unlock view in their
+  place at the same address, and redraws when the journal locks. Anything
+  typed and not saved is lost on a lock.
+- **Unlock view states:** locked (passkey or code), the recovery code
+  (why: the passkey can't unlock, or can't yet), set up encryption (an
+  account from before encryption: the first key and a new recovery code),
+  and "that code can't unlock" (an operator reset with no older code:
+  try another, or start a new key with `replace`).
+- **Unlocking counts against the sign-in rate limit** (20 requests a
+  minute per IP across `/api/auth/`; an unlock is 2). That's 10 unlocks a
+  minute, plenty for a person. The UI walkthrough reloads far more often, so
+  it runs `wrangler dev` with a generated copy of `wrangler.jsonc` whose
+  limit is 1000; the app and its config are unchanged, and the limit is
+  still tested in `test/api/auth.test.js`. A "limits off" switch in the
+  app was rejected: it could be left on in production by mistake.
+- **Deploying:** apply migration 0009 first. Existing accounts (yours) get
+  "Set up encryption" at their first unlock, with a new recovery code to
+  save; other passkeys need the code once each.
+
 ### Weighed and not adopted
 
 - **An owner back door** (a special login for the operator): rejected. It
@@ -352,16 +434,6 @@ Each step leaves the app working and shippable on its own.
   server paging, but matches whole words only and shows the server which
   ties share words. On-device search is affordable at journal scale.
 
-## Planned: "Archive now" when adding a location
-
-**Status:** planned (2026-10-12)
-
-We dropped `locations.is_one_off`: a one-off spot is just a location that's
-archived straight away. The "Add location" screen should have an "Archive now"
-option that sets `archived_at` when the location is created (in the same
-INSERT, `archived_at = ${NOW}`), so it's saved for the tie's record but never
-clutters the location picker. Existing one-off locations were migrated to
-archived as of their creation date.
 
 ## Planned: the + button asks what to add
 

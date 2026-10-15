@@ -9,8 +9,9 @@
 export async function getAccount(db, userId, currentSessionId) {
   const [passkeys, sessions, user] = /** @type {D1Result<Record<string, any>>[]} */ (await db.batch([
     db.prepare(
-      `SELECT id, name, prf_capable, created_at, last_used_at FROM passkeys
-       WHERE user_id = ? ORDER BY created_at`
+      `SELECT id, name, prf_capable, created_at, last_used_at,
+              EXISTS (SELECT 1 FROM key_wraps w WHERE w.passkey_id = passkeys.id) AS unlocks
+       FROM passkeys WHERE user_id = ? ORDER BY created_at`
     ).bind(userId),
     db.prepare(
       `SELECT s.id, s.kind, s.created_at, s.last_used_at, p.name AS passkey_name
@@ -24,7 +25,7 @@ export async function getAccount(db, userId, currentSessionId) {
     ).bind(userId),
   ]));
   return {
-    passkeys: passkeys.results,
+    passkeys: passkeys.results.map((p) => ({ ...p, unlocks: !!p.unlocks })),
     sessions: sessions.results.map((s) => ({ ...s, current: s.id === currentSessionId })),
     has_recovery_code: !!user.results[0]?.has_recovery_code,
     has_recovery_email: !!user.results[0]?.has_recovery_email,

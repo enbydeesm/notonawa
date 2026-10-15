@@ -1,6 +1,7 @@
 // Talking to the Worker's API.
 
 import { navigate } from "./navigate.js";
+import { lock } from "./vault.js";
 
 // An error from the API, with its status and body. reauth: the change needs
 // the user to confirm it's them with their passkey first (see account.js).
@@ -40,6 +41,8 @@ export async function api(path, { method = "GET", body } = {}) {
     // not JSON
   }
   const toSignIn = res.status === 401 || (res.status === 403 && data?.recovery);
+  // The session has ended (or never was): lock, whatever happens next.
+  if (toSignIn) lock();
   if (toSignIn && location.pathname !== "/signin") {
     // Replacing this entry, so Back doesn't return to a view that would only
     // send you here again. Several requests may fail at once; the first one

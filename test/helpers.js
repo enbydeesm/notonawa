@@ -94,3 +94,14 @@ export async function createOtherUser() {
 export function sql(sql, ...params) {
   return env.DB.prepare(sql).bind(...params);
 }
+
+/**
+ * A wrapped key as the browser sends it: the right shape, though not one
+ * that opens (the server can't tell; only the browser can).
+ * @param {"passkey" | "recovery"} kind
+ */
+export function fakeWrap(kind) {
+  const chars = (/** @type {number} */ n) => [...crypto.getRandomValues(new Uint8Array(n))]
+    .map((b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join("");
+  return { id: crypto.randomUUID(), kind, salt: chars(22), iv: chars(16), wrapped: chars(64), version: 1 };
+}

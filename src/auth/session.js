@@ -17,6 +17,7 @@ const DAY = 24 * 60 * MINUTE;
  *   id: string,
  *   user_id: string,
  *   kind: SessionKind,
+ *   passkey_id: string | null,
  *   created_at: string,
  *   last_used_at: string,
  *   expires_at: string,

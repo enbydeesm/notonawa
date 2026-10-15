@@ -18,6 +18,11 @@ describe("matchRoute", () => {
   it("hides the nav only on the sign-in view", () => {
     expect(ROUTES.filter((r) => !r.nav).map((r) => r.view)).toEqual(["signin"]);
   });
+
+  it("needs the journal unlocked for every view but sign-in and 'not found'", () => {
+    expect(ROUTES.filter((r) => !r.needsKey).map((r) => r.view)).toEqual(["signin"]);
+    expect(NOT_FOUND.needsKey).toBe(false);
+  });
 });
 
 describe("inAppTarget", () => {

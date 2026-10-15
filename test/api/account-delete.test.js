@@ -21,6 +21,7 @@ const OWNED_ROWS = {
   tie_plans: "SELECT count(*) AS n FROM tie_plans tp JOIN ties t ON t.id = tp.tie_id WHERE t.owner_id = ?",
   tie_tags: "SELECT count(*) AS n FROM tie_tags tt JOIN ties t ON t.id = tt.tie_id WHERE t.owner_id = ?",
   invites: "SELECT count(*) AS n FROM invites WHERE used_by = ?",
+  key_wraps: "SELECT count(*) AS n FROM key_wraps WHERE user_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -52,6 +53,10 @@ async function userWithEverything() {
   const post = async (/** @type {string} */ path, /** @type {any} */ body) => (await call(path, { method: "POST", body, cookie })).body.id;
 
   await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES (?, ?, 'pk', 'Phone')", `pk-${id}`, id).run();
+  await sql(`INSERT INTO key_wraps (id, user_id, kind, passkey_id, salt, iv, wrapped, version)
+             VALUES (?, ?, 'passkey', ?, 's', 'i', 'w', 1)`, crypto.randomUUID(), id, `pk-${id}`).run();
+  await sql(`INSERT INTO key_wraps (id, user_id, kind, recovery_secret_hash, salt, iv, wrapped, version)
+             VALUES (?, ?, 'recovery', 'h', 's', 'i', 'w', 1)`, crypto.randomUUID(), id).run();
   await sql("INSERT INTO auth_challenges (challenge, purpose, user_id, expires_at) VALUES (?, 'register', ?, '2999-01-01T00:00:00Z')", `c-${id}`, id).run();
   await sql("INSERT INTO invites (code_hash, used_at, used_by) VALUES (?, '2026-01-01T00:00:00Z', ?)", `inv-${id}`, id).run();
   const sam = await post("/api/people", { name: "Sam" });

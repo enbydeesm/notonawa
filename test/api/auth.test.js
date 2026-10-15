@@ -2,7 +2,7 @@
 // account routes. Uses a software passkey (test/fake-passkey.js).
 import { describe, it, expect } from "vitest";
 import { SELF } from "cloudflare:test";
-import { ORIGIN, call, sql, sessionCookieFor, createOtherUser } from "../helpers.js";
+import { ORIGIN, call, sql, sessionCookieFor, createOtherUser, fakeWrap } from "../helpers.js";
 import { newFakePasskey } from "../fake-passkey.js";
 import { sha256Hex, isoAt } from "../../src/auth/session.js";
 import { newRecoveryCode, readRecoveryCode, loginSecret } from "../../public/js/recovery.js";
@@ -51,7 +51,7 @@ async function signUp({ invite } = {}) {
   expect(options.status).toBe(200);
   const done = await post("/api/auth/register/verify", {
     response: await passkey.register(options.body), name: "Test phone", prf_capable: true,
-    recovery_secret: await secretFor(recoveryCode),
+    recovery_secret: await secretFor(recoveryCode), recovery_wrap: fakeWrap("recovery"), passkey_wrap: fakeWrap("passkey"),
   });
   expect(done.status).toBe(200);
   const { user_id: userId } = /** @type {{ user_id: string }} */ (await sql("SELECT user_id FROM passkeys WHERE id = ?", passkey.id).first());
@@ -60,22 +60,23 @@ async function signUp({ invite } = {}) {
 
 /**
  * @param {Awaited<ReturnType<typeof newFakePasskey>>} passkey
- * @param {{ cookie?: string | null }} [options]
+ * @param {{ cookie?: string | null, prf?: boolean }} [options] prf: say it gave PRF output
  */
-async function signIn(passkey, { cookie = null } = {}) {
+async function signIn(passkey, { cookie = null, prf } = {}) {
   const options = await post("/api/auth/login/options", {});
-  return post("/api/auth/login/verify", { response: await passkey.authenticate(options.body) }, { cookie });
+  return post("/api/auth/login/verify", { response: await passkey.authenticate(options.body), prf }, { cookie });
 }
 
 /**
  * Adds a second passkey to a signed-in account.
  * @param {string} cookie
+ * @param {{ wrap?: any }} [options] the key wrapped for it, if any
  */
-async function addPasskey(cookie) {
+async function addPasskey(cookie, { wrap = null } = {}) {
   const passkey = await newFakePasskey();
   const options = await post("/api/auth/register/options", {}, { cookie });
   expect(options.status).toBe(200);
-  const done = await post("/api/auth/register/verify", { response: await passkey.register(options.body), name: "Laptop" }, { cookie });
+  const done = await post("/api/auth/register/verify", { response: await passkey.register(options.body), name: "Laptop", passkey_wrap: wrap }, { cookie });
   return { passkey, done };
 }
 
@@ -93,7 +94,7 @@ describe("signing up", () => {
     const options = await post("/api/auth/register/options", { invite, adult: true, consent: true });
     expect(options.body.authenticatorSelection).toMatchObject({ residentKey: "required", userVerification: "required" });
     const done = await post("/api/auth/register/verify", {
-      response: await passkey.register(options.body), name: "My phone", prf_capable: true, recovery_secret: await secretFor(code),
+      response: await passkey.register(options.body), name: "My phone", prf_capable: true, recovery_secret: await secretFor(code), recovery_wrap: fakeWrap("recovery"),
     });
 
     expect(done.status).toBe(200);
@@ -144,8 +145,8 @@ describe("signing up", () => {
     const optionsA = await post("/api/auth/register/options", { invite, adult: true, consent: true });
     const optionsB = await post("/api/auth/register/options", { invite, adult: true, consent: true });
     const secret = await secretFor(newRecoveryCode());
-    expect((await post("/api/auth/register/verify", { response: await a.register(optionsA.body), recovery_secret: secret })).status).toBe(200);
-    const second = await post("/api/auth/register/verify", { response: await b.register(optionsB.body), recovery_secret: await secretFor(newRecoveryCode()) });
+    expect((await post("/api/auth/register/verify", { response: await a.register(optionsA.body), recovery_secret: secret, recovery_wrap: fakeWrap("recovery") })).status).toBe(200);
+    const second = await post("/api/auth/register/verify", { response: await b.register(optionsB.body), recovery_secret: await secretFor(newRecoveryCode()), recovery_wrap: fakeWrap("recovery") });
     expect(second.body).toEqual({ error: "That invite code has already been used or has expired." });
     expect(await sql("SELECT 1 FROM passkeys WHERE id = ?", b.id).first()).toBeNull();
     expect((await post("/api/auth/register/options", { invite, adult: true, consent: true })).status).toBe(400);
@@ -277,7 +278,7 @@ describe("recovery codes", () => {
     expect((await post("/api/auth/recover", { recovery_secret: await secretFor(recoveryCode) })).status).toBe(200);
 
     const newCodeText = newRecoveryCode();
-    expect((await call("/api/account/recovery-code", { method: "PUT", body: { recovery_secret: await secretFor(newCodeText) }, cookie })).status).toBe(204);
+    expect((await call("/api/account/recovery-code", { method: "PUT", body: { recovery_secret: await secretFor(newCodeText), recovery_wrap: fakeWrap("recovery") }, cookie })).status).toBe(204);
     expect((await post("/api/auth/recover", { recovery_secret: await secretFor(recoveryCode) })).body.error).toBe("That recovery code didn't work.");
     expect((await post("/api/auth/recover", { recovery_secret: await secretFor(newCodeText) })).status).toBe(200);
   });
@@ -388,5 +389,136 @@ describe("recovery emails", () => {
     const { cookie } = await post("/api/auth/recover", { recovery_secret: await secretFor(recoveryCode) });
     expect((await call("/api/account/recovery-email", { method: "PUT", body: EMAIL, cookie })).status).toBe(403);
     expect(await stored(userId)).toEqual({ recovery_email_hash: null, recovery_email_salt: null });
+  });
+});
+
+describe("encryption keys", () => {
+  /** @param {string} cookie */
+  const keys = async (cookie) => (await call("/api/keys", { cookie })).body;
+  /** @param {string} userId */
+  const wrapIds = async (userId) => (await sql("SELECT id FROM key_wraps WHERE user_id = ? ORDER BY id", userId).all()).results.map((r) => r.id);
+
+  it("come with sign-up: wrapped for the recovery code and the passkey, and only the user's own", async () => {
+    const passkey = await newFakePasskey();
+    const code = newRecoveryCode();
+    const options = await post("/api/auth/register/options", { invite: await makeInvite(), adult: true, consent: true });
+    const recoveryWrap = fakeWrap("recovery");
+    const passkeyWrap = fakeWrap("passkey");
+    const done = await post("/api/auth/register/verify", {
+      response: await passkey.register(options.body), recovery_secret: await secretFor(code),
+      recovery_wrap: recoveryWrap, passkey_wrap: passkeyWrap,
+    });
+    const cookie = /** @type {string} */ (done.cookie);
+    await signUp();
+
+    const { kind: _r, ...recovery } = recoveryWrap;
+    const { kind: _p, ...ofPasskey } = passkeyWrap;
+    expect(await keys(cookie)).toEqual({
+      user_id: expect.any(String), has_key: true, passkey_id: passkey.id,
+      recovery: { ...recovery, kind: "recovery", current: true }, passkey: { ...ofPasskey, kind: "passkey" },
+    });
+    expect((await call("/api/account", { cookie })).body.passkeys).toMatchObject([{ unlocks: true }]);
+  });
+
+  it("are required at sign-up, and must look like wraps; a bad one saves nothing", async () => {
+    const before = (await sql("SELECT count(*) AS n FROM users").first())?.n;
+    for (const extra of [{}, { recovery_wrap: { ...fakeWrap("recovery"), wrapped: "short" } }, { recovery_wrap: fakeWrap("passkey") },
+      { recovery_wrap: fakeWrap("recovery"), passkey_wrap: { ...fakeWrap("passkey"), version: 2 } }]) {
+      const passkey = await newFakePasskey();
+      const options = await post("/api/auth/register/options", { invite: await makeInvite(), adult: true, consent: true });
+      const res = await post("/api/auth/register/verify", {
+        response: await passkey.register(options.body), recovery_secret: await secretFor(newRecoveryCode()), ...extra,
+      });
+      expect(res.status).toBe(400);
+    }
+    expect((await sql("SELECT count(*) AS n FROM users").first())?.n).toBe(before);
+  });
+
+  it("come with a new passkey when it can unlock, and go with it when it's removed", async () => {
+    const { cookie, userId } = await signUp();
+    const wrap = fakeWrap("passkey");
+    const { passkey: laptop } = await addPasskey(cookie, { wrap });
+    const { passkey: tablet } = await addPasskey(cookie);
+    expect((await keys(/** @type {string} */ ((await signIn(laptop)).cookie))).passkey?.id).toBe(wrap.id);
+    expect((await keys(/** @type {string} */ ((await signIn(tablet)).cookie))).passkey).toBeNull();
+    expect((await call("/api/account", { cookie })).body.passkeys.map((/** @type {any} */ p) => p.unlocks)).toEqual([true, true, false]);
+
+    expect((await call(`/api/account/passkeys/${laptop.id}`, { method: "DELETE", cookie })).status).toBe(204);
+    expect(await sql("SELECT 1 FROM key_wraps WHERE id = ?", wrap.id).first()).toBeNull();
+    expect(await wrapIds(userId)).toHaveLength(2);
+  });
+
+  it("are replaced with a new recovery code, which needs one once there's a key", async () => {
+    const { cookie, userId } = await signUp();
+    const code = newRecoveryCode();
+    const put = (/** @type {any} */ body) => call("/api/account/recovery-code", { method: "PUT", body, cookie });
+    expect((await put({ recovery_secret: await secretFor(code) })).status).toBe(400);
+    const wrap = fakeWrap("recovery");
+    expect((await put({ recovery_secret: await secretFor(code), recovery_wrap: wrap })).status).toBe(204);
+    expect((await keys(cookie)).recovery).toMatchObject({ id: wrap.id, current: true });
+    expect(await wrapIds(userId)).toHaveLength(2);
+    expect((await post("/api/auth/recover", { recovery_secret: await secretFor(code) })).status).toBe(200);
+  });
+
+  it("say the recovery wrap isn't current once the operator replaces the code without it", async () => {
+    const { cookie, userId } = await signUp();
+    await sql("UPDATE users SET recovery_secret_hash = ? WHERE id = ?", await sha256Hex(await secretFor(newRecoveryCode())), userId).run();
+    expect((await keys(cookie)).recovery.current).toBe(false);
+  });
+
+  it("are set up once for an account without one, with a new recovery code, or started afresh on request", async () => {
+    const { cookie, userId, passkey } = await signUp();
+    await sql("DELETE FROM key_wraps WHERE user_id = ?", userId).run();
+    expect(await keys(cookie)).toMatchObject({ has_key: false, recovery: null, passkey: null });
+
+    const code = newRecoveryCode();
+    const setup = (/** @type {any} */ body) => call("/api/keys/setup", { method: "POST", body, cookie });
+    const first = { recovery_secret: await secretFor(code), recovery_wrap: fakeWrap("recovery"), passkey_wrap: fakeWrap("passkey") };
+    expect((await setup(first)).status).toBe(204);
+    expect(await keys(cookie)).toMatchObject({ has_key: true, recovery: { id: first.recovery_wrap.id, current: true }, passkey: { id: first.passkey_wrap.id } });
+    expect((await post("/api/auth/recover", { recovery_secret: await secretFor(code) })).status).toBe(200);
+    expect(await sql("SELECT passkey_id FROM key_wraps WHERE id = ?", first.passkey_wrap.id).first()).toEqual({ passkey_id: passkey.id });
+
+    const again = { recovery_secret: await secretFor(newRecoveryCode()), recovery_wrap: fakeWrap("recovery") };
+    expect((await setup(again))).toEqual({ status: 409, body: { error: "Your journal already has an encryption key." } });
+    expect((await setup({ ...again, replace: true })).status).toBe(204);
+    expect(await wrapIds(userId)).toEqual([again.recovery_wrap.id]);
+  });
+
+  it("need a recent sign-in to set up or to wrap for a passkey, and only for my own passkeys", async () => {
+    const { userId, passkey, cookie } = await signUp();
+    const other = await signUp();
+    const older = await sessionCookieFor(userId, { createdAt: isoAt(Date.now() - 20 * 60 * 1000) });
+    const reauth = { error: "Please confirm it's you, then try again.", reauth: true };
+    const setupBody = { recovery_secret: await secretFor(newRecoveryCode()), recovery_wrap: fakeWrap("recovery"), replace: true };
+    expect((await call("/api/keys/setup", { method: "POST", body: setupBody, cookie: older })).body).toEqual(reauth);
+    expect((await call(`/api/keys/passkeys/${passkey.id}`, { method: "PUT", body: { wrap: fakeWrap("passkey") }, cookie: older })).body).toEqual(reauth);
+
+    const wrap = fakeWrap("passkey");
+    expect((await call(`/api/keys/passkeys/${passkey.id}`, { method: "PUT", body: { wrap }, cookie })).status).toBe(204);
+    expect((await keys(cookie)).passkey.id).toBe(wrap.id);
+    expect(await wrapIds(userId)).toHaveLength(2);
+    expect((await call(`/api/keys/passkeys/${other.passkey.id}`, { method: "PUT", body: { wrap: fakeWrap("passkey") }, cookie })).status).toBe(404);
+  });
+
+  it("can be read, but not changed, from a recovery session", async () => {
+    const { recoveryCode } = await signUp();
+    const { cookie } = await post("/api/auth/recover", { recovery_secret: await secretFor(recoveryCode) });
+    expect(await keys(/** @type {string} */ (cookie))).toMatchObject({ has_key: true, passkey_id: null, passkey: null, recovery: { current: true } });
+    const body = { recovery_secret: await secretFor(newRecoveryCode()), recovery_wrap: fakeWrap("recovery"), replace: true };
+    expect((await call("/api/keys/setup", { method: "POST", body, cookie })).status).toBe(403);
+  });
+
+  it("record that a passkey can unlock when it gives PRF output at sign-in", async () => {
+    const { cookie } = await signUp();
+    const { passkey } = await addPasskey(cookie);
+    const capable = async () => (await sql("SELECT prf_capable FROM passkeys WHERE id = ?", passkey.id).first())?.prf_capable;
+    expect(await capable()).toBeNull();
+    await signIn(passkey);
+    expect(await capable()).toBeNull();
+    await signIn(passkey, { prf: true });
+    expect(await capable()).toBe(1);
+    await signIn(passkey);
+    expect(await capable()).toBe(1);
   });
 });

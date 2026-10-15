@@ -9,9 +9,13 @@
 // message that merely comes "from" the address proves nothing; those can be
 // faked. Without a recovery email there's no way to tell the account is theirs.
 //
-// Once encryption arrives (step 4 in considerations.md), this restores
-// signing in only: encrypted notes and photos still need the person's own
-// passkey or their own earlier recovery code.
+// This restores signing in only. The journal's encryption key isn't wrapped
+// for the new code (we can't: we never have the key), so the person still
+// needs a passkey that unlocks, or their own earlier recovery code: the old
+// recovery wrap is kept for that. The app sees the wrap no longer matches
+// the code, and makes a new code the next time they unlock. With neither,
+// they can start a new key from the Unlock screen, losing what the old one
+// encrypted.
 //
 //   node scripts/recovery-code.mjs [--remote]                    list accounts
 //   node scripts/recovery-code.mjs --email <address> [--remote]  find the account with that recovery email

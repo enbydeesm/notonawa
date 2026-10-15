@@ -380,6 +380,54 @@
     </section>
   </template>
 
+  <!-- In place of any view that needs the key, while the journal is locked -->
+  <template id="view-unlock">
+    <h1>Rope Journal</h1>
+
+    <section class="card" id="unlock-choose" hidden>
+      <h2>Your journal is locked</h2>
+      <p class="hint">It locks itself when you haven't used it for a while, and when you leave the app. Unlock it with your passkey.</p>
+      <button type="button" class="primary" id="unlock-passkey">Unlock with your passkey</button>
+      <p class="message" id="unlock-passkey-message"></p>
+      <button type="button" class="link" data-unlock-show="code">Use your recovery code instead</button>
+    </section>
+
+    <section class="card" id="unlock-code" hidden>
+      <h2>Unlock with your recovery code</h2>
+      <p class="hint" id="unlock-code-why"></p>
+      <form id="unlock-code-form">
+        <label for="unlock-code-input">Recovery code</label>
+        <input id="unlock-code-input" required autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <button type="submit" class="primary">Unlock</button>
+        <p class="message" id="unlock-code-message"></p>
+      </form>
+      <button type="button" class="link" data-unlock-show="choose">Back</button>
+    </section>
+
+    <section class="card" id="unlock-setup" hidden>
+      <h2>Set up encryption</h2>
+      <p class="hint">Rope Journal now encrypts your private notes on your device, so only you can read them. Your
+        journal needs its encryption key first. You'll get a new recovery code, which unlocks it and replaces your
+        old one: save it somewhere safe.</p>
+      <button type="button" class="primary" id="unlock-setup-go">Set up encryption</button>
+      <p class="message" id="unlock-setup-message"></p>
+    </section>
+
+    <section class="card" id="unlock-cant" hidden>
+      <h2>That recovery code can't unlock your journal</h2>
+      <p class="hint">Your recovery code was replaced when we helped you sign in, and your journal is still locked
+        with the old one. An older recovery code can unlock it, or a passkey that unlocked it before. If you have
+        neither, you can start a new encryption key: anything encrypted with the old key can't be read again.</p>
+      <div class="item-actions">
+        <button type="button" data-unlock-show="code">Try another recovery code</button>
+        <button type="button" class="danger" id="unlock-new-key">Start a new key</button>
+      </div>
+      <p class="message" id="unlock-new-key-message"></p>
+    </section>
+
+    <button type="button" class="link" id="unlock-sign-out">Sign out</button>
+  </template>
+
   <!-- Any other address -->
   <template id="view-not-found">
     <h1>Page not found</h1>

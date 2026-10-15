@@ -64,7 +64,8 @@ account.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
-  can't use them. See [How encryption works](#how-encryption-works).
+  can't use them, and which of your passkeys can unlock it. See
+  [How encryption works](#how-encryption-works).
 
 We don't collect your phone number, real name, contacts or location, or your
 email address unless you add a recovery email.
@@ -118,8 +119,14 @@ encrypt more of these fields over time.
   Your notes and photos are encrypted with it (AES-256-GCM) on your device,
   before anything is sent to us.
 - That key is locked using a secret your passkey produces (the WebAuthn "PRF"
-  feature), which never leaves your device. If your passkey doesn't support
-  this, you unlock with your recovery code instead.
+  feature), which never leaves your device: it's never sent to us. On its
+  way to the walled-off part of the app that holds your key (see below), it
+  passes through the app's page for a moment. If your passkey doesn't
+  support this, you unlock with your recovery code instead.
+- A new passkey can only unlock your journal once you've confirmed it's you
+  with a passkey or recovery code that already can. A passkey that couldn't
+  unlock before (for example one added before encryption) can after you've
+  unlocked once with your recovery code.
 - You get a **recovery code** when you create your account. It can also unlock
   your key. We show it once and don't keep a copy.
 - **If you lose every passkey and your recovery code, your encrypted notes and
@@ -140,11 +147,14 @@ encrypt more of these fields over time.
   [Your rights and choices](#your-rights-and-choices)).
 - **The app locks itself.** It forgets your key and everything it decrypted
   after [15] minutes without use, after [5] minutes in the background, when
-  you sign out, and when you close the tab. You unlock again with your
-  passkey.
+  you sign out, and when you close or reload the tab. You unlock again with
+  your passkey.
 - **Decryption happens in a separate, walled-off part of the browser** (a Web
   Worker), so the rest of the page only ever sees the results it is
-  displaying.
+  displaying, and your key can't be copied out of the page. This can't
+  protect what is shown while the app is unlocked from other code running in
+  the page itself, such as a browser extension you've allowed on this site.
+  That's why the app is so strict about which code may run in it (below).
 - **Searching happens on your device.** What you type in the search box is
   never sent to us and never appears in the page address, so it doesn't end
   up in your browser history either.
@@ -273,7 +283,10 @@ to help you sign in again, but only if you added a recovery email:
 
 A new recovery code restores signing in and the parts of your journal we can
 read. It never brings back your encrypted notes and photos, which still need
-one of your own passkeys or your own earlier recovery code.
+one of your own passkeys or your own earlier recovery code. (If you do unlock
+with one of those, the app gives you a new recovery code straight away, so
+the old one stops working.) If you have neither, you can start a new
+encryption key, but what the old key encrypted can't be read again.
 
 ## Legal requests
 

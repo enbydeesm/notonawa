@@ -117,12 +117,18 @@ export function findPasskey(db, id) {
 }
 
 /**
+ * Records a passkey's use. prf: it gave PRF output just now, so it can
+ * unlock (fills in prf_capable, which some browsers only report at sign-in).
+ * Not giving it doesn't mark it unable: the same passkey may on another device.
  * @param {D1Database} db
  * @param {string} id
  * @param {number} counter
+ * @param {boolean} prf
  */
-export function usedPasskeyStatement(db, id, counter) {
-  return db.prepare(`UPDATE passkeys SET counter = ?, last_used_at = ${NOW} WHERE id = ?`).bind(counter, id);
+export function usedPasskeyStatement(db, id, counter, prf) {
+  return db.prepare(
+    `UPDATE passkeys SET counter = ?, last_used_at = ${NOW}, prf_capable = CASE WHEN ? THEN 1 ELSE prf_capable END WHERE id = ?`
+  ).bind(counter, prf ? 1 : 0, id);
 }
 
 /**
@@ -157,7 +163,7 @@ export async function newSessionStatements(db, userId, { kind, passkeyId }) {
  */
 export function findSession(db, tokenHash) {
   return db.prepare(
-    "SELECT id, user_id, kind, created_at, last_used_at, expires_at FROM sessions WHERE token_hash = ?"
+    "SELECT id, user_id, kind, passkey_id, created_at, last_used_at, expires_at FROM sessions WHERE token_hash = ?"
   ).bind(tokenHash).first();
 }
 

@@ -11,6 +11,8 @@ import {
   deleteAccount,
 } from "./db.js";
 import { parseRecoveryEmail } from "./parse.js";
+import { parseWrap } from "../keys/parse.js";
+import { hasKey, recoveryWrapStatements } from "../keys/db.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -48,13 +50,20 @@ export async function handleAccount(request, env, user, url) {
     return json({ passkey_ids: passkeyIds }, 200, { "set-cookie": clearSessionCookie() });
   }
 
-  // PUT /api/account/recovery-code  body { recovery_secret } -> replaces my
-  //   recovery code (needs a recent sign-in). The browser made the code and
-  //   sends only the secret derived from it.
+  // PUT /api/account/recovery-code  body { recovery_secret, recovery_wrap }
+  //   -> replaces my recovery code (needs a recent sign-in). The browser
+  //   made the code and sends only the secret derived from it, and, once
+  //   the account has an encryption key, the key wrapped for the new code
+  //   (saved together, replacing the old code's wrap).
   if (url.pathname === "/api/account/recovery-code" && request.method === "PUT") {
     if (!isFresh(user.session)) throw new NeedsReauth();
-    const secret = parseRecoverySecret((await readJson(request)).recovery_secret);
-    await setRecoveryHash(db, user.id, await sha256Hex(secret));
+    const body = await readJson(request);
+    const recoveryHash = await sha256Hex(parseRecoverySecret(body.recovery_secret));
+    if (await hasKey(db, user.id)) {
+      await db.batch(recoveryWrapStatements(db, user.id, recoveryHash, parseWrap(body.recovery_wrap, "recovery")));
+    } else {
+      await setRecoveryHash(db, user.id, recoveryHash);
+    }
     return noContent();
   }
 

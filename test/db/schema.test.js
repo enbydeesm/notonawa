@@ -98,3 +98,48 @@ describe("constraints", () => {
     expect(row?.updated_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
   });
 });
+
+describe("key wraps", () => {
+  /** @param {string} userId */
+  const addPasskey = async (userId) => {
+    const id = newId("pk");
+    await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES (?, ?, 'pk', 'Phone')", id, userId).run();
+    return id;
+  };
+  /**
+   * @param {string} userId
+   * @param {{ kind?: string, passkeyId?: string | null, recoveryHash?: string | null }} [w]
+   */
+  const insertWrap = (userId, { kind = "passkey", passkeyId = null, recoveryHash = null } = {}) =>
+    sql(`INSERT INTO key_wraps (id, user_id, kind, passkey_id, recovery_secret_hash, salt, iv, wrapped, version)
+         VALUES (?, ?, ?, ?, ?, 's', 'i', 'w', 1)`, newId("wrap"), userId, kind, passkeyId, recoveryHash).run();
+
+  it("can't be for another user's passkey", async () => {
+    const theirs = await addPasskey(them);
+    await expect(insertWrap(me, { passkeyId: theirs })).rejects.toThrow("ownership mismatch: key wrap");
+  });
+
+  it("are one per passkey and one recovery wrap per user", async () => {
+    const mine = await addPasskey(me);
+    await insertWrap(me, { passkeyId: mine });
+    await expect(insertWrap(me, { passkeyId: mine })).rejects.toThrow(/UNIQUE/);
+    await insertWrap(me, { kind: "recovery", recoveryHash: "h" });
+    await expect(insertWrap(me, { kind: "recovery", recoveryHash: "h2" })).rejects.toThrow(/UNIQUE/);
+  });
+
+  it("have a passkey exactly when they're for one, and a code's hash exactly when they're for recovery", async () => {
+    const mine = await addPasskey(me);
+    await expect(insertWrap(me, { kind: "passkey" })).rejects.toThrow(/CHECK/);
+    await expect(insertWrap(me, { kind: "recovery", passkeyId: mine, recoveryHash: "h" })).rejects.toThrow(/CHECK/);
+    await expect(insertWrap(me, { kind: "recovery" })).rejects.toThrow(/CHECK/);
+    await expect(insertWrap(me, { kind: "passkey", passkeyId: mine, recoveryHash: "h" })).rejects.toThrow(/CHECK/);
+  });
+
+  it("are replaced, never changed, and go with their passkey", async () => {
+    const mine = await addPasskey(me);
+    await insertWrap(me, { passkeyId: mine });
+    await expect(sql("UPDATE key_wraps SET wrapped = 'x' WHERE user_id = ?", me).run()).rejects.toThrow("replaced, not changed");
+    await sql("DELETE FROM passkeys WHERE id = ?", mine).run();
+    expect(await sql("SELECT count(*) AS n FROM key_wraps WHERE user_id = ?", me).first()).toEqual({ n: 0 });
+  });
+});

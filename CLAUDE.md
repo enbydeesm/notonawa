@@ -76,6 +76,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `webauthn.js` (the library with our settings), `db.js`, `user.js`
   (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
   options|verify`, `/api/auth/recover`, `/api/auth/logout`).
+- `src/keys/`: wrapped encryption keys (migration 0009). `parse.js` (pure:
+  a wrap's shape), `db.js`, `routes.js` (`GET /api/keys`, `POST
+  /api/keys/setup`, `PUT /api/keys/passkeys/:id`). Sign-up, adding a
+  passkey and replacing the recovery code also take wraps (auth/, account/).
 - `src/account/`: `GET /api/account`, renaming/removing passkeys, ending
   sessions, replacing the recovery code, setting or removing the recovery
   email (`PUT`/`DELETE /api/account/recovery-email`: a hash and salt only;
@@ -112,7 +116,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   shell: shows the view for the address, handles links and Back/Forward),
   `router.js` (pure: the routes, which link clicks stay in the app),
   `navigate.js` (`navigate(path, { replace })`: changing view from code),
-  `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
+  `crypto/keys.js` (pure: the data key, wrapping, the PRF salt),
+  `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
+  (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
+  `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
+  code with proof, sign-up, recovery), `lock-rules.js` (pure) and `lock.js`
+  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
@@ -131,7 +140,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   No inline scripts. Ids inside dialogs are prefixed (e.g. `tie-title`) so they
   don't clash with the view underneath.
 - **Single-page app.** Each view module exports `mount(root, { signal })`,
-  run each time the view is shown (its state starts fresh inside it). Its
+  run each time the view is shown (its state starts fresh inside it).
+  Routes with `needsKey` show the Unlock view (`views/unlock.js`) in their
+  place while the journal is locked, and are drawn again when it locks. Its
   markup is cloned from its template first. `signal` aborts when the view is
   left: anything outside the view's own elements (listeners on `window` or
   `document`, observers, timers) must stop with it (`{ signal }`, or
@@ -162,7 +173,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `node scripts/backup.mjs --remote`: encrypted backup into `backups/`, and
   deletes ones older than 7 days (only when it runs: run it at least weekly).
   `node scripts/restore-backup.mjs <file>` decrypts one.
-- `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database.
+- `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database
+  (with a generated copy of `wrangler.jsonc` whose sign-in rate limit is
+  higher, as every page load there locks and unlocks).
 - `npm run dev`: local app. `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
 
@@ -206,6 +219,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   It can be renamed or archived; a unique index allows at most one.
 - **Multi-statement writes go in one `env.DB.batch([...])`**, which runs as a
   single transaction, so a failure saves nothing.
+- **Wrapped keys (`key_wraps`) are never exported** (useless without the
+  user's secrets); they go with their passkey or account.
 - **When a table or column is added, update export and import**
   (`src/data/`): the export must hold everything in an account, and an
   export must import back exactly (`test/api/data-import.test.js`). Account
@@ -277,9 +292,20 @@ change affects what's collected, stored, readable or kept, update it too.
   unexpected errors.
 - **No third-party scripts, fonts, analytics or trackers.**
 - **A recovery code never leaves the browser.** Send only `loginSecret(code)`
-  (`public/js/recovery.js`); the server stores a SHA-256 of that. Step 4 will
-  derive the encryption key from the code differently, so keep the two
-  derivations apart.
+  (`public/js/recovery.js`); the server stores a SHA-256 of that. The
+  encryption key's wrapping key comes from the code differently
+  (`crypto/keys.js`); keep the two derivations apart.
+- **PRF output never leaves the browser**, and only the crypto Worker uses
+  it. Every passkey answer sent goes through `withoutPrfResults`; send only
+  whether it was given. Hand it to the Worker by transferring the buffer.
+  `prfOutputFor()` is not a sign-in: never use it as proof of identity or
+  to start or freshen a session.
+- **The encryption key lives only in the crypto Worker**, non-extractable.
+  Never add a Worker operation that returns the key, or that wraps it
+  without proof (an existing wrap and its secret, given just now). Step 5's
+  operations work on whole records, never a general decrypt. Nothing
+  decrypted goes to localStorage, sessionStorage, IndexedDB or a cache.
+  Anything that ends the session or signs out must `lock()`.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery
   code, setting or removing the recovery email, deleting the account. Throw `NeedsReauth`; the page asks for the passkey again

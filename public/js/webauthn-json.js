@@ -1,7 +1,8 @@
 // Converting passkey options and answers between the JSON the server speaks
-// and the binary the browser's WebAuthn API speaks. Only used by browsers
-// without the built-in PublicKeyCredential.parse...FromJSON and toJSON
-// (older Safari and Firefox). Pure, so it's easy to test.
+// and the binary the browser's WebAuthn API speaks. The conversions are only
+// used by browsers without the built-in PublicKeyCredential.parse...FromJSON
+// and toJSON (older Safari and Firefox); withoutPrfResults is used always.
+// Pure, so it's easy to test.
 
 /** @param {string} text base64url */
 export function fromBase64url(text) {
@@ -86,4 +87,20 @@ export function authenticationToJSON(credential) {
       userHandle: r.userHandle ? toBase64url(r.userHandle) : undefined,
     },
   };
+}
+
+/**
+ * An answer for the server with any PRF output taken out. The browser's own
+ * toJSON() (and the conversions above) copy the extension results, which
+ * would include the PRF output: the secret that unlocks the journal. It
+ * must never be sent; whether the passkey gave it (prf.enabled) may be.
+ * @template {{ clientExtensionResults?: any }} T
+ * @param {T} json
+ * @returns {T}
+ */
+export function withoutPrfResults(json) {
+  const results = json.clientExtensionResults;
+  if (!results?.prf) return json;
+  const { results: _secret, ...prf } = results.prf;
+  return { ...json, clientExtensionResults: { ...results, prf } };
 }
