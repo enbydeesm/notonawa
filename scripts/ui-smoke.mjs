@@ -83,9 +83,9 @@ for (const db of config.d1_databases) db.migrations_dir = path.join(projectDir, 
 // Local D1 and R2 only: wrangler.jsonc marks them remote for `npm run dev`,
 // and this walkthrough must never touch the real ones.
 for (const binding of [...config.d1_databases, ...config.r2_buckets]) delete binding.remote;
-// No routes either: with the notonawa.app route in the config, signing up
-// with a passkey fails under wrangler dev on localhost.
-delete config.routes;
+// wrangler dev rewrites each request's Origin to dev.host (see wrangler.jsonc),
+// so it must be this walkthrough's own address.
+config.dev = { ...config.dev, host: `localhost:${PORT}` };
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 

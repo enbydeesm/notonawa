@@ -71,5 +71,12 @@
 			"custom_domain": true
 		}
 	],
-	"workers_dev": false
+	"workers_dev": false,
+	// `npm run dev` would otherwise take its host from the route above and
+	// rewrite each request's Origin to https://notonawa.app, which the Origin
+	// check refuses. Must match ORIGIN in .dev.vars.
+	"dev": {
+		"host": "localhost:8787",
+		"port": 8787
+	}
 }
