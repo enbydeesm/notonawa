@@ -55,14 +55,18 @@ describe("hasKeywordInUrl", () => {
 });
 
 describe("searchBody", () => {
-  it("carries every filter, the trimmed keyword and the page", () => {
-    expect(searchBody({
+  it("carries every filter and the page, and the keyword's matches but never the keyword", () => {
+    const state = {
       person_ids: ["a"], location_ids: ["c"], tag_ids: ["t"], tag_match: /** @type {const} */ ("all"), from: "2026-01-01", to: "", q: "  box tie ", page: 3,
       page_size: 50, sort: /** @type {const} */ ("oldest"),
-    })).toEqual({
-      person_ids: ["a"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all", from: "2026-01-01", to: "", q: "box tie", page: 3,
+    };
+    const body = searchBody(state, ["t1", "t2"]);
+    expect(body).toEqual({
+      person_ids: ["a"], location_ids: ["c"], tag_ids: ["t"], tag_match: "all", from: "2026-01-01", to: "", match_ids: ["t1", "t2"], page: 3,
       page_size: 50, sort: "oldest",
     });
+    expect(JSON.stringify(body)).not.toContain("box");
+    expect(searchBody({ ...state, q: "" }, null).match_ids).toBeNull();
   });
 });
 

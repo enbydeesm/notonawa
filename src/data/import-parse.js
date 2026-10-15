@@ -3,12 +3,13 @@
 // easy to test.
 //
 // The shape is the export's (shape.js); a CSV is turned into it by the page.
-// Every field goes through the same parsers as the app's own forms. Ids in
+// Every field goes through the same parsers as the app's own forms: notes
+// and descriptions must arrive encrypted (the page seals them). Ids in
 // the file are only used to follow links within the file: rows always get new
 // ids (import-plan.js), so a file can never touch or probe existing rows.
 
 import { BadInput } from "../http.js";
-import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull } from "../parse.js";
+import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull, encryptedText } from "../parse.js";
 import { RESOURCES, parseFields } from "../resources/config.js";
 import { ROLES, TIE_TYPES } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
@@ -101,7 +102,7 @@ function parseTie(t) {
     title: cleanText(t.title),
     tie_date: toDateOrNull(t.tie_date),
     tie_type: toChoiceOrNull(t.tie_type, TIE_TYPES),
-    notes: cleanText(t.notes),
+    notes: encryptedText(t.notes),
     duration_minutes: toIntOrNull(t.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(t.success_rating, 1, 5),
     location_id: locationId,
@@ -143,7 +144,7 @@ function parseImportParticipants(value) {
       role,
       difficulty_rating: toIntOrNull(p.difficulty_rating, 1, 5),
       experience_rating: toIntOrNull(p.experience_rating, 1, 5),
-      notes: cleanText(p.notes),
+      notes: encryptedText(p.notes),
     });
   }
   return result;
@@ -186,7 +187,7 @@ function parsePerson(p) {
 /** @param {Record<string, unknown>} n @returns {ProfileNoteInput} */
 function parseProfileNote(n) {
   const type = toChoiceOrNull(n.type, PROFILE_NOTE_TYPES);
-  const description = cleanText(n.description);
+  const description = encryptedText(n.description);
   if (!type || !description) throw new BadInput("Each profile note needs a type and a description.");
   return {
     type, description,

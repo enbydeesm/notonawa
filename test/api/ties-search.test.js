@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { call, create, createOtherUser, sessionCookieFor, sql } from "../helpers.js";
+import { call, create, createOtherUser, sessionCookieFor, sql, sealed } from "../helpers.js";
 
 // Tests in this file share a database, so each one makes its own people,
 // locations and keywords and only looks at the ties it made.
@@ -92,46 +92,48 @@ describe("searching ties", () => {
     expect(await titles(at)).toEqual(["Mar", "Feb", "Jan"]);
   });
 
-  it("by keyword in the title, notes or a linked plan's title, ignoring case", async () => {
-    const plan = await create("/api/plans", { title: "Zebra harness" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "zebra in title" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "Notes match", notes: "tried the ZEBRA wrap" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "Plan match", plan_ids: [plan] });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "No match", notes: "zebr a" });
-
-    expect((await titles({ q: "Zebra" })).sort()).toEqual(["Notes match", "Plan match", "zebra in title"]);
-    expect(await titles({ q: "  zebra wrap " })).toEqual(["Notes match"]);
-  });
-
-  it("treats % and _ in the keyword as plain characters", async () => {
-    await create("/api/ties", { tie_date: "2026-01-01", title: "100% fun" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "1000 fun" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "snake_case tie" });
-    await create("/api/ties", { tie_date: "2026-01-01", title: "snakeXcase tie" });
-
-    expect(await titles({ q: "100%" })).toEqual(["100% fun"]);
-    expect(await titles({ q: "snake_case" })).toEqual(["snake_case tie"]);
-  });
-
-  it("combines filters", async () => {
+  it("keeps only the ties a keyword matched on the device (match_ids), with the other filters", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const loc = await create("/api/locations", { name: "Combo" });
     const with_ = [{ person_id: sam, role: "model" }];
-    await create("/api/ties", { title: "Right", notes: "kiwi", tie_date: "2026-05-01", location_id: loc, participants: with_ });
-    await create("/api/ties", { title: "Wrong date", notes: "kiwi", tie_date: "2026-07-01", location_id: loc, participants: with_ });
-    await create("/api/ties", { title: "No Sam", notes: "kiwi", tie_date: "2026-05-01", location_id: loc });
-    await create("/api/ties", { title: "Missing keyword", tie_date: "2026-05-01", location_id: loc, participants: with_ });
+    const right = await create("/api/ties", { title: "Right", tie_date: "2026-05-01", location_id: loc, participants: with_ });
+    const wrongDate = await create("/api/ties", { title: "Wrong date", tie_date: "2026-07-01", location_id: loc, participants: with_ });
+    await create("/api/ties", { title: "Not matched", tie_date: "2026-05-01", location_id: loc, participants: with_ });
 
-    expect(await titles({ person_ids: [sam], location_ids: [loc], from: "2026-04-01", to: "2026-06-01", q: "kiwi" })).toEqual(["Right"]);
+    expect(await titles({ person_ids: [sam], location_ids: [loc], from: "2026-04-01", to: "2026-06-01", match_ids: [right, wrongDate] }))
+      .toEqual(["Right"]);
+    expect(await titles({ location_ids: [loc], match_ids: [] })).toEqual([]);
+    expect((await titles({ location_ids: [loc] })).sort()).toEqual(["Not matched", "Right", "Wrong date"]);
   });
 
-  it("never matches another user's ties", async () => {
+  it("refuses a keyword: it's searched for on the device and never sent", async () => {
+    expect((await search({ q: "secret" })).status).toBe(400);
+  });
+
+  it("gives the device every tie's title, notes (still encrypted) and plan titles to search", async () => {
+    const plan = await create("/api/plans", { title: "Zebra harness" });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Indexed", notes: sealed("zebra notes"), plan_ids: [plan] });
+    const index = (await call("/api/ties/search-index")).body;
+    expect(index.find((/** @type {any} */ e) => e.id === tie)).toEqual({
+      id: tie, title: "Indexed", notes: sealed("zebra notes"), plan_titles: ["Zebra harness"],
+    });
+    expect(index.every((/** @type {any} */ e) => Array.isArray(e.plan_titles))).toBe(true);
+  });
+
+  it("never matches or indexes another user's ties", async () => {
     const otherId = await createOtherUser();
     await sql("INSERT INTO locations (id, owner_id, name) VALUES ('their-spot', ?, 'Their spot')", otherId).run();
     await sql("INSERT INTO ties (id, owner_id, title, tie_date, location_id) VALUES ('their-tie', ?, 'Secret mango', '2026-01-01', 'their-spot')", otherId).run();
 
     expect(await titles({ location_ids: ["their-spot"] })).toEqual([]);
-    expect(await titles({ q: "mango" })).toEqual([]);
+    expect(await titles({ match_ids: ["their-tie"] })).toEqual([]);
+    expect((await call("/api/ties/search-index")).body.map((/** @type {any} */ e) => e.id)).not.toContain("their-tie");
+  });
+
+  it("saves notes only encrypted", async () => {
+    const res = await call("/api/ties", { method: "POST", body: { tie_date: "2026-01-01", title: "Plain", notes: "plain notes" } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/weren't encrypted/);
   });
 
   it("rejects bad filters with a friendly message", async () => {
@@ -143,7 +145,7 @@ describe("searching ties", () => {
     expect((await call("/api/ties/search", { method: "POST", body: "not json" })).status).toBe(400);
   });
 
-  it("is only a POST, so the keyword never goes in a URL", async () => {
+  it("is only a POST", async () => {
     expect((await call("/api/ties?q=secret")).status).toBe(404);
     expect((await call("/api/ties/search?q=secret")).status).toBe(404);
   });

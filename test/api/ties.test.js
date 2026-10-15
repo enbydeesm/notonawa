@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { call, create, sql, createOtherUser, sessionCookieFor } from "../helpers.js";
+import { call, create, sql, createOtherUser, sessionCookieFor, sealed } from "../helpers.js";
 
 describe("ties", () => {
   it("adds a tie with its location, people and plans, and lists it", async () => {
@@ -142,11 +142,11 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("gets a tie with everything on it", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, notes: "n",
+      title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, notes: sealed("n"),
       participants: [{ person_id: j.sam, role: "model" }], plan_ids: [j.tk], tags: ["kata"],
     });
     expect(await j.get(id)).toMatchObject({
-      id, title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, location_name: "Studio", notes: "n",
+      id, title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, location_name: "Studio", notes: sealed("n"),
       participants: [{ id: expect.any(String), person_id: j.sam, person_name: "Sam", role: "model" }],
       plans: [{ id: expect.any(String), plan_id: j.tk, plan_title: "TK", plan_version: 1 }],
       tags: ["kata"],
@@ -162,13 +162,13 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     await sql("UPDATE ties SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?", id).run();
     const res = await j.put(id, {
       title: "After", tie_date: "2026-05-02", tie_type: "suspension", location_id: j.garden,
-      duration_minutes: 30, success_rating: 5, notes: "better",
+      duration_minutes: 30, success_rating: 5, notes: sealed("better"),
       participants: [{ person_id: j.alex, role: "rigger" }], plan_ids: [j.hip], tags: ["new", "kata"],
     });
     expect(res).toEqual({ status: 200, body: { id } });
     expect(await j.get(id)).toMatchObject({
       title: "After", tie_date: "2026-05-02", tie_type: "suspension", location_name: "Garden",
-      duration_minutes: 30, success_rating: 5, notes: "better",
+      duration_minutes: 30, success_rating: 5, notes: sealed("better"),
       participants: [expect.objectContaining({ person_name: "Alex", role: "rigger" })],
       plans: [expect.objectContaining({ plan_title: "Hip harness" })],
       tags: ["kata", "new"],

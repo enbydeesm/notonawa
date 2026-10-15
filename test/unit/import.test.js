@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseImportItems, parseImportTies } from "../../src/data/import-parse.js";
 import { planItems, planTies, jsonChunks, findByName, linksKey } from "../../src/data/import-plan.js";
+import { sealed } from "../sealed.js";
 
 /** Ids 1, 2, 3, … so plans are predictable. */
 function counter() {
@@ -13,14 +14,14 @@ const NONE = { people: [], locations: [], plans: [], tags: [] };
 describe("parseImportItems", () => {
   it("parses people, locations, plans and tags as the app's forms do", () => {
     const items = parseImportItems({
-      people: [{ id: "p1", name: "  Sam ", is_self: false, profile_notes: [{ type: "limit", description: "No neck ties" }] }],
+      people: [{ id: "p1", name: "  Sam ", is_self: false, profile_notes: [{ type: "limit", description: sealed("No neck ties") }] }],
       locations: [{ id: "l1", name: "Studio", maps_url: "https://maps.example/x", latitude: "51.5" }],
       plans: [{ id: "a", title: "TK", version: 3, tags: ["box", "Box"] }, { id: "b", title: "TK 2", variation_of: "a" }],
       tags: ["floor", "", "Floor"],
     });
     expect(items.people[0]).toMatchObject({
       file_id: "p1", name: "Sam", is_self: 0, archived_at: null,
-      profile_notes: [{ type: "limit", description: "No neck ties", is_current: 1, noted_on: null }],
+      profile_notes: [{ type: "limit", description: sealed("No neck ties"), is_current: 1, noted_on: null }],
     });
     expect(items.locations[0]).toMatchObject({ name: "Studio", maps_url: "https://maps.example/x", latitude: 51.5, longitude: null });
     expect(items.plans).toMatchObject([
@@ -29,6 +30,15 @@ describe("parseImportItems", () => {
     ]);
     expect(items.tags).toEqual(["floor"]);
     expect(parseImportItems({})).toEqual(NONE);
+  });
+
+  it("refuses notes and descriptions that aren't encrypted", () => {
+    expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", notes: "plain" }] })).toThrow("weren't encrypted");
+    expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", profile_notes: [{ type: "like", description: "plain" }] }] }))
+      .toThrow("weren't encrypted");
+    expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", notes: "plain" }] })).toThrow("weren't encrypted");
+    expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", participants: [{ person_id: "p", role: "model", notes: "plain" }] }] }))
+      .toThrow("weren't encrypted");
   });
 
   it("names the item in an error", () => {
@@ -59,7 +69,7 @@ describe("parseImportTies", () => {
     const [tie] = parseImportTies({ ties: [{
       title: "Floor", tie_date: "2026-10-12", duration_minutes: "45", location_id: null, location_deleted: true,
       participants: [
-        { person_id: "p1", role: "model", difficulty_rating: 3, notes: "good" },
+        { person_id: "p1", role: "model", difficulty_rating: 3, notes: sealed("good") },
         { person_id: "p1", role: "model" },
         { person_id: null, role: "spotter" },
       ],
@@ -69,7 +79,7 @@ describe("parseImportTies", () => {
     expect(tie).toMatchObject({
       title: "Floor", duration_minutes: 45, location_deleted: 1, success_rating: null,
       participants: [
-        { person_id: "p1", role: "model", difficulty_rating: 3, experience_rating: null, notes: "good" },
+        { person_id: "p1", role: "model", difficulty_rating: 3, experience_rating: null, notes: sealed("good") },
         { person_id: null, role: "spotter" },
       ],
       plans: [{ plan_id: "a", plan_version: 2 }, { plan_id: null, plan_version: null }],
@@ -107,9 +117,9 @@ describe("planItems", () => {
   it("matches by name, my own profile by is_self, and creates the rest", () => {
     const items = parseImportItems({
       people: [
-        { id: "f-me", name: "Me", is_self: true, notes: "ignored: matched" },
+        { id: "f-me", name: "Me", is_self: true, notes: sealed("ignored: matched") },
         { id: "f-sam", name: "SAM" },
-        { id: "f-alex", name: "Alex", profile_notes: [{ type: "like", description: "Hip harness" }] },
+        { id: "f-alex", name: "Alex", profile_notes: [{ type: "like", description: sealed("Hip harness") }] },
       ],
       locations: [{ id: "f-studio", name: "studio" }, { id: "f-park", name: "Park", archived_at: "2026-02-02T00:00:00Z" }],
       plans: [{ id: "f-tk", title: "TK", tags: ["ignored"] }, { id: "f-v", title: "TK v2", variation_of: "f-tk", tags: ["floor", "Rope"] }],
@@ -128,7 +138,7 @@ describe("planItems", () => {
     expect(plan.newTags).toEqual(["spare", "Rope"]);
 
     expect(plan.rows.people).toEqual([expect.objectContaining({ id: "new-1", name: "Alex", is_self: 0 })]);
-    expect(plan.rows.profileNotes).toEqual([expect.objectContaining({ person_id: "new-1", type: "like", description: "Hip harness" })]);
+    expect(plan.rows.profileNotes).toEqual([expect.objectContaining({ person_id: "new-1", type: "like", description: sealed("Hip harness") })]);
     expect(plan.rows.locations).toEqual([expect.objectContaining({ id: "new-2", archived_at: "2026-02-02T00:00:00Z" })]);
     expect(plan.rows.plans).toEqual([expect.objectContaining({ id: "new-3", title: "TK v2" })]);
     // A variation of a matched plan points at the existing plan.

@@ -82,3 +82,33 @@ describe("VaultCore", () => {
     expect(new Uint8Array(buffer).every((b) => b === 0)).toBe(true);
   });
 });
+
+describe("VaultCore records", () => {
+  it("seals and opens records of a kind, only once unlocked", async () => {
+    const { vault } = await setUp();
+    const [sealed] = await vault.seal({ kind: "tie", records: [{ id: "t1", title: "Floor", notes: " Went well " }] });
+    expect(sealed.notes.startsWith("e1.")).toBe(true);
+    expect(await vault.open({ kind: "tie", records: [sealed] })).toEqual([{ id: "t1", title: "Floor", notes: "Went well" }]);
+    vault.lock();
+    await expect(vault.open({ kind: "tie", records: [sealed] })).rejects.toThrow("Your journal is locked.");
+  });
+
+  it("searches ties' opened notes, fetching the index once until told to forget it", async () => {
+    let loads = 0;
+    /** @type {any[]} */
+    let index = [];
+    const vault = new VaultCore(async () => { loads++; return index; });
+    await vault.setup({ userId: USER, code: newCode() });
+    const [floor, susp] = await vault.seal({ kind: "tie", records: [
+      { id: "a", title: "Floor", notes: "Öse and hip harness", plan_titles: [] },
+      { id: "b", title: "Suspension", notes: null, plan_titles: ["TK"] },
+    ] });
+    index = [floor, susp];
+    expect(await vault.searchTies({ q: "öse" })).toEqual(["a"]);
+    expect(await vault.searchTies({ q: "tk" })).toEqual(["b"]);
+    expect(loads).toBe(1);
+    vault.forgetSearch();
+    await vault.searchTies({ q: "x" });
+    expect(loads).toBe(2);
+  });
+});

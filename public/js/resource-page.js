@@ -3,6 +3,12 @@
 
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
+import { open, sealOne, forgetSearch } from "./vault.js";
+
+// Each resource's kind of record, for sealing and opening its notes (and a
+// plan's description) in the crypto Worker.
+/** @type {Record<"plans" | "people" | "locations", import("./crypto/fields.js").RecordKind>} */
+const KINDS = { plans: "plan", people: "person", locations: "location" };
 
 /**
  * @typedef {Record<string, any> & { id: string, archived_at: string | null }} Item
@@ -87,6 +93,8 @@ export function setupResourcePage(config) {
   async function act(fn, errorPrefix) {
     try {
       await fn();
+      // A plan's title is searched in, with the ties it's on.
+      forgetSearch();
       await load();
     } catch (err) {
       alert(`${errorPrefix}: ${errorMessage(err)}`);
@@ -130,7 +138,7 @@ export function setupResourcePage(config) {
   async function load() {
     const archived = archivedToggle.checked;
     try {
-      items = await api(`/api/${resource}?archived=${archived}`);
+      items = await open(KINDS[resource], await api(`/api/${resource}?archived=${archived}`));
       config.onLoad?.(items, archived);
       list.replaceChildren();
       if (items.length === 0) {
@@ -138,7 +146,9 @@ export function setupResourcePage(config) {
         return;
       }
       for (const item of items) {
-        list.append(h("div", { className: "item" }, renderItem(item, items), renderActions(item)));
+        const unreadable = item.unreadable?.length
+          ? h("div", { className: "item-meta deleted" }, "(can't decrypt the notes)") : null;
+        list.append(h("div", { className: "item" }, renderItem(item, items), unreadable, renderActions(item)));
       }
     } catch (err) {
       list.replaceChildren(h("p", { className: "empty" }, "Couldn't load: " + errorMessage(err)));
@@ -150,11 +160,14 @@ export function setupResourcePage(config) {
     submit.disabled = true;
     showMessage(message, "Saving…");
     try {
+      // Notes are sealed here, on the device, before they're sent.
+      const body = await sealOne(KINDS[resource], formData());
       if (editingId) {
-        await api(`/api/${resource}/${editingId}`, { method: "PUT", body: formData() });
+        await api(`/api/${resource}/${editingId}`, { method: "PUT", body });
       } else {
-        await api(`/api/${resource}`, { method: "POST", body: formData() });
+        await api(`/api/${resource}`, { method: "POST", body });
       }
+      forgetSearch();
       setEditing(null);
       showMessage(message, "Saved.");
       await load();

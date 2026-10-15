@@ -10,6 +10,26 @@ export function cleanText(value) {
   return text === "" ? null : text;
 }
 
+// An encrypted field as the browser seals it (public/js/crypto/fields.js;
+// a unit test keeps the two in step): "e1.", a 12-byte IV, ".", and the
+// ciphertext with its 16-byte tag, base64url.
+const ENCRYPTED_FORMAT = /^e1\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{22,}$/;
+export const MAX_ENCRYPTED_LENGTH = 100_000;
+
+/**
+ * A notes or description field: encrypted in the browser, or empty. Plain
+ * text is refused, so nothing readable is ever saved in these fields.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function encryptedText(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || value.length > MAX_ENCRYPTED_LENGTH || !ENCRYPTED_FORMAT.test(value)) {
+    throw new BadInput("Couldn't save the notes: they weren't encrypted. Reload the page and try again.");
+  }
+  return value;
+}
+
 /** @param {unknown} value @param {number} min @param {number} max @returns {number | null} */
 export function toIntOrNull(value, min, max) {
   if (value === undefined || value === null || value === "") return null;

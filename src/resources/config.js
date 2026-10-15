@@ -6,7 +6,7 @@
 import { BadInput } from "../http.js";
 import { ROLES } from "../ties/parse.js";
 import {
-  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull,
+  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, encryptedText,
 } from "../parse.js";
 
 export const PLAN_STAGES = ["idea", "developing", "ready", "retired"];
@@ -28,8 +28,9 @@ export const RESOURCES = {
     fields: {
       title: { parse: cleanText, required: "Give the plan a title." },
       stage: { parse: (v) => toChoiceOrNull(v, PLAN_STAGES) ?? "idea" },
-      description: { parse: cleanText },
-      notes: { parse: cleanText },
+      // Encrypted in the browser (see encryptedText).
+      description: { parse: encryptedText },
+      notes: { parse: encryptedText },
       est_difficulty: { parse: (v) => toIntOrNull(v, 1, 5) },
       variation_of: { parse: cleanText },
     },
@@ -42,7 +43,7 @@ export const RESOURCES = {
     fields: {
       name: { parse: cleanText, required: "Give the person a name." },
       pronouns: { parse: cleanText },
-      notes: { parse: cleanText },
+      notes: { parse: encryptedText },
       is_self: { parse: toFlag },
       // Filled in when they're added to a tie; still changeable there.
       default_role: { parse: (v) => toChoiceOrNull(v, ROLES) },
@@ -55,7 +56,7 @@ export const RESOURCES = {
   locations: {
     fields: {
       name: { parse: cleanText, required: "Give the location a name." },
-      notes: { parse: cleanText },
+      notes: { parse: encryptedText },
       maps_url: { parse: toUrlOrNull },
       latitude: { parse: (v) => toNumberOrNull(v, -90, 90) },
       longitude: { parse: (v) => toNumberOrNull(v, -180, 180) },

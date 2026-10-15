@@ -119,6 +119,12 @@ ws.addEventListener("message", (event) => {
   if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
     consoleErrors.push(msg.params.entry.text);
   }
+  // An alert() blocks the page (and so the step waiting on it): note it as
+  // an error and dismiss it.
+  if (msg.method === "Page.javascriptDialogOpening") {
+    consoleErrors.push(`${msg.params.type}: ${msg.params.message}`);
+    ws.send(JSON.stringify({ id: nextId++, method: "Page.handleJavaScriptDialog", params: { accept: true } }));
+  }
 });
 const send = (method, params = {}) => new Promise((resolve) => {
   const id = nextId++;
@@ -211,12 +217,21 @@ const PAGE_HELPERS = `
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
+// A step that hasn't finished after this long is stuck: fail with what the
+// page shows, rather than wait forever.
+const STEP_TIMEOUT_MS = 60_000;
+
 async function run(code) {
-  const res = await send("Runtime.evaluate", {
-    expression: `(async () => { ${PAGE_HELPERS} ${code} })()`,
-    awaitPromise: true,
-    returnByValue: true,
-  });
+  const res = await Promise.race([
+    send("Runtime.evaluate", {
+      expression: `(async () => { ${PAGE_HELPERS} ${code} })()`,
+      awaitPromise: true,
+      returnByValue: true,
+    }),
+    sleep(STEP_TIMEOUT_MS).then(() => {
+      throw new Error(`A step took over a minute. Browser errors so far: ${JSON.stringify(consoleErrors)}`);
+    }),
+  ]);
   if (res.result?.exceptionDetails) throw new Error(res.result.exceptionDetails.exception?.description);
   return res.result?.result?.value;
 }
@@ -229,7 +244,7 @@ let currentCode = "";
 // unless told not to, this unlocks it again: with the passkey, or the
 // recovery code if the passkey can't unlock.
 async function go(pagePath, { unlock = true } = {}) {
-  await send("Page.navigate", { url: BASE + pagePath });
+  await loadPage(pagePath);
   await sleep(1200);
   if (!unlock) return;
   // Steps through Unlock until it's gone (up to 10 seconds), rather than
@@ -251,6 +266,28 @@ async function go(pagePath, { unlock = true } = {}) {
       [...document.querySelectorAll("dialog[open]")].map((d) => d.innerText.slice(0, 120))]);`);
   if (state !== "done") throw new Error(`Couldn't unlock to show ${pagePath}: ${state}`);
   await sleep(600);
+}
+
+// Loads a page and waits until the new page has finished loading, rather
+// than guessing: a step started while the old page is being replaced can be
+// left waiting for an answer that never comes. The old page is marked
+// first, so the new one is told apart even if the app then moves on to
+// another address (e.g. signed out, / goes to /signin). Each look is a
+// plain, short evaluation, given up after 2 seconds if the page is
+// mid-change.
+async function loadPage(pagePath) {
+  const look = (/** @type {string} */ expression) => Promise.race([
+    send("Runtime.evaluate", { expression, returnByValue: true }),
+    sleep(2000).then(() => null),
+  ]);
+  await look("window.__oldPage = true");
+  await send("Page.navigate", { url: BASE + pagePath });
+  for (let i = 0; i < 50; i++) {
+    const res = await look("!window.__oldPage && document.readyState === 'complete'");
+    if (res?.result?.result?.value === true) return;
+    await sleep(200);
+  }
+  throw new Error(`${pagePath} didn't finish loading`);
 }
 
 // Runs a script from scripts/ against the walkthrough's database.
@@ -749,6 +786,46 @@ try {
   check("a keyword in an old URL is ignored and removed from the address", await run(`return [$("#q").value, location.search, titles().length, $("#clear").hidden];`),
     ["", "?page=2", 3, true]);
 
+  console.log("Encrypted notes");
+  await go("/");
+  check("a keyword finds words only in the notes, searched on the device", await run(`
+    await type("#q", "SMOOTH transitions"); const found = titles(); $("#clear").click(); await wait(800); return found;`),
+    ["Floor session"]);
+  check("capitals don't matter in any language: Ö finds ö", await run(`
+    $(".nav-add").click(); await wait(600); set("#tie-title", "Knot test"); set("#tie-notes", "  Öse knot, tied twice  ");
+    $("#tie-save").click(); await wait(1200);
+    await type("#q", "öse"); const lower = titles(); await type("#q", "ÖSE KNOT"); const upper = titles();
+    $("#clear").click(); await wait(800); return [lower, upper];`),
+    [["Knot test"], ["Knot test"]]);
+  check("the server only ever has notes encrypted; the page shows them opened", await run(`
+    const index = await (await fetch("/api/ties/search-index")).json();
+    const people = await (await fetch("/api/people?archived=all")).json();
+    const plans = await (await fetch("/api/plans?archived=all")).json();
+    const stored = [...index.map((t) => t.notes), ...people.map((p) => p.notes), ...plans.flatMap((p) => [p.description, p.notes])]
+      .filter((v) => v !== null);
+    const knot = index.find((t) => t.title === "Knot test");
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Knot test").click(); await wait(1000);
+    const shown = $("#tie-notes").value;
+    return [stored.length > 0, stored.every((v) => /^e1\\./.test(v)), knot.notes.includes("knot"), shown];`),
+    [true, true, false, "Öse knot, tied twice"]);
+  check("…and the test tie is deleted again", await run(`
+    // The confirmation's "Delete tie" (opened last), not the form's own.
+    $("#tie-delete").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await wait(1000);
+    return [titles().includes("Knot test"), $("#tie-count").textContent];`), [false, "Showing 23 of 23 ties"]);
+
+  // Notes written before encryption: plain text in the database.
+  spawnSync("npx", ["wrangler", "d1", "execute", "rope-journal", "--local", "--persist-to", dbDir,
+    "--command", "UPDATE people SET notes = 'Written before encryption' WHERE name = 'Sam'"], { encoding: "utf8" });
+  await go("/people");
+  await sleep(1500);
+  check("notes in plain text are encrypted at the next unlock, and still show", await run(`
+    const sam = (await (await fetch("/api/people?archived=all")).json()).find((p) => p.name === "Sam");
+    const pending = await (await fetch("/api/encryption/pending")).json();
+    return [/^e1\\./.test(sam.notes), Object.values(pending).every((rows) => rows.length === 0),
+      items().some((i) => i.includes("Written before encryption")), document.querySelector(".toast") === null];`),
+    [true, true, true, true]);
+
   console.log("Deleting");
   await go("/plans");
   check("plan delete dialog has the three options", await run(`await clickIn("Hip harness", "Delete"); return dialogButtons();`),
@@ -912,6 +989,10 @@ try {
   const exportDoc = JSON.parse(exportText);
   check("the file has every tie, and the people", [exportDoc.format, exportDoc.ties?.length, exportDoc.people?.map((p) => p.name).sort()],
     ["rope-journal-export", 24, ["Alex", "Me"]]);
+  check("…with the notes decrypted on the device, nothing left encrypted",
+    // "Floor session" was renamed when editing was checked.
+    [exportDoc.ties?.find((t) => t.title?.startsWith("Floor session"))?.notes ?? null, exportText.includes('"e1.')],
+    ["Smooth transitions", false]);
   // A location the journal already has, for the CSV to match.
   const place = exportDoc.locations?.[0]?.name ?? "";
   // Picks a file in the import box, as if chosen in the file dialog.
@@ -929,8 +1010,9 @@ try {
   ], "Import 2 ties", ""]);
   check("importing it adds the ties", await run(`
     $("#import-go").click(); await wait(2000); const msg = $("#import-message").textContent;
-    const res = await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q: "Imported" }) })).json();
-    return [msg, $("#import-go").hidden, res.ties.map((t) => [t.title, t.location_name, t.participants.map((p) => p.person_name + ":" + p.role).sort()])];`),
+    const res = await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page_size: 100 }) })).json();
+    return [msg, $("#import-go").hidden, res.ties.filter((t) => t.title?.startsWith("Imported"))
+      .map((t) => [t.title, t.location_name, t.participants.map((p) => p.person_name + ":" + p.role).sort()])];`),
     ["Imported 2 ties.", true, [["Imported two", "Beach", []], ["Imported one", place, ["Alex:model", "Robin:rigger"]]]]);
   check("a CSV with mistakes lists them by row, and saves nothing", await chooseFile("bad.csv", "text/csv", "date,title\n12/10/2026,x\n"),
     [[], null, 'Fix these in the file, then choose it again:\nRow 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").']);

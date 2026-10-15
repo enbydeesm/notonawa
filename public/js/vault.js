@@ -51,7 +51,8 @@ function start() {
     if (!call) return;
     waiting.delete(id);
     if (error === undefined) call.resolve(result);
-    else call.reject(error === "wrong-secret" ? new WrongSecret() : new Error(error));
+    else call.reject(error === "wrong-secret" ? new WrongSecret()
+      : error === "too-long" ? new Error("That's too long to save. Shorten the notes, please.") : new Error(error));
   });
   started.addEventListener("error", () => fail(new Error("The encryption part of the app stopped. Reload the page.")));
   worker = started;
@@ -119,6 +120,58 @@ export async function addWrap(args) {
   const wrap = await call("addWrap", args, [...buffersIn(args.proof.secret), ...buffersIn(args.add.secret)]);
   unlocked = true;
   return wrap;
+}
+
+/** @typedef {import("./crypto/fields.js").RecordKind} RecordKind */
+
+/**
+ * Records with their kind's notes sealed, for saving. Text is trimmed, and
+ * empty text becomes null.
+ * @template {Record<string, any>} T
+ * @param {RecordKind} kind
+ * @param {T[]} records
+ * @returns {Promise<T[]>}
+ */
+export function seal(kind, records) {
+  return call("seal", { kind, records });
+}
+
+/**
+ * One record with its kind's notes sealed.
+ * @template {Record<string, any>} T
+ * @param {RecordKind} kind
+ * @param {T} record
+ * @returns {Promise<T>}
+ */
+export async function sealOne(kind, record) {
+  return (await seal(kind, [record]))[0];
+}
+
+/**
+ * Records with their kind's notes opened, for showing. A field that won't
+ * open is null and listed in `unreadable`.
+ * @template {Record<string, any>} T
+ * @param {RecordKind} kind
+ * @param {T[]} records
+ * @returns {Promise<(T & { unreadable?: string[] })[]>}
+ */
+export function open(kind, records) {
+  return call("open", { kind, records });
+}
+
+/**
+ * The ids of the ties a keyword matches. Searched in the Worker, which
+ * fetches and opens the ties' notes itself.
+ * @param {string} q
+ * @returns {Promise<string[]>}
+ */
+export function searchTies(q) {
+  return call("searchTies", { q });
+}
+
+/** A tie was saved or deleted: the next search starts afresh. */
+export function forgetSearch() {
+  if (worker) call("forgetSearch", {}).catch(() => {});
 }
 
 /**

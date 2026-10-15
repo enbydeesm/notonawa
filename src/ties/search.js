@@ -58,26 +58,13 @@ export function tieFilterSql(ownerId, filters) {
     params.push(filters.to);
   }
 
-  // Keyword in the title, the notes, or a linked plan's title. LIKE ignores
-  // case (for A–Z; SQLite doesn't fold accented letters).
-  if (filters.q) {
-    const pattern = `%${escapeLike(filters.q)}%`;
-    clauses.push(
-      `(t.title LIKE ? ESCAPE '\\' OR t.notes LIKE ? ESCAPE '\\'
-        OR EXISTS (SELECT 1 FROM tie_plans tpl JOIN plans p ON p.id = tpl.plan_id
-                    WHERE tpl.tie_id = t.id AND p.title LIKE ? ESCAPE '\\'))`
-    );
-    params.push(pattern, pattern, pattern);
+  // The ties a keyword matched. The keyword never comes here: notes are
+  // encrypted, so the search happens on the device (in the crypto Worker),
+  // which sends the ids. The other filters, the sort and the paging stay here.
+  if (filters.match_ids) {
+    clauses.push("t.id IN (SELECT value FROM json_each(?))");
+    params.push(JSON.stringify(filters.match_ids));
   }
 
   return { where: clauses.join("\n    AND "), params };
-}
-
-/**
- * Makes % and _ in the search text match themselves rather than act as
- * LIKE wildcards.
- * @param {string} text
- */
-export function escapeLike(text) {
-  return text.replace(/[\\%_]/g, "\\$&");
 }

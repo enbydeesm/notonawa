@@ -17,6 +17,7 @@ import { setNavigator } from "./navigate.js";
 import { renderNav, showNav, setCurrent } from "./nav.js";
 import { $ } from "./dom.js";
 import { isUnlocked, onLock } from "./vault.js";
+import { sealLeftovers } from "./seal-leftovers.js";
 import { watchForLock } from "./lock.js";
 
 /**
@@ -40,6 +41,8 @@ renderNav();
 
 /** @type {import("./router.js").ViewName | null} */
 let currentView = null;
+// Whether this unlock has checked for notes left in plain text (see below).
+let leftoversChecked = false;
 /** @type {AbortController | null} */
 let controller = null;
 // Only the newest change of view is shown, if two overlap.
@@ -80,6 +83,14 @@ async function show({ fresh, scroll, focus }) {
   const unlocked = () => show({ fresh: true, scroll: 0, focus: true });
   await module.mount(root, { signal: controller.signal, unlocked });
 
+  // The first time the journal is shown after unlocking (with a full
+  // session, which signing up or recovering only has once they're done):
+  // encrypt any notes left in plain text from before encryption.
+  if (route.needsKey && !leftoversChecked) {
+    leftoversChecked = true;
+    sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
+  }
+
   window.scrollTo(0, scroll);
   // Tell screen readers the view changed: focus its heading (not on the
   // first load, where the browser does that itself).
@@ -109,7 +120,10 @@ setNavigator(go);
 watchForLock();
 // Locked (by time, sign-out or the session ending): draw the view again,
 // which shows Unlock in place of anything that needs the key.
-onLock(() => show({ fresh: true, scroll: 0, focus: true }));
+onLock(() => {
+  leftoversChecked = false;
+  show({ fresh: true, scroll: 0, focus: true });
+});
 
 // Registered before any view's own popstate listener, so a view being left
 // is aborted (and its listener skipped) before it reacts.

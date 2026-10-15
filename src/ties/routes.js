@@ -2,7 +2,7 @@
 
 import { json, notFound, noContent, readJson } from "../http.js";
 import { parseTieInput, parseTieUpdate, parseTieFilters, RECENT_TYPES } from "./parse.js";
-import { listTies, getTie, insertTie, updateTie, deleteTie, recentIds } from "./db.js";
+import { listTies, getTie, insertTie, updateTie, deleteTie, recentIds, searchIndex } from "./db.js";
 
 // How many recent items the tie form's pickers show before anything is typed.
 const RECENT_COUNT = 5;
@@ -21,19 +21,27 @@ const TIE_PATH = /^\/api\/ties\/([^/]+)$/;
  */
 export async function handleTies(request, env, user, url) {
   // POST /api/ties/search
-  //   body { person_ids, location_ids, tag_ids, tag_match, from, to, q, page,
-  //          page_size, sort }
+  //   body { person_ids, location_ids, tag_ids, tag_match, from, to,
+  //          match_ids, page, page_size, sort }
   //   -> { ties, total, all_total, page, page_size }: one page of my ties
   //   matching the filters (all optional), newest tie date first (or oldest,
   //   with sort "oldest"), 20, 50 or 100 a page, with location, participants,
   //   plans and tags. total: how many match; all_total: how many I have. person_ids: ties with all of them;
   //   location_ids: at any of them; tag_ids: with any of them, or all of
-  //   them if tag_match is "all"; q: in title, notes or a linked plan's title.
-  //   A POST, not a GET, so the keyword never appears in a URL, where it would
-  //   end up in browser history and request logs.
+  //   them if tag_match is "all"; match_ids: the ties a keyword search on
+  //   the device found (the keyword itself is refused). A POST, not a GET,
+  //   as the filters can be long.
   if (url.pathname === "/api/ties/search") {
     if (request.method !== "POST") return null;
     return json(await listTies(env.DB, user.id, parseTieFilters(await readJson(request))));
+  }
+
+  // GET /api/ties/search-index -> [{ id, title, notes, plan_titles }] for
+  //   all my ties, notes still encrypted: what the crypto Worker searches a
+  //   keyword in (title, notes, linked plans' titles).
+  if (url.pathname === "/api/ties/search-index") {
+    if (request.method !== "GET") return null;
+    return json(await searchIndex(env.DB, user.id));
   }
 
   // GET /api/ties/recent/locations|people|plans -> ids of my active ones,

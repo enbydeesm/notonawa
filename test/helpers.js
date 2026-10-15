@@ -105,3 +105,5 @@ export function fakeWrap(kind) {
     .map((b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join("");
   return { id: crypto.randomUUID(), kind, salt: chars(22), iv: chars(16), wrapped: chars(64), version: 1 };
 }
+
+export { sealed } from "./sealed.js";

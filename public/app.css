@@ -379,3 +379,11 @@ dialog.form-dialog {
 
 /* The import preview: what an import will add, before it's saved. */
 .import-preview { margin-top: 12px; }
+
+/* A short note at the bottom of the screen while something works in the
+   background (e.g. encrypting older notes after unlocking). */
+.toast {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); margin: 0;
+  padding: 8px 14px; font-size: 0.9rem; border-radius: 8px;
+  background: var(--card); color: var(--text); border: 1px solid var(--line);
+}

@@ -289,3 +289,20 @@ export async function deleteTie(db, ownerId, id) {
   const result = await db.prepare("DELETE FROM ties WHERE id = ? AND owner_id = ?").bind(id, ownerId).run();
   return result.meta.changes > 0;
 }
+
+/**
+ * What a keyword is searched in, for every tie of mine: its title, its
+ * notes (encrypted: the crypto Worker opens them) and its plans' titles.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @returns {Promise<{ id: string, title: string | null, notes: string | null, plan_titles: string[] }[]>}
+ */
+export async function searchIndex(db, ownerId) {
+  const { results } = await db.prepare(
+    `SELECT t.id, t.title, t.notes,
+            (SELECT json_group_array(p.title) FROM tie_plans tpl JOIN plans p ON p.id = tpl.plan_id
+              WHERE tpl.tie_id = t.id) AS plan_titles
+       FROM ties t WHERE t.owner_id = ?`
+  ).bind(ownerId).all();
+  return results.map((/** @type {any} */ r) => ({ ...r, plan_titles: JSON.parse(r.plan_titles) }));
+}

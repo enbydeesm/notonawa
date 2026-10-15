@@ -7,7 +7,7 @@ import { readAccount } from "./db.js";
 import { exportDocument, exportFileName } from "./shape.js";
 import { parseImportItems, parseImportTies } from "./import-parse.js";
 import { planItems, planTies } from "./import-plan.js";
-import { existingItems, insertItems, insertTies, duplicateTies } from "./import-db.js";
+import { existingItems, insertItems, insertTies, duplicateCandidates } from "./import-db.js";
 import { tagNames } from "../tags/db.js";
 
 // An import request's largest body. The page sends ties in batches of 200.
@@ -51,13 +51,15 @@ export async function handleData(request, env, user, url) {
     });
   }
 
-  // POST /api/data/import/ties  body { preview, ties }
-  //   preview: true -> { duplicates: [positions], new_tags }: which ties are
-  //     exact duplicates of mine (the same date, title, notes, type, location,
-  //     duration, rating, people, plans and tags), saving nothing
+  // POST /api/data/import/ties  body { preview, ties, skip }
+  //   preview: true -> { candidates: [{ i, notes }], new_tags }: for each tie
+  //     (by position) my ties that are the same in everything but the notes
+  //     (date, title, type, location, duration, rating, people, plans and
+  //     tags), with their notes, encrypted. The page opens those and decides
+  //     which ties are exact duplicates. Saves nothing.
   //   otherwise     -> { added, skipped }: adds up to 500 ties (links must be
-  //     my ids, from the items request), skipping exact duplicates, all in
-  //     one transaction
+  //     my ids, from the items request), leaving out the positions in skip
+  //     (the duplicates the page found), all in one transaction
   if (url.pathname === "/api/data/import/ties" && request.method === "POST") {
     const body = await readImport(request);
     const ties = parseImportTies(body);
@@ -67,13 +69,14 @@ export async function handleData(request, env, user, url) {
       // mine, which is right: a tie with a new tag can't be a duplicate.
       const plan = planTies(ties, existingTags, () => "");
       return json({
-        duplicates: await duplicateTies(env.DB, user.id, plan.rows.ties),
+        candidates: await duplicateCandidates(env.DB, user.id, plan.rows.ties),
         new_tags: plan.newTags,
       });
     }
-    const plan = planTies(ties, existingTags, () => crypto.randomUUID());
+    const skip = parseSkip(body.skip, ties.length);
+    const plan = planTies(ties.filter((_, i) => !skip.has(i)), existingTags, () => crypto.randomUUID());
     const added = await insertTies(env.DB, user.id, plan.rows);
-    return json({ added, skipped: ties.length - added });
+    return json({ added, skipped: skip.size });
   }
 
   return null;
@@ -87,4 +90,18 @@ async function readImport(request) {
   const length = Number(request.headers.get("content-length") ?? 0);
   if (length > MAX_IMPORT_BYTES) throw new BadInput("That's too much to import at once.");
   return readJson(request);
+}
+
+/**
+ * Positions of ties to leave out (duplicates the page found).
+ * @param {unknown} value
+ * @param {number} count how many ties there are
+ * @returns {Set<number>}
+ */
+function parseSkip(value, count) {
+  if (value === undefined || value === null) return new Set();
+  if (!Array.isArray(value) || value.some((i) => !Number.isInteger(i) || i < 0 || i >= count)) {
+    throw new BadInput("Couldn't import: reload the page and try again.");
+  }
+  return new Set(value);
 }

@@ -76,6 +76,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `webauthn.js` (the library with our settings), `db.js`, `user.js`
   (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
   options|verify`, `/api/auth/recover`, `/api/auth/logout`).
+- `src/encryption/`: encrypted notes. `config.js` (the encrypted columns and
+  how each table is scoped to its owner), `db.js`, `routes.js` (`GET
+  /api/encryption/pending`, `POST /api/encryption/seal`: older plain text
+  found and overwritten).
 - `src/keys/`: wrapped encryption keys (migration 0009). `parse.js` (pure:
   a wrap's shape), `db.js`, `routes.js` (`GET /api/keys`, `POST
   /api/keys/setup`, `PUT /api/keys/passkeys/:id`). Sign-up, adding a
@@ -96,8 +100,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
-  `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body,
-  so the keyword never goes in a URL) is filtered and paged (20 per page by default)
+  `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body;
+  a keyword is searched for on the device, which sends `match_ids`) is filtered and paged (20 per page by default)
   and returns `{ ties, total, all_total, page, page_size }` (`page_size`
   20, 50 or 100; `sort` newest or oldest). `GET`/`PUT`/`DELETE
   /api/ties/:id` read, edit (with `keep_deleted` for deleted links to keep)
@@ -117,10 +121,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `router.js` (pure: the routes, which link clicks stay in the app),
   `navigate.js` (`navigate(path, { replace })`: changing view from code),
   `crypto/keys.js` (pure: the data key, wrapping, the PRF salt),
+  `crypto/fields.js` (pure: sealing and opening notes fields),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
-  code with proof, sign-up, recovery), `lock-rules.js` (pure) and `lock.js`
+  code with proof, sign-up, recovery), `search-match.js` (pure: keyword
+  matching), `journal-fields.js` (pure: a whole export or import, kind by
+  kind), `import-dedupe.js` (pure: import duplicates from candidates),
+  `seal-leftovers.js` (encrypting older plain text), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
   + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
@@ -219,6 +227,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   It can be renamed or archived; a unique index allows at most one.
 - **Multi-statement writes go in one `env.DB.batch([...])`**, which runs as a
   single transaction, so a failure saves nothing.
+- **Notes and descriptions are encrypted** (`ties.notes`,
+  `tie_participants.notes`, `people.notes`, `profile_notes.description`,
+  `locations.notes`, `plans.description`, `plans.notes`): parse them with
+  `encryptedText`, never `cleanText`; the server never reads, compares,
+  searches or sorts by them. The page seals before sending (`vault.seal`,
+  `sealOne`) and opens what it shows (`vault.open`). A new encrypted field
+  goes in both lists (`crypto/fields.js`, `src/encryption/config.js`).
+  Anything that changes a tie's notes or title, or a plan's title, calls
+  `forgetSearch()`.
 - **Wrapped keys (`key_wraps`) are never exported** (useless without the
   user's secrets); they go with their passkey or account.
 - **When a table or column is added, update export and import**

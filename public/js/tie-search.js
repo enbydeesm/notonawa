@@ -78,11 +78,14 @@ export function pageQuery(state) {
 }
 
 /**
- * The body for POST /api/ties/search, where the keyword travels instead of
- * in a URL.
+ * The body for POST /api/ties/search. The keyword never goes to the server:
+ * it's searched for on the device (the crypto Worker opens the notes), and
+ * only the ids of the ties it matched are sent.
  * @param {SearchState} state
+ * @param {string[] | null} matchIds the ties the keyword matched; null if
+ *   there's no keyword
  */
-export function searchBody(state) {
+export function searchBody(state, matchIds) {
   return {
     person_ids: state.person_ids,
     location_ids: state.location_ids,
@@ -90,7 +93,7 @@ export function searchBody(state) {
     tag_match: state.tag_match,
     from: state.from,
     to: state.to,
-    q: state.q.trim(),
+    match_ids: matchIds,
     page: state.page,
     page_size: state.page_size,
     sort: state.sort,

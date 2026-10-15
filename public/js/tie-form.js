@@ -11,6 +11,7 @@ import { ROLES, TIE_TYPES, participantLabel, planLabel } from "./ties-view.js";
 import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
+import { sealOne, forgetSearch } from "./vault.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -291,6 +292,7 @@ function showTieForm(tie) {
       showMessage(message, "Deleting…");
       try {
         await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "DELETE" });
+        forgetSearch();
         saved = true;
         dialog.close();
       } catch (err) {
@@ -317,6 +319,7 @@ function showTieForm(tie) {
       set("tie-tie_type", t.tie_type);
       set("tie-duration_minutes", t.duration_minutes);
       set("tie-notes", t.notes);
+      if (t.unreadable?.length) showMessage(message, "This tie's notes can't be decrypted. Saving replaces them.", true);
       if (t.location_id) {
         location.pick(linked(t.location_id, t.location_name));
         locationRow.hidden = false;
@@ -336,8 +339,12 @@ function showTieForm(tie) {
       saveButton.disabled = true;
       showMessage(message, "Saving…");
       try {
-        if (tie) await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "PUT", body: collectTie() });
-        else await api("/api/ties", { method: "POST", body: collectTie() });
+        // The notes are sealed here, on the device, before they're sent.
+        const body = await sealOne("tie", collectTie());
+        if (tie) await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "PUT", body });
+        else await api("/api/ties", { method: "POST", body });
+        // The search index has this tie's old notes (or none): fetch it afresh.
+        forgetSearch();
         saved = true;
         dialog.close();
       } catch (err) {

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { call, create, createOtherUser, sessionCookieFor, signedInUser, sql } from "../helpers.js";
+import { call, create, createOtherUser, sessionCookieFor, signedInUser, sql, sealed } from "../helpers.js";
+import { duplicatePositions } from "../../public/js/import-dedupe.js";
+import { convertJournal } from "../../public/js/journal-fields.js";
 import { readExport, itemsBody, remapTies, batches } from "../../public/js/import-steps.js";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
@@ -12,19 +14,38 @@ async function newUser() {
 }
 
 /**
- * Imports a file the way the page does: items, then ties in batches.
+ * Seals a file's notes as the page does, here with the test's stand-in
+ * (sealed() of the text), so equal notes seal equal and "opening" a
+ * candidate's notes is just comparing.
+ * @param {any} doc
+ */
+function sealFile(doc) {
+  const fields = { person: ["notes"], profileNote: ["description"], location: ["notes"], plan: ["description", "notes"], tie: ["notes"], participant: ["notes"] };
+  return convertJournal(doc, async (kind, records) => records.map((r) => {
+    const out = { ...r };
+    for (const f of fields[kind]) if (typeof r[f] === "string" && !r[f].startsWith("e1.")) out[f] = sealed(r[f].trim());
+    return out;
+  }));
+}
+
+/**
+ * Imports a file the way the page does: items, then ties in batches, each
+ * checked for duplicates first (candidates from the server, notes compared
+ * here), sending which to skip.
  * @param {any} file
  * @param {string} cookie
  * @param {number} [batchSize]
  */
 async function importFile(file, cookie, batchSize) {
-  const doc = readExport(file);
+  const doc = await sealFile(readExport(file));
   const items = await call("/api/data/import/items", { method: "POST", body: itemsBody(doc, false), cookie });
   expect(items.status, JSON.stringify(items.body)).toBe(200);
   let added = 0;
   let skipped = 0;
   for (const ties of batches(remapTies(doc.ties, items.body), batchSize)) {
-    const res = await call("/api/data/import/ties", { method: "POST", body: { ties }, cookie });
+    const preview = await call("/api/data/import/ties", { method: "POST", body: { preview: true, ties }, cookie });
+    const skip = duplicatePositions(ties, preview.body.candidates);
+    const res = await call("/api/data/import/ties", { method: "POST", body: { ties, skip }, cookie });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     added += res.body.added;
     skipped += res.body.skipped;
@@ -66,12 +87,12 @@ function comparable(doc) {
 /** Fills the signed-in test user's journal with linked, archived and deleted things. */
 async function fillJournal() {
   const me = await create("/api/people", { name: "Me", is_self: true });
-  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: "Floor work", default_role: "model" });
+  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "model" });
   const gone = await create("/api/people", { name: "Gone" });
   await call(`/api/people/${sam}/archive`, { method: "POST" });
-  await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', 'Left shoulder', '2026-01-02')",
-    crypto.randomUUID(), sam).run();
-  const studio = await create("/api/locations", { name: "Studio", notes: "Beam", latitude: 51.5, longitude: -0.12 });
+  await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', ?, '2026-01-02')",
+    crypto.randomUUID(), sam, sealed("Left shoulder")).run();
+  const studio = await create("/api/locations", { name: "Studio", notes: sealed("Beam"), latitude: 51.5, longitude: -0.12 });
   const old = await create("/api/locations", { name: "Old flat" });
   const tk = await create("/api/plans", { title: "TK", stage: "ready", est_difficulty: 3 });
   const tk2 = await create("/api/plans", { title: "TK 2", variation_of: tk });
@@ -79,7 +100,7 @@ async function fillJournal() {
   await call(`/api/plans/${tk}`, { method: "PUT", body: { title: "TK", stage: "ready", est_difficulty: 3 } });
   await sql("UPDATE plans SET version = 4 WHERE id = ?", tk).run();
   await create("/api/ties", {
-    title: "Floor", tie_date: "2026-10-01", tie_type: "partial suspension", notes: "Went well", success_rating: 4, duration_minutes: 50, location_id: studio,
+    title: "Floor", tie_date: "2026-10-01", tie_type: "partial suspension", notes: sealed("Went well"), success_rating: 4, duration_minutes: 50, location_id: studio,
     participants: [{ person_id: me, role: "rigger" }, { person_id: sam, role: "model" }, { person_id: gone, role: "spotter" }],
     plan_ids: [tk, tk2, dropped], tags: ["floor", "Futomomo"],
   });
@@ -130,14 +151,16 @@ describe("importing an export", () => {
     const ties = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: {
       preview: true, ties: [{ title: "New", tie_date: "2026-10-02" }, { title: "Floor", tie_date: "2026-10-01" }, { title: "x", tie_date: "2026-10-03", tags: ["t"] }],
     } });
-    expect(ties.body).toEqual({ duplicates: [1], new_tags: ["t"] });
+    // The candidates: my ties the same in all but the notes (encrypted, so
+    // the page compares those).
+    expect(ties.body).toEqual({ candidates: [{ i: 1, notes: null }], new_tags: ["t"] });
 
     expect(await sql("SELECT count(*) AS n FROM people WHERE owner_id = ?", user.id).first()).toEqual({ n: 1 });
     expect(await sql("SELECT count(*) AS n FROM ties WHERE owner_id = ?", user.id).first()).toEqual({ n: 1 });
     expect(await sql("SELECT count(*) AS n FROM tags WHERE owner_id = ?", user.id).first()).toEqual({ n: 0 });
   });
 
-  it("counts a tie as a duplicate only if everything on it is the same", async () => {
+  it("finds candidates the same in everything but the notes, and leaves out the ties it's told to skip", async () => {
     const user = await newUser();
     /** @param {string} path @param {Record<string, unknown>} body */
     const add = async (path, body) => (await call(path, { method: "POST", body, cookie: user.cookie })).body.id;
@@ -160,6 +183,7 @@ describe("importing an export", () => {
       ...saved, plan_ids: undefined, plans: [{ plan_id: plan, plan_version: 1 }],
       participants: [...saved.participants].reverse(), tags: ["KATA", "floor"],
     };
+    /** @type {Record<string, any>[]} */
     const variants = [
       same,
       { ...same, participants: [{ person_id: alex, role: "model" }] },
@@ -173,10 +197,15 @@ describe("importing an export", () => {
       { ...same, tie_date: "2026-10-02" },
       { ...same, participants: [{ person_id: sam, role: "model" }] },
     ];
+    // Notes don't make a tie a candidate or not: the page compares them.
+    variants.push({ ...same, notes: sealed("different notes") });
     const preview = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { preview: true, ties: variants } });
-    expect(preview.body.duplicates).toEqual([0, 10]);
-    const res = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants } });
-    expect(res.body).toEqual({ added: 9, skipped: 2 });
+    expect(preview.body.candidates.map((/** @type {any} */ c) => c.i).sort((/** @type {number} */ a, /** @type {number} */ b) => a - b)).toEqual([0, 10, 11]);
+    expect(duplicatePositions(variants, preview.body.candidates)).toEqual([0, 10]);
+    const res = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants, skip: [0, 10] } });
+    expect(res.body).toEqual({ added: 10, skipped: 2 });
+    const bad = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants, skip: [99] } });
+    expect(bad.status).toBe(400);
   });
 
   it("imports the CSV template, matching names to the journal's", async () => {
@@ -196,7 +225,7 @@ describe("importing an export", () => {
     const [tie] = (await call("/api/ties/search", { method: "POST", body: {}, cookie: user.cookie })).body.ties;
     expect(tie).toMatchObject({
       title: "Floor practice", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4,
-      location_name: "Studio", notes: "Went well. Notes can have commas, in quotes.",
+      location_name: "Studio", notes: sealed("Went well. Notes can have commas, in quotes."),
       plans: [{ plan_id: plan, plan_title: "Hip harness", plan_version: 2 }],
     });
     expect(tie.participants).toEqual(expect.arrayContaining([

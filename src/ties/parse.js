@@ -1,7 +1,7 @@
 // Parsing a submitted tie. Pure, so it's easy to test.
 
 import { BadInput } from "../http.js";
-import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull } from "../parse.js";
+import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull, encryptedText } from "../parse.js";
 import { parseTagNames } from "../tags/parse.js";
 
 export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
@@ -16,7 +16,8 @@ export const PAGE_SIZES = [20, 50, 100];
 /** Newest tie date first (the default), or oldest first. */
 export const SORTS = ["newest", "oldest"];
 const MAX_FILTER_IDS = 50;
-const MAX_SEARCH_LENGTH = 200;
+// Ties a keyword search found (on the device): as many as anyone has.
+const MAX_MATCH_IDS = 20_000;
 /** How the tags filter combines the chosen tags: ties with any of them, or all. */
 export const TAG_MATCHES = ["any", "all"];
 
@@ -48,7 +49,8 @@ export function parseTieInput(body) {
     title: cleanText(body.title),
     tie_date: toDateOrNull(body.tie_date),
     tie_type: toChoiceOrNull(body.tie_type, TIE_TYPES),
-    notes: cleanText(body.notes),
+    // Encrypted in the browser.
+    notes: encryptedText(body.notes),
     duration_minutes: toIntOrNull(body.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(body.success_rating, 1, 5),
     location_id: cleanText(body.location_id),
@@ -105,7 +107,7 @@ export function parsePlanIds(value) {
  *   tag_match: string,
  *   from: string | null,
  *   to: string | null,
- *   q: string | null,
+ *   match_ids: string[] | null,
  *   page: number,
  *   page_size: number,
  *   sort: string,
@@ -114,9 +116,11 @@ export function parsePlanIds(value) {
 
 /**
  * The search body: person_ids, location_ids and tag_ids (lists), tag_match
- * ("any", the default, or "all"), from / to (tie dates, inclusive), q
- * (keyword), page, page_size (20, 50 or 100) and sort ("newest", the
- * default, or "oldest"). All optional.
+ * ("any", the default, or "all"), from / to (tie dates, inclusive),
+ * match_ids (the ties a keyword matched, searched for on the device; null
+ * or left out for no keyword), page, page_size (20, 50 or 100) and sort
+ * ("newest", the default, or "oldest"). All optional. A keyword itself (q)
+ * is refused: it never comes to the server.
  * @param {Record<string, unknown>} body
  * @returns {TieFilters}
  */
@@ -128,7 +132,7 @@ export function parseTieFilters(body) {
     tag_match: parseTagMatch(body.tag_match),
     from: toDateOrNull(body.from),
     to: toDateOrNull(body.to),
-    q: cleanText(body.q),
+    match_ids: parseMatchIds(body.match_ids),
     page: parsePage(body.page),
     page_size: parsePageSize(body.page_size),
     sort: parseSort(body.sort),
@@ -136,10 +140,20 @@ export function parseTieFilters(body) {
   if (filters.from && filters.to && filters.from > filters.to) {
     throw new BadInput("The start date is after the end date.");
   }
-  if (filters.q && filters.q.length > MAX_SEARCH_LENGTH) {
-    throw new BadInput(`Search for ${MAX_SEARCH_LENGTH} characters or fewer.`);
-  }
+  if (body.q !== undefined) throw new BadInput("Keyword search happens on your device. Reload the page and try again.");
   return filters;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string[] | null}
+ */
+function parseMatchIds(value) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || value.length > MAX_MATCH_IDS || value.some((id) => typeof id !== "string")) {
+    throw new BadInput("Couldn't search. Reload the page and try again.");
+  }
+  return value;
 }
 
 /**

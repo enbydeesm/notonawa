@@ -157,7 +157,9 @@ encrypt more of these fields over time.
   That's why the app is so strict about which code may run in it (below).
 - **Searching happens on your device.** What you type in the search box is
   never sent to us and never appears in the page address, so it doesn't end
-  up in your browser history either.
+  up in your browser history either. Your notes are decrypted and searched
+  on your device; to show the results a page at a time, the app tells us
+  which entries matched, but not what you searched for.
 - **Only our own code runs in the app.** Strict browser security rules
   (Content Security Policy and Trusted Types) block scripts from anywhere
   else, and the app can't be embedded in other websites.

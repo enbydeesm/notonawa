@@ -12,8 +12,12 @@
 // can't.
 
 import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./keys.js";
+import { sealRecord, openRecord } from "./fields.js";
+import { matchingTies } from "../search-match.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
+/** @typedef {import("./fields.js").RecordKind} RecordKind */
+/** @typedef {import("../search-match.js").IndexEntry} IndexEntry */
 /**
  * A secret as sent by the page: a passkey's PRF output, or a recovery code
  * (canonical, see readRecoveryCode).
@@ -23,6 +27,22 @@ import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./k
 export class VaultCore {
   /** @type {CryptoKey | null} the data key, non-extractable */
   #key = null;
+  /** @type {string | null} whose key it is (fields are bound to the user) */
+  #userId = null;
+  /** @type {IndexEntry[] | null} the ties' search index, notes opened */
+  #index = null;
+
+  /**
+   * @param {() => Promise<IndexEntry[]>} [loadIndex] fetches the ties' search
+   *   index (notes still sealed): the Worker fetches it itself, so notes of
+   *   ties not on screen never reach the page
+   */
+  constructor(loadIndex) {
+    this.#loadIndex = loadIndex ?? (async () => []);
+  }
+
+  /** @type {() => Promise<IndexEntry[]>} */
+  #loadIndex;
 
   get unlocked() {
     return this.#key !== null;
@@ -46,6 +66,7 @@ export class VaultCore {
       secret.fill(0);
     }
     this.#key = await unwrapDataKey(recovery, { userId, secret: recoverySecret });
+    this.#userId = userId;
     recoverySecret.fill(0);
     return { recovery, passkey };
   }
@@ -58,6 +79,7 @@ export class VaultCore {
     const bytes = secretBytes(secret);
     try {
       this.#key = await unwrapDataKey(wrap, { userId, secret: bytes });
+      this.#userId = userId;
     } finally {
       bytes.fill(0);
     }
@@ -77,6 +99,7 @@ export class VaultCore {
       const key = await unwrapDataKey(proof.wrap, { userId, secret: proofBytes }, { extractable: true });
       const wrap = await this.#checkedWrap(key, userId, add.kind, newBytes);
       this.#key ??= await unwrapDataKey(proof.wrap, { userId, secret: proofBytes });
+      this.#userId = userId;
       return wrap;
     } finally {
       proofBytes.fill(0);
@@ -84,9 +107,59 @@ export class VaultCore {
     }
   }
 
-  /** Forgets the key. */
+  /** Forgets the key, and everything opened with it. */
   lock() {
     this.#key = null;
+    this.#userId = null;
+    this.#index = null;
+  }
+
+  /**
+   * Records with their kind's encrypted fields sealed, for saving.
+   * @template {Record<string, any>} T
+   * @param {{ kind: RecordKind, records: T[] }} args
+   * @returns {Promise<T[]>}
+   */
+  async seal({ kind, records }) {
+    const [key, userId] = this.#unlocked();
+    return Promise.all(records.map((record) => sealRecord(key, userId, kind, record)));
+  }
+
+  /**
+   * Records with their kind's encrypted fields opened, for showing.
+   * @template {Record<string, any>} T
+   * @param {{ kind: RecordKind, records: T[] }} args
+   */
+  async open({ kind, records }) {
+    const [key, userId] = this.#unlocked();
+    return Promise.all(records.map((record) => openRecord(key, userId, kind, record)));
+  }
+
+  /**
+   * The ids of the ties a keyword matches (in title, notes or a linked
+   * plan's title). The index is fetched and opened once, and kept until the
+   * journal locks or a tie changes (forgetSearch).
+   * @param {{ q: string }} args
+   * @returns {Promise<string[]>}
+   */
+  async searchTies({ q }) {
+    const [key, userId] = this.#unlocked();
+    if (!this.#index) {
+      const entries = await this.#loadIndex();
+      this.#index = await Promise.all(entries.map((entry) => openRecord(key, userId, "tie", entry)));
+    }
+    return matchingTies(this.#index, q);
+  }
+
+  /** A tie was added, changed or deleted: the next search fetches the index again. */
+  forgetSearch() {
+    this.#index = null;
+  }
+
+  /** @returns {[CryptoKey, string]} */
+  #unlocked() {
+    if (!this.#key || !this.#userId) throw new Error("Your journal is locked.");
+    return [this.#key, this.#userId];
   }
 
   /**

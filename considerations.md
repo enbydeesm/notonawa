@@ -76,6 +76,7 @@ Each step leaves the app working and shippable on its own.
    matching tie ids instead of a keyword, and `q` leaves the API entirely.
    Export decrypts on the device. *Before photos because it removes plaintext
    that exists today, and it builds the crypto Worker plumbing photos reuse.*
+   *Built 2026-10-14, not yet deployed; see "Step 5 as built" below.*
 6. **Encrypted photos.** Private R2 bucket (no public access, no `r2.dev`
    URL); the browser strips metadata by redrawing the image on a canvas
    (`createImageBitmap` applies the EXIF rotation first), makes a thumbnail,
@@ -411,6 +412,59 @@ Each step leaves the app working and shippable on its own.
   "Set up encryption" at their first unlock, with a new recovery code to
   save; other passkeys need the code once each.
 
+### Step 5 as built
+
+- **Format:** `e1.<iv>.<ciphertext>` (base64url) in the same columns (no
+  migration). AES-256-GCM with the data key; the additional data is
+  `rope-journal|field|v1|<user>|<table>.<field>`. Text is trimmed and empty
+  text stored as null, as `cleanText` did. `crypto/fields.js` (browser) and
+  `encryptedText` in `src/parse.js` (server) check the same pattern; a unit
+  test keeps them, and the two lists of encrypted columns
+  (`src/encryption/config.js`), in step. The server refuses plain text in
+  these fields everywhere: forms, ties, both imports, `/api/encryption/seal`.
+- **Not bound to the row** (decided 2026-10-14): the server could swap two
+  of the same user's notes. Binding to the row would need the browser to
+  choose every new row's id, imports included. **Revisit** with photos,
+  which will have browser-made ids anyway.
+- **The Worker works on whole records of a kind** (`seal`, `open`,
+  `searchTies`, `forgetSearch`); `vault.js` exposes `seal`, `sealOne`,
+  `open`, `searchTies`. A field that won't open is null and listed in
+  `unreadable`; lists show "(can't decrypt the notes)", the tie form says
+  saving replaces them, and the export counts them. Plain text (not yet
+  encrypted) opens as it is.
+- **Search on the device** (decided 2026-10-14): `searchTies(q)` in the
+  Worker fetches `GET /api/ties/search-index` itself (id, title, notes
+  sealed, plan titles), opens it, keeps it until the journal locks or
+  `forgetSearch()` (after a tie or plan is saved or deleted, an import, or
+  encrypting leftovers), and matches with `toLocaleLowerCase`
+  (`search-match.js`): title, notes and linked plans' titles. Notes of ties
+  not on screen never reach the page. `POST /api/ties/search` takes
+  `match_ids` and refuses `q`; it still filters, sorts and pages. The server
+  learns which ties matched (not the keyword); PRIVACY.md says so. This
+  fixed "Keyword search ignores case for A–Z only" (below).
+- **Import duplicates** (decided 2026-10-14): the import preview returns
+  `candidates: [{ i, notes }]` (my ties the same in all but the notes, from
+  the old SQL check minus notes); the page opens their notes and compares
+  (`import-dedupe.js`), and sends `skip` with each batch. The page checks
+  each batch again just before saving it, so re-importing after a failure
+  still finishes the job. The file is sealed once on the device
+  (`journal-fields.js`) and only the sealed copy is sent; the plain copy is
+  kept for comparing.
+- **Older plain text** (`GET /api/encryption/pending`, `POST
+  /api/encryption/seal`, `seal-leftovers.js`): the first time a journal view
+  shows after each unlock, the page seals what's left and overwrites it,
+  only where the value is still plain. `updated_at` isn't touched (decided
+  2026-10-14: encrypting isn't an edit). It waits for a journal view, not
+  the unlock itself: sign-up and recovery unlock before the session is full,
+  and the pending request would then end the session (found by the UI
+  walkthrough).
+- **Starting a new key** empties the encrypted fields in the same batch, and
+  deletes profile notes, whose description can't be empty (an API test
+  found the NOT NULL failure). PRIVACY.md already says what the old key
+  encrypted is lost.
+- **No sentence on D1's history or backups holding pre-encryption plain
+  text** (decided 2026-10-14): only test data exists so far.
+
 ### Weighed and not adopted
 
 - **An owner back door** (a special login for the operator): rejected. It
@@ -473,11 +527,12 @@ query string has no real null and `archived=` is easy to send by accident.
 
 ## Keyword search ignores case for A–Z only
 
-**Status:** known limitation (2026-10-12)
+**Status:** fixed in step 5 (2026-10-14)
 
-Tie keyword search uses SQLite `LIKE`, which ignores case only for ASCII
-letters: "Ö" won't match "ö". Fine for now. **Revisit if** this comes up; the
-options are a lowercased search column kept up to date on write, or FTS5.
+Tie keyword search used SQLite `LIKE`, which ignores case only for ASCII
+letters: "Ö" didn't match "ö". Search now happens on the device with
+`toLocaleLowerCase` (`public/js/search-match.js`), which folds capitals in
+any language.
 
 ## Updating `updated_at` automatically with triggers
 
