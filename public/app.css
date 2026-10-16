@@ -9,6 +9,10 @@
   --line: #e4dfd8; --accent: #fec762; --accent-text: #222; --accent-ink: #8a5a00;
   --error: #b00020;
   --danger: #b00020; --danger-text: #fff;
+  /* The analytics' chart colors: --chart-1 is the bars, all seven are the
+     pie slices in turn. Told apart by lightness as well as hue. */
+  --chart-1: #c88a10; --chart-2: #3f73c8; --chart-3: #d0674f; --chart-4: #3f8f78;
+  --chart-5: #8b7fc0; --chart-6: #b9b2a6; --chart-7: #5f5a54;
 }
 /* Dark mode: when the device is dark, unless light was picked in the menu,
    or whenever dark was picked (data-theme is set by theme-init.js and
@@ -20,6 +24,8 @@
     --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
     --error: #ff6b81;
     --danger: #ff6b81; --danger-text: #161514;
+    --chart-1: #fec762; --chart-2: #6f9cf0; --chart-3: #e98a72; --chart-4: #6fbca5;
+    --chart-5: #a69be0; --chart-6: #8e877d; --chart-7: #57524c;
   }
 }
 :root[data-theme="dark"] {
@@ -28,6 +34,8 @@
   --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
   --error: #ff6b81;
   --danger: #ff6b81; --danger-text: #161514;
+  --chart-1: #fec762; --chart-2: #6f9cf0; --chart-3: #e98a72; --chart-4: #6fbca5;
+  --chart-5: #a69be0; --chart-6: #8e877d; --chart-7: #57524c;
 }
 * { box-sizing: border-box; }
 body {
@@ -44,6 +52,11 @@ nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
 nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
 /* display: flex above would otherwise override [hidden] (see showNav). */
 nav[hidden] { display: none; }
+/* The Analytics tab: a bar-chart icon, underlined like the others when
+   it's the view shown. */
+nav .nav-chart { display: inline-flex; width: 32px; height: 32px; padding: 4px 3px; }
+nav .nav-chart svg { display: block; width: 100%; height: 100%; }
+nav .nav-chart[aria-current="page"] { color: var(--text); }
 
 /* The app's logo on Sign in and Unlock, which have no nav. */
 .app-title { text-align: center; }
@@ -410,3 +423,102 @@ dialog.form-dialog {
   padding: 8px 14px; font-size: 0.9rem; border-radius: 8px;
   background: var(--card); color: var(--text); border: 1px solid var(--line);
 }
+
+/* --- Analytics (views/analytics.js) --- */
+
+/* Calendar | Insights: two buttons side by side, the one shown filled. */
+.segmented { display: flex; margin: 0 0 16px; }
+.segmented button { flex: 1; padding: 8px; border-radius: 0; }
+.segmented button:first-child { border-radius: 8px 0 0 8px; }
+.segmented button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
+.segmented button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+
+.period-title { text-align: center; font-size: 1.5rem; margin: 0 0 8px; }
+.period-steps, .period-nav { display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 12px; }
+.period-nav .period-title { margin: 0; min-width: 8rem; }
+.step-button { width: 44px; height: 44px; justify-content: center; align-items: center; color: var(--accent-ink); }
+.step-button[hidden] { display: none; }
+.step-icon, .funnel-icon {
+  width: 20px; height: 20px; fill: none; stroke: currentColor;
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* The numbers: label above value, in tiles (Calendar) or pairs (Insights). */
+.stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.stat-grid .stat { grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+/* The top/bottom tiles share the second row. */
+.stat-grid .stat:nth-child(n + 4) { grid-column: span 3; }
+.stat-grid dt { color: var(--muted); font-size: 0.8rem; }
+.stat-grid dd { margin: 0; font-size: 1.4rem; font-weight: 600; }
+.stat-extra { margin-left: 8px; font-size: 0.9rem; color: var(--accent-ink); }
+.stat-pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; }
+.stat-pairs .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stat-pairs dt { color: var(--muted); }
+.stat-pairs dd { margin: 0; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.stat-pairs .stat-extra { margin-left: 6px; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
+.stat-hank { width: 16px; height: 16px; margin-left: 4px; }
+@media (max-width: 420px) { .stat-pairs { grid-template-columns: minmax(0, 1fr); } }
+
+/* The month: seven columns, a hank on each day with ties (and the count
+   on it when there's more than one). */
+.cal-weekdays, .cal-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-weekdays { margin-bottom: 4px; }
+.cal-weekdays li { text-align: center; font-size: 0.75rem; color: var(--muted); }
+.cal-day { min-height: 56px; border-radius: 8px; padding: 4px 2px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cal-day.has-ties { background: var(--bg); }
+.cal-day.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-num { font-size: 0.8rem; color: var(--muted); line-height: 1.2; }
+.cal-day.has-ties .cal-num, .cal-day.today .cal-num { color: var(--text); font-weight: 600; }
+.cal-mark { position: relative; width: 26px; height: 26px; }
+.cal-count {
+  position: absolute; top: -4px; right: -8px; min-width: 16px; height: 16px; padding: 0 3px;
+  border-radius: 8px; background: var(--text); color: var(--card);
+  font-size: 0.65rem; font-weight: 700; line-height: 16px; text-align: center;
+}
+
+/* Insights' controls: the period and role drop-downs share the row with
+   the funnel button. */
+.insight-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.insight-controls select { flex: 1; min-width: 0; font-size: 0.9rem; padding: 8px 6px; }
+.filter-button { position: relative; flex: none; width: 44px; height: 44px; justify-content: center; align-items: center; color: var(--accent-ink); }
+.filter-count {
+  position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px; background: var(--accent); color: var(--accent-text);
+  font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center;
+}
+.filter-count[hidden] { display: none; }
+#custom-dates { margin-bottom: 12px; }
+#cal-message:empty, #insights-message:empty { display: none; }
+#custom-dates[hidden] { display: none; }
+
+/* Charts. */
+.bar-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.bar-chart .bar rect { fill: var(--chart-1); }
+.bar-chart .bar.empty rect { fill: var(--line); }
+.bar-chart text { fill: var(--muted); font-size: 9px; text-anchor: middle; }
+.bar-chart .bar-value { fill: var(--text); font-weight: 600; }
+
+.partner-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.partner-bars li { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto; align-items: center; gap: 8px; }
+.partner-bar svg { display: block; width: 100%; height: 16px; }
+.partner-bar rect { fill: var(--chart-1); }
+.partner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
+.partner-count { color: var(--muted); font-size: 0.9rem; text-align: right; }
+
+.pie-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.pie { flex: none; width: 104px; height: 104px; }
+.pie .slice { fill: var(--c); stroke: var(--card); stroke-width: 0.02; }
+.pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.85rem; flex: 1; min-width: 10rem; }
+.pie-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+.legend-name { overflow-wrap: anywhere; line-height: 1.25; }
+.legend-count { color: var(--muted); white-space: nowrap; }
+.chart-1 { --c: var(--chart-1); } .chart-2 { --c: var(--chart-2); } .chart-3 { --c: var(--chart-3); }
+.chart-4 { --c: var(--chart-4); } .chart-5 { --c: var(--chart-5); } .chart-6 { --c: var(--chart-6); }
+.chart-7 { --c: var(--chart-7); }
+/* Days of the week and locations side by side when there's room. */
+.pie-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 16px; }
+
+/* The "More filters" dialog: a label above each box. */
+.more-filters > label { margin: 12px 0 4px; }
+.more-filters .dialog-buttons { margin-top: 16px; }

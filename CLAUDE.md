@@ -117,6 +117,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `TIE_TYPES` (also in `public/js/ties-view.js` and a CHECK in migration
   0004). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active
   ones most recently on a tie (by tie date), for the tie form's pickers.
+- `src/stats/`: the analytics' data (`parse.js`: pure, the filters and
+  `ROLE_GROUPS`; `db.js`; `routes.js`: `POST /api/stats/ties`, the ties in a
+  date range with only what the counting needs, filtered by my role and by
+  any of the chosen people, locations and tags). See considerations.md,
+  "Analytics".
 - `src/tags/`: tags (`parse.js` parses and matches names, ignoring capitals;
   `db.js`; `routes.js`: `GET /api/tags` most recently used first,
   `DELETE /api/tags/:id`).
@@ -149,7 +154,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
-  `rope-rating.js` (ratings drawn as rope hanks), `multi-select.js`,
+  `rope-rating.js` (ratings drawn as rope hanks; `hankIcon`),
+  `stats.js` and `stats-period.js` (pure: the analytics' numbers, and its
+  periods and bars), `charts.js` (bar and pie charts as SVG), `multi-select.js`,
   `resource-page.js` (list/edit pages), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
   import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:

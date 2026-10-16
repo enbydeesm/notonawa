@@ -105,6 +105,7 @@ export function parsePlanIds(value) {
  *   location_ids: string[],
  *   tag_ids: string[],
  *   tag_match: string,
+ *   person_match?: string,
  *   from: string | null,
  *   to: string | null,
  *   match_ids: string[] | null,

@@ -38,6 +38,8 @@ export function renderNav() {
     "nav",
     {},
     PAGES.map(([href, label]) => h("a", { href }, label)),
+    // Analytics: an icon, as there's little room left before the +.
+    h("a", { href: "/analytics", className: "nav-chart", "aria-label": "Analytics", title: "Analytics" }, chartIcon()),
     h("button", { type: "button", className: "nav-add", "aria-label": "Log a tie", title: "Log a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
@@ -178,6 +180,16 @@ function lineIcon() {
 function menuIcon() {
   const icon = lineIcon();
   for (const y of [6, 12, 18]) icon.append(svg("line", { x1: 4, y1: y, x2: 20, y2: y }));
+  return icon;
+}
+
+/** Three bars on a baseline, for the Analytics tab. */
+function chartIcon() {
+  const icon = lineIcon();
+  icon.append(
+    svg("path", { d: "M4 20h16" }),
+    svg("path", { d: "M7 16v-5M12 16V6M17 16v-8" })
+  );
   return icon;
 }
 

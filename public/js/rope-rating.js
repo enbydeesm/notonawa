@@ -22,7 +22,7 @@ function svgElement(tag, attrs) {
 }
 
 /** One hank icon, hidden from screen readers (its button or text says what it means). */
-function hankIcon() {
+export function hankIcon() {
   const svg = svgElement("svg", { viewBox: "0 0 24 24", class: "hank", "aria-hidden": "true", focusable: "false" });
   svg.append(
     svgElement("path", { d: LOOP, class: "hank-loop", "fill-rule": "evenodd" }),

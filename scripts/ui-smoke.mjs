@@ -522,7 +522,7 @@ try {
 
   console.log("People");
   await go("/people");
-  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a:not(.nav-icon)")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
+  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a:not(.nav-icon):not(.nav-chart)")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
     ["Ties", "Plans", "People*", "Locations"]);
   check("a new journal starts with 'Me'; add people, one with a default role", await run(`
     const first = titles();
@@ -1196,6 +1196,39 @@ try {
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
     ["Imported 0 ties. Skipped 27 ties already in your journal. Skipped 1 photo on ties or plans that already have photos.", 1]);
+
+  console.log("Analytics");
+  await go("/analytics");
+  check("the Analytics tab is a chart icon right after Locations, marked as the view shown", await run(`
+    const links = [...document.querySelectorAll("nav a")].map((a) => a.getAttribute("href"));
+    const tab = $("nav a[href='/analytics']");
+    return [links.indexOf("/analytics") === links.indexOf("/locations") + 1, tab.getAttribute("aria-label"), tab.getAttribute("aria-current"), !!tab.querySelector("svg")];`),
+    [true, "Analytics", "page", true]);
+  check("Calendar shows this month: its name, five numbers and every day", await run(`
+    await wait(800); const days = document.querySelectorAll(".cal-day").length;
+    return [$("#cal-title").textContent.length > 0, document.querySelectorAll("#cal-stats .stat").length, days >= 28 && days <= 31];`),
+    [true, 5, true]);
+  check("its arrows step back a month and forward again", await run(`
+    const now = $("#cal-title").textContent; $("#cal-prev").click(); await wait(600); const before = $("#cal-title").textContent;
+    $("#cal-next").click(); await wait(600); return [before !== now, $("#cal-title").textContent === now];`), [true, true]);
+  check("Insights shows this year's numbers and a bar for each month", await run(`
+    $("#tab-insights").click(); await wait(1000);
+    return [$("#calendar-panel").hidden, $("#period").value, $("#period-title").textContent === String(new Date().getFullYear()),
+      document.querySelectorAll("#insights-stats .stat").length, document.querySelectorAll("#tie-count-chart .bar").length, $("#insights-message").textContent];`),
+    [true, "year", true, 8, 12, ""]);
+  check("Month shows a bar for each day, Custom shows its dates", await run(`
+    set("#period", "month"); await wait(800); const days = document.querySelectorAll("#tie-count-chart .bar").length;
+    set("#period", "custom"); await wait(300); const custom = !$("#custom-dates").hidden;
+    set("#period", "year"); await wait(800);
+    return [days >= 28 && days <= 31, custom];`), [true, true]);
+  check("More filters lists people (not me), locations and tags, kept out of form history and spellcheck", await run(`
+    $("#more-filters").click(); await wait(1000);
+    const open = !!$("dialog[open].more-filters"); const leaky = leakyFields();
+    const people = [...document.querySelectorAll("dialog[open] details")][0].querySelectorAll("label").length;
+    const mine = [...document.querySelectorAll("dialog[open] details label")].some((l) => l.textContent === "Me");
+    $("#af-cancel").click(); await wait(200);
+    return [open, leaky, people > 0, mine, document.querySelector("dialog[open]") === null];`), [true, [], true, false, true]);
+  check("…and Insights' own fields are too", await run(`return leakyFields();`), []);
 
   console.log("Deleting the account");
   await go("/account");

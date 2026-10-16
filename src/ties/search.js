@@ -14,9 +14,17 @@ export function tieFilterSql(ownerId, filters) {
   /** @type {unknown[]} */
   const params = [ownerId];
 
-  // Ties with ALL the chosen people: count how many of them took part.
-  // The ids go in as one JSON array so any number uses one parameter.
-  if (filters.person_ids.length) {
+  // Ties with ANY of the chosen people (person_match "any": the analytics
+  // filters)...
+  if (filters.person_ids.length && filters.person_match === "any") {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM tie_participants tp
+                WHERE tp.tie_id = t.id AND tp.person_id IN (SELECT value FROM json_each(?)))`
+    );
+    params.push(JSON.stringify(filters.person_ids));
+  } else if (filters.person_ids.length) {
+    // ...or with ALL of them (the ties search): count how many took part.
+    // The ids go in as one JSON array so any number uses one parameter.
     clauses.push(
       `(SELECT COUNT(DISTINCT tp.person_id) FROM tie_participants tp
          WHERE tp.tie_id = t.id AND tp.person_id IN (SELECT value FROM json_each(?))) = ?`

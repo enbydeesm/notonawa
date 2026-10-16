@@ -784,3 +784,52 @@ If a file's format or size changes, update its `<link>` in `index.html` and
 `scripts/privacy-html.mjs` (then run `node scripts/privacy-html.mjs`), or the
 `icons` list in `manifest.webmanifest`. The manifest's colours (`#161514`) are
 the dark theme's background.
+
+## Analytics: counted on the device, charts drawn by hand
+
+**Status:** built (2026-10-15)
+
+The Analytics view (`/analytics`, the bar-chart tab) has a Calendar tab (a
+month, with a hank on each day with ties) and an Insights tab (a period's
+numbers, tie count bars, top 10 partners, and pie charts of tie types, days
+of the week and locations). Decided:
+
+- **The server sends the ties, the page counts them.** `POST
+  /api/stats/ties` returns only what the counting needs (date, type, length,
+  rating, location, who took part in which role), and `public/js/stats.js`
+  and `stats-period.js` do the counting. The numbers stay testable as pure
+  functions, and every bar, slice and day keeps its tie ids for the planned
+  drill-down below. Weighed: counting in SQL (`GROUP BY`) per chart. Fewer
+  bytes, but a query per chart and nothing to drill into.
+- **Charts are hand-drawn SVG (`public/js/charts.js`), not a chart
+  library.** Three simple kinds, and the calendar is custom anyway; no new
+  third-party code in an app holding encrypted journal data (a supply-chain
+  risk, and 70–150 KB more to load), nothing to upgrade, and colors come
+  from CSS variables (`--chart-1` to `--chart-7`) so they follow the theme
+  and the CSP's no-style-attributes rule. If fancier charts are wanted later
+  (zooming, trend lines), Chart.js is the lowest-risk library: no runtime
+  dependencies.
+- **Partners** are the other people on a tie, leaving out my own profile,
+  spotters and photographers (someone both spotting and modelling on a tie
+  counts). Deleted people aren't counted.
+- **The role filter is about me**: "As top / rigger" is ties where my own
+  profile was top or rigger, and so on. Ties without me on them only count
+  under "All roles", so the top and bottom percentages can add up to less
+  than 100% (rare, so accepted).
+- **More filters (people, locations, tags) match ANY of the choices within
+  a filter**, and different filters narrow together. This differs from the
+  Ties search, where several people means ties with all of them
+  (`person_match: "any"` in `src/ties/search.js` does the analytics' way).
+- **Bars**: a month each for a year or the last 365 days; a day each for a
+  month or the last 4 weeks; for All time a year each, or a month each while
+  the ties span less than a year; for Custom a day each up to six weeks,
+  then a month each.
+
+## Planned: tapping a chart or calendar day lists its ties
+
+**Status:** planned (2026-10-15)
+
+Tapping a calendar day, a bar or a slice should show the ties behind it.
+The counting already keeps each one's tie ids (`tieIds`); what's left is
+the UI: probably the Ties list filtered to those ids (as the keyword search
+does with `match_ids`), or a dialog of tie cards.

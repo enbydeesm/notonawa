@@ -233,6 +233,97 @@
     </section>
   </template>
 
+  <!-- Analytics: a month's calendar, and a period's numbers and charts.
+       views/analytics.js fills it in. -->
+  <template id="view-analytics">
+    <h1>Analytics</h1>
+
+    <div class="segmented" role="group" aria-label="Show">
+      <button type="button" id="tab-calendar" aria-pressed="true">Calendar</button>
+      <button type="button" id="tab-insights" aria-pressed="false">Insights</button>
+    </div>
+
+    <div id="calendar-panel">
+      <section class="card">
+        <h2 class="period-title" id="cal-title" aria-live="polite"></h2>
+        <div class="period-steps">
+          <button type="button" class="icon-button step-button" id="cal-prev" aria-label="Previous month" title="Previous month">
+            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button type="button" class="icon-button step-button" id="cal-next" aria-label="Next month" title="Next month">
+            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <dl class="stat-grid" id="cal-stats"></dl>
+        <p class="message error" id="cal-message" role="alert"></p>
+        <div id="calendar"></div>
+      </section>
+    </div>
+
+    <div id="insights-panel" hidden>
+      <section class="card">
+        <div class="insight-controls">
+          <select id="period" aria-label="Time period"></select>
+          <select id="role" aria-label="My role"></select>
+          <button type="button" class="icon-button filter-button" id="more-filters" aria-label="More filters" title="More filters" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" class="funnel-icon" aria-hidden="true" focusable="false"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg>
+            <span class="filter-count" id="filter-count" aria-hidden="true" hidden></span>
+          </button>
+        </div>
+        <div class="row" id="custom-dates" hidden>
+          <div>
+            <label for="insights-from">From</label>
+            <input id="insights-from" type="date" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="insights-to">To</label>
+            <input id="insights-to" type="date" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+        <div class="period-nav">
+          <button type="button" class="icon-button step-button" id="period-prev" aria-label="Previous year" title="Previous">
+            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h2 class="period-title" id="period-title" aria-live="polite"></h2>
+          <button type="button" class="icon-button step-button" id="period-next" aria-label="Next year" title="Next">
+            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <dl class="stat-pairs" id="insights-stats"></dl>
+        <p class="message error" id="insights-message" role="alert"></p>
+      </section>
+
+      <section class="card">
+        <h2>Tie count</h2>
+        <div id="tie-count-chart"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Tied with</h2>
+          <span class="item-meta">Top 10</span>
+        </div>
+        <div id="partner-chart"></div>
+      </section>
+
+      <section class="card">
+        <h2>Tie types</h2>
+        <div id="type-chart"></div>
+      </section>
+
+      <div class="pie-pair">
+        <section class="card">
+          <h2>Days of the week</h2>
+          <div id="weekday-chart"></div>
+        </section>
+        <section class="card">
+          <h2>Locations</h2>
+          <div id="location-chart"></div>
+        </section>
+      </div>
+    </div>
+  </template>
+
   <!-- Account (/account) -->
   <template id="view-account">
     <h1>Account</h1>
