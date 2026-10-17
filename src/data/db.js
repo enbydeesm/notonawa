@@ -22,9 +22,9 @@ export async function readAccount(db, userId) {
     q(`SELECT n.person_id, n.type, n.description, n.noted_on, n.is_current, n.created_at, n.updated_at
          FROM profile_notes n JOIN people p ON p.id = n.person_id
         WHERE p.owner_id = ? ORDER BY n.created_at, n.id`),
-    q(`SELECT id, name, notes, maps_url, latitude, longitude, archived_at, created_at, updated_at
+    q(`SELECT id, name, notes, maps_url, latitude, longitude, is_default, archived_at, created_at, updated_at
          FROM locations WHERE owner_id = ? ORDER BY created_at, id`),
-    q(`SELECT id, title, stage, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at
+    q(`SELECT id, title, stage, plan_type, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at
          FROM plans WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT pt.plan_id, t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
         WHERE t.owner_id = ? ORDER BY t.name COLLATE NOCASE`),

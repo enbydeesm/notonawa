@@ -67,11 +67,11 @@ export function exportDocument(rows, exportedAt) {
     })),
     locations: rows.locations.map((l) => ({
       id: l.id, name: l.name, notes: l.notes, maps_url: l.maps_url,
-      latitude: l.latitude, longitude: l.longitude,
+      latitude: l.latitude, longitude: l.longitude, is_default: !!l.is_default,
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,
     })),
     plans: rows.plans.map((p) => ({
-      id: p.id, title: p.title, stage: p.stage, description: p.description, notes: p.notes,
+      id: p.id, title: p.title, stage: p.stage, plan_type: p.plan_type, description: p.description, notes: p.notes,
       est_difficulty: p.est_difficulty, variation_of: p.variation_of, version: p.version,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       tags: (tagsByPlan.get(p.id) ?? []).map((t) => t.name),

@@ -94,4 +94,15 @@ describe("pickerSource", () => {
       recent: ["p2"],
     });
   });
+
+  it("marks the default location", () => {
+    const rows = [
+      { id: "l1", name: "Studio", is_default: 1, archived_at: null, created_at: "t1" },
+      { id: "l2", name: "Park", is_default: 0, archived_at: null, created_at: "t2" },
+    ];
+    expect(pickerSource(rows, []).active).toEqual([
+      { id: "l1", name: "Studio", created_at: "t1", isDefault: true },
+      { id: "l2", name: "Park", created_at: "t2" },
+    ]);
+  });
 });

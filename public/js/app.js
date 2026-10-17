@@ -29,6 +29,7 @@ const VIEWS = {
   plans: () => import("./views/plans.js"),
   people: () => import("./views/people.js"),
   locations: () => import("./views/locations.js"),
+  calendar: () => import("./views/calendar.js"),
   analytics: () => import("./views/analytics.js"),
   account: () => import("./views/account.js"),
   data: () => import("./views/data.js"),

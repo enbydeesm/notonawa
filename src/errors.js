@@ -27,6 +27,10 @@ export function errorResponse(err) {
   if (/UNIQUE constraint failed: passkeys\.id/.test(message)) {
     return json({ error: "That passkey is already registered." }, 400);
   }
+  // Two saves racing to make different locations the default.
+  if (/UNIQUE constraint failed: locations\.owner_id/.test(message)) {
+    return json({ error: "Another location just became your default. Reload and try again." }, 400);
+  }
   if (/UNIQUE constraint failed: people\.owner_id/.test(message)) {
     return json({ error: "You already have a profile marked as you." }, 400);
   }

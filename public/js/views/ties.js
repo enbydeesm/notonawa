@@ -5,15 +5,13 @@
 import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { TIE_SAVED } from "../nav.js";
-import { openTieForm } from "../tie-form.js";
-import { formatDate } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { pickTags } from "../tag-picker.js";
 import { findTag } from "../tags.js";
-import { ratingHanks } from "../rope-rating.js";
-import { placeLine, participantLabel, showingText, peopleThatFit } from "../ties-view.js";
+import { showingText } from "../ties-view.js";
+import { tieCard, fitPeople, editTie } from "../tie-card.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
-import { open, searchTies } from "../vault.js";
+import { searchTies } from "../vault.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -199,72 +197,12 @@ export function mount(_root, { signal }) {
     showTags();
   }
 
-  /** @param {import("../ties-view.js").Label} label */
-  function renderLabel(label) {
-    if (label.rating !== undefined) return ratingHanks(label.rating, label.text);
-    return label.deleted ? h("span", { className: "deleted" }, label.text) : label.text;
-  }
-
-  /**
-   * A tie as a card: title (tap to edit) and date; type and location, and the
-   * rating; who took part, on one line; its tags; and how many photos.
-   * @param {Record<string, any>} tie
-   */
-  function renderTie(tie) {
-    const place = placeLine(tie);
-    const people = tie.participants.map((/** @type {any} */ p, /** @type {number} */ i) => {
-      const { name, role } = participantLabel(p);
-      return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${role})`);
-    });
-
-    return h("article", { className: "tie-card" },
-      h("button", { type: "button", className: "tie-title", onclick: () => editTie(tie.id) }, tie.title || "Untitled tie"),
-      h("span", { className: "tie-date" }, formatDate(tie.tie_date)),
-      h("div", { className: "tie-place" }, place.flatMap((part, i) => (i === 0 ? [renderLabel(part)] : [" ", renderLabel(part)]))),
-      tie.success_rating != null
-        ? h("div", { className: "tie-rating" }, ratingHanks(tie.success_rating, `Rating ${tie.success_rating}/5`))
-        : null,
-      people.length
-        ? h("div", { className: "tie-with" }, h("span", { className: "tie-with-label" }, "With: "), people, h("span", { className: "tie-more", hidden: true }))
-        : null,
-      tie.tags.length
-        ? h("div", { className: "tag-row tie-tags" }, tie.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
-        : null,
-      tie.photo_count
-        ? h("div", { className: "tie-photos" }, tie.photo_count === 1 ? "1 photo" : `${tie.photo_count} photos`)
-        : null
-    );
-  }
-
-  /**
-   * Shows as many people as fit on each tie's "With:" line, and "+2" for the
-   * rest (its tooltip names them). Run after the list is drawn and when its
-   * width changes.
-   */
-  function fitPeople() {
-    for (const line of list.querySelectorAll(".tie-with")) {
-      const people = /** @type {HTMLElement[]} */ ([...line.querySelectorAll(".tie-person")]);
-      const more = /** @type {HTMLElement} */ ($(".tie-more", line));
-      const label = /** @type {HTMLElement} */ ($(".tie-with-label", line));
-      for (const person of people) person.hidden = false;
-      more.hidden = false;
-      const moreWidth = (/** @type {number} */ n) => { more.textContent = ` +${n}`; return more.offsetWidth; };
-      const shown = peopleThatFit(people.map((p) => p.offsetWidth), line.clientWidth - label.offsetWidth, moreWidth);
-      people.forEach((person, i) => { person.hidden = i >= shown; });
-      const hiddenPeople = people.slice(shown);
-      more.hidden = hiddenPeople.length === 0;
-      moreWidth(hiddenPeople.length);
-      more.title = hiddenPeople.map((p) => (p.textContent ?? "").replace(/^, /, "")).join(", ");
-      more.setAttribute("aria-label", `and ${hiddenPeople.length} more: ${more.title}`);
-    }
-  }
-
   // Refit when the list's width changes (rotating a phone, resizing a window).
   let fittedWidth = 0;
   const resized = new ResizeObserver(() => {
     if (list.clientWidth === fittedWidth) return;
     fittedWidth = list.clientWidth;
-    fitPeople();
+    fitPeople(list);
   });
   resized.observe(list);
   signal.addEventListener("abort", () => resized.disconnect());
@@ -273,18 +211,15 @@ export function mount(_root, { signal }) {
    * Opens a tie in the tie form to edit or delete; reloads the list if it changed.
    * @param {string} id
    */
-  async function editTie(id) {
-    let tie;
+  async function openTie(id) {
     try {
-      [tie] = await open("tie", [await api(`/api/ties/${encodeURIComponent(id)}`)]);
+      if (!(await editTie(id))) return;
     } catch (err) {
       count.textContent = "Couldn't open the tie: " + errorMessage(err);
       return;
     }
-    if (await openTieForm(tie)) {
-      loadTies();
-      loadTags();
-    }
+    loadTies();
+    loadTags();
   }
 
   /**
@@ -329,8 +264,8 @@ export function mount(_root, { signal }) {
       if (request !== latestRequest) return;
       const totalPages = Math.ceil(total / page_size);
       count.textContent = showingText(total, all_total);
-      list.replaceChildren(...ties.map(renderTie));
-      fitPeople();
+      list.replaceChildren(...ties.map((/** @type {Record<string, any>} */ tie) => tieCard(tie, openTie)));
+      fitPeople(list);
       if (ties.length === 0) {
         const text = total > 0 ? "Nothing on this page."
           : hasFilters(state) ? "No ties match this search."

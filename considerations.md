@@ -789,10 +789,12 @@ the dark theme's background.
 
 **Status:** built (2026-10-15)
 
-The Analytics view (`/analytics`, the bar-chart tab) has a Calendar tab (a
-month, with a hank on each day with ties) and an Insights tab (a period's
-numbers, tie count bars, top 10 partners, and pie charts of tie types, days
-of the week and locations). Decided:
+Two views: Calendar (`/calendar`, the calendar tab: a month, with a hank on
+each day with ties) and Analytics (`/analytics`, the bar-chart tab: a
+period's numbers, tie count bars, top 10 partners, and pie charts of tie
+types, days of the week and locations). They started as two halves of one
+Analytics view; Calendar got its own tab once the nav became icons
+(2026-10-16). Decided:
 
 - **The server sends the ties, the page counts them.** `POST
   /api/stats/ties` returns only what the counting needs (date, type, length,
@@ -825,11 +827,60 @@ of the week and locations). Decided:
   the ties span less than a year; for Custom a day each up to six weeks,
   then a month each.
 
-## Planned: tapping a chart or calendar day lists its ties
+## Tapping a chart or calendar day lists its ties
 
-**Status:** planned (2026-10-15)
+**Status:** built (2026-10-16)
 
-Tapping a calendar day, a bar or a slice should show the ties behind it.
-The counting already keeps each one's tie ids (`tieIds`); what's left is
-the UI: probably the Ties list filtered to those ids (as the keyword search
-does with `match_ids`), or a dialog of tie cards.
+Tapping a calendar day, a bar, a partner, or a pie slice or its legend
+entry opens a dialog of the ties behind it (`tie-list-dialog.js`): the Ties
+list's cards (`tie-card.js`, shared with the Ties view), newest first, 100
+at a time with "Show more", fetched with `POST /api/ties/search` and the
+ids as `match_ids`. Tapping a title opens the tie form; saving or deleting
+reloads the list and the view's numbers. A calendar day with one tie opens
+it straight in the form.
+
+Weighed: going to the Ties list with those ids instead. Simpler, but
+leaving Analytics resets it (Back lands on this month's calendar, not the
+Insights period and filters you'd set up), and the Ties list can't say why
+it's showing those ties.
+
+## "This is me" can't be moved, archived or deleted
+
+**Status:** built (2026-10-16)
+
+Every account gets its own profile at sign-up, so the People form's "This
+is me" checkbox no longer needs to be editable: it shows only on that
+profile, ticked and greyed out, beside the Name label. With no other way to
+mark someone as me, the profile is protected on the server too: edits
+ignore `is_self`, and archiving or deleting it is refused (400). Archiving
+would drop it from the tie form's people picker, and deleting it would
+leave Calendar, Analytics' role filter and the partner counts with no "me".
+Renaming is still fine. Weighed: letting the checkbox move "me" to another
+person. Not needed (it's always the account owner), and a slip would
+quietly change every role-based number.
+
+## People and Locations: search, sort and a default location
+
+**Status:** built (2026-10-16)
+
+The People and Locations lists have a search box (names containing what's
+typed, ignoring capitals) and two sort buttons, by name and by date added.
+They start newest first; tapping the chosen sort again flips it. It's done
+on the device over the list already loaded (`list-order.js`), as these
+lists are small and their names aren't encrypted, so no API change was
+needed. My own profile stays at the top of People, whatever the order.
+Times are to the second, so things added in the same second sort A to Z.
+The order isn't remembered between visits; that can be added if wanted.
+
+One location can be the default for new ties, ticked beside its Name
+label. Ticking another asks whether to replace the current default; the
+server moves it in one batch, and a unique partial index stops two (a
+race between two devices gets a "reload and try again" message). Archiving
+a location clears its default, and the checkbox isn't offered for one
+archived as it's added. Weighed: a default stored in account settings. A
+flag on the location keeps it with the location's export, import and
+deletion.
+
+The page titles (NotoNawa, Plans, People, Locations) are kept for screen
+readers but hidden (`visually-hidden`), taking no space.
+

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  summarize, topPartners, typeShares, weekdayShares, locationShares, tiesByDay, percent, formatTotalTime,
+  summarize, topPartners, typeShares, weekdayShares, locationShares, tiesByDay, percent, formatTotalTime, tieListHeading,
 } from "../../public/js/stats.js";
 
 /** @typedef {import("../../public/js/stats.js").StatsTie} StatsTie */
@@ -119,5 +119,12 @@ describe("small helpers", () => {
   it("shows total time in hours, or minutes under an hour", () => {
     expect(formatTotalTime(45)).toBe("45m");
     expect(formatTotalTime(5880)).toBe("≈98h");
+  });
+});
+
+describe("tieListHeading", () => {
+  it("names what was tapped and how many ties it has", () => {
+    expect(tieListHeading("March 2026", 8)).toBe("March 2026 · 8 ties");
+    expect(tieListHeading("Lily", 1)).toBe("Lily · 1 tie");
   });
 });

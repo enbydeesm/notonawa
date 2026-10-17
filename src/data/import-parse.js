@@ -31,10 +31,11 @@ const MAX_ID_LENGTH = 100;
  * }} PersonInput
  * @typedef {Times & {
  *   file_id: string, name: string, notes: string | null,
- *   maps_url: string | null, latitude: number | null, longitude: number | null, archived_at: string | null,
+ *   maps_url: string | null, latitude: number | null, longitude: number | null, is_default: 0 | 1,
+ *   archived_at: string | null,
  * }} LocationInput
  * @typedef {Times & {
- *   file_id: string, title: string, stage: string, description: string | null, notes: string | null,
+ *   file_id: string, title: string, stage: string, plan_type: string, description: string | null, notes: string | null,
  *   est_difficulty: number | null, variation_of: string | null, version: number,
  *   archived_at: string | null, tags: string[],
  * }} PlanInput
@@ -202,11 +203,11 @@ function parseProfileNote(n) {
 /** @param {Record<string, unknown>} l @returns {LocationInput} */
 function parseLocation(l) {
   const { values } = parseFields(RESOURCES.locations, l);
-  const [name, notes, mapsUrl, latitude, longitude] =
-    /** @type {[string, string | null, string | null, number | null, number | null]} */ (values);
+  const [name, notes, mapsUrl, latitude, longitude, isDefault] =
+    /** @type {[string, string | null, string | null, number | null, number | null, 0 | 1]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(l.id)),
-    name, notes, maps_url: mapsUrl, latitude, longitude,
+    name, notes, maps_url: mapsUrl, latitude, longitude, is_default: isDefault,
     ...archiveAndTimes(l),
   };
 }
@@ -214,11 +215,12 @@ function parseLocation(l) {
 /** @param {Record<string, unknown>} p @returns {PlanInput} */
 function parsePlan(p) {
   const { values } = parseFields(RESOURCES.plans, p);
-  const [title, stage, description, notes, estDifficulty] =
-    /** @type {[string, string, string | null, string | null, number | null]} */ (values);
+  const [title, stage, description, notes, estDifficulty, , planType] =
+    /** @type {[string, string, string | null, string | null, number | null, unknown, string]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(p.id)),
-    title, stage, description, notes, est_difficulty: estDifficulty,
+    // Files from before migration 0011 have no plan_type: they're ideas.
+    title, stage, plan_type: planType, description, notes, est_difficulty: estDifficulty,
     variation_of: parseId(p.variation_of, true),
     version: toIntOrNull(p.version, 1, 1_000_000) ?? 1,
     ...archiveAndTimes(p),

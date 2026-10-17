@@ -15,6 +15,14 @@ export function mount() {
     form: $("#form"),
     list: $("#list"),
     archivedToggle: $("#show-archived"),
+    // My own profile stays at the top, whatever the order.
+    searchable: { noun: "people", pinned: (person) => !!person.is_self },
+
+    // "This is me" is shown only on my own profile, and can't be changed
+    // (who is me is set at sign-up). Nor can that profile be archived or
+    // deleted: the API refuses, so its buttons aren't shown.
+    onEdit: (person) => { $("#self-flag").hidden = !person?.is_self; },
+    canRemove: (person) => !person.is_self,
 
     renderItem: (person) => [
       h("div", { className: "item-title" },

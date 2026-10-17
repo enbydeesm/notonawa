@@ -57,7 +57,11 @@ export function photoSection({ item, idPrefix }) {
     h("div", { className: "label-row" }, h("label", {}, "Photos"), addButton),
     input,
     grid,
-    item ? null : h("p", { className: "hint" }, "Photos are uploaded when you save."),
+    // A new tie or plan's photos wait for the form to be saved; when
+    // editing, they're uploaded as they're added.
+    h("p", { className: "hint" }, item
+      ? "Photos can be arranged and captioned to describe a sequence."
+      : "Photos can be arranged and captioned to describe a sequence. They are uploaded when you save this form."),
     status);
 
   /** @param {string} text @param {boolean} [isError] */

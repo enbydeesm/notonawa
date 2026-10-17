@@ -4,8 +4,8 @@ import { h, $ } from "../dom.js";
 import { choose } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
 
-/** @type {Record<string, string>} */
-const STAGES = { idea: "Idea", developing: "Developing", ready: "Ready", retired: "Retired" };
+/** A plan's type, as the list shows it (src/resources/config.js has the list). @type {Record<string, string>} */
+const TYPES = { idea: "Idea", harness: "Harness", sequence: "Sequence" };
 
 /**
  * @param {HTMLElement} _root
@@ -23,7 +23,7 @@ export function mount(_root, { signal }) {
    * @param {string | null} [keepId] a linked plan to keep even if it's archived
    */
   function fillVariationOptions(excludeId, keepId) {
-    variationSelect.replaceChildren(h("option", { value: "" }, "Not a variation"));
+    variationSelect.replaceChildren(h("option", { value: "" }, "N/A"));
     for (const plan of activePlans) {
       if (plan.id !== excludeId) variationSelect.append(h("option", { value: plan.id }, plan.title));
     }
@@ -48,7 +48,7 @@ export function mount(_root, { signal }) {
 
     renderItem: (plan, plans) => {
       const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
-      const meta = [STAGES[plan.stage] || plan.stage];
+      const meta = [TYPES[plan.plan_type] || plan.plan_type];
       if (plan.est_difficulty != null) meta.push(`difficulty ${plan.est_difficulty}/5`);
       meta.push(`v${plan.version}`);
       if (plan.variation_of) meta.push(`variation of ${parent ? parent.title : "another plan"}`);

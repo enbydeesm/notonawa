@@ -10,9 +10,12 @@ import {
 } from "../parse.js";
 
 export const PLAN_STAGES = ["idea", "developing", "ready", "retired"];
+/** What a plan is (migration 0011); the Plans form shows this, not the stage. */
+export const PLAN_TYPES = ["idea", "harness", "sequence"];
 
 /**
- * @typedef {{ parse: (value: unknown) => unknown, required?: string }} Field
+ * @typedef {{ parse: (value: unknown) => unknown, required?: string, createOnly?: boolean }} Field
+ *   createOnly: set when the item is added, left as it is by edits
  * @typedef {{
  *   fields: Record<string, Field>,
  *   columns: string,
@@ -27,14 +30,16 @@ export const RESOURCES = {
   plans: {
     fields: {
       title: { parse: cleanText, required: "Give the plan a title." },
-      stage: { parse: (v) => toChoiceOrNull(v, PLAN_STAGES) ?? "idea" },
+      // No longer on the form: set when added, left alone by edits.
+      stage: { parse: (v) => toChoiceOrNull(v, PLAN_STAGES) ?? "idea", createOnly: true },
       // Encrypted in the browser (see encryptedText).
       description: { parse: encryptedText },
       notes: { parse: encryptedText },
       est_difficulty: { parse: (v) => toIntOrNull(v, 1, 5) },
       variation_of: { parse: cleanText },
+      plan_type: { parse: (v) => toChoiceOrNull(v, PLAN_TYPES) ?? "idea" },
     },
-    columns: `id, title, stage, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at,
+    columns: `id, title, stage, plan_type, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at,
               (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count`,
     orderBy: "updated_at DESC",
     // "Add & archive" in the tie form's plan picker.
@@ -45,7 +50,9 @@ export const RESOURCES = {
       name: { parse: cleanText, required: "Give the person a name." },
       pronouns: { parse: cleanText },
       notes: { parse: encryptedText },
-      is_self: { parse: toFlag },
+      // "This is me": set at sign-up (or on an import into a journal without
+      // one); the database allows one. Edits can't change who it is.
+      is_self: { parse: toFlag, createOnly: true },
       // Filled in when they're added to a tie; still changeable there.
       default_role: { parse: (v) => toChoiceOrNull(v, ROLES) },
     },
@@ -61,8 +68,11 @@ export const RESOURCES = {
       maps_url: { parse: toUrlOrNull },
       latitude: { parse: (v) => toNumberOrNull(v, -90, 90) },
       longitude: { parse: (v) => toNumberOrNull(v, -180, 180) },
+      // The location new ties start with; one at most (migration 0011).
+      // Setting it clears the old one (routes.js).
+      is_default: { parse: toFlag },
     },
-    columns: "id, name, notes, maps_url, latitude, longitude, archived_at, created_at, updated_at",
+    columns: "id, name, notes, maps_url, latitude, longitude, is_default, archived_at, created_at, updated_at",
     orderBy: "name COLLATE NOCASE",
     // "Archive now" on the add screen and "Add & archive" in the tie form: a
     // one-off spot, saved but kept out of pickers.
@@ -75,15 +85,18 @@ export const RESOURCE_NAMES = /** @type {ResourceName[]} */ (Object.keys(RESOURC
 
 /**
  * Runs every field's parser over a submitted body.
- * Returns the columns and values in matching order.
+ * Returns the columns and values in matching order. An edit leaves out the
+ * fields only set when an item is added (createOnly).
  * @param {Resource} resource
  * @param {Record<string, unknown>} body
+ * @param {{ editing?: boolean }} [options]
  * @returns {{ columns: string[], values: unknown[] }}
  */
-export function parseFields(resource, body) {
+export function parseFields(resource, body, { editing = false } = {}) {
   const columns = [];
   const values = [];
   for (const [column, field] of Object.entries(resource.fields)) {
+    if (editing && field.createOnly) continue;
     const value = field.parse(body[column]);
     if (field.required && value === null) throw new BadInput(field.required);
     columns.push(column);

@@ -261,9 +261,21 @@ function showTieForm(tie) {
         ])));
         // Filled in place: the pickers already hold these objects.
         kinds.forEach((kind, i) => Object.assign(sources[kind], pickerSource(...loaded[i])));
+        startAtDefaultLocation();
       } catch (err) {
         showMessage(message, "Couldn't load people, locations and plans: " + errorMessage(err), true);
       }
+    }
+
+    // A new tie starts at my default location (Locations), unless a
+    // location was chosen while they loaded. Editing a tie leaves its own.
+    function startAtDefaultLocation() {
+      if (tie || savedId || !locationRow.hidden) return;
+      const home = sources.locations.active.find((item) => item.isDefault);
+      if (!home) return;
+      location.pick(home);
+      locationRow.hidden = false;
+      showLocationButton.hidden = true;
     }
 
     function collectTie() {

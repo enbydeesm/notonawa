@@ -486,7 +486,7 @@ try {
   await go("/");
   // A marker on window survives only if the page wasn't loaded again.
   const viewState = `return [location.pathname + location.search, document.title, $("#view h1").textContent, window.marker === 1,
-    $("nav a[aria-current=page]")?.textContent ?? null, document.activeElement === $("#view h1")];`;
+    $("nav a[aria-current=page]")?.getAttribute("aria-label") ?? null, document.activeElement === $("#view h1")];`;
   check("a tab changes the view without loading a new page, with its title, tab and focus", await run(`
     window.marker = 1; $("nav a[href='/plans']").click(); await wait(800); ${viewState}`),
     ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true]);
@@ -509,7 +509,7 @@ try {
     ["_blank", "noopener"]);
   await go("/people");
   check("an address loaded directly (a bookmark or refresh) shows its view", await run(`
-    return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.textContent, $("nav").hidden];`),
+    return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.getAttribute("aria-label"), $("nav").hidden];`),
     ["People · NotoNawa", "People", "People", false]);
   await go("/nope");
   // "Not found" doesn't need the key, so after loading it the journal is
@@ -522,8 +522,14 @@ try {
 
   console.log("People");
   await go("/people");
-  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a:not(.nav-icon):not(.nav-chart)")].map((a) => a.textContent + (a.getAttribute("aria-current") ? "*" : ""));`),
-    ["Ties", "Plans", "People*", "Locations"]);
+  check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("aria-label") + (a.getAttribute("aria-current") ? "*" : ""));`),
+    ["Ties", "Plans", "People*", "Locations", "Calendar", "Analytics"]);
+  check("the tabs are icons, all on one row with + and ☰ at the right", await run(`
+    const tabs = [...document.querySelectorAll("nav a.nav-tab")]; const add = $(".nav-add"), menu = $(".nav-menu");
+    const top = (el) => { const r = el.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2 / 4); };
+    return [tabs.every((a) => a.querySelector("svg") && a.textContent.trim() === "" && a.title === a.getAttribute("aria-label")),
+      new Set([...tabs, add, menu].map(top)).size, menu.getBoundingClientRect().right > $("nav").getBoundingClientRect().right - 4];`),
+    [true, 1, true]);
   check("a new journal starts with 'Me'; add people, one with a default role", await run(`
     const first = titles();
     const roles = [...$("#default_role").options].map((o) => o.text);
@@ -531,11 +537,34 @@ try {
     set("#name", "Alex"); await submit();
     return [first, roles, items().find((i) => i.startsWith("Sam |")).split(" | ")[1], titles()];`),
     [["MeYou"], ["None", "Rigger", "Top", "Model", "Bottom", "Spotter", "Photographer"], "they/them · usually model", ["MeYou", "Alex", "Sam"]]);
-  check("second 'this is me' is refused", await run(`set("#name", "Me 2"); set("[name=is_self]", true); await submit(); return $(".message").textContent;`),
-    "Couldn't save: You already have a profile marked as you.");
-  check("edit fills the form", await run(`set("[name=is_self]", false); set("#name", ""); await clickIn("Sam", "Edit");
+  check("'This is me' shows only on my own profile, ticked and greyed out, which can't be archived or deleted", await run(`
+    const onAdd = $("#self-flag").hidden;
+    await clickIn("Sam", "Edit"); const onSam = $("#self-flag").hidden;
+    await clickIn("MeYou", "Edit"); const box = $("[name=is_self]");
+    const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+    const onMe = [$("#self-flag").hidden, box.checked, box.disabled, Math.abs(mid($("#self-flag")) - mid($("label[for=name]"))) < 3];
+    $("[data-cancel-edit]").click(); await wait(200);
+    const meRow = items().find((i) => i.startsWith("MeYou"));
+    const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
+    const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
+    return [onAdd, onSam, onMe, meRow, refused, $("#self-flag").hidden];`),
+    [true, true, [false, true, true, true], "MeYou | Edit", [400, 400], true]);
+  check("edit fills the form", await run(`set("#name", ""); await clickIn("Sam", "Edit");
     const state = [$("h2").textContent, $("#name").value, $("form button[type=submit]").textContent, $("[data-cancel-edit]").hidden];
     set("#notes", "Prefers floor work"); await submit(); return state;`), ["Edit", "Sam", "Save changes", false]);
+  check("people: a search box and sorts by name or date added (newest first to start), with me always on top", await run(`
+    const box = $(".list-search"); const sort = (k) => $(".sort-button[data-sort=" + k + "]");
+    const label = (k) => sort(k).getAttribute("aria-label");
+    const search = async (q) => { box.value = q; box.dispatchEvent(new Event("input")); await wait(50); return titles(); };
+    const start = [titles(), label("created"), label("name")];
+    sort("name").click(); await wait(50); const az = [titles(), label("name")];
+    sort("name").click(); await wait(50); const za = [titles(), label("name")];
+    sort("created").click(); await wait(50); const back = label("created");
+    const found = await search("SA"); const none = [await search("zz"), $("#list .empty")?.textContent];
+    await search("");
+    return [start, az, za, back, found, none, box.closest(".card").querySelector("#list") !== null, leakyFields()];`),
+    [[["MeYou", "Alex", "Sam"], "Sorted newest first", "Sort by name"], [["MeYou", "Alex", "Sam"], "Sorted A to Z"],
+      [["MeYou", "Sam", "Alex"], "Sorted Z to A"], "Sorted newest first", ["Sam"], [[], "No matches."], true, []]);
   check("archive hides from the list", await run(`await clickIn("Alex", "Archive"); return titles();`), ["MeYou", "Sam"]);
   check("archived list offers Restore", await run(`set("#show-archived", true); await wait(600); return items();`), ["Alex | Restore | Delete"]);
 
@@ -555,16 +584,52 @@ try {
     [["51.51", "-0.13", "Coordinates filled in from the link."], "", "Paste a link to fill in the latitude and longitude."]);
   check("'Archive now' is hidden while editing", await run(`await clickIn("Studio", "Edit"); const hidden = $("[data-add-only]").hidden; $("[data-cancel-edit]").click(); return hidden;`), true);
   check("one-off is in the archived list", await run(`set("#show-archived", true); await wait(600); return titles();`), ["Hotel"]);
+  await go("/locations");
+  check("'Default on new ties' sits on the Name row, at the right, and isn't offered when archiving now", await run(`
+    const flag = $("#default-flag"); const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+    const placed = [Math.abs(mid(flag) - mid($("label[for=name]"))) < 3, flag.getBoundingClientRect().right > $("#name").getBoundingClientRect().right - 4];
+    set("#is_default", true); set("[name=archive_now]", true); const archiving = [flag.hidden, $("#is_default").checked];
+    set("[name=archive_now]", false); const back = flag.hidden;
+    return [placed, archiving, back];`), [[true, true], [true, false], false]);
+  check("one location is the default: ticking another asks to replace it, and Cancel unticks it", await run(`
+    const dialogButton = (text) => [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === text);
+    await clickIn("Studio", "Edit"); $("#is_default").click(); await wait(400); const noPrompt = $("dialog[open]") === null; await submit();
+    await clickIn("Old flat", "Edit"); $("#is_default").click(); await wait(400);
+    const prompt = $("dialog[open] h2")?.textContent; dialogButton("Cancel").click(); await wait(200);
+    const cancelled = $("#is_default").checked;
+    $("#is_default").click(); await wait(400); dialogButton("Replace").click(); await wait(200);
+    const kept = $("#is_default").checked; await submit();
+    const stored = (await (await fetch("/api/locations?archived=false")).json()).filter((l) => l.is_default).map((l) => l.name);
+    return [noPrompt, prompt, cancelled, kept, titles(), stored];`),
+    [true, "Replace Studio as your default location?", false, true, ["Old flatDefault", "Studio"], ["Old flat"]]);
+  check("locations: search and sort too", await run(`
+    const box = $(".list-search"); box.value = "stu"; box.dispatchEvent(new Event("input")); await wait(50); const found = titles();
+    box.value = ""; box.dispatchEvent(new Event("input")); $(".sort-button[data-sort=name]").click(); await wait(50);
+    return [found, titles()];`), [["Studio"], ["Old flatDefault", "Studio"]]);
+  check("a new tie starts at the default location; then it's unset again", await run(`
+    $(".nav-add").click(); await wait(1200);
+    const start = [$("#tie-location").offsetParent !== null, $("#tie-location").value, $("#tie-location-show").hidden];
+    $("dialog[open] .dialog-cancel").click(); await wait(300);
+    await clickIn("Old flatDefault", "Edit"); $("#is_default").click(); await submit();
+    return [start, titles()];`), [[true, "Old flat", true], ["Old flat", "Studio"]]);
 
   console.log("Plans");
   await go("/plans");
   check("add plans with a variation", await run(`
-    set("#title", "Hip harness"); set("#stage", "ready"); set("#est_difficulty", "3"); await submit();
+    const types = [...$("#plan_type").options].map((o) => o.text);
+    set("#title", "Hip harness"); set("#plan_type", "harness"); set("#est_difficulty", "3"); await submit();
     set("#title", "Hip harness, one-sided"); set("#variation_of", optionValue($("#variation_of"), "Hip harness")); await submit();
-    return items().find((i) => i.startsWith("Hip harness, one-sided"));`),
-    "Hip harness, one-sided | Idea · v1 · variation of Hip harness | Edit | Archive | Delete");
+    return [types, $("#stage"), items().find((i) => i.startsWith("Hip harness |")), items().find((i) => i.startsWith("Hip harness, one-sided"))];`),
+    [["Idea", "Harness", "Sequence"], null, "Hip harness | Harness · difficulty 3/5 · v1 | Edit | Archive | Delete",
+      "Hip harness, one-sided | Idea · v1 · variation of Hip harness | Edit | Archive | Delete"]);
+  check("the photo note says what photos are for, and when a new plan's are uploaded", await run(`
+    const fresh = $("[data-photos] .hint").textContent;
+    await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
+    return [fresh, editing];`),
+    ["Photos can be arranged and captioned to describe a sequence. They are uploaded when you save this form.",
+      "Photos can be arranged and captioned to describe a sequence."]);
   check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
-    ["Not a variation", "Hip harness, one-sided"]);
+    ["N/A", "Hip harness, one-sided"]);
 
   console.log("Ties: logging");
   await go("/");
@@ -1197,13 +1262,12 @@ try {
     return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
     ["Imported 0 ties. Skipped 27 ties already in your journal. Skipped 1 photo on ties or plans that already have photos.", 1]);
 
-  console.log("Analytics");
-  await go("/analytics");
-  check("the Analytics tab is a chart icon right after Locations, marked as the view shown", await run(`
-    const links = [...document.querySelectorAll("nav a")].map((a) => a.getAttribute("href"));
-    const tab = $("nav a[href='/analytics']");
-    return [links.indexOf("/analytics") === links.indexOf("/locations") + 1, tab.getAttribute("aria-label"), tab.getAttribute("aria-current"), !!tab.querySelector("svg")];`),
-    [true, "Analytics", "page", true]);
+  console.log("Calendar and Analytics");
+  await go("/calendar");
+  check("Calendar and Analytics are the tabs after Locations, marked when shown", await run(`
+    const links = [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("href"));
+    return [links.slice(-3), $("nav a[aria-current=page]").getAttribute("aria-label")];`),
+    [["/locations", "/calendar", "/analytics"], "Calendar"]);
   check("Calendar shows this month: its name, five numbers and every day", await run(`
     await wait(800); const days = document.querySelectorAll(".cal-day").length;
     return [$("#cal-title").textContent.length > 0, document.querySelectorAll("#cal-stats .stat").length, days >= 28 && days <= 31];`),
@@ -1211,11 +1275,12 @@ try {
   check("its arrows step back a month and forward again", await run(`
     const now = $("#cal-title").textContent; $("#cal-prev").click(); await wait(600); const before = $("#cal-title").textContent;
     $("#cal-next").click(); await wait(600); return [before !== now, $("#cal-title").textContent === now];`), [true, true]);
-  check("Insights shows this year's numbers and a bar for each month", await run(`
-    $("#tab-insights").click(); await wait(1000);
-    return [$("#calendar-panel").hidden, $("#period").value, $("#period-title").textContent === String(new Date().getFullYear()),
+  await go("/analytics");
+  check("Analytics shows this year's numbers and a bar for each month", await run(`
+    await wait(1000);
+    return [$("nav a[aria-current=page]").getAttribute("aria-label"), $("#period").value, $("#period-title").textContent === String(new Date().getFullYear()),
       document.querySelectorAll("#insights-stats .stat").length, document.querySelectorAll("#tie-count-chart .bar").length, $("#insights-message").textContent];`),
-    [true, "year", true, 8, 12, ""]);
+    ["Analytics", "year", true, 8, 12, ""]);
   check("Month shows a bar for each day, Custom shows its dates", await run(`
     set("#period", "month"); await wait(800); const days = document.querySelectorAll("#tie-count-chart .bar").length;
     set("#period", "custom"); await wait(300); const custom = !$("#custom-dates").hidden;
@@ -1229,6 +1294,18 @@ try {
     $("#af-cancel").click(); await wait(200);
     return [open, leaky, people > 0, mine, document.querySelector("dialog[open]") === null];`), [true, [], true, false, true]);
   check("…and Insights' own fields are too", await run(`return leakyFields();`), []);
+  check("tapping a bar lists its ties, newest first, and the list closes", await run(`
+    const bar = document.querySelector("#tie-count-chart .bar-hits button"); const label = bar.getAttribute("aria-label");
+    bar.click(); await wait(1000);
+    const shown = [$("#tl-heading").textContent, document.querySelectorAll("#tl-list .tie-card").length];
+    const count = Number(label.match(/(\\d+) ties?$/)[1]);
+    $("#tl-close").click(); await wait(200);
+    return [shown[0].endsWith(count === 1 ? "· 1 tie" : "· " + count + " ties"), shown[1] === Math.min(count, 100), document.querySelector("dialog[open]") === null];`),
+    [true, true, true]);
+  check("so does tapping a partner and a pie's legend", await run(`
+    $("#partner-chart .partner-row").click(); await wait(1000); const partner = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
+    $("#type-chart .legend-row").click(); await wait(1000); const type = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
+    return [partner, type];`), [true, true]);
 
   console.log("Deleting the account");
   await go("/account");

@@ -3,7 +3,7 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "analytics" | "account" | "data" | "signin" | "not-found" | "unlock"} ViewName
+ * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "account" | "data" | "signin" | "not-found" | "unlock"} ViewName
  * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
  *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
@@ -16,6 +16,7 @@ export const ROUTES = [
   { path: "/plans", view: "plans", title: "Plans · NotoNawa", nav: true, needsKey: true },
   { path: "/people", view: "people", title: "People · NotoNawa", nav: true, needsKey: true },
   { path: "/locations", view: "locations", title: "Locations · NotoNawa", nav: true, needsKey: true },
+  { path: "/calendar", view: "calendar", title: "Calendar · NotoNawa", nav: true, needsKey: true },
   { path: "/analytics", view: "analytics", title: "Analytics · NotoNawa", nav: true, needsKey: true },
   { path: "/account", view: "account", title: "Account · NotoNawa", nav: true, needsKey: true },
   { path: "/data", view: "data", title: "Your data · NotoNawa", nav: true, needsKey: true },

@@ -17,7 +17,7 @@ import { tagKey, matchTags } from "../tags/parse.js";
 /** @typedef {import("./import-parse.js").TieImport} TieImport */
 
 /**
- * @typedef {{ id: string, name: string, archived_at: string | null, is_self?: number }} ExistingItem
+ * @typedef {{ id: string, name: string, archived_at: string | null, is_self?: number, is_default?: number }} ExistingItem
  * @typedef {{
  *   people: ExistingItem[], locations: ExistingItem[], plans: ExistingItem[],
  *   tags: { id: string, name: string }[],
@@ -39,6 +39,10 @@ export function planItems(items, existing, newId) {
     return result(p.file_id, p.name, match, newId);
   });
   const locations = items.locations.map((l) => result(l.file_id, l.name, findByName(existing.locations, l.name), newId));
+  // One default location at most: the file's (its first new, unarchived
+  // one), and only if I don't have one already.
+  const defaultLocation = existing.locations.some((l) => l.is_default) ? null
+    : items.locations.find((l, i) => l.is_default && !l.archived_at && !locations[i].matched)?.file_id ?? null;
   const plans = items.plans.map((p) => result(p.file_id, p.title, findByName(existing.plans, p.title), newId));
   const planIds = new Map(plans.map((p) => [p.file_id, p.id]));
 
@@ -60,12 +64,13 @@ export function planItems(items, existing, newId) {
     locations: items.locations.flatMap((l, i) => locations[i].matched ? [] : [{
       id: locations[i].id, name: l.name, notes: l.notes, maps_url: l.maps_url,
       latitude: l.latitude, longitude: l.longitude,
+      is_default: l.file_id === defaultLocation ? 1 : 0,
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,
     }]),
     // Inserted without variation_of, which is set afterwards (variations), so
     // a plan can come before the one it's a variation of.
     plans: items.plans.flatMap((p, i) => plans[i].matched ? [] : [{
-      id: plans[i].id, title: p.title, stage: p.stage, description: p.description, notes: p.notes,
+      id: plans[i].id, title: p.title, stage: p.stage, plan_type: p.plan_type, description: p.description, notes: p.notes,
       est_difficulty: p.est_difficulty, version: p.version,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
     }]),

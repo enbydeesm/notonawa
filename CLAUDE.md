@@ -148,16 +148,22 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
   lock), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
-  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (tabs, the
-  + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (the tabs, as icons with their
+  names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
+  Analytics; the + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
   `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
   `rope-rating.js` (ratings drawn as rope hanks; `hankIcon`),
   `stats.js` and `stats-period.js` (pure: the analytics' numbers, and its
-  periods and bars), `charts.js` (bar and pie charts as SVG), `multi-select.js`,
-  `resource-page.js` (list/edit pages), `csv.js`, `import-csv.js` and
+  periods and bars), `charts.js` (bar and pie charts as SVG; bars, partners
+  and slices are buttons), `tie-card.js` (a tie as a card, shared by the
+  Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
+  Analytics: the ties behind a day, bar or slice), `multi-select.js`,
+  `resource-page.js` (list/edit pages), `list-tools.js` and `list-order.js`
+  (People and Locations: the search box and sort buttons, and the pure
+  filtering and sorting), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
   import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
   typed codes, recovery codes and their login secret), `recovery-email.js`
@@ -244,7 +250,20 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   cancel. The API rejects a delete without the choice.
 - **Every journal has a "this is me" profile**, named "Me" when the account
   is made (`newUserStatements`; migration 0005 added one to older accounts).
-  It can be renamed or archived; a unique index allows at most one.
+  It can be renamed, but not archived or deleted (the API refuses: the tie
+  form, Calendar and Analytics rely on it), and edits can't change who it
+  is (`is_self` is `createOnly` in `src/resources/config.js`; only adding a
+  person, or an import into a journal without one, sets it). A unique index
+  allows at most one. The People form shows "This is me" only on it, ticked
+  and greyed out, and the People list keeps it at the top.
+- **At most one default location** (`locations.is_default`, migration 0011;
+  a unique partial index per owner). Setting one clears the old one in the
+  same batch; archiving clears it, and an archived location can't be made
+  the default. A new tie starts at it (`tie-form.js`); imports add one only
+  if the journal has none.
+- **A plan's type** (`plans.plan_type`: idea, harness or sequence; default
+  idea) replaced Stage on the form. `stage` stays in the database and the
+  export, but is `createOnly`, so editing a plan leaves it as it was.
 - **Multi-statement writes go in one `env.DB.batch([...])`**, which runs as a
   single transaction, so a failure saves nothing.
 - **Notes and descriptions are encrypted** (`ties.notes`,

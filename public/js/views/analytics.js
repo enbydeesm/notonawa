@@ -1,24 +1,23 @@
-// Analytics view: two tabs. Calendar shows one month (this one to start),
-// with a rope hank on each day with a tie and the month's numbers above it.
-// Insights shows a period's numbers and charts, for ties where I was in the
+// Analytics view: a period's numbers and charts, for ties where I was in the
 // chosen role, narrowed by people, locations and tags from "More filters".
+// (The month calendar is its own view: views/calendar.js.)
 //
 // The server sends just the ties (POST /api/stats/ties); stats.js and
-// stats-period.js do the counting here. Each bar, slice and day keeps the
-// ids of its ties, for showing them when tapped (planned: considerations.md).
+// stats-period.js do the counting here. Tapping a bar, partner or slice
+// lists the ties behind it (tie-list-dialog.js).
 
 import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { hankIcon } from "../rope-rating.js";
-import { barChart, partnerBars, pieChart } from "../charts.js";
+import { barChart, partnerBars, pieChart, stat } from "../charts.js";
+import { openTieList } from "../tie-list-dialog.js";
 import {
-  summarize, topPartners, typeShares, weekdayShares, locationShares, tiesByDay, percent, formatTotalTime,
+  summarize, topPartners, typeShares, weekdayShares, locationShares, percent, formatTotalTime, tieListHeading,
 } from "../stats.js";
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
-  monthGrid, monthRange, monthTitle,
 } from "../stats-period.js";
 
 /**
@@ -37,7 +36,6 @@ const ROLE_CHOICES = [
 ];
 const TOP_PARTNERS = 10;
 const TOP_LOCATIONS = 4;
-const WEEKDAY_HEADINGS = ["S", "M", "T", "W", "T", "F", "S"];
 /** @type {MoreFilters} */
 const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [] };
 
@@ -55,102 +53,8 @@ async function fetchTies(body) {
  */
 export function mount(_root, _context) {
   const today = todayIn();
-  // Only the newest answer to each panel's requests is shown.
-  let calendarRequest = 0;
+  // Only the newest answer is shown, if the filters change quickly.
   let insightsRequest = 0;
-
-  // --- the tabs ---
-  const calendarTab = $("#tab-calendar");
-  const insightsTab = $("#tab-insights");
-  const calendarPanel = $("#calendar-panel");
-  const insightsPanel = $("#insights-panel");
-  let insightsLoaded = false;
-
-  /** @param {"calendar" | "insights"} tab */
-  function showTab(tab) {
-    calendarTab.setAttribute("aria-pressed", String(tab === "calendar"));
-    insightsTab.setAttribute("aria-pressed", String(tab === "insights"));
-    calendarPanel.hidden = tab !== "calendar";
-    insightsPanel.hidden = tab !== "insights";
-    if (tab === "insights" && !insightsLoaded) {
-      insightsLoaded = true;
-      loadInsights();
-    }
-  }
-  calendarTab.addEventListener("click", () => showTab("calendar"));
-  insightsTab.addEventListener("click", () => showTab("insights"));
-
-  // --- Calendar ---
-  let month = today;
-  $("#cal-prev").addEventListener("click", () => { month = stepPeriod({ ...initialPeriod(month), period: "month" }, -1).anchor; loadCalendar(); });
-  $("#cal-next").addEventListener("click", () => { month = stepPeriod({ ...initialPeriod(month), period: "month" }, 1).anchor; loadCalendar(); });
-
-  async function loadCalendar() {
-    const id = ++calendarRequest;
-    const [y, m] = month.split("-").map(Number);
-    $("#cal-title").textContent = monthTitle(y, m);
-    const message = $("#cal-message");
-    message.textContent = "";
-    /** @type {StatsTie[]} */
-    let ties;
-    try {
-      ties = await fetchTies(monthRange(month));
-    } catch (err) {
-      if (id === calendarRequest) message.textContent = "Couldn't load this month: " + errorMessage(err);
-      return;
-    }
-    if (id !== calendarRequest) return;
-    const s = summarize(ties);
-    $("#cal-stats").replaceChildren(
-      stat("Ties", String(s.ties)),
-      stat("Partners", String(s.partners)),
-      stat("Locations", String(s.locations)),
-      stat("As top / rigger", String(s.asTop), `${percent(s.asTop, s.ties)}%`),
-      stat("As bottom / model", String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
-    drawMonth(y, m, tiesByDay(ties));
-  }
-
-  /**
-   * @param {string} label
-   * @param {string} value
-   * @param {string} [extra] e.g. a percentage, after the value
-   */
-  function stat(label, value, extra) {
-    return h("div", { className: "stat" },
-      h("dt", {}, label),
-      h("dd", {}, value, extra ? h("span", { className: "stat-extra" }, extra) : null));
-  }
-
-  /**
-   * The month as a grid of days, weeks starting on Sunday. A day with ties
-   * shows a hank, with the count on it when there's more than one.
-   * @param {number} y
-   * @param {number} m
-   * @param {Map<string, string[]>} days
-   */
-  function drawMonth(y, m, days) {
-    const { lead, days: count } = monthGrid(y, m);
-    const cells = [];
-    for (let i = 0; i < lead; i++) cells.push(h("li", { className: "cal-blank", "aria-hidden": "true" }));
-    for (let d = 1; d <= count; d++) {
-      const date = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const tieIds = days.get(date) ?? [];
-      const icon = tieIds.length ? hankIcon() : null;
-      icon?.classList.add("filled");
-      const when = new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "long", day: "numeric" });
-      cells.push(h("li", {
-        className: ["cal-day", tieIds.length ? "has-ties" : "", date === today ? "today" : ""].filter(Boolean).join(" "),
-        "aria-label": tieIds.length ? `${when}: ${tieIds.length === 1 ? "1 tie" : `${tieIds.length} ties`}` : when,
-        "aria-current": date === today ? "date" : null,
-      },
-      h("span", { className: "cal-num", "aria-hidden": "true" }, String(d)),
-      icon ? h("span", { className: "cal-mark", "aria-hidden": "true" }, icon,
-        tieIds.length > 1 ? h("span", { className: "cal-count" }, String(tieIds.length)) : null) : null));
-    }
-    $("#calendar").replaceChildren(
-      h("ol", { className: "cal-weekdays", "aria-hidden": "true" }, WEEKDAY_HEADINGS.map((d) => h("li", {}, d))),
-      h("ol", { className: "cal-days" }, cells));
-  }
 
   // --- Insights ---
   /** @type {PeriodState} */
@@ -238,25 +142,30 @@ export function mount(_root, _context) {
   function drawInsights(ties) {
     const s = summarize(ties);
     $("#insights-stats").replaceChildren(
+      // Down the left column, then the right (.stat-pairs fills columns).
+      // The top and bottom labels break onto two lines, the same in both.
       stat("Ties", String(s.ties)),
-      stat("Time", formatTotalTime(s.minutes), s.avgMinutes === null ? undefined : `${s.avgMinutes}m avg`),
       stat("Partners", String(s.partners)),
-      stat("Days", String(s.days)),
       stat("Locations", String(s.locations)),
+      stat("As top /\nrigger", String(s.asTop), `${percent(s.asTop, s.ties)}%`),
+      stat("Time (total)", formatTotalTime(s.minutes)),
+      stat("Time (avg)", s.avgMinutes === null ? "–" : `${s.avgMinutes}m`),
       ratingStat(s.avgRating),
-      stat("As top / rigger", String(s.asTop), `${percent(s.asTop, s.ties)}%`),
-      stat("As bottom / model", String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
+      stat("As bottom /\nmodel", String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
 
     const empty = () => h("p", { className: "empty" }, "No ties in this period.");
     const span = chartSpan(periodRange(period, today), ties, today);
     const unit = bucketUnit(period.period, span);
     const per = unit === "day" ? "day" : unit === "month" ? "month" : "year";
-    $("#tie-count-chart").replaceChildren(ties.length ? barChart(buckets(unit, span, ties), `Ties each ${per}`) : empty());
+    /** @param {{ label: string, tieIds: string[] }} slice */
+    const pick = (slice) => showTies(slice.label, slice.tieIds);
+    $("#tie-count-chart").replaceChildren(ties.length
+      ? barChart(buckets(unit, span, ties), `Ties each ${per}`, (bar) => showTies(bar.title, bar.tieIds)) : empty());
     const partners = topPartners(ties, TOP_PARTNERS);
-    $("#partner-chart").replaceChildren(partners.length ? partnerBars(partners) : h("p", { className: "empty" }, "No partners in this period."));
-    $("#type-chart").replaceChildren(ties.length ? pieChart(typeShares(ties), "Ties by type") : empty());
-    $("#weekday-chart").replaceChildren(ties.length ? pieChart(weekdayShares(ties), "Ties by day of the week") : empty());
-    $("#location-chart").replaceChildren(ties.length ? pieChart(locationShares(ties, TOP_LOCATIONS), "Ties by location") : empty());
+    $("#partner-chart").replaceChildren(partners.length ? partnerBars(partners, pick) : h("p", { className: "empty" }, "No partners in this period."));
+    $("#type-chart").replaceChildren(ties.length ? pieChart(typeShares(ties), "Ties by type", pick) : empty());
+    $("#weekday-chart").replaceChildren(ties.length ? pieChart(weekdayShares(ties), "Ties by day of the week", pick) : empty());
+    $("#location-chart").replaceChildren(ties.length ? pieChart(locationShares(ties, TOP_LOCATIONS), "Ties by location", pick) : empty());
   }
 
   /** @param {number | null} rating */
@@ -268,8 +177,16 @@ export function mount(_root, _context) {
       h("dd", {}, rating === null ? "–" : String(rating), rating === null ? null : icon));
   }
 
-  showTab("calendar");
-  loadCalendar();
+  /**
+   * Lists the ties behind a bar, partner or slice.
+   * @param {string} label
+   * @param {string[]} tieIds
+   */
+  function showTies(label, tieIds) {
+    openTieList({ heading: tieListHeading(label, tieIds.length), tieIds, onChange: loadInsights });
+  }
+
+  loadInsights();
 }
 
 /**

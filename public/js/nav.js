@@ -1,19 +1,23 @@
-// The view links at the top of the app, then the + button and the menu
-// button (☰), which opens a side panel of settings: light/dark mode, the
-// account and "Your data" links, and the privacy policy. Drawn once by
-// app.js; setCurrent() marks the view being shown.
+// The view links at the top of the app, as icons (each named for screen
+// readers and in its tooltip), then the + button and the menu button (☰),
+// which opens a side panel of settings: light/dark mode, the account and
+// "Your data" links, and the privacy policy. Drawn once by app.js;
+// setCurrent() marks the view being shown.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
 import { navigate } from "./navigate.js";
 import { THEME_KEY, parseChoice, shownTheme, nextChoice } from "./theme.js";
 
-export const PAGES = [
-  ["/", "Ties"],
-  ["/plans", "Plans"],
-  ["/people", "People"],
-  ["/locations", "Locations"],
-];
+/** The tabs: address, name and icon, in order. */
+export const PAGES = /** @type {const} */ ([
+  ["/", "Ties", hankLineIcon],
+  ["/plans", "Plans", planIcon],
+  ["/people", "People", personIcon],
+  ["/locations", "Locations", pinIcon],
+  ["/calendar", "Calendar", calendarIcon],
+  ["/analytics", "Analytics", chartIcon],
+]);
 
 // Fired on document when a tie is saved from the + button on the Ties view,
 // so the list can reload.
@@ -37,9 +41,7 @@ export function renderNav() {
   const nav = h(
     "nav",
     {},
-    PAGES.map(([href, label]) => h("a", { href }, label)),
-    // Analytics: an icon, as there's little room left before the +.
-    h("a", { href: "/analytics", className: "nav-chart", "aria-label": "Analytics", title: "Analytics" }, chartIcon()),
+    PAGES.map(([href, label, icon]) => h("a", { href, className: "nav-tab", "aria-label": label, title: label }, icon())),
     h("button", { type: "button", className: "nav-add", "aria-label": "Log a tie", title: "Log a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
@@ -180,6 +182,50 @@ function lineIcon() {
 function menuIcon() {
   const icon = lineIcon();
   for (const y of [6, 12, 18]) icon.append(svg("line", { x1: 4, y1: y, x2: 20, y2: y }));
+  return icon;
+}
+
+/** A coil of rope with wraps round its waist, as in the ratings, for Ties. */
+function hankLineIcon() {
+  const icon = lineIcon();
+  icon.append(
+    svg("path", { d: "M12 2.5a5.5 5.5 0 0 1 5.5 5.5v8a5.5 5.5 0 0 1-11 0V8A5.5 5.5 0 0 1 12 2.5z" }),
+    svg("path", { d: "M12 6.5a1.5 1.5 0 0 0-1.5 1.5v8a1.5 1.5 0 0 0 3 0V8A1.5 1.5 0 0 0 12 6.5z" }),
+    svg("path", { d: "M5 10.5h14M5 13.5h14" })
+  );
+  return icon;
+}
+
+/** A sheet of paper with a pencil writing on it, for Plans. */
+function planIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    svg("path", { d: "M13 3H5.5A1.5 1.5 0 0 0 4 4.5v15A1.5 1.5 0 0 0 5.5 21h11a1.5 1.5 0 0 0 1.5-1.5V14" }),
+    svg("path", { d: "M7.5 8h5M7.5 12h3M7.5 16h4" }),
+    svg("path", { d: "M19.2 3.3a1.6 1.6 0 0 1 2.3 2.3L14.8 12.3l-3.2.9.9-3.2z" })
+  );
+  return icon;
+}
+
+/** A map pin, for Locations. */
+function pinIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    svg("path", { d: "M12 21.5s-6.5-5.9-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.6-6.5 11.5-6.5 11.5z" }),
+    svg("circle", { cx: 12, cy: 10, r: 2.3 })
+  );
+  return icon;
+}
+
+/** A page of a calendar, for Calendar. */
+function calendarIcon() {
+  const icon = lineIcon();
+  icon.append(
+    svg("rect", { x: 3.5, y: 5, width: 17, height: 15.5, rx: 2 }),
+    svg("path", { d: "M3.5 10h17M8 3v4M16 3v4" })
+  );
   return icon;
 }
 

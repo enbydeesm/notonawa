@@ -36,10 +36,13 @@ const tiesWord = (n) => (n === 1 ? "1 tie" : `${n} ties`);
  * Vertical bars, one per day, month or year, with the count over each bar
  * while there's room, and the labels underneath (every few, when there are
  * many bars).
+ * Bars with ties are buttons (an invisible row over the chart, one per bar),
+ * which call onPick.
  * @param {Bucket[]} bars
  * @param {string} description what the chart shows, e.g. "Ties each month"
+ * @param {(bar: Bucket) => void} onPick
  */
-export function barChart(bars, description) {
+export function barChart(bars, description, onPick) {
   const width = 340, height = 150, top = 14, bottom = 18;
   const plot = height - top - bottom;
   const gap = bars.length > 20 ? 1.5 : 4;
@@ -48,10 +51,9 @@ export function barChart(bars, description) {
   const every = bars.length <= 14 ? 1 : Math.ceil(bars.length / 7);
   const showCounts = bars.length <= 16;
 
-  const chart = svg("svg", {
-    viewBox: `0 0 ${width} ${height}`, class: "bar-chart", role: "img",
-    "aria-label": `${description}: ${bars.filter((b) => b.count).map((b) => `${b.title} ${b.count}`).join(", ") || "none"}`,
-  });
+  // The picture is for the eye; screen readers get the buttons (and the
+  // group's label).
+  const chart = svg("svg", { viewBox: `0 0 ${width} ${height}`, class: "bar-chart", "aria-hidden": "true", focusable: "false" });
   bars.forEach((bar, i) => {
     const x = i * (barWidth + gap);
     const barHeight = bar.count ? Math.max(2, (bar.count / max) * plot) : 1.5;
@@ -67,38 +69,51 @@ export function barChart(bars, description) {
     }
     chart.append(group);
   });
-  return chart;
+  // Each button covers its bar's share of the width, top to bottom, so even
+  // a short bar is easy to tap.
+  const hits = h("div", { className: "bar-hits" },
+    bars.map((bar) => bar.count
+      ? h("button", { type: "button", "aria-label": `${bar.title}: ${tiesWord(bar.count)}`, title: `${bar.title}: ${tiesWord(bar.count)}`, onclick: () => onPick(bar) })
+      : h("span", { "aria-hidden": "true" })));
+  return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, chart, hits);
 }
 
 /**
  * Who I tied with most: each name with a bar as long as their count,
  * against the most.
+ * Each row is a button that calls onPick.
  * @param {Slice[]} slices
+ * @param {(slice: Slice) => void} onPick
  */
-export function partnerBars(slices) {
+export function partnerBars(slices, onPick) {
   const max = Math.max(1, ...slices.map((s) => s.count));
   return h("ol", { className: "partner-bars" },
-    slices.map((slice) => h("li", {},
+    slices.map((slice) => h("li", {}, h("button", { type: "button", className: "partner-row", onclick: () => onPick(slice) },
       h("span", { className: "partner-bar" },
         svg("svg", { viewBox: "0 0 100 10", preserveAspectRatio: "none", "aria-hidden": "true", focusable: "false" },
           svg("rect", { x: 0, y: 0, width: ((slice.count / max) * 100).toFixed(2), height: 10, rx: 1.5 }))),
       h("span", { className: "partner-name" }, slice.label || "(no name)"),
-      h("span", { className: "partner-count" }, String(slice.count), h("span", { className: "visually-hidden" }, slice.count === 1 ? " tie" : " ties")))));
+      h("span", { className: "partner-count" }, String(slice.count), h("span", { className: "visually-hidden" }, slice.count === 1 ? " tie" : " ties"))))));
 }
 
 /**
  * A pie chart with its legend: each slice's name, count and share.
+ * Each legend entry is a button that calls onPick; tapping a slice does the
+ * same.
  * @param {Slice[]} slices
  * @param {string} description what the chart shows, e.g. "Ties by type"
+ * @param {(slice: Slice) => void} onPick
  */
-export function pieChart(slices, description) {
+export function pieChart(slices, description, onPick) {
   const total = slices.reduce((n, s) => n + s.count, 0);
   const pie = svg("svg", { viewBox: "-1 -1 2 2", class: "pie", "aria-hidden": "true", focusable: "false" });
   let angle = -Math.PI / 2; // from the top, clockwise
   slices.forEach((slice, i) => {
     const color = `slice chart-${(i % COLORS) + 1}`;
     if (slice.count === total) {
-      pie.append(svg("circle", { cx: 0, cy: 0, r: 1, class: color }));
+      const whole = svg("circle", { cx: 0, cy: 0, r: 1, class: color });
+      whole.addEventListener("click", () => onPick(slice));
+      pie.append(whole);
       return;
     }
     const sweep = (slice.count / total) * Math.PI * 2;
@@ -106,15 +121,31 @@ export function pieChart(slices, description) {
     angle += sweep;
     const [x2, y2] = [Math.cos(angle), Math.sin(angle)];
     const large = sweep > Math.PI ? 1 : 0;
-    pie.append(svg("path", {
+    const path = svg("path", {
       d: `M0 0L${x1.toFixed(4)} ${y1.toFixed(4)}A1 1 0 ${large} 1 ${x2.toFixed(4)} ${y2.toFixed(4)}Z`, class: color,
-    }));
+    });
+    // The legend's buttons do the same for keyboards and screen readers.
+    path.addEventListener("click", () => onPick(slice));
+    pie.append(path);
   });
 
   const legend = h("ul", { className: "pie-legend", "aria-label": description },
-    slices.map((slice, i) => h("li", {},
+    slices.map((slice, i) => h("li", {}, h("button", { type: "button", className: "legend-row", onclick: () => onPick(slice) },
       h("span", { className: `swatch chart-${(i % COLORS) + 1}`, "aria-hidden": "true" }),
       h("span", { className: "legend-name" }, slice.label),
-      h("span", { className: "legend-count" }, `${slice.count} · ${percent(slice.count, total)}%`))));
+      h("span", { className: "legend-count" }, `${slice.count} · ${percent(slice.count, total)}%`)))));
   return h("div", { className: "pie-chart" }, pie, legend);
+}
+
+/**
+ * One of the numbers at the top of Calendar and Analytics: its name, then
+ * the value (and e.g. a percentage after it). Goes in a <dl>.
+ * @param {string} label
+ * @param {string} value
+ * @param {string} [extra]
+ */
+export function stat(label, value, extra) {
+  return h("div", { className: "stat" },
+    h("dt", {}, label),
+    h("dd", {}, value, extra ? h("span", { className: "stat-extra" }, extra) : null));
 }

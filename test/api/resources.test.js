@@ -34,6 +34,67 @@ describe("plans, people and locations", () => {
       .toEqual({ status: 400, body: { error: "You already have a profile marked as you." } });
   });
 
+  it("gives plans a type, idea by default, and edits leave the old stage alone", async () => {
+    const plan = await create("/api/plans", { title: "Box tie", stage: "ready", plan_type: "harness" });
+    /** @returns {Promise<any>} */
+    const get = async () => (await call("/api/plans?archived=all")).body.find((/** @type {any} */ p) => p.id === plan);
+    expect(await get()).toMatchObject({ plan_type: "harness", stage: "ready" });
+    expect((await call(`/api/plans/${plan}`, { method: "PUT", body: { title: "Box tie", plan_type: "sequence" } })).status).toBe(200);
+    expect(await get()).toMatchObject({ plan_type: "sequence", stage: "ready" });
+    expect((await get()).plan_type).toBe("sequence");
+    const plain = await create("/api/plans", { title: "Idea" });
+    expect((await call("/api/plans?archived=all")).body.find((/** @type {any} */ p) => p.id === plain).plan_type).toBe("idea");
+    expect((await call("/api/plans", { method: "POST", body: { title: "x", plan_type: "stage" } })).status).toBe(400);
+  });
+
+  it("keeps one default location: setting another moves it, archiving clears it", async () => {
+    /** @returns {Promise<string[]>} */
+    const defaults = async () => (await call("/api/locations?archived=all")).body
+      .filter((/** @type {any} */ l) => l.is_default).map((/** @type {any} */ l) => l.name);
+    const studio = await create("/api/locations", { name: "Default Studio", is_default: true });
+    expect(await defaults()).toEqual(["Default Studio"]);
+    const park = await create("/api/locations", { name: "Default Park" });
+    expect((await call(`/api/locations/${park}`, { method: "PUT", body: { name: "Default Park", is_default: true } })).status).toBe(200);
+    expect(await defaults()).toEqual(["Default Park"]);
+    // A new one made the default takes over too.
+    const home = await create("/api/locations", { name: "Default Home", is_default: true });
+    expect(await defaults()).toEqual(["Default Home"]);
+    // Saving the default without the flag unsets it.
+    expect((await call(`/api/locations/${home}`, { method: "PUT", body: { name: "Default Home" } })).status).toBe(200);
+    expect(await defaults()).toEqual([]);
+    // Archiving the default clears it, and an archived one can't be made the default.
+    await call(`/api/locations/${studio}`, { method: "PUT", body: { name: "Default Studio", is_default: true } });
+    expect((await call(`/api/locations/${studio}/archive`, { method: "POST" })).status).toBe(200);
+    expect(await defaults()).toEqual([]);
+    expect(await call(`/api/locations/${studio}`, { method: "PUT", body: { name: "Default Studio", is_default: true } }))
+      .toEqual({ status: 400, body: { error: "An archived location can't be the default. Restore it first." } });
+    // Nor can one archived as it's added.
+    await create("/api/locations", { name: "Default Hotel", is_default: true, archive_now: true });
+    expect(await defaults()).toEqual([]);
+  });
+
+  it("keeps my own profile: edits can't change who is me, and it can't be archived or deleted", async () => {
+    const mine = (await call("/api/people?archived=all")).body.find((/** @type {any} */ p) => p.is_self);
+    const me = mine ? mine.id : await create("/api/people", { name: "Me", is_self: true });
+    const sam = await create("/api/people", { name: "Sam" });
+    /** @param {string} id */
+    const isSelf = async (id) => (await call("/api/people?archived=all")).body.find((/** @type {any} */ p) => p.id === id).is_self;
+
+    // Renaming works; is_self in an edit is ignored either way.
+    expect((await call(`/api/people/${me}`, { method: "PUT", body: { name: "Me (renamed)", is_self: false } })).status).toBe(200);
+    expect(await isSelf(me)).toBe(1);
+    expect((await call(`/api/people/${sam}`, { method: "PUT", body: { name: "Sam", is_self: true } })).status).toBe(200);
+    expect(await isSelf(sam)).toBe(0);
+
+    const kept = { status: 400, body: { error: "Your own profile can't be deleted or archived. You can rename it." } };
+    expect(await call(`/api/people/${me}`, { method: "DELETE" })).toEqual(kept);
+    expect(await call(`/api/people/${me}/archive`, { method: "POST" })).toEqual(kept);
+    expect((await call("/api/people?archived=false")).body.map((/** @type {any} */ p) => p.id)).toContain(me);
+    // Anyone else still can be.
+    expect((await call(`/api/people/${sam}/archive`, { method: "POST" })).status).toBe(200);
+    expect((await call(`/api/people/${sam}`, { method: "DELETE" })).status).toBe(204);
+  });
+
   it("archives (hidden from the default list) and restores", async () => {
     const id = await create("/api/people", { name: "Alex" });
 
@@ -59,7 +120,9 @@ describe("plans, people and locations", () => {
 
     expect(await ids("?archived=false")).toContain(active);
     expect(await ids("?archived=false")).not.toContain(archived);
-    expect(await ids("?archived=true")).toEqual([archived]);
+    // Other tests archive locations too, so only these two are checked.
+    expect(await ids("?archived=true")).toContain(archived);
+    expect(await ids("?archived=true")).not.toContain(active);
     expect(await ids("?archived=all")).toEqual(expect.arrayContaining([active, archived]));
 
     // Forgetting it is an error, not a quiet default.

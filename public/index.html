@@ -21,7 +21,9 @@
 
   <!-- Ties (/) -->
   <template id="view-ties">
-    <h1>NotoNawa</h1>
+    <!-- Hidden: the tab says where you are. Kept for screen readers, and
+         as where focus goes on changing view (app.js). -->
+    <h1 class="visually-hidden">NotoNawa</h1>
 
     <section class="card" role="search" aria-label="Search ties">
       <label for="q">Search</label>
@@ -82,7 +84,7 @@
 
   <!-- Plans (/plans) -->
   <template id="view-plans">
-    <h1>Plans</h1>
+    <h1 class="visually-hidden">Plans</h1>
 
     <section class="card">
       <h2>Add a plan</h2>
@@ -92,12 +94,12 @@
 
         <div class="row">
           <div>
-            <label for="stage">Stage</label>
-            <select id="stage" name="stage">
+            <!-- Type replaced Stage on the form (stage stays in the database). -->
+            <label for="plan_type">Type</label>
+            <select id="plan_type" name="plan_type">
               <option value="idea">Idea</option>
-              <option value="developing">Developing</option>
-              <option value="ready">Ready</option>
-              <option value="retired">Retired</option>
+              <option value="harness">Harness</option>
+              <option value="sequence">Sequence</option>
             </select>
           </div>
           <div>
@@ -115,7 +117,7 @@
 
         <label for="variation_of">Variation of</label>
         <select id="variation_of" name="variation_of">
-          <option value="">Not a variation</option>
+          <option value="">N/A</option>
         </select>
 
         <label for="description">Description</label>
@@ -143,12 +145,17 @@
 
   <!-- People (/people) -->
   <template id="view-people">
-    <h1>People</h1>
+    <h1 class="visually-hidden">People</h1>
 
     <section class="card">
       <h2>Add a person</h2>
       <form id="form">
-        <label for="name">Name</label>
+        <!-- "This is me" shows only when editing my own profile, ticked and
+             greyed out: it can't be changed (people.js). -->
+        <div class="name-row">
+          <label for="name">Name</label>
+          <label class="self-flag" id="self-flag" hidden><input type="checkbox" name="is_self" disabled> This is me</label>
+        </div>
         <input id="name" name="name" required autocomplete="off" spellcheck="false">
 
         <div class="row">
@@ -164,8 +171,6 @@
             </select>
           </div>
         </div>
-
-        <label class="inline"><input type="checkbox" name="is_self"> This is me</label>
 
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
@@ -187,12 +192,17 @@
 
   <!-- Locations (/locations) -->
   <template id="view-locations">
-    <h1>Locations</h1>
+    <h1 class="visually-hidden">Locations</h1>
 
     <section class="card">
       <h2>Add a location</h2>
       <form id="form">
-        <label for="name">Name</label>
+        <!-- Only one location is the default; ticking another asks whether
+             to replace it (locations.js). Not for one archived now. -->
+        <div class="name-row">
+          <label for="name">Name</label>
+          <label class="self-flag" id="default-flag"><input type="checkbox" name="is_default" id="is_default"> Default on new ties</label>
+        </div>
         <input id="name" name="name" required autocomplete="off" spellcheck="false">
 
         <label for="maps_url">Google Maps link (dropped pins work best)</label>
@@ -214,7 +224,7 @@
         <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <div data-add-only>
-          <label class="inline"><input type="checkbox" name="archive_now"> Archive now</label>
+          <label class="inline"><input type="checkbox" name="archive_now" id="archive_now"> Archive now</label>
           <p class="hint">For a one-off spot: it's saved for your ties, but kept out of the location picker.</p>
         </div>
 
@@ -233,34 +243,33 @@
     </section>
   </template>
 
-  <!-- Analytics: a month's calendar, and a period's numbers and charts.
-       views/analytics.js fills it in. -->
+  <!-- Calendar: a month, with its numbers and a hank on each day with ties.
+       views/calendar.js fills it in. -->
+  <template id="view-calendar">
+    <h1>Calendar</h1>
+
+    <section class="card">
+      <!-- The arrows either side of the month, on one row. -->
+      <div class="period-nav cal-nav">
+        <button type="button" class="icon-button step-button" id="cal-prev" aria-label="Previous month" title="Previous month">
+          <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <h2 class="period-title" id="cal-title" aria-live="polite"></h2>
+        <button type="button" class="icon-button step-button" id="cal-next" aria-label="Next month" title="Next month">
+          <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <dl class="stat-grid" id="cal-stats"></dl>
+      <p class="message error" id="cal-message" role="alert"></p>
+      <div id="calendar"></div>
+    </section>
+  </template>
+
+  <!-- Analytics: a period's numbers and charts. views/analytics.js fills it in. -->
   <template id="view-analytics">
     <h1>Analytics</h1>
 
-    <div class="segmented" role="group" aria-label="Show">
-      <button type="button" id="tab-calendar" aria-pressed="true">Calendar</button>
-      <button type="button" id="tab-insights" aria-pressed="false">Insights</button>
-    </div>
-
-    <div id="calendar-panel">
-      <section class="card">
-        <h2 class="period-title" id="cal-title" aria-live="polite"></h2>
-        <div class="period-steps">
-          <button type="button" class="icon-button step-button" id="cal-prev" aria-label="Previous month" title="Previous month">
-            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <button type="button" class="icon-button step-button" id="cal-next" aria-label="Next month" title="Next month">
-            <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-        </div>
-        <dl class="stat-grid" id="cal-stats"></dl>
-        <p class="message error" id="cal-message" role="alert"></p>
-        <div id="calendar"></div>
-      </section>
-    </div>
-
-    <div id="insights-panel" hidden>
+    <div id="insights-panel">
       <section class="card">
         <div class="insight-controls">
           <select id="period" aria-label="Time period"></select>

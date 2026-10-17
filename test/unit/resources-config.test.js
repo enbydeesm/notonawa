@@ -4,8 +4,8 @@ import { RESOURCES, parseFields, checkEdit, parseArchivedFilter } from "../../sr
 describe("parseFields", () => {
   it("parses every field, in order, with defaults", () => {
     expect(parseFields(RESOURCES.plans, { title: "Hip harness", est_difficulty: "3" })).toEqual({
-      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of"],
-      values: ["Hip harness", "idea", null, null, 3, null],
+      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of", "plan_type"],
+      values: ["Hip harness", "idea", null, null, 3, null, "idea"],
     });
   });
 
@@ -19,6 +19,21 @@ describe("parseFields", () => {
     expect(() => parseFields(RESOURCES.plans, { title: "x", stage: "bogus" })).toThrow("Expected one of");
     expect(() => parseFields(RESOURCES.locations, { name: "x", maps_url: "javascript:alert(1)" })).toThrow("https://");
     expect(() => parseFields(RESOURCES.locations, { name: "x", longitude: 181 })).toThrow("-180 to 180");
+  });
+
+  it("reads a plan's type, idea by default, and a location's default flag", () => {
+    expect(parseFields(RESOURCES.plans, { title: "x", plan_type: "sequence" }).values.at(-1)).toBe("sequence");
+    expect(() => parseFields(RESOURCES.plans, { title: "x", plan_type: "stage" })).toThrow("Expected one of");
+    expect(parseFields(RESOURCES.locations, { name: "x", is_default: true }).values.at(-1)).toBe(1);
+    // A plan's stage is no longer on the form, so edits leave it alone.
+    expect(parseFields(RESOURCES.plans, { title: "x" }, { editing: true }).columns).not.toContain("stage");
+  });
+
+  it("leaves out create-only fields when editing: an edit can't change who is me", () => {
+    expect(parseFields(RESOURCES.people, { name: "Sam", is_self: true }).columns).toContain("is_self");
+    const edit = parseFields(RESOURCES.people, { name: "Sam", is_self: true }, { editing: true });
+    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role"]);
+    expect(edit.values).toEqual(["Sam", null, null, null]);
   });
 
   it("ignores fields that aren't part of the resource", () => {

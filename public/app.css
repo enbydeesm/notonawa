@@ -47,16 +47,18 @@ h1 { font-size: 1.6rem; margin: 8px 0 16px; }
 h2 { font-size: 1.1rem; margin: 0 0 12px; }
 a { color: var(--accent-ink); }
 
-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; }
+/* The tabs are icons, so the whole nav fits on one row, the + and ☰ at the
+   right, even on a narrow phone. */
+nav { display: flex; flex-wrap: nowrap; gap: 4px 14px; margin: 0 0 8px; }
 nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
 nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
 /* display: flex above would otherwise override [hidden] (see showNav). */
 nav[hidden] { display: none; }
-/* The Analytics tab: a bar-chart icon, underlined like the others when
-   it's the view shown. */
-nav .nav-chart { display: inline-flex; width: 32px; height: 32px; padding: 4px 3px; }
-nav .nav-chart svg { display: block; width: 100%; height: 100%; }
-nav .nav-chart[aria-current="page"] { color: var(--text); }
+nav .nav-tab { display: inline-flex; flex: none; width: 32px; height: 34px; padding: 4px 3px; }
+nav .nav-tab svg { display: block; width: 100%; height: 100%; }
+/* Narrow phones: closer together, so the row still fits. */
+@media (max-width: 380px) { nav { gap: 4px 8px; } }
+@media (max-width: 340px) { nav { gap: 4px 3px; } nav .nav-tab { width: 30px; } }
 
 /* The app's logo on Sign in and Unlock, which have no nav. */
 .app-title { text-align: center; }
@@ -426,16 +428,12 @@ dialog.form-dialog {
 
 /* --- Analytics (views/analytics.js) --- */
 
-/* Calendar | Insights: two buttons side by side, the one shown filled. */
-.segmented { display: flex; margin: 0 0 16px; }
-.segmented button { flex: 1; padding: 8px; border-radius: 0; }
-.segmented button:first-child { border-radius: 8px 0 0 8px; }
-.segmented button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
-.segmented button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
-
 .period-title { text-align: center; font-size: 1.5rem; margin: 0 0 8px; }
-.period-steps, .period-nav { display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 12px; }
+.period-nav { display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 12px; }
 .period-nav .period-title { margin: 0; min-width: 8rem; }
+/* Calendar: the month name takes the room between the arrows. */
+.cal-nav { justify-content: space-between; gap: 8px; }
+.cal-nav .period-title { flex: 1; min-width: 0; font-size: 1.35rem; }
 .step-button { width: 44px; height: 44px; justify-content: center; align-items: center; color: var(--accent-ink); }
 .step-button[hidden] { display: none; }
 .step-icon, .funnel-icon {
@@ -445,19 +443,27 @@ dialog.form-dialog {
 
 /* The numbers: label above value, in tiles (Calendar) or pairs (Insights). */
 .stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
-.stat-grid .stat { grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.stat-grid .stat { grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; text-align: center; }
 /* The top/bottom tiles share the second row. */
 .stat-grid .stat:nth-child(n + 4) { grid-column: span 3; }
 .stat-grid dt { color: var(--muted); font-size: 0.8rem; }
 .stat-grid dd { margin: 0; font-size: 1.4rem; font-weight: 600; }
 .stat-extra { margin-left: 8px; font-size: 0.9rem; color: var(--accent-ink); }
-.stat-pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0; }
-.stat-pairs .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.stat-pairs dt { color: var(--muted); }
-.stat-pairs dd { margin: 0; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
-.stat-pairs .stat-extra { margin-left: 6px; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
+/* Insights: two columns, filled top to bottom (left, then right), each
+   row a label on the left and its number on the right. */
+.stat-pairs {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column; gap: 8px 20px; margin: 0;
+}
+.stat-pairs .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.stat-pairs dt { color: var(--muted); min-width: 0; line-height: 1.25; white-space: pre-line; }
+/* The number, with its percentage or average in small type under it, so
+   long labels keep their room. */
+.stat-pairs dd { flex: none; margin: 0; font-weight: 600; text-align: right; white-space: nowrap; }
+.stat-pairs .stat-extra { display: block; margin: 0; font-weight: 400; font-size: 0.78rem; line-height: 1.2; color: var(--muted); }
+.stat-pairs .stat-hank { display: inline-block; vertical-align: -2px; }
 .stat-hank { width: 16px; height: 16px; margin-left: 4px; }
-@media (max-width: 420px) { .stat-pairs { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 400px) { .stat-pairs { gap: 8px 14px; font-size: 0.95rem; } }
 
 /* The month: seven columns, a hank on each day with ties (and the count
    on it when there's more than one). */
@@ -499,7 +505,6 @@ dialog.form-dialog {
 .bar-chart .bar-value { fill: var(--text); font-weight: 600; }
 
 .partner-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.partner-bars li { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto; align-items: center; gap: 8px; }
 .partner-bar svg { display: block; width: 100%; height: 16px; }
 .partner-bar rect { fill: var(--chart-1); }
 .partner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
@@ -509,7 +514,6 @@ dialog.form-dialog {
 .pie { flex: none; width: 104px; height: 104px; }
 .pie .slice { fill: var(--c); stroke: var(--card); stroke-width: 0.02; }
 .pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.85rem; flex: 1; min-width: 10rem; }
-.pie-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
 .swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
 .legend-name { overflow-wrap: anywhere; line-height: 1.25; }
 .legend-count { color: var(--muted); white-space: nowrap; }
@@ -522,3 +526,49 @@ dialog.form-dialog {
 /* The "More filters" dialog: a label above each box. */
 .more-filters > label { margin: 12px 0 4px; }
 .more-filters .dialog-buttons { margin-top: 16px; }
+
+/* Tapping a day, bar, partner or slice lists its ties. */
+.cal-day-button {
+  width: 100%; height: 100%; padding: 0; border: none; border-radius: inherit; background: transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; font: inherit; color: inherit;
+}
+.cal-day:has(.cal-day-button) { padding: 0; }
+.cal-day-button .cal-num { margin-top: 4px; }
+.bar-chart-wrap { position: relative; }
+.bar-hits { position: absolute; inset: 0 0 18px; display: flex; }
+.bar-hits > * { flex: 1; min-width: 0; }
+.bar-hits button { padding: 0; border: none; border-radius: 4px; background: transparent; }
+.bar-hits button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.partner-row, .legend-row {
+  width: 100%; padding: 2px 0; border: none; border-radius: 6px; background: transparent;
+  color: inherit; font: inherit; font-weight: 400; text-align: left;
+}
+.partner-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto; align-items: center; gap: 8px; }
+.legend-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.partner-row:hover, .legend-row:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.pie path, .pie circle { cursor: pointer; }
+.tie-list-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.tie-list-header h2 { margin: 0; }
+#tl-close { flex: none; width: 36px; height: 36px; justify-content: center; align-items: center; font-size: 1.3rem; line-height: 1; }
+#tl-more { width: 100%; margin-top: 4px; padding: 10px; }
+#tl-more[hidden] { display: none; }
+
+/* People: "This is me" on the Name label's row, at the right, only on my
+   own profile, greyed out as it can't be changed. */
+.name-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0 4px; }
+.name-row label { margin: 0; }
+.self-flag { display: inline-flex; align-items: center; gap: 6px; }
+.self-flag[hidden] { display: none; }
+.self-flag input { width: 14px; height: 14px; margin: 0; }
+.self-flag:has(input:disabled) { opacity: 0.6; }
+
+/* People and Locations: a search box with the sort buttons beside it. */
+.list-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.list-search { flex: 1; min-width: 0; padding: 8px 10px; }
+.sort-buttons { display: flex; gap: 6px; flex: none; }
+.sort-button { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 3.4rem; padding: 6px 8px; color: var(--muted); }
+.sort-dir:empty { display: none; }
+.sort-button[aria-pressed="true"] { color: var(--text); border-color: var(--accent-ink); }
+.list-sort-icon { width: 18px; height: 18px; }
+.sort-letter { fill: currentColor; stroke: none; font-size: 12.5px; font-weight: 700; text-anchor: middle; }
+.sort-dir { font-size: 0.8rem; line-height: 1; min-width: 0.6em; }

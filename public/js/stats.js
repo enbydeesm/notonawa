@@ -207,3 +207,13 @@ function byCount(slices, keepOrder = false) {
       || (keepOrder ? a.i - b.i : a.slice.label.localeCompare(b.slice.label, undefined, { sensitivity: "base" })))
     .map(({ slice }) => slice);
 }
+
+/**
+ * The heading of the list of ties behind a bar, slice or day:
+ * "March 2026 · 8 ties".
+ * @param {string} label
+ * @param {number} count
+ */
+export function tieListHeading(label, count) {
+  return `${label} · ${count === 1 ? "1 tie" : `${count} ties`}`;
+}

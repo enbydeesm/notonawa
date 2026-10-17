@@ -59,12 +59,12 @@ const SQL = {
                         ${j("is_current")}, ${time("created_at")}, ${time("updated_at")}
                    FROM json_each(?2) j
                   WHERE EXISTS (SELECT 1 FROM people WHERE id = ${j("person_id")} AND owner_id = ?1)`,
-  locations: `INSERT INTO locations (id, owner_id, name, notes, maps_url, latitude, longitude, archived_at, created_at, updated_at)
+  locations: `INSERT INTO locations (id, owner_id, name, notes, maps_url, latitude, longitude, is_default, archived_at, created_at, updated_at)
               SELECT ${j("id")}, ?1, ${j("name")}, ${j("notes")}, ${j("maps_url")},
-                     ${j("latitude")}, ${j("longitude")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
+                     ${j("latitude")}, ${j("longitude")}, ${j("is_default")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
                 FROM json_each(?2) j`,
-  plans: `INSERT INTO plans (id, owner_id, title, stage, description, notes, est_difficulty, version, archived_at, created_at, updated_at)
-          SELECT ${j("id")}, ?1, ${j("title")}, ${j("stage")}, ${j("description")}, ${j("notes")},
+  plans: `INSERT INTO plans (id, owner_id, title, stage, plan_type, description, notes, est_difficulty, version, archived_at, created_at, updated_at)
+          SELECT ${j("id")}, ?1, ${j("title")}, ${j("stage")}, ${j("plan_type")}, ${j("description")}, ${j("notes")},
                  ${j("est_difficulty")}, ${j("version")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
             FROM json_each(?2) j`,
   // Plans just inserted, so this isn't an edit: updated_at keeps the file's value.
@@ -109,7 +109,7 @@ export async function existingItems(db, ownerId) {
   const q = (/** @type {string} */ sql) => db.prepare(sql).bind(ownerId);
   const [people, locations, plans, tags] = /** @type {D1Result<any>[]} */ (await db.batch([
     q("SELECT id, name, is_self, archived_at FROM people WHERE owner_id = ?"),
-    q("SELECT id, name, archived_at FROM locations WHERE owner_id = ?"),
+    q("SELECT id, name, is_default, archived_at FROM locations WHERE owner_id = ?"),
     q("SELECT id, title AS name, archived_at FROM plans WHERE owner_id = ?"),
     q("SELECT id, name FROM tags WHERE owner_id = ?"),
   ]));

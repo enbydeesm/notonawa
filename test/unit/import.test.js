@@ -32,6 +32,16 @@ describe("parseImportItems", () => {
     expect(parseImportItems({})).toEqual(NONE);
   });
 
+  it("reads a plan's type and a default location, with files from before them as ideas and no default", () => {
+    const items = parseImportItems({
+      locations: [{ id: "l1", name: "Studio", is_default: true }, { id: "l2", name: "Park" }],
+      plans: [{ id: "a", title: "TK", plan_type: "harness" }, { id: "b", title: "Old" }],
+    });
+    expect(items.locations.map((l) => l.is_default)).toEqual([1, 0]);
+    expect(items.plans.map((p) => p.plan_type)).toEqual(["harness", "idea"]);
+    expect(() => parseImportItems({ plans: [{ id: "c", title: "X", plan_type: "bogus" }] })).toThrow("Expected one of");
+  });
+
   it("refuses notes and descriptions that aren't encrypted", () => {
     expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", notes: "plain" }] })).toThrow("weren't encrypted");
     expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", profile_notes: [{ type: "like", description: "plain" }] }] }))
@@ -99,6 +109,25 @@ describe("parseImportTies", () => {
     expect(() => parseImportTies({ ties: [{ title: "x", participants: [{ person_id: "p" }] }] })).toThrow("needs a role");
     expect(() => parseImportTies({ ties: new Array(501).fill({ title: "x" }) })).toThrow("up to 500");
     expect(() => parseImportTies({})).toThrow("up to 500");
+  });
+});
+
+describe("planItems: the default location", () => {
+  const file = (/** @type {Record<string, unknown>[]} */ locations) => parseImportItems({ locations });
+  const mine = { people: [], plans: [], tags: [] };
+
+  it("keeps the file's default when I have none and it's new and not archived", () => {
+    const plan = planItems(file([{ id: "a", name: "Park" }, { id: "b", name: "Studio", is_default: true }]), { ...mine, locations: [] }, counter());
+    expect(plan.rows.locations.map((l) => [l.name, l.is_default])).toEqual([["Park", 0], ["Studio", 1]]);
+  });
+
+  it("drops it when I already have a default, or it's archived, or matched to one of mine", () => {
+    const withDefault = { ...mine, locations: [{ id: "home", name: "Home", is_default: 1, archived_at: null }] };
+    expect(planItems(file([{ id: "b", name: "Studio", is_default: true }]), withDefault, counter()).rows.locations[0].is_default).toBe(0);
+    const archived = file([{ id: "b", name: "Studio", is_default: true, archived_at: "2026-01-01T00:00:00Z" }]);
+    expect(planItems(archived, { ...mine, locations: [] }, counter()).rows.locations[0].is_default).toBe(0);
+    const matched = planItems(file([{ id: "b", name: "Studio", is_default: true }]), { ...mine, locations: [{ id: "s", name: "studio", archived_at: null }] }, counter());
+    expect(matched.rows.locations).toEqual([]);
   });
 });
 

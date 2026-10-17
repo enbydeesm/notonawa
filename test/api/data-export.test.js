@@ -39,11 +39,11 @@ describe("GET /api/data/export", () => {
       id: sam, name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), is_self: false, default_role: "model", archived_at: null,
       profile_notes: [expect.objectContaining({ type: "limit", description: "No neck ties", is_current: true })],
     })]);
-    expect(doc.locations).toEqual([expect.objectContaining({ id: studio, name: "Studio", latitude: 51.5, longitude: -0.1 })]);
+    expect(doc.locations).toEqual([expect.objectContaining({ id: studio, name: "Studio", latitude: 51.5, longitude: -0.1, is_default: false })]);
     // Made in the same second, so in either order.
     expect(doc.plans).toHaveLength(2);
     expect(doc.plans).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: base, title: "TK", variation_of: null, archived_at: null }),
+      expect.objectContaining({ id: base, title: "TK", plan_type: "idea", variation_of: null, archived_at: null }),
       expect.objectContaining({ id: variation, variation_of: base, archived_at: expect.any(String) }),
     ]));
     expect(doc.tags).toEqual(["floor"]);

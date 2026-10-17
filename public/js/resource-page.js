@@ -5,6 +5,8 @@ import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
 import { open, sealOne, forgetSearch } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
+import { listTools } from "./list-tools.js";
+import { orderList } from "./list-order.js";
 
 // Each resource's kind of record, for sealing and opening its notes (and a
 // plan's description) in the crypto Worker.
@@ -22,7 +24,10 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   renderItem: (item: Item, items: Item[]) => any,
  *   confirmDelete: (item: Item) => Promise<DeleteChoice>,
  *   beforeFill?: (item: Item) => void,
+ *   onEdit?: (item: Item | null) => void,
+ *   canRemove?: (item: Item) => boolean,
  *   onLoad?: (items: Item[], archived: boolean) => void,
+ *   searchable?: { noun: string, pinned?: (item: Item) => boolean },
  *   signal?: AbortSignal,
  * }} ResourcePageConfig
  *
@@ -31,6 +36,13 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   [data-cancel-edit] button. A [data-photos] element (plans only) gets the
  *   Photos section; a new item's photos are uploaded once it's saved.
  * signal: aborts when the view is left (its photos are revoked then).
+ * onEdit: runs whenever the form switches to editing an item, or back to
+ *   adding one (null), after it's reset.
+ * canRemove: false hides an item's Archive and Delete buttons (my own
+ *   profile); the API refuses them too.
+ * searchable: puts a search box (by name) and sort buttons (A–Z, date
+ *   added; newest first to start) above the list. pinned items stay at the
+ *   top (my own profile).
  * confirmDelete: resolves to { query } to delete (query is appended to the
  *   DELETE URL), { archive: true } to archive instead, or null to cancel.
  */
@@ -53,6 +65,8 @@ export function setupResourcePage(config) {
   const photoSlot = /** @type {HTMLElement | null} */ (form.querySelector("[data-photos]"));
   /** @type {ReturnType<typeof photoSection> | null} */
   let photos = null;
+  const tools = config.searchable ? listTools({ noun: config.searchable.noun, onChange: draw }) : null;
+  if (tools) list.before(tools.element);
 
   /**
    * A fresh Photos section for the item being edited (or a new one).
@@ -87,6 +101,7 @@ export function setupResourcePage(config) {
       /** @type {HTMLElement} */ (el).hidden = !!item;
     }
     form.reset();
+    config.onEdit?.(item);
     showPhotos(item ? item.id : null);
     if (item) {
       config.beforeFill?.(item);
@@ -153,6 +168,7 @@ export function setupResourcePage(config) {
 
   /** @param {Item} item */
   function renderActions(item) {
+    const removable = config.canRemove?.(item) ?? true;
     return h(
       "div",
       { className: "item-actions" },
@@ -160,9 +176,9 @@ export function setupResourcePage(config) {
         ? h("button", { type: "button", onclick: () => restore(item) }, "Restore")
         : [
             h("button", { type: "button", onclick: () => setEditing(item) }, "Edit"),
-            h("button", { type: "button", onclick: () => archive(item) }, "Archive"),
+            removable ? h("button", { type: "button", onclick: () => archive(item) }, "Archive") : null,
           ],
-      h("button", { type: "button", className: "danger", onclick: () => remove(item) }, "Delete")
+      removable ? h("button", { type: "button", className: "danger", onclick: () => remove(item) }, "Delete") : null
     );
   }
 
@@ -171,18 +187,26 @@ export function setupResourcePage(config) {
     try {
       items = await open(KINDS[resource], await api(`/api/${resource}?archived=${archived}`));
       config.onLoad?.(items, archived);
-      list.replaceChildren();
-      if (items.length === 0) {
-        list.append(h("p", { className: "empty" }, archived ? "Nothing archived." : "Nothing here yet. Add one above."));
-        return;
-      }
-      for (const item of items) {
-        const unreadable = item.unreadable?.length
-          ? h("div", { className: "item-meta deleted" }, "(can't decrypt the notes)") : null;
-        list.append(h("div", { className: "item" }, renderItem(item, items), unreadable, renderActions(item)));
-      }
+      draw();
     } catch (err) {
       list.replaceChildren(h("p", { className: "empty" }, "Couldn't load: " + errorMessage(err)));
+    }
+  }
+
+  /** Draws the list: all of it, or what the search finds, in the chosen order. */
+  function draw() {
+    list.replaceChildren();
+    if (items.length === 0) {
+      list.append(h("p", { className: "empty" }, archivedToggle.checked ? "Nothing archived." : "Nothing here yet. Add one above."));
+      return;
+    }
+    const shown = tools
+      ? orderList(items, tools.query(), tools.order(), config.searchable?.pinned) : items;
+    if (shown.length === 0) list.append(h("p", { className: "empty" }, "No matches."));
+    for (const item of shown) {
+      const unreadable = item.unreadable?.length
+        ? h("div", { className: "item-meta deleted" }, "(can't decrypt the notes)") : null;
+      list.append(h("div", { className: "item" }, renderItem(item, items), unreadable, renderActions(item)));
     }
   }
 

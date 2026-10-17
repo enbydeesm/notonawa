@@ -9,10 +9,11 @@ export const RECENT_COUNT = 5;
 /**
  * name is what's searched and matched (a plan's title); label is what's
  * shown, if different (e.g. "Me (you)"). isSelf marks my own profile;
- * defaultRole is a person's usual role.
+ * defaultRole is a person's usual role; isDefault marks the location new
+ * ties start with.
  * @typedef {{
  *   id: string, name: string, label?: string, created_at: string,
- *   isSelf?: boolean, defaultRole?: string,
+ *   isSelf?: boolean, defaultRole?: string, isDefault?: boolean,
  * }} PickerItem
  */
 
@@ -103,6 +104,7 @@ export function pickerSource(rows, recent) {
     const item = { id: row.id, name, created_at: row.created_at };
     if (row.is_self) Object.assign(item, { label: `${name} (you)`, isSelf: true });
     if (row.default_role) item.defaultRole = row.default_role;
+    if (row.is_default) item.isDefault = true;
     (row.archived_at ? source.archived : source.active).push(item);
   }
   return source;

@@ -2,7 +2,7 @@
 
 import { h, $ } from "../dom.js";
 import { api, errorMessage } from "../api.js";
-import { confirmDeleteOrArchive } from "../dialog.js";
+import { choose, confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
 
 /**
@@ -10,14 +10,49 @@ import { setupResourcePage } from "../resource-page.js";
  * @param {{ signal: AbortSignal }} context signal: fires when the view is left
  */
 export function mount(_root, { signal }) {
+  // "Default on new ties": one location at most. Ticking it when another is
+  // the default asks first; the server moves it from that one on saving.
+  // Not offered for a location being archived as it's added.
+  /** @type {string | null} */
+  let editingId = null;
+  const isDefault = /** @type {HTMLInputElement} */ ($("#is_default"));
+  const archiveNow = /** @type {HTMLInputElement} */ ($("#archive_now"));
+  function showDefaultFlag() {
+    const archiving = !editingId && archiveNow.checked;
+    if (archiving) isDefault.checked = false;
+    $("#default-flag").hidden = archiving;
+  }
+  archiveNow.addEventListener("change", showDefaultFlag);
+  isDefault.addEventListener("change", async () => {
+    if (!isDefault.checked) return;
+    let current;
+    try {
+      /** @type {Record<string, any>[]} */
+      const active = await api("/api/locations?archived=false");
+      current = active.find((loc) => loc.is_default && loc.id !== editingId);
+    } catch {
+      return; // the server still keeps just one
+    }
+    if (!current) return;
+    const choice = await choose({
+      title: `Replace ${current.name} as your default location?`,
+      message: "New ties will start at this location instead.",
+      choices: [{ label: "Replace", value: "replace" }],
+    });
+    if (choice !== "replace") isDefault.checked = false;
+  });
+
   setupResourcePage({
     resource: "locations",
     form: $("#form"),
     list: $("#list"),
     archivedToggle: $("#show-archived"),
+    searchable: { noun: "locations" },
+    onEdit: (loc) => { editingId = loc?.id ?? null; showDefaultFlag(); },
 
     renderItem: (loc) => [
-      h("div", { className: "item-title" }, loc.name),
+      h("div", { className: "item-title" }, loc.name,
+        loc.is_default ? h("span", { className: "badge" }, "Default") : null),
       loc.notes ? h("div", { className: "item-notes" }, loc.notes) : null,
       // The API only accepts http(s) links; check again before making one clickable.
       /^https?:\/\//.test(loc.maps_url || "")
@@ -63,6 +98,7 @@ export function mount(_root, { signal }) {
     clearTimeout(timer);
     lookup++;
     mapsHint.textContent = HINT;
+    $("#default-flag").hidden = false;
   });
 
   /**

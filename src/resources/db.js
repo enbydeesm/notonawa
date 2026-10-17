@@ -38,16 +38,17 @@ export async function listRows(db, name, ownerId, archived) {
  * @param {string} ownerId
  * @param {{ columns: string[], values: unknown[] }} fields
  * @param {boolean} archiveNow
+ * @param {boolean} [makeDefault] locations: it's the new default, so the old
+ *   one is cleared in the same batch
  * @returns {Promise<string>} the new id
  */
-export async function insertRow(db, name, ownerId, { columns, values }, archiveNow) {
+export async function insertRow(db, name, ownerId, { columns, values }, archiveNow, makeDefault = false) {
   const id = crypto.randomUUID();
-  await db.prepare(
+  const insert = db.prepare(
     `INSERT INTO ${name} (id, owner_id, ${columns.join(", ")}, archived_at)
      VALUES (?, ?, ${columns.map(() => "?").join(", ")}, ${archiveNow ? NOW : "NULL"})`
-  )
-    .bind(id, ownerId, ...values)
-    .run();
+  ).bind(id, ownerId, ...values);
+  await db.batch([...(makeDefault ? [clearDefaultLocation(db, ownerId, id)] : []), insert]);
   return id;
 }
 
@@ -58,21 +59,40 @@ export async function insertRow(db, name, ownerId, { columns, values }, archiveN
  * @param {string} ownerId
  * @param {string} id
  * @param {{ columns: string[], values: unknown[] }} fields
+ * @param {boolean} [makeDefault] locations: it's the new default, so the old
+ *   one is cleared in the same batch
  */
-export function updateRow(db, name, ownerId, id, { columns, values }) {
-  return db.prepare(
+export async function updateRow(db, name, ownerId, id, { columns, values }, makeDefault = false) {
+  const update = db.prepare(
     `UPDATE ${name}
         SET ${columns.map((c) => `${c} = ?`).join(", ")}, updated_at = ${NOW}
       WHERE id = ? AND owner_id = ?
      RETURNING id`
-  )
-    .bind(...values, id, ownerId)
-    .first();
+  ).bind(...values, id, ownerId);
+  if (!makeDefault) return update.first();
+  const results = await db.batch([clearDefaultLocation(db, ownerId, id), update]);
+  return results[1].results[0] ?? null;
+}
+
+/**
+ * Stops my default location (other than `exceptId`) being the default. The
+ * first statement of a batch that makes another one the default.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {string} exceptId
+ */
+function clearDefaultLocation(db, ownerId, exceptId) {
+  return db.prepare(
+    `UPDATE locations SET is_default = 0, updated_at = ${NOW}
+      WHERE owner_id = ? AND is_default = 1 AND id != ?`
+  ).bind(ownerId, exceptId);
 }
 
 /**
  * Archiving again keeps the original date. A plan's stage is left alone, so
- * restoring brings it back exactly as it was.
+ * restoring brings it back exactly as it was. An archived location stops
+ * being the default (new ties never start at a hidden location); restoring
+ * doesn't make it the default again.
  * @param {D1Database} db
  * @param {ResourceName} name
  * @param {string} ownerId
@@ -81,7 +101,7 @@ export function updateRow(db, name, ownerId, id, { columns, values }) {
 export function archiveRow(db, name, ownerId, id) {
   return db.prepare(
     `UPDATE ${name}
-        SET archived_at = COALESCE(archived_at, ${NOW}), updated_at = ${NOW}
+        SET archived_at = COALESCE(archived_at, ${NOW}),${name === "locations" ? " is_default = 0," : ""} updated_at = ${NOW}
       WHERE id = ? AND owner_id = ?
      RETURNING id, archived_at`
   )
@@ -149,4 +169,27 @@ export async function deletePlan(db, ownerId, id, linkedTies) {
   ]);
   if (rest[rest.length - 1].results.length === 0) return null;
   return media.results.map((r) => /** @type {{ id: string }} */ (r).id);
+}
+
+/**
+ * Whether this person is my own profile ("this is me").
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {string} id
+ */
+export async function isSelf(db, ownerId, id) {
+  const row = await db.prepare("SELECT is_self FROM people WHERE id = ? AND owner_id = ?").bind(id, ownerId).first();
+  return row?.is_self === 1;
+}
+
+/**
+ * Whether one of my items is archived (false if there's no such item).
+ * @param {D1Database} db
+ * @param {ResourceName} name
+ * @param {string} ownerId
+ * @param {string} id
+ */
+export async function isArchived(db, name, ownerId, id) {
+  const row = await db.prepare(`SELECT archived_at FROM ${name} WHERE id = ? AND owner_id = ?`).bind(id, ownerId).first();
+  return !!row?.archived_at;
 }
