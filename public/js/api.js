@@ -2,6 +2,7 @@
 
 import { navigate } from "./navigate.js";
 import { lock } from "./vault.js";
+import { consentRequired } from "./consent-state.js";
 
 // An error from the API, with its status and body. reauth: the change needs
 // the user to confirm it's them with their passkey first (see account.js).
@@ -53,6 +54,9 @@ export async function api(path, { method = "GET", body } = {}) {
     // Never settles: the view that asked is going away.
     return new Promise(() => {});
   }
+  // The privacy policy changed and I haven't agreed yet: the app shows the
+  // agreement in place of the journal (app.js).
+  if (res.status === 403 && data?.consent) consentRequired();
   if (!res.ok) throw new ApiError(data?.error || res.statusText, res.status, data);
   return data;
 }

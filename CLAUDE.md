@@ -103,7 +103,26 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   full`, `PATCH /api/media/:id` (caption), `PUT /api/media/order`, `DELETE
   /api/media/:id`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
-  challenges; `index.js` also runs the photo sweep).
+  challenges; `index.js` also runs the photo sweep and the backup, each
+  carrying on if one before it fails).
+- `src/backup/`: the daily backup (migration-free). `run.js` reads every
+  table in one batch, gzips it as JSON and saves it in the R2 bucket
+  `BACKUPS`, deleting ones over 30 days old; `crypto.js` seals it with
+  `BACKUP_PUBLIC_KEY` (RSA-OAEP wrapping a fresh AES-GCM key), so the
+  Worker can't open its own backups; `names.js` (pure). The key pair comes
+  from `scripts/backup-keys.mjs`; `scripts/restore-backup.mjs` opens one.
+- `src/consent/` and `src/policy-version.js`: agreeing to the privacy
+  policy again. `policy-version.js` is generated from PRIVACY.md by
+  `scripts/privacy-html.mjs` (never edit it): `POLICY_VERSION` (new
+  accounts agree to it), `CONSENT_VERSION` (anyone who agreed to an older
+  one must agree again) and `CONSENT_SUMMARY`. `parse.js` (pure:
+  `needsConsent`, `allowedWithoutConsent`: reads, the account, keys and
+  notices); `index.js` refuses anything else with 403 `{ consent: true }`;
+  `routes.js` (`GET /api/consent`, `POST /api/consent` with the version
+  shown).
+- `src/notices/`: messages from us (migration 0012), written only with
+  `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
+  now, not dismissed), `POST /api/notices/:id/dismiss`.
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
@@ -165,7 +184,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (People and Locations: the search box and sort buttons, and the pure
   filtering and sorting), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
-  import's requests), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
+  import's requests), `notices.js` (the banners between the nav and the
+  view), `consent-state.js` (whether I must agree to a changed policy;
+  `api.js` marks it on a 403 `consent`, and `app.js` then shows
+  `views/consent.js` in place of journal views, except Your data and
+  Account (`beforeConsent` routes), so someone who won't agree can export
+  and leave), `download.js` (saving a file), `codes.js` and `recovery.js` (pure:
   typed codes, recovery codes and their login secret), `recovery-email.js`
   (pure: reading and hashing a recovery email), `webauthn-json.js`
   (pure) and `webauthn.js` (making and using passkeys), `auth-flows.js`
@@ -198,15 +222,24 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
   matches PRIVACY.md. Run after every change.
 - `node scripts/privacy-html.mjs`: rebuild `public/privacy.html` after
-  editing PRIVACY.md.
+  editing PRIVACY.md. A wording change stamps today's date on the policy
+  and makes a new version (`src/policy-version.js`). Add
+  `--require-consent "what changed"` when people must agree again; post a
+  notice first for changes they should hear about before they take effect.
+- `node scripts/notice.mjs "message" [--warning] [--user <id>] [--link privacy]
+  [--from YYYY-MM-DD] [--until YYYY-MM-DD] [--remote]`: a banner in the app;
+  `--list` and `--end <id>`.
+- `node scripts/backup-keys.mjs`: makes the daily backups' key pair once
+  (the public half goes in `wrangler.jsonc` as `BACKUP_PUBLIC_KEY`).
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks, has a recovery
   email, and has proved the address is theirs). `--email <address>` finds
   the account with that recovery email.
-- `node scripts/backup.mjs --remote`: encrypted backup into `backups/`, and
-  deletes ones older than 7 days (only when it runs: run it at least weekly).
-  `node scripts/restore-backup.mjs <file>` decrypts one.
+- `node scripts/backup.mjs --remote`: an extra encrypted backup on this
+  computer, in `backups/`; deletes ones older than 30 days when it runs.
+  `node scripts/restore-backup.mjs <file>` decrypts one, or one of the
+  daily backups (`.json.gz.enc`, with the backup private key).
 - `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database
   (with a generated copy of `wrangler.jsonc` whose sign-in rate limit is
   higher, as every page load there locks and unlocks).
@@ -289,6 +322,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   encrypted-columns lists.
 - **Wrapped keys (`key_wraps`) are never exported** (useless without the
   user's secrets); they go with their passkey or account.
+- **Notices are ours, not the journal's**: export lists the ones just for me
+  and the ones I dismissed (`account.notices`); import ignores them. They're
+  plain text on the page (`textContent`), never HTML.
 - **When a table or column is added, update export and import**
   (`src/data/`): the export must hold everything in an account, and an
   export must import back exactly (`test/api/data-import.test.js`). Account

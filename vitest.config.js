@@ -5,6 +5,16 @@ import path from "node:path";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
+// A throwaway backup key for the tests, so the daily job's backup runs (and
+// is tested) without the real key from wrangler.jsonc. 2048 bits: quick to
+// make, and nothing it seals is kept.
+const backupKeys = /** @type {CryptoKeyPair} */ (await crypto.subtle.generateKey(
+  { name: "RSA-OAEP", hash: "SHA-256", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]) },
+  true, ["encrypt", "decrypt"],
+));
+const { kty, n, e } = /** @type {JsonWebKey} */ (await crypto.subtle.exportKey("jwk", backupKeys.publicKey));
+const TEST_BACKUP_PUBLIC_KEY = JSON.stringify({ kty, n, e, alg: "RSA-OAEP-256" });
+
 export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
@@ -17,6 +27,7 @@ export default defineConfig({
           // Tests call the Worker at http://localhost (see test/helpers.js).
           RP_ID: "localhost",
           ORIGIN: "http://localhost",
+          BACKUP_PUBLIC_KEY: TEST_BACKUP_PUBLIC_KEY,
         },
       },
     })),

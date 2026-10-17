@@ -1,5 +1,7 @@
-// Takes an encrypted backup of the notonawa database, and deletes
-// backups older than RETENTION_DAYS (7, matching D1's own history).
+// Takes an encrypted backup of the notonawa database on this computer, and
+// deletes backups older than RETENTION_DAYS (30, as PRIVACY.md says). The
+// Worker also takes one every day by itself (src/backup/); this is for an
+// extra copy away from Cloudflare.
 //
 //   node scripts/backup.mjs --remote          back up the real database
 //   node scripts/backup.mjs [--local]         back up the local one
@@ -10,8 +12,8 @@
 // opened. The unencrypted export only ever exists in a private temporary
 // folder, deleted straight after. Backups go in backups/ (git-ignored).
 //
-// Old backups are only deleted when this runs, so run it at least weekly
-// (see considerations.md). Open one with scripts/restore-backup.mjs.
+// Old backups are only deleted when this runs, so run it at least monthly.
+// Open one with scripts/restore-backup.mjs.
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from "node:fs";

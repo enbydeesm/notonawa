@@ -16,6 +16,7 @@
        <main> and puts the view for the address into #view, from one of the
        templates below. -->
   <main>
+    <!-- Messages from us (notices.js) go between the nav and the view. -->
     <div id="view"></div>
   </main>
 
@@ -536,6 +537,32 @@
   </template>
 
   <!-- Any other address -->
+  <!-- Shown in place of the journal until I agree to a changed privacy
+       policy (views/consent.js). -->
+  <template id="view-consent">
+    <h1 class="app-title"><img src="/img/logo.png" alt="NotoNawa"></h1>
+
+    <section class="card">
+      <h2>Our privacy policy has changed</h2>
+      <p id="consent-summary">Please read the updated policy, and agree to it to keep using NotoNawa.</p>
+      <p><a href="/privacy.html" target="_blank" rel="noopener">Read the privacy policy</a> (opens in a new tab)</p>
+      <label class="inline"><input type="checkbox" id="consent-agree"> I've read and agree to the updated privacy policy</label>
+      <button type="button" class="primary" id="consent-go" disabled>Agree and continue</button>
+      <p class="message" id="consent-message"></p>
+    </section>
+
+    <section class="card">
+      <h2>If you don't agree</h2>
+      <p class="hint">Nothing new can be saved to your journal until you agree, but you can still take it with you,
+        or delete your account and everything in it.</p>
+      <ul class="consent-ways">
+        <li><a href="/data">Export your data</a></li>
+        <li><a href="/account">Delete your account</a> (at the bottom of the page)</li>
+      </ul>
+      <button type="button" class="link" id="consent-sign-out">Sign out</button>
+    </section>
+  </template>
+
   <template id="view-not-found">
     <h1>Page not found</h1>
     <section class="card">

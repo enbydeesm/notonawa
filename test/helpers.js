@@ -1,6 +1,7 @@
 // Shared helpers for API and database tests.
 import { SELF, env } from "cloudflare:test";
 import { newToken, sha256Hex, isoAt } from "../src/auth/session.js";
+import { POLICY_VERSION } from "../src/policy-version.js";
 
 export const ORIGIN = "http://localhost";
 
@@ -77,12 +78,14 @@ export async function create(path, body) {
 
 /**
  * Inserts another user directly, for checking that users can't see or touch
- * each other's data.
+ * each other's data. termsVersion: the privacy policy they agreed to (the
+ * current one unless given; null for none).
+ * @param {{ termsVersion?: string | null }} [options]
  * @returns {Promise<string>} the user's id
  */
-export async function createOtherUser() {
+export async function createOtherUser({ termsVersion = POLICY_VERSION } = {}) {
   const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO users (id, email) VALUES (?, ?)").bind(id, id).run();
+  await env.DB.prepare("INSERT INTO users (id, email, terms_version) VALUES (?, ?, ?)").bind(id, id, termsVersion).run();
   return id;
 }
 

@@ -3,11 +3,14 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "account" | "data" | "signin" | "not-found" | "unlock"} ViewName
- * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean }} Route
+ * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent"} ViewName
+ * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean, beforeConsent?: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
  *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
  *   view is shown in its place, at the same address)
+ *   beforeConsent: still shown when the privacy policy has changed and I
+ *   haven't agreed yet (exporting and deleting my account); other views
+ *   that need the key show the Consent view in their place
  */
 
 /** @type {Route[]} */
@@ -18,8 +21,8 @@ export const ROUTES = [
   { path: "/locations", view: "locations", title: "Locations · NotoNawa", nav: true, needsKey: true },
   { path: "/calendar", view: "calendar", title: "Calendar · NotoNawa", nav: true, needsKey: true },
   { path: "/analytics", view: "analytics", title: "Analytics · NotoNawa", nav: true, needsKey: true },
-  { path: "/account", view: "account", title: "Account · NotoNawa", nav: true, needsKey: true },
-  { path: "/data", view: "data", title: "Your data · NotoNawa", nav: true, needsKey: true },
+  { path: "/account", view: "account", title: "Account · NotoNawa", nav: true, needsKey: true, beforeConsent: true },
+  { path: "/data", view: "data", title: "Your data · NotoNawa", nav: true, needsKey: true, beforeConsent: true },
   { path: "/signin", view: "signin", title: "Sign in · NotoNawa", nav: false, needsKey: false },
 ];
 
@@ -28,6 +31,9 @@ export const NOT_FOUND = { path: null, view: "not-found", title: "Page not found
 
 /** Shown in place of a view that needs the key while the journal is locked. @type {Route} */
 export const UNLOCK = { path: null, view: "unlock", title: "Unlock · NotoNawa", nav: false, needsKey: false };
+
+/** Shown in place of the journal until I agree to a changed privacy policy. @type {Route} */
+export const CONSENT = { path: null, view: "consent", title: "Privacy policy update · NotoNawa", nav: false, needsKey: false };
 
 /**
  * The route for a path, ignoring a trailing slash ("/plans/" is Plans).

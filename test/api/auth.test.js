@@ -5,6 +5,7 @@ import { SELF } from "cloudflare:test";
 import { ORIGIN, call, sql, sessionCookieFor, createOtherUser, fakeWrap } from "../helpers.js";
 import { newFakePasskey } from "../fake-passkey.js";
 import { sha256Hex, isoAt } from "../../src/auth/session.js";
+import { POLICY_VERSION } from "../../src/policy-version.js";
 import { newRecoveryCode, readRecoveryCode, loginSecret } from "../../public/js/recovery.js";
 import { newCode, normaliseCode } from "../../public/js/codes.js";
 
@@ -106,7 +107,7 @@ describe("signing up", () => {
     expect(account.passkeys).toMatchObject([{ id: passkey.id, name: "My phone", prf_capable: 1 }]);
 
     const user = await sql("SELECT * FROM users WHERE id = (SELECT user_id FROM passkeys WHERE id = ?)", passkey.id).first();
-    expect(user).toMatchObject({ terms_version: "2026-10-12-draft", recovery_secret_hash: await sha256Hex(await secretFor(code)) });
+    expect(user).toMatchObject({ terms_version: POLICY_VERSION, recovery_secret_hash: await sha256Hex(await secretFor(code)) });
     expect(user?.email).toBe(user?.id);
     expect(user?.accepted_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
     // The journal starts with the owner's own profile.

@@ -7,7 +7,10 @@ import { findSession, deleteSessionStatement, touchSession } from "./db.js";
 import { isActive, needsTouch, sha256Hex } from "./session.js";
 
 /** @typedef {import("./session.js").Session} Session */
-/** @typedef {{ id: string, session: Session }} User */
+/**
+ * termsVersion: the privacy policy version they last agreed to.
+ * @typedef {{ id: string, session: Session, termsVersion: string | null }} User
+ */
 
 /**
  * @param {Request} request
@@ -26,5 +29,6 @@ export async function getUser(request, env) {
     return null;
   }
   if (needsTouch(session, now)) await touchSession(env.DB, session.id);
-  return { id: session.user_id, session };
+  const { terms_version: termsVersion = null, ...rest } = /** @type {Session & { terms_version?: string | null }} */ (session);
+  return { id: session.user_id, session: rest, termsVersion };
 }

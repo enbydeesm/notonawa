@@ -572,3 +572,19 @@ dialog.form-dialog {
 .list-sort-icon { width: 18px; height: 18px; }
 .sort-letter { fill: currentColor; stroke: none; font-size: 12.5px; font-weight: 700; text-anchor: middle; }
 .sort-dir { font-size: 0.8rem; line-height: 1; min-width: 0.6em; }
+
+/* Messages from us (notices.js): banners between the nav and the view. */
+.notices { display: grid; gap: 8px; margin-bottom: 12px; }
+.notices[hidden] { display: none; }
+.notice {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 10px; padding: 10px 12px;
+}
+.notice.warning { border-left-color: var(--error); }
+.notice p { margin: 0; flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.notice-dismiss { flex: none; border: none; padding: 0 4px; color: var(--muted); font-weight: 400; }
+
+/* The Consent view's ways out. */
+.consent-ways { margin: 8px 0; padding-left: 20px; }
+.consent-ways li { margin: 4px 0; }

@@ -28,6 +28,7 @@ export const EXPORT_VERSION = 1;
  *   tiePlans: Row[],
  *   tieTags: Row[],
  *   media: Row[],
+ *   notices: Row[],
  * }} AccountRows
  */
 
@@ -56,6 +57,11 @@ export function exportDocument(rows, exportedAt) {
       // is of no use to the user.
       recovery_email_set: !!rows.user.recovery_email_set,
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
+      // Messages from us just for me, and ones for everyone I dismissed
+      // (not imported: they're ours, not part of the journal).
+      notices: rows.notices.map((n) => ({
+        message: n.message, created_at: n.created_at, just_for_me: !!n.just_for_me, dismissed_at: n.dismissed_at,
+      })),
     },
     people: rows.people.map((p) => ({
       id: p.id, name: p.name, pronouns: p.pronouns, notes: p.notes, is_self: !!p.is_self, default_role: p.default_role,

@@ -1,11 +1,6 @@
 # NotoNawa Privacy Policy
 
-> **DRAFT: ** This policy describes how NotoNawa will
-> handle data once the work planned in the privacy and accounts
-> roadmap is finished. Some of it isn't true of the app today, 
-> and some [information] is yet to be filled in.
-
-**Last updated:** [date of publication]
+**Last updated:** October 17, 2026
 
 ## The short version
 
@@ -23,7 +18,7 @@
 - **No ads, no analytics, no tracking, no selling or sharing your data.** The
   app loads no scripts or fonts from other companies.
 - Some information has to stay readable by our server so the app can sort and
-  filter it, such as names, titles, dates and ratings. The full list is in
+  filter it, such as names, titles, dates and ratings. See
   [What we can and can't read](#what-we-can-and-cant-read).
 - You can export everything, import entries from a file, or delete your
   account and everything in it, at any time.
@@ -58,7 +53,11 @@ account.
   it for one thing: checking that someone asking us to recover an account is
   its owner (see [Our own access](#our-own-access)).
 - **Your agreement.** When you confirmed you're 18 or older and agreed to
-  this policy, and which version of it you agreed to.
+  this policy, and which version of it you agreed to (updated if you agree
+  to a newer version).
+- **Messages we've sent you.** Which of our in-app messages you've
+  dismissed, and any message meant only for you (see
+  [Messages from us](#messages-from-us)).
 - **Your invite.** Accounts are by invite for now. We record that an invite
   was used, and by which account, but nothing about who it was for.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
@@ -86,28 +85,18 @@ analytics, advertising or tracking tools of any kind.
 
 ## What we can and can't read
 
-**Encrypted on your device. Only you can read it:**
+**Encrypted on your device, so only you can read them:** every notes field
+(on ties, people, locations and plans, including plan descriptions), and
+your photos, their thumbnails and captions.
 
-- notes on ties, and each participant's notes on a tie
-- notes on people, and their profile notes (injuries, modifications, likes,
-  dislikes and limits)
-- notes on locations
-- plan descriptions and notes
-- photos, their thumbnails, and any captions
+**Everything else in your journal is readable by our server**, so the app
+can list, sort and filter it: the details of your ties, plans, people and
+locations (such as names, titles, dates, types, ratings and who took part),
+your tags, when things were created, changed or archived and how they link
+together, and for each photo which tie or plan it's on, its size, its file
+type and when it was added (not what it shows).
 
-**Readable by our server, so the app can list, sort and filter them:**
-
-- tie titles, dates, types, durations and ratings; who took part and in what role;
-  which plans and location were used
-- people's names, pronouns and usual roles
-- location names, map links and coordinates
-- plan titles, stages, difficulty and versions
-- tags
-- when things were created, changed or archived, and how they link together
-- for each photo: which tie or plan it's on, its place in their order, its
-  size, whether it's a JPEG or WebP, and when it was added (not what it shows)
-
-This second list is still private to your account: the app never shows it to
+This readable information is still private to your account: the app never shows it to
 anyone else, and we don't look at it (see [Our own access](#our-own-access)).
 But because it isn't encrypted on your device, it could be disclosed if our
 systems were breached or if we were legally required to hand it over. **Keep
@@ -149,7 +138,7 @@ encrypt more of these fields over time.
   saves a file wherever you choose (see
   [Your rights and choices](#your-rights-and-choices)).
 - **The app locks itself.** It forgets your key and everything it decrypted
-  after [15] minutes without use, after [5] minutes in the background, when
+  after 15 minutes without use, after 5 minutes in the background, when
   you sign out, and when you close or reload the tab. You unlock again with
   your passkey.
 - **Decryption happens in a separate, walled-off part of the browser** (a Web
@@ -184,7 +173,7 @@ allow on this site, protects you further.
   device and stored in a private storage area that isn't reachable from the
   internet. Photos are only ever handed back to your own signed-in account,
   and only your device can decrypt them.
-- Each account can store up to [1 GB] of photos, and up to [30] on each tie
+- Each account can store up to 1 GB of photos, and up to 30 on each tie
   or plan.
 - We never scan, analyse, tag or share your photos, and no other company
   processes them.
@@ -195,8 +184,8 @@ allow on this site, protects you further.
 
 Your journal may hold information about the people you tie with. Please only
 record what they would be comfortable with, and remove it if they ask.
-Entries about someone stay in your account. If that person also uses Rope
-Journal, they can't see your entries, and we don't tell them you've written
+Entries about someone stay in your account. If that person also uses
+NotoNawa, they can't see your entries, and we don't tell them you've written
 about them.
 
 ## Where your data is stored
@@ -219,7 +208,7 @@ Google.
 
 We use one cookie: your session cookie. It's needed to keep you signed in. It
 can't be read by scripts, is only sent over secure connections and only to
-NotoNawa, and expires after [30] days, or sooner after [7] days without
+NotoNawa, and expires after 30 days, or sooner after 7 days without
 use. We use no other cookies, local storage for tracking, or similar
 technologies. If you switch between light and dark mode, the app remembers
 that choice in your browser's local storage (just the word "light" or
@@ -238,10 +227,14 @@ that choice in your browser's local storage (just the word "light" or
   or password manager may still list your passkey for NotoNawa; where the
   browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
-  recovery, so deleted data can remain there for up to 7 days before it
-  disappears permanently. Our own backups are encrypted and kept for no more
-  than 7 days. Photos aren't in either: once deleted, they're gone. We would only restore from these to recover from a failure,
-  never to bring back something you deleted unless you ask us to.
+  recovery, so deleted data can remain there for up to 30 days before it
+  disappears permanently. We also back up the database every day. Each
+  backup is encrypted with a key that only Mx_Piggie holds, kept away from
+  our servers, so not even our own systems can read it, and stored with
+  Cloudflare in North America. Each one is deleted after 30 days. Photos
+  aren't in either: once deleted, they're gone. We would only restore from
+  these to recover from a failure, never to bring back something you
+  deleted unless you ask us to.
 - **Signed-out sessions** are deleted when you sign out, and expired sessions
   are cleared every day.
 
@@ -309,14 +302,14 @@ encryption key, but what the old key encrypted can't be read again.
 If we receive a legally valid demand for data, we can only provide what we
 can read (see [What we can and can't read](#what-we-can-and-cant-read)). We
 cannot decrypt your notes or photos. Unless the law forbids it, we will tell
-you about the request before handing anything over.
+you about the request, with a message in the app, before handing anything
+over.
 
 ## Security incidents
 
-If a breach affects your data, we will tell you through the app as quickly as
-we can (we can't email you: we only hold a scrambled copy of any recovery
-email), and notify regulators
-where the law requires.
+If a breach affects your data, we will tell you with a message in the app as
+quickly as we can (we can't email you: we only hold a scrambled copy of any
+recovery email), and notify regulators where the law requires.
 
 ## What we don't do
 
@@ -326,11 +319,22 @@ where the law requires.
 - train AI models on your data or send it to AI services
 - let anyone else see your journal
 
+## Messages from us
+
+We can show you messages in the app, for example about a change to this
+policy, a problem with the service, or a legal request about your account.
+They're written by us, as plain text; a message for everyone is stored
+once, and a message just for you is stored with your account, included in
+your export, and deleted with your account. We record which messages you've
+dismissed, so they don't come back.
+
 ## Changes to this policy
 
-If we change this policy, we will update the date at the top and tell you in
-the app before the change takes effect. If a change would reduce your privacy,
-we will ask for your agreement first.
+If we change this policy, we will update the date at the top and tell you
+with a message in the app before the change takes effect. If a change would
+reduce your privacy, we will ask for your agreement in the app. Until you
+agree, nothing new can be saved to your journal, but you can still export
+your data or delete your account.
 
 ## Contact
 

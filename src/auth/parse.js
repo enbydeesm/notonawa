@@ -3,10 +3,6 @@
 import { BadInput } from "../http.js";
 import { cleanText } from "../parse.js";
 
-// Which version of the privacy policy new accounts agree to. Change it when
-// PRIVACY.md changes in a way people should agree to again.
-export const TERMS_VERSION = "2026-10-12-draft";
-
 const MAX_PASSKEY_NAME = 60;
 export const INVITE_LENGTH = 16; // 10 random bytes = 80 bits
 // Crockford base32: no I, L, O or U, so codes are easy to read and type.

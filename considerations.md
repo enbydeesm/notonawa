@@ -884,3 +884,38 @@ deletion.
 The page titles (NotoNawa, Plans, People, Locations) are kept for screen
 readers but hidden (`visually-hidden`), taking no space.
 
+## Notices, agreeing to policy changes, and daily backups
+
+**Status:** built (2026-10-17)
+
+**Notices.** Messages from us show as banners over the journal. They're
+written with `scripts/notice.mjs` (like invites), not from an admin screen
+in the app: no admin role means nothing for an attacker to aim at. Plain
+text only, with one optional fixed link (the privacy policy), so a notice
+can't carry markup or send people to another site. A notice can be for
+everyone or for one account (e.g. a legal request), and has a start and an
+optional end. Dismissals are kept per person.
+
+**Agreeing again.** The policy's version is the time it was built
+(`scripts/privacy-html.mjs` stamps it, with the date shown on the policy,
+whenever the wording changes). Most changes just need telling, with a
+notice before they take effect; `--require-consent` marks a change people
+must agree to. Until they do, the server refuses anything but reading,
+agreeing, account and key changes and notices, and the app shows the
+agreement in place of the journal, while Your data and Account still open
+so someone who won't agree can export and delete. Weighed: blocking
+everything, export included. Refused: leaving should always be possible.
+
+**Daily backups.** Weighed a scheduled job on the Mac (backups away from
+Cloudflare, but only when it's awake) against one in Cloudflare (always
+runs). Chose Cloudflare: the cron Worker reads every table in one batch,
+gzips it as JSON, and seals it with a public key whose private half never
+reaches Cloudflare, so the Worker can't read its own backups; a separate
+private bucket holds them, and each run deletes ones over 30 days old.
+Photos aren't backed up (they'd double the storage, and deleted ones
+should stay gone). On the Workers Free plan a cron run has 10 ms of CPU
+time; reading, gzipping and sealing a small journal fits, but if backups
+start failing as the journal grows (Cloudflare's Cron Events show it),
+Workers Paid gives 30 seconds. `scripts/backup.mjs` still makes an extra
+copy on the Mac when wanted.
+

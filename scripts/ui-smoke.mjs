@@ -1307,6 +1307,38 @@ try {
     $("#type-chart .legend-row").click(); await wait(1000); const typeShown = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
     return [partner, typeShown];`), [true, true]);
 
+  console.log("Notices and policy changes");
+  const myId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
+  /** @param {string} command */
+  const execute = (command) => spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", "--local", "--persist-to", dbDir,
+    "--command", command], { encoding: "utf8" });
+  execute(`INSERT INTO notices (id, user_id, message, level, link) VALUES
+    ('n-all', NULL, 'Maintenance tonight. It''s short.', 'info', 'privacy'), ('n-me', '${myId}', 'Just for you', 'warning', NULL)`);
+  await go("/");
+  const noticeTexts = `[...document.querySelectorAll("#notices .notice p")].map((p) => p.textContent)`;
+  check("notices show over the journal as text, with a policy link, and stay dismissed", await run(`
+    const shown = ${noticeTexts}; const link = $("#notices a")?.getAttribute("href");
+    const warnings = document.querySelectorAll("#notices .notice.warning").length;
+    $("#notices .notice-dismiss").click(); await wait(500);
+    return [shown, link, warnings, ${noticeTexts}];`),
+    [["Maintenance tonight. It's short. Read the privacy policy", "Just for you"], "/privacy.html", 1, ["Just for you"]]);
+  await go("/plans");
+  check("…after a reload too", await run(`return ${noticeTexts};`), ["Just for you"]);
+
+  execute(`UPDATE users SET terms_version = '2000-01-01T00:00:00Z' WHERE id = '${myId}'`);
+  await go("/");
+  check("a changed policy must be agreed to; nothing is saved till then, but export still opens", await run(`
+    const first = [document.title, $("#consent-go").disabled, $("nav").hidden, $("#notices").hidden];
+    const save = (await fetch("/api/people", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Nope" }) })).status;
+    $("#view a[href='/data']").click(); await wait(1000); const data = document.title;
+    history.back(); await wait(1000); const back = document.title;
+    $("#consent-agree").click(); const enabled = !$("#consent-go").disabled;
+    $("#consent-go").click(); await wait(1500);
+    const after = [document.title, $("#tie-count") !== null, (await (await fetch("/api/consent")).json()).needed];
+    return [first, save, data, back, enabled, after];`),
+    [["Privacy policy update · NotoNawa", true, true, true], 403, "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
+      ["NotoNawa", true, false]]);
+
   console.log("Deleting the account");
   await go("/account");
   check("delete needs typing 'delete'", await run(`

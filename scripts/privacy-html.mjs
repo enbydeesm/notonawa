@@ -3,12 +3,26 @@
 // lists, a quote, **bold**, `code` and links.
 //
 //   node scripts/privacy-html.mjs           rebuild it
+//   node scripts/privacy-html.mjs --require-consent "What changed, in a sentence or two"
+//                                           rebuild it, and ask everyone who agreed to
+//                                           an earlier version to agree to this one
 //   node scripts/privacy-html.mjs --check   fail if it's out of date (npm run check)
+//
+// When PRIVACY.md's wording has changed since the last build, the build
+// stamps today's date on its "Last updated" line and gives the policy a new
+// version (the time of the build). Both are written to src/policy-version.js,
+// which the Worker reads: new accounts agree to that version. Wording
+// changes alone don't ask anyone to agree again; --require-consent does
+// (src/consent/). Tell people about other changes with a notice first
+// (scripts/notice.mjs).
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { policyDate, consentFile, unstamped, stamp } from "./policy-lib.mjs";
 
 const SOURCE = new URL("../PRIVACY.md", import.meta.url);
 const TARGET = new URL("../public/privacy.html", import.meta.url);
+const VERSION_FILE = new URL("../src/policy-version.js", import.meta.url);
 
 /** @param {string} text */
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -49,7 +63,8 @@ export function toHtml(markdown) {
   return out.join("\n");
 }
 
-const page = `<!doctype html>
+/** @param {string} markdown */
+const pageFor = (markdown) => `<!doctype html>
 <!-- Built from PRIVACY.md by scripts/privacy-html.mjs. Edit that, not this. -->
 <html lang="en">
 <head>
@@ -63,23 +78,46 @@ const page = `<!doctype html>
 </head>
 <body>
   <main class="policy">
-${toHtml(readFileSync(SOURCE, "utf8"))}
+${toHtml(markdown)}
   </main>
 </body>
 </html>
 `;
 
-if (process.argv.includes("--check")) {
-  let current = "";
+const current = await import(VERSION_FILE.href).catch(() => null);
+const markdown = readFileSync(SOURCE, "utf8");
+// The wording, without the date: what the version follows.
+const hash = createHash("sha256").update(unstamped(markdown)).digest("hex");
+const args = process.argv.slice(2);
+
+if (args.includes("--check")) {
+  let built = "";
   try {
-    current = readFileSync(TARGET, "utf8");
+    built = readFileSync(TARGET, "utf8");
   } catch {
     // missing
   }
-  if (current !== page) {
-    console.error("public/privacy.html is out of date with PRIVACY.md. Run: node scripts/privacy-html.mjs");
+  if (!current || current.POLICY_HASH !== hash || built !== pageFor(markdown)) {
+    console.error("public/privacy.html or src/policy-version.js is out of date with PRIVACY.md. Run: node scripts/privacy-html.mjs");
     process.exit(1);
   }
 } else {
-  writeFileSync(TARGET, page);
+  const at = args.indexOf("--require-consent");
+  const summary = at === -1 ? null : args[at + 1]?.trim();
+  if (at !== -1 && !summary) {
+    console.error('Say what changed: --require-consent "…"');
+    process.exit(1);
+  }
+  const changed = !current || current.POLICY_HASH !== hash;
+  const now = new Date();
+  const version = changed ? now.toISOString().replace(/\.\d{3}Z$/, "Z") : current.POLICY_VERSION;
+  const stamped = changed ? stamp(markdown, policyDate(now)) : markdown;
+  const consent = summary
+    ? { version, summary }
+    : { version: current?.CONSENT_VERSION ?? version, summary: current?.CONSENT_SUMMARY ?? null };
+  writeFileSync(SOURCE, stamped);
+  writeFileSync(TARGET, pageFor(stamped));
+  writeFileSync(VERSION_FILE, consentFile({ version, hash, consent }));
+  console.log(changed ? `The policy changed: version ${version}.` : "The policy's wording hasn't changed.");
+  if (summary) console.log("Everyone who agreed to an earlier version will be asked to agree to this one.");
 }

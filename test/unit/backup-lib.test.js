@@ -53,19 +53,19 @@ describe("backup names and retention", () => {
     expect(backupName("remote", now)).toBe("notonawa-remote-20261013T120000Z.sql.enc");
   });
 
-  it("picks out backups older than 7 days, and nothing else", () => {
+  it("picks out backups older than 30 days, and nothing else", () => {
     expect(expiredBackups([
-      "notonawa-remote-20261006T115959Z.sql.enc", // 7 days and a second: expired
-      "notonawa-remote-20261006T120000Z.sql.enc", // exactly 7 days: kept
-      "notonawa-local-20261001T000000Z.sql.enc",
+      "notonawa-remote-20260913T115959Z.sql.enc", // 30 days and a second: expired
+      "notonawa-remote-20260913T120000Z.sql.enc", // exactly 30 days: kept
+      "notonawa-local-20260901T000000Z.sql.enc",
       "notonawa-remote-20261013T110000Z.sql.enc",
-      "rope-journal-remote-20261005T000000Z.sql.enc", // from before the rename: still expires
+      "rope-journal-remote-20260905T000000Z.sql.enc", // from before the rename: still expires
       "rope-journal-remote-20261012T000000Z.sql.enc",
       "notes.sql", "notonawa-remote-20201006T115959Z.sql", ".DS_Store",
     ], now)).toEqual([
-      "notonawa-remote-20261006T115959Z.sql.enc",
-      "notonawa-local-20261001T000000Z.sql.enc",
-      "rope-journal-remote-20261005T000000Z.sql.enc",
+      "notonawa-remote-20260913T115959Z.sql.enc",
+      "notonawa-local-20260901T000000Z.sql.enc",
+      "rope-journal-remote-20260905T000000Z.sql.enc",
     ]);
   });
 });

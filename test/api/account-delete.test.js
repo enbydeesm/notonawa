@@ -23,6 +23,8 @@ const OWNED_ROWS = {
   invites: "SELECT count(*) AS n FROM invites WHERE used_by = ?",
   key_wraps: "SELECT count(*) AS n FROM key_wraps WHERE user_id = ?",
   media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
+  notices: "SELECT count(*) AS n FROM notices WHERE user_id = ?",
+  notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -75,6 +77,10 @@ async function userWithEverything() {
   // A photo's row (its file is tested in media.test.js).
   await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
              VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, crypto.randomUUID(), id, tie).run();
+  // A notice just for them, dismissed.
+  const notice = crypto.randomUUID();
+  await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();
+  await sql("INSERT INTO notice_dismissals (notice_id, user_id) VALUES (?, ?)", notice, id).run();
   return { id, cookie };
 }
 

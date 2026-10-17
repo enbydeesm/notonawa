@@ -42,11 +42,15 @@ export async function readAccount(db, userId) {
     // Photos' rows; the page fetches the files and decrypts them.
     q(`SELECT id, tie_id, plan_id, kind, mime, caption, position, created_at
          FROM media WHERE owner_id = ? ORDER BY position, created_at`),
+    // Notices just for me, and others I've dismissed.
+    q(`SELECT n.message, n.created_at, n.user_id IS NOT NULL AS just_for_me, d.dismissed_at
+         FROM notices n LEFT JOIN notice_dismissals d ON d.notice_id = n.id AND d.user_id = ?1
+        WHERE n.user_id = ?1 OR d.user_id = ?1 ORDER BY n.created_at, n.id`),
   ]);
-  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media] =
+  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media, notices] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
-    ties, participants, tiePlans, tieTags, media,
+    ties, participants, tiePlans, tieTags, media, notices,
   };
 }

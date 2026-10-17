@@ -3,11 +3,13 @@
 // Runtime types generated with workerd@1.20261006.1 2026-10-11
 interface __BaseEnv_Env {
 	PHOTOS: R2Bucket;
+	BACKUPS: R2Bucket;
 	DB: D1Database;
 	AUTH_RATE_LIMIT: RateLimit;
 	ASSETS: Fetcher;
 	RP_ID: string;
 	ORIGIN: string;
+	BACKUP_PUBLIC_KEY: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -20,7 +22,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "RP_ID" | "ORIGIN">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "RP_ID" | "ORIGIN" | "BACKUP_PUBLIC_KEY">> {}
 }
 declare module "*.txt" {
 	const value: string;

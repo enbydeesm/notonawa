@@ -4,7 +4,8 @@
 
 import { NOW } from "../sql.js";
 import { idleCutoff, isoAt, lifetimeMs, newToken, sha256Hex } from "./session.js";
-import { TERMS_VERSION } from "./parse.js";
+// The policy version new accounts agree to (made from PRIVACY.md).
+import { POLICY_VERSION } from "../policy-version.js";
 
 /** @typedef {import("./session.js").Session} Session */
 /** @typedef {import("./session.js").SessionKind} SessionKind */
@@ -89,7 +90,7 @@ export function newUserStatements(db, userId, inviteHash, recoveryHash) {
     db.prepare(
       `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version)
        VALUES (?, ?, ?, ${NOW}, ?)`
-    ).bind(userId, userId, recoveryHash, TERMS_VERSION),
+    ).bind(userId, userId, recoveryHash, POLICY_VERSION),
     db.prepare(`UPDATE invites SET used_at = ${NOW}, used_by = ? WHERE code_hash = ?`).bind(userId, inviteHash),
     // Every journal starts with its owner's own profile, renamable on the
     // People page, so ties can list "Me" from the first one.
@@ -163,7 +164,8 @@ export async function newSessionStatements(db, userId, { kind, passkeyId }) {
  */
 export function findSession(db, tokenHash) {
   return db.prepare(
-    "SELECT id, user_id, kind, passkey_id, created_at, last_used_at, expires_at FROM sessions WHERE token_hash = ?"
+    `SELECT s.id, s.user_id, s.kind, s.passkey_id, s.created_at, s.last_used_at, s.expires_at, u.terms_version
+       FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`
   ).bind(tokenHash).first();
 }
 

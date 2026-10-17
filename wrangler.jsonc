@@ -22,9 +22,14 @@
 	// domain means everyone adds a new passkey there (with their recovery
 	// code). ORIGIN is the site's address; writes from anywhere else are
 	// refused. Local values are in .dev.vars.
+	// BACKUP_PUBLIC_KEY: the public half of the backup key pair (made with
+	// `node scripts/backup-keys.mjs`), as one line of JSON. Public, so it can
+	// live here; the private half never comes near Cloudflare. Empty: no
+	// daily backups.
 	"vars": {
 		"RP_ID": "notonawa.app",
-		"ORIGIN": "https://notonawa.app"
+		"ORIGIN": "https://notonawa.app",
+		"BACKUP_PUBLIC_KEY": "{\"kty\":\"RSA\",\"n\":\"qGsQ_D7k1QLxoQga1_y1UmYrUmxBgmNNnwsZOOU_cmRKbJnVAfLDnG18FrJmLcDZLxYJfKAMMvFQak-jtLeuFhUNivF0afwbtqVNWGrvkjSp9V_vuG0LY128ve7Tiv0zbiHWrBKKO0X8dN9w3kVd2tc_BFnLFZnOnHa2fOceRru5XSeaXmMKY0hhQHhP-IT9jIv1ynrdDruj3rWmFcM7RGi7O6vYg7GstcLRmgvihoupwfjsnz_jeDNRvYNA0lZwVeGyBEnfqvmjCA_KHWblk-gHxH0_N75ekcB8x4uRBBJST7vz2ycP1Xy8z68Cha43z4BjinlcwwuANIbkUSNvZKXD47wzKE1cJYVNi1NwqCbTstMuM8xRbG2Oe5RdN1MM9CJR2YOpgbgPUfxRzqRxwx3QaOgSdv7aJANBt6fSB7myMLc4EPP8Hn22txN7gNWQwB2nQUv570TzhQ3CVyFgkwnyrqr0Oq2qe1E3rI4mq8-APT6eiMTw5tKUqyvkf6nhoK5__4-G6rpN_oQpSdYw_W7ylFpQTAm_s6FbHUn2rTVOUaDazVU7881ddT1dKY15Cpyo76ark_3IRU6fIezw6hiFQbVEo0WRXC75-1Zs0iiFhtNMk_dSeBh8Bq8Zwn3bPGtLqY_0toqWbGYb4NWDIk2RN4gcbIccjzpddvA6L98\",\"e\":\"AQAB\",\"alg\":\"RSA-OAEP-256\",\"ext\":true,\"key_ops\":[\"encrypt\"]}"
 	},
 	// Sign-in attempts per IP address per minute. Counted in memory by
 	// Cloudflare; nothing is stored.
@@ -38,8 +43,9 @@
 			}
 		}
 	],
-	// Once a day: delete ended sessions and expired sign-in challenges
-	// (src/cleanup.js).
+	// Once a day: an encrypted backup of the database, deleting ones over 30
+	// days old (src/backup/), then delete ended sessions and expired sign-in
+	// challenges (src/cleanup.js) and photo files left without a row.
 	"triggers": {
 		"crons": [
 			"17 3 * * *"
@@ -53,6 +59,14 @@
 		{
 			"binding": "PHOTOS",
 			"bucket_name": "notonawa-photos",
+			"remote": true
+		},
+		// The daily backups, sealed so only the backup private key opens
+		// them. Private like the photos. Made with
+		// `npx wrangler r2 bucket create notonawa-backups --location enam`.
+		{
+			"binding": "BACKUPS",
+			"bucket_name": "notonawa-backups",
 			"remote": true
 		}
 	],

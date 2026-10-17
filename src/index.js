@@ -4,6 +4,10 @@
 
 import { getUser } from "./auth/user.js";
 import { isAllowedOrigin, allowedInRecovery, rateLimitKey } from "./auth/guard.js";
+import { needsConsent, allowedWithoutConsent } from "./consent/parse.js";
+import { CONSENT_VERSION } from "./policy-version.js";
+import { handleConsent } from "./consent/routes.js";
+import { handleNotices } from "./notices/routes.js";
 import { json, notFound } from "./http.js";
 import { errorResponse } from "./errors.js";
 import { withSecurityHeaders } from "./security-headers.js";
@@ -20,6 +24,7 @@ import { handleMedia } from "./media/routes.js";
 import { handleStats } from "./stats/routes.js";
 import { sweepOrphans } from "./media/storage.js";
 import { cleanUp } from "./cleanup.js";
+import { takeBackup } from "./backup/run.js";
 
 export default {
   /**
@@ -40,14 +45,31 @@ export default {
   },
 
   /**
-   * The daily cron trigger (wrangler.jsonc): clears ended sessions and
-   * expired sign-in challenges, and photo files left without a row.
+   * The daily cron trigger (wrangler.jsonc): backs up the database (keeping
+   * 30 days), then clears ended sessions and expired sign-in challenges, and
+   * photo files left without a row. Each runs even if one before it fails.
    * @param {ScheduledController} _controller
    * @param {Env} env
    */
   async scheduled(_controller, env) {
-    await cleanUp(env.DB);
-    await sweepOrphans(env.DB, env.PHOTOS);
+    const jobs = [
+      ["backup", () => (env.BACKUP_PUBLIC_KEY
+        ? takeBackup(env.DB, env.BACKUPS, env.BACKUP_PUBLIC_KEY)
+        : Promise.reject(new Error("BACKUP_PUBLIC_KEY isn't set: no backup taken.")))],
+      ["clean-up", () => cleanUp(env.DB)],
+      ["photo sweep", () => sweepOrphans(env.DB, env.PHOTOS)],
+    ];
+    let failed = false;
+    for (const [name, job] of /** @type {[string, () => Promise<unknown>][]} */ (jobs)) {
+      try {
+        await job();
+      } catch (err) {
+        failed = true;
+        console.error(`Daily ${name} failed:`, err instanceof Error ? err.message : err);
+      }
+    }
+    // Shows the run as failed in Cloudflare's Cron Events.
+    if (failed) throw new Error("A daily job failed (see the messages above).");
   },
 };
 
@@ -83,8 +105,15 @@ async function respond(request, env) {
   if (user.session.kind === "recovery" && !allowedInRecovery(request.method, url.pathname)) {
     return json({ error: "Add a passkey to finish signing in.", recovery: true }, 403);
   }
+  // The privacy policy changed in a way that needs agreeing to again:
+  // nothing new is saved until they do (GET /api/consent tells the page).
+  if (needsConsent(user.termsVersion, CONSENT_VERSION) && !allowedWithoutConsent(request.method, url.pathname)) {
+    return json({ error: "Please agree to the updated privacy policy first.", consent: true }, 403);
+  }
 
   return (
+    (await handleConsent(request, env, user, url)) ??
+    (await handleNotices(request, env, user, url)) ??
     (await handleAccount(request, env, user, url)) ??
     (await handleKeys(request, env, user, url)) ??
     (await handleEncryption(request, env, user, url)) ??

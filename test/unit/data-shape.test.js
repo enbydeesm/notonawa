@@ -5,7 +5,7 @@ import { exportDocument, exportFileName } from "../../src/data/shape.js";
 const EMPTY = {
   user: { created_at: "2026-01-01T00:00:00Z", accepted_at: "2026-01-01T00:00:00Z", terms_version: "1" },
   passkeys: [], people: [], profileNotes: [], locations: [], plans: [], planTags: [], tags: [],
-  ties: [], participants: [], tiePlans: [], tieTags: [], media: [],
+  ties: [], participants: [], tiePlans: [], tieTags: [], media: [], notices: [],
 };
 
 describe("exportDocument", () => {
@@ -30,7 +30,7 @@ describe("exportDocument", () => {
   it("labels the file with its format, version and time", () => {
     expect(exportDocument(EMPTY, "2026-10-13T10:00:00Z")).toMatchObject({
       format: "notonawa-export", version: 1, exported_at: "2026-10-13T10:00:00Z",
-      account: { created_at: "2026-01-01T00:00:00Z", terms_version: "1", recovery_email_set: false, passkeys: [] },
+      account: { created_at: "2026-01-01T00:00:00Z", terms_version: "1", recovery_email_set: false, passkeys: [], notices: [] },
       people: [], locations: [], plans: [], tags: [], ties: [],
     });
   });

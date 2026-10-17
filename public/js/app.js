@@ -12,13 +12,16 @@
 // journal is locked, and are drawn again when it locks (lock.js), so nothing
 // decrypted stays on the page.
 
-import { matchRoute, inAppTarget, UNLOCK } from "./router.js";
+import { matchRoute, inAppTarget, UNLOCK, CONSENT } from "./router.js";
 import { setNavigator } from "./navigate.js";
 import { renderNav, showNav, setCurrent } from "./nav.js";
 import { $ } from "./dom.js";
 import { isUnlocked, onLock } from "./vault.js";
 import { sealLeftovers } from "./seal-leftovers.js";
 import { watchForLock } from "./lock.js";
+import { api } from "./api.js";
+import { consentState, setConsentState, onConsentRequired } from "./consent-state.js";
+import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -36,10 +39,12 @@ const VIEWS = {
   signin: () => import("./views/signin.js"),
   "not-found": () => import("./views/not-found.js"),
   unlock: () => import("./views/unlock.js"),
+  consent: () => import("./views/consent.js"),
 };
 
 const root = $("#view");
 renderNav();
+noticeBox();
 
 /** @type {import("./router.js").ViewName | null} */
 let currentView = null;
@@ -63,9 +68,10 @@ history.scrollRestoration = "manual";
  */
 async function show({ fresh, scroll, focus }) {
   const addressed = matchRoute(location.pathname);
-  const route = addressed.needsKey && !isUnlocked() ? UNLOCK : addressed;
-  if (!fresh && route.view === currentView) return;
   const id = ++latestShow;
+  const route = await routeFor(addressed);
+  if (id !== latestShow) return;
+  if (!fresh && route.view === currentView) return;
   const module = await VIEWS[route.view]();
   if (id !== latestShow) return;
 
@@ -77,6 +83,8 @@ async function show({ fresh, scroll, focus }) {
 
   document.title = route.title;
   showNav(route.nav);
+  // Messages from us, over the journal (not over Unlock, Consent or sign-in).
+  showNotices(route === addressed && route.needsKey);
   setCurrent(addressed.path);
   const template = /** @type {HTMLTemplateElement} */ ($(`#view-${route.view}`));
   root.replaceChildren(template.content.cloneNode(true));
@@ -106,6 +114,27 @@ async function show({ fresh, scroll, focus }) {
 }
 
 /**
+ * What to show for an address: Unlock in place of a view that needs the key
+ * while the journal is locked, and Consent in its place while the privacy
+ * policy has changed and I haven't agreed (asked once per unlock), except
+ * where I can still take my data or delete my account.
+ * @param {import("./router.js").Route} addressed
+ */
+async function routeFor(addressed) {
+  if (!addressed.needsKey) return addressed;
+  if (!isUnlocked()) return UNLOCK;
+  if (consentState() === null) {
+    try {
+      setConsentState(await api("/api/consent"));
+    } catch {
+      // Unreachable for now: the journal's own requests will say so, and a
+      // refusal for want of agreement brings the agreement up.
+    }
+  }
+  return consentState()?.needed && !addressed.beforeConsent ? CONSENT : addressed;
+}
+
+/**
  * Goes to a path in the app, adding a history entry unless replace is set.
  * @param {string} path
  * @param {boolean} replace
@@ -124,7 +153,18 @@ watchForLock();
 // which shows Unlock in place of anything that needs the key.
 onLock(() => {
   leftoversChecked = false;
+  // Asked again after the next unlock (it may be someone else signing in).
+  setConsentState(null);
+  forgetNotices();
   show({ fresh: true, scroll: 0, focus: true });
+});
+
+// The server refused a change until I agree to the changed policy: show the
+// agreement in place of the journal (unless I'm exporting or deleting).
+onConsentRequired(() => {
+  if (currentView !== "consent" && currentView !== "data" && currentView !== "account") {
+    show({ fresh: true, scroll: 0, focus: true });
+  }
 });
 
 // Registered before any view's own popstate listener, so a view being left

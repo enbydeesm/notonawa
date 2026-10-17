@@ -8,7 +8,7 @@
 // can be raised later without breaking old backups. "RJB1" is from the
 // app's old name (Rope Journal); it stays so old backups still open.
 
-export const RETENTION_DAYS = 7; // matches D1's own rolling history on the Free plan
+export const RETENTION_DAYS = 30; // as long as PRIVACY.md says backups are kept
 export const ITERATIONS = 600_000; // OWASP's figure for PBKDF2-SHA256
 export const MIN_PASSPHRASE = 12;
 const MAX_ITERATIONS = 10_000_000;
@@ -106,4 +106,35 @@ export function expiredBackups(names, now, days = RETENTION_DAYS) {
     const [, , y, mo, d, h, mi, s] = m;
     return Date.UTC(+y, +mo - 1, +d, +h, +mi, +s) < cutoff;
   });
+}
+
+/**
+ * A daily backup's contents (src/backup/run.js) as SQL to load into an
+ * empty database: the tables, their rows, then the indexes and triggers
+ * (after the rows, so the triggers don't check rows that were fine when
+ * saved). Foreign keys are checked at the end, as the rows go in table by
+ * table.
+ * @param {{ format: string, schema: { type: string, name: string, sql: string }[], tables: Record<string, Record<string, unknown>[]> }} doc
+ */
+export function backupToSql(doc) {
+  if (doc.format !== "notonawa-backup") throw new Error("This isn't a NotoNawa backup.");
+  /** @param {string} name */
+  const quoteName = (name) => `"${name.replace(/"/g, '""')}"`;
+  /** @param {unknown} value */
+  const literal = (value) => {
+    if (value === null || value === undefined) return "NULL";
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "string") return `'${value.replace(/'/g, "''")}'`;
+    throw new Error(`Can't write ${typeof value} values as SQL.`);
+  };
+  const lines = ["PRAGMA defer_foreign_keys = true;"];
+  for (const s of doc.schema.filter((s) => s.type === "table")) {
+    lines.push(`${s.sql};`);
+    for (const row of doc.tables[s.name] ?? []) {
+      const columns = Object.keys(row);
+      lines.push(`INSERT INTO ${quoteName(s.name)} (${columns.map(quoteName).join(", ")}) VALUES (${columns.map((c) => literal(row[c])).join(", ")});`);
+    }
+  }
+  for (const s of doc.schema.filter((s) => s.type !== "table")) lines.push(`${s.sql};`);
+  return lines.join("\n") + "\n";
 }
