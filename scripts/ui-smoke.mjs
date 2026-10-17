@@ -1304,8 +1304,8 @@ try {
     [true, true, true]);
   check("so does tapping a partner and a pie's legend", await run(`
     $("#partner-chart .partner-row").click(); await wait(1000); const partner = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
-    $("#type-chart .legend-row").click(); await wait(1000); const type = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
-    return [partner, type];`), [true, true]);
+    $("#type-chart .legend-row").click(); await wait(1000); const typeShown = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
+    return [partner, typeShown];`), [true, true]);
 
   console.log("Deleting the account");
   await go("/account");
