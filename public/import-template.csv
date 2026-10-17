@@ -1,2 +1,2 @@
-date,title,type,duration,rating,location,people,plans,tags,notes
-2026-10-12,Floor practice,floor,45,4,Studio,Sam (model); Alex (rigger),Hip harness,floor; practice,"Went well. Notes can have commas, in quotes."
+date,title,type,duration,rating,location,latitude,longitude,people,plans,tags,notes
+2026-10-12,Floor practice,floor,45,4,Studio,47.6062,-122.3321,Sam (model); Alex (rigger),Hip harness,floor; practice,"Went well. Notes can have commas, in quotes."

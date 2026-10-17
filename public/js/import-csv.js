@@ -9,6 +9,9 @@
 //   duration  minutes
 //   rating    1 to 5
 //   location  a name
+//   latitude, longitude  the location's coordinates (optional; both or
+//             neither). Given once for a location is enough; giving it
+//             different ones on another row is an error.
 //   people    Sam (model); Alex (rigger)
 //   plans     plan titles, separated by ;
 //   tags      separated by ;
@@ -27,12 +30,14 @@ const COLUMNS = /** @type {const} */ ({
   duration: "duration", duration_minutes: "duration", minutes: "duration",
   rating: "rating", success_rating: "rating",
   location: "location",
+  latitude: "latitude", lat: "latitude",
+  longitude: "longitude", lng: "longitude", long: "longitude", lon: "longitude",
   people: "people", participants: "people",
   plans: "plans", plan: "plans",
   tags: "tags",
   notes: "notes",
 });
-const KNOWN = "date, title, type, duration, rating, location, people, plans, tags, notes";
+const KNOWN = "date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes";
 const MAX_ERRORS = 20;
 
 /**
@@ -94,6 +99,7 @@ function rowToTie(get, { people, locations, plans }) {
   if (date !== null && !isDate(date)) throw new Error(`Write the date as year-month-day, like 2026-10-12 (not "${date}").`);
   const title = get.title || null;
   if (!date) throw new Error("Add a date.");
+  if (!get.location && (get.latitude || get.longitude)) throw new Error("Add a location for the latitude and longitude.");
   return {
     title,
     tie_date: date,
@@ -101,7 +107,7 @@ function rowToTie(get, { people, locations, plans }) {
     duration_minutes: wholeNumber(get.duration, 0, 1440, "The duration"),
     success_rating: wholeNumber(get.rating, 1, 5, "The rating"),
     notes: get.notes || null,
-    location_id: get.location ? locations.id(get.location) : null,
+    location_id: get.location ? locations.id(get.location, coords(get)) : null,
     participants: list(get.people).map((entry) => {
       const m = entry.match(/^(.+?)\s*\(\s*([^()]+?)\s*\)$/);
       if (!m) throw new Error(`Give ${entry} a role, like "${entry} (model)".`);
@@ -122,25 +128,65 @@ class Names {
   /** @param {string} prefix */
   constructor(prefix) {
     this.prefix = prefix;
-    /** @type {Map<string, { id: string, name: string }>} */
+    /** @type {Map<string, { id: string, name: string, coords: Coords | null }>} */
     this.byKey = new Map();
   }
 
-  /** @param {string} name */
-  id(name) {
+  /**
+   * @param {string} name
+   * @param {Coords | null} [coords] a location's, if this row gives them
+   */
+  id(name, coords = null) {
     const key = tagKey(name);
     let entry = this.byKey.get(key);
     if (!entry) {
-      entry = { id: `${this.prefix}-${this.byKey.size + 1}`, name };
+      entry = { id: `${this.prefix}-${this.byKey.size + 1}`, name, coords };
       this.byKey.set(key, entry);
+    } else if (coords) {
+      if (!entry.coords) entry.coords = coords;
+      else if (entry.coords.latitude !== coords.latitude || entry.coords.longitude !== coords.longitude) {
+        throw new Error(`${entry.name} already has different coordinates on an earlier row.`);
+      }
     }
     return entry.id;
   }
 
   /** @param {"name" | "title"} label what the import calls the name */
   list(label) {
-    return [...this.byKey.values()].map((e) => ({ id: e.id, [label]: e.name }));
+    return [...this.byKey.values()].map((e) => ({ id: e.id, [label]: e.name, ...e.coords }));
   }
+}
+
+/**
+ * @typedef {{ latitude: number, longitude: number }} Coords
+ */
+
+/**
+ * The row's coordinates, null if it has none. Same limits as the location
+ * form (src/resources/config.js).
+ * @param {Record<string, string>} get
+ * @returns {Coords | null}
+ */
+function coords(get) {
+  if (!get.latitude && !get.longitude) return null;
+  if (!get.latitude || !get.longitude) throw new Error("Give both a latitude and a longitude, or neither.");
+  return {
+    latitude: number(get.latitude, -90, 90, "The latitude", "47.6062"),
+    longitude: number(get.longitude, -180, 180, "The longitude", "-122.3321"),
+  };
+}
+
+/**
+ * @param {string} cell
+ * @param {number} min
+ * @param {number} max
+ * @param {string} what
+ * @param {string} example
+ */
+function number(cell, min, max, what, example) {
+  const n = Number(cell);
+  if (!Number.isFinite(n) || n < min || n > max) throw new Error(`${what} should be a number from ${min} to ${max}, like ${example}.`);
+  return n;
 }
 
 /** @param {string | undefined} cell */

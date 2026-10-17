@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
+import template from "../../public/import-template.csv?raw";
 import { readExport, remapTies, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
 
 describe("parseCsv", () => {
@@ -91,10 +92,63 @@ describe("csvToImport", () => {
 
   it("refuses unknown columns and files without headings or ties", () => {
     expect(csvToImport([["date", "titel"], ["2026-10-12", "x"]]).errors)
-      .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, people, plans, tags, notes."]);
+      .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes."]);
     expect(csvToImport([["2026-10-12", "Floor"]]).errors[0]).toMatch("needs the column names");
     expect(csvToImport([["title"], ["Floor"]]).errors).toEqual(["The first row needs the column names, with a date column."]);
     expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
+  });
+
+  it("puts latitude and longitude on the row's location, once", () => {
+    const { doc, errors } = csvToImport([
+      ["date", "location", "Lat", "Long"],
+      ["2026-10-12", "Gas Works", "47.6456", "-122.3344"],
+      ["2026-10-13", "gas works", "", ""],
+      ["2026-10-14", "Studio", "", ""],
+      ["2026-10-15", "studio", "41.9", "-87.6"],
+      ["2026-10-16", "Gas Works", "47.6456", "-122.3344"],
+    ]);
+    expect(errors).toEqual([]);
+    expect(doc.locations).toEqual([
+      { id: "location-1", name: "Gas Works", latitude: 47.6456, longitude: -122.3344 },
+      { id: "location-2", name: "Studio", latitude: 41.9, longitude: -87.6 },
+    ]);
+    expect(doc.ties.map((t) => t.location_id)).toEqual(["location-1", "location-1", "location-2", "location-2", "location-1"]);
+  });
+
+  it("accepts lng and lon, and leaves locations without coordinates as they were", () => {
+    expect(csvToImport([["date", "location", "latitude", "lng"], ["2026-10-12", "A", "1", "2"]]).doc.locations)
+      .toEqual([{ id: "location-1", name: "A", latitude: 1, longitude: 2 }]);
+    expect(csvToImport([["date", "location", "latitude", "lon"], ["2026-10-12", "A", "", ""]]).doc.locations)
+      .toEqual([{ id: "location-1", name: "A" }]);
+  });
+
+  it("names the row of each coordinate problem", () => {
+    const { errors } = csvToImport([
+      ["date", "location", "latitude", "longitude"],
+      ["2026-10-12", "A", "47.6", ""],
+      ["2026-10-12", "A", "", "-122.3"],
+      ["2026-10-12", "A", "north", "-122.3"],
+      ["2026-10-12", "A", "91", "0"],
+      ["2026-10-12", "A", "0", "-180.5"],
+      ["2026-10-12", "", "47.6", "-122.3"],
+      ["2026-10-12", "B", "1", "2"],
+      ["2026-10-12", "b", "1", "3"],
+    ]);
+    expect(errors).toEqual([
+      "Row 2: Give both a latitude and a longitude, or neither.",
+      "Row 3: Give both a latitude and a longitude, or neither.",
+      "Row 4: The latitude should be a number from -90 to 90, like 47.6062.",
+      "Row 5: The latitude should be a number from -90 to 90, like 47.6062.",
+      "Row 6: The longitude should be a number from -180 to 180, like -122.3321.",
+      "Row 7: Add a location for the latitude and longitude.",
+      "Row 9: B already has different coordinates on an earlier row.",
+    ]);
+  });
+
+  it("reads the downloadable template", () => {
+    const { doc, errors } = csvToImport(parseCsv(template));
+    expect(errors).toEqual([]);
+    expect(doc.locations[0]).toMatchObject({ latitude: 47.6062, longitude: -122.3321 });
   });
 
   it("stops listing problems after 20", () => {

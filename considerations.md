@@ -229,8 +229,14 @@ Each step leaves the app working and shippable on its own.
   machine if that's easy to forget. The plaintext backups from earlier
   migrations were deleted (2026-10-13).
 - **Import**: from an export, or a CSV of ties (one per row:
-  date, title, type, duration, rating, location, people as `Sam (model); Alex
-  (rigger)`, plans, tags, notes; `/import-template.csv`). Decided:
+  date, title, type, duration, rating, location, latitude, longitude, people
+  as `Sam (model); Alex (rigger)`, plans, tags, notes;
+  `/import-template.csv`). Decided:
+  - **Coordinates are the location's**, so latitude and longitude (both or
+    neither, the location form's limits) go with a row's location. Giving
+    them on one row is enough; a different pair for the same name later is
+    an error, not a silent pick. Like any matched item, a location already
+    in the journal keeps its own coordinates. (Added 2026-10-17.)
   - **CSV is ties only.** People, locations and plans named in it that the
     journal doesn't have are created.
   - **Matched by name**, ignoring capitals (exact spelling first, active
