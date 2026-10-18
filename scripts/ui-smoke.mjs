@@ -1349,10 +1349,12 @@ try {
     const classes = [...document.querySelectorAll("#tie-count-chart .bar:not(.empty) rect, #partner-chart rect")].map((r) => r.getAttribute("class"));
     set("#role", "all"); await wait(1000);
     return classes.every((c) => c === "c-grey");`), true);
-  check("so does tapping a partner and a pie's legend", await run(`
-    $("#partner-chart .partner-row").click(); await wait(1000); const partner = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
-    $("#type-chart .legend-row").click(); await wait(1000); const typeShown = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
-    return [partner, typeShown];`), [true, true]);
+  check("so does tapping a partner (if any tie with me as top, bottom or self tie had one), a pie's legend and a location", await run(`
+    // Lists the ties behind a row, then closes the list: whether any were shown.
+    const opens = async (sel) => { $(sel).click(); await wait(1000); const shown = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200); return shown; };
+    const partner = $("#partner-chart .partner-row") ? await opens("#partner-chart .partner-row")
+      : $("#partner-chart .empty")?.textContent === "No partners in this period.";
+    return [partner, await opens("#type-chart .legend-row"), await opens("#location-chart .rank-row")];`), [true, true, true]);
 
   console.log("Notices and policy changes");
   const myId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
