@@ -486,8 +486,12 @@ try {
   check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
     $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await wait(1200);
     const saved = [$(".settings-dialog") === null, await (await fetch("/api/account/settings")).json()];
-    $(".nav-add").click(); await wait(800);
-    const tieRoles = [...document.querySelectorAll("dialog .role option")].map((o) => o.textContent);
+    // Saving redraws the view, which closes any dialog: wait for it to finish
+    // before opening the tie form, then for the form's first role box.
+    await wait(1500);
+    $(".nav-add").click();
+    for (let i = 0; i < 50 && !document.querySelector("dialog[open] .role"); i++) await wait(100);
+    const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
     $(".dialog-cancel").click(); await wait(300);
     return [saved, tieRoles];`),
     [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light" }],
@@ -668,7 +672,7 @@ try {
     return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
       document.querySelectorAll(".hank-button.filled").length + "/" + document.querySelectorAll(".hank-button").length,
       leakyFields()];`),
-    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["Not set", "Suspension", "Partial suspension", "Floor"], "0/5", []]);
+    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["Not set", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
   // Sorted: these were all added within the same second, so "newest" ties.
   check("people and plans pickers list the active ones", await run(`
     const person = lastBox("#tie-participants"), plan = lastBox("#tie-plans");
