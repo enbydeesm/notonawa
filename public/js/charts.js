@@ -12,25 +12,19 @@
 import { h } from "./dom.js";
 import { percent } from "./stats.js";
 import { roleName } from "./roles.js";
+import { SEGMENT_COLORS, describeParts, tiesWord } from "./chart-parts.js";
+
+export { TYPE_COLORS } from "./chart-parts.js";
 
 /**
  * @typedef {import("./stats-period.js").Bucket} Bucket
  * @typedef {import("./stats.js").Slice} Slice
  * @typedef {import("./stats.js").Segment} Segment
- * @typedef {{ key: Segment, count: number, tieIds: string[] }} Part
+ * @typedef {import("./chart-parts.js").Part} Part
  * @typedef {{ key: string, label: string, title: string, count: number, tieIds: string[], segments?: Part[] }} Bar
  */
 
 const SVG = "http://www.w3.org/2000/svg";
-
-/** The color of each part of a role-colored bar. */
-export const SEGMENT_COLORS = /** @type {Record<Segment, string>} */ ({
-  top: "c-yellow", bottom: "c-purple", "self tie": "c-teal", other: "c-grey",
-});
-/** The tie types' colors in the pie chart ("none": no type set). */
-export const TYPE_COLORS = /** @type {Record<string, string>} */ ({
-  suspension: "c-yellow", "partial suspension": "c-purple", floor: "c-teal", hashira: "c-coral", none: "c-grey",
-});
 
 /**
  * @param {string} tag
@@ -43,22 +37,6 @@ function svg(tag, attrs, ...children) {
   for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
   el.append(...children);
   return el;
-}
-
-/** @param {number} n */
-const tiesWord = (n) => (n === 1 ? "1 tie" : `${n} ties`);
-
-/**
- * "13 ties, 7 as top, 6 as bottom" (or "3 ties, as top"): a bar's count
- * and its parts, in words. A grey part ("other") isn't spelled out: it's
- * every tie.
- * @param {{ count: number, segments?: Part[] }} bar
- */
-export function describeParts(bar) {
-  const parts = (bar.segments ?? []).filter((part) => part.key !== "other");
-  if (!parts.length) return tiesWord(bar.count);
-  if (parts.length === 1) return `${tiesWord(bar.count)}, as ${roleName(parts[0].key)}`;
-  return [tiesWord(bar.count), ...parts.map((part) => `${part.count} as ${roleName(part.key)}`)].join(", ");
 }
 
 /**

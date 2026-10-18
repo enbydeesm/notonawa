@@ -1,6 +1,6 @@
-// What the charts say about a bar, in words (public/js/charts.js). No DOM needed.
+// What the charts say about a bar, in words (public/js/chart-parts.js). No DOM needed.
 import { describe, it, expect, afterEach } from "vitest";
-import { describeParts, SEGMENT_COLORS, TYPE_COLORS } from "../../public/js/charts.js";
+import { describeParts, SEGMENT_COLORS, TYPE_COLORS } from "../../public/js/chart-parts.js";
 import { setRoleNames } from "../../public/js/roles.js";
 import { TIE_TYPES } from "../../public/js/ties-view.js";
 

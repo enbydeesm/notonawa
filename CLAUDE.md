@@ -186,7 +186,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `stats.js` and `stats-period.js` (pure: the analytics' numbers, and its
   periods and bars; `roleChartTies` and `withSegments` split the tie count
   and partner bars by my role), `charts.js` (bar, partner, location and pie
-  charts as SVG; bars, rows and slices are buttons), `tie-card.js` (a tie as a card, shared by the
+  charts as SVG; bars, rows and slices are buttons) and `chart-parts.js`
+  (pure: their colors and what a bar says in words), `tie-card.js` (a tie as a card, shared by the
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
   `resource-page.js` (list/edit pages), `list-tools.js` and `list-order.js`
