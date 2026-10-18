@@ -489,7 +489,9 @@ try {
     // Saving redraws the view, which closes any dialog: wait for it to finish
     // before opening the tie form, then for the form's first role box.
     await wait(1500);
-    $(".nav-add").click();
+    $(".nav-add").click(); await wait(600);
+    // A person row (with its role box) appears once one is added.
+    $("#tie-add-participant").click();
     for (let i = 0; i < 50 && !document.querySelector("dialog[open] .role"); i++) await wait(100);
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
     $(".dialog-cancel").click(); await wait(300);
