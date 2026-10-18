@@ -3,12 +3,11 @@
 import { h, $ } from "../dom.js";
 import { confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
-import { capitalise } from "../format.js";
-import { ROLES } from "../ties-view.js";
+import { roleName, roleOptions } from "../roles.js";
 
 export function mount() {
   // Filled in when they're added to a tie (still changeable there).
-  $("#default_role").append(...ROLES.map((role) => h("option", { value: role }, capitalise(role))));
+  $("#default_role").append(...roleOptions().map((r) => h("option", { value: r.value }, r.label)));
 
   setupResourcePage({
     resource: "people",
@@ -30,7 +29,7 @@ export function mount() {
         person.is_self ? h("span", { className: "badge" }, "You") : null),
       person.pronouns || person.default_role
         ? h("div", { className: "item-meta" },
-          [person.pronouns, person.default_role && `usually ${person.default_role}`].filter(Boolean).join(" · "))
+          [person.pronouns, person.default_role && `usually ${roleName(person.default_role)}`].filter(Boolean).join(" · "))
         : null,
       person.notes ? h("div", { className: "item-notes" }, person.notes) : null,
     ],

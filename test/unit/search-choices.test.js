@@ -79,14 +79,14 @@ describe("addOffer", () => {
 describe("pickerSource", () => {
   it("splits active from archived, names plans by title, and labels me", () => {
     const rows = [
-      { id: "p1", name: "Sam", is_self: 0, default_role: "model", archived_at: null, created_at: "t1" },
+      { id: "p1", name: "Sam", is_self: 0, default_role: "bottom", archived_at: null, created_at: "t1" },
       { id: "p2", name: "Me", is_self: 1, archived_at: null, created_at: "t2" },
       { id: "p3", name: "Alex", is_self: 0, archived_at: "2026-01-01T00:00:00Z", created_at: "t3" },
       { id: "pl", title: "Hip harness", archived_at: null, created_at: "t4" },
     ];
     expect(pickerSource(rows, ["p2"])).toEqual({
       active: [
-        { id: "p1", name: "Sam", created_at: "t1", defaultRole: "model" },
+        { id: "p1", name: "Sam", created_at: "t1", defaultRole: "bottom" },
         { id: "p2", name: "Me", label: "Me (you)", isSelf: true, created_at: "t2" },
         { id: "pl", name: "Hip harness", created_at: "t4" },
       ],

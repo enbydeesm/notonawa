@@ -41,6 +41,21 @@ export function readExport(data) {
 }
 
 /**
+ * The role names an export was made with (account.settings), or null if it
+ * has none (older exports, CSVs).
+ * @param {unknown} data the export, read as JSON
+ * @returns {{ top_label: string | null, bottom_label: string | null } | null}
+ */
+export function exportRoleNames(data) {
+  const settings = /** @type {Record<string, any>} */ (data)?.account?.settings;
+  if (!settings || typeof settings !== "object") return null;
+  /** @param {unknown} v */
+  const text = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const names = { top_label: text(settings.top_label), bottom_label: text(settings.bottom_label) };
+  return names.top_label || names.bottom_label ? names : null;
+}
+
+/**
  * The first request's body.
  * @param {ImportDoc} doc
  * @param {boolean} preview

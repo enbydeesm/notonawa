@@ -6,15 +6,17 @@
 // stats-period.js do the counting here. Tapping a bar, partner or slice
 // lists the ties behind it (tie-list-dialog.js).
 
+import { roleName, roleOptions } from "../roles.js";
 import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { hankIcon } from "../rope-rating.js";
-import { barChart, partnerBars, pieChart, stat } from "../charts.js";
+import { barChart, partnerBars, pieChart, rankBars, roleKey, stat, TYPE_COLORS } from "../charts.js";
 import { openTieList } from "../tie-list-dialog.js";
 import {
   summarize, topPartners, typeShares, weekdayShares, locationShares, percent, formatTotalTime, tieListHeading,
+  roleChartTies, withSegments, SEGMENTS,
 } from "../stats.js";
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
@@ -26,16 +28,18 @@ import {
  * @typedef {{ person_ids: string[], location_ids: string[], tag_ids: string[] }} MoreFilters
  */
 
-/** The role filter: Self's role on the tie (src/stats/parse.js has the same names). */
-const ROLE_CHOICES = [
-  { value: "all", label: "All roles" },
-  { value: "top", label: "As top / rigger" },
-  { value: "bottom", label: "As bottom / model" },
-  { value: "spotter", label: "As spotter" },
-  { value: "photographer", label: "As photographer" },
-];
+/**
+ * The role filter: my role on the tie, as I call it (src/stats/parse.js
+ * has the same values; self tie is self_tie there).
+ */
+function roleChoices() {
+  return [
+    { value: "all", label: "All roles" },
+    ...roleOptions().map((r) => ({ value: r.value.replace(" ", "_"), label: `As ${roleName(r.value)}` })),
+  ];
+}
 const TOP_PARTNERS = 10;
-const TOP_LOCATIONS = 4;
+const TOP_LOCATIONS = 9;
 /** @type {MoreFilters} */
 const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [] };
 
@@ -68,7 +72,7 @@ export function mount(_root, _context) {
   periodSelect.replaceChildren(...PERIODS.map((p) => h("option", { value: p.value }, p.label)));
   /** @type {HTMLSelectElement} */
   const roleSelect = $("#role");
-  roleSelect.replaceChildren(...ROLE_CHOICES.map((r) => h("option", { value: r.value }, r.label)));
+  roleSelect.replaceChildren(...roleChoices().map((r) => h("option", { value: r.value }, r.label)));
   /** @type {HTMLInputElement} */
   const fromInput = $("#insights-from");
   /** @type {HTMLInputElement} */
@@ -143,15 +147,14 @@ export function mount(_root, _context) {
     const s = summarize(ties);
     $("#insights-stats").replaceChildren(
       // Down the left column, then the right (.stat-pairs fills columns).
-      // The top and bottom labels break onto two lines, the same in both.
       stat("Ties", String(s.ties)),
       stat("Partners", String(s.partners)),
       stat("Locations", String(s.locations)),
-      stat("As top /\nrigger", String(s.asTop), `${percent(s.asTop, s.ties)}%`),
+      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
       stat("Time (total)", formatTotalTime(s.minutes)),
       stat("Time (avg)", s.avgMinutes === null ? "–" : `${s.avgMinutes}m`),
       ratingStat(s.avgRating),
-      stat("As bottom /\nmodel", String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
+      stat(`As ${roleName("bottom")}`, String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
 
     const empty = () => h("p", { className: "empty" }, "No ties in this period.");
     const span = chartSpan(periodRange(period, today), ties, today);
@@ -159,13 +162,27 @@ export function mount(_root, _context) {
     const per = unit === "day" ? "day" : unit === "month" ? "month" : "year";
     /** @param {{ label: string, tieIds: string[] }} slice */
     const pick = (slice) => showTies(slice.label, slice.tieIds);
-    $("#tie-count-chart").replaceChildren(ties.length
-      ? barChart(buckets(unit, span, ties), `Ties each ${per}`, (bar) => showTies(bar.title, bar.tieIds)) : empty());
-    const partners = topPartners(ties, TOP_PARTNERS);
-    $("#partner-chart").replaceChildren(partners.length ? partnerBars(partners, pick) : h("p", { className: "empty" }, "No partners in this period."));
-    $("#type-chart").replaceChildren(ties.length ? pieChart(typeShares(ties), "Ties by type", pick) : empty());
-    $("#weekday-chart").replaceChildren(ties.length ? pieChart(weekdayShares(ties), "Ties by day of the week", pick) : empty());
-    $("#location-chart").replaceChildren(ties.length ? pieChart(locationShares(ties, TOP_LOCATIONS), "Ties by location", pick) : empty());
+
+    // Tie count and partners: split by my role (or grey, with the filter on
+    // spotter or photographer), counting only ties where I was in one.
+    const byRole = roleChartTies(ties, role);
+    const countBars = withSegments(buckets(unit, span, byRole.ties), byRole.ties, byRole.segmentOf);
+    const shownParts = SEGMENTS.filter((key) => countBars.some((bar) => bar.segments.some((part) => part.key === key)));
+    const noRoleTies = () => h("p", { className: "empty" },
+      `No ties as ${roleName("top")}, ${roleName("bottom")} or self tie in this period.`);
+    $("#tie-count-chart").replaceChildren(...(byRole.ties.length
+      ? [roleKey(shownParts), barChart(countBars, `Ties each ${per}`, (bar) => showTies(bar.title, bar.tieIds))]
+      : [ties.length ? noRoleTies() : empty()]));
+    const partners = withSegments(topPartners(byRole.ties, TOP_PARTNERS), byRole.ties, byRole.segmentOf);
+    $("#partner-chart").replaceChildren(...(partners.length
+      ? [roleKey(shownParts), partnerBars(partners, pick)]
+      : [h("p", { className: "empty" }, "No partners in this period.")]));
+
+    $("#type-chart").replaceChildren(ties.length
+      ? pieChart(typeShares(ties), "Ties by type", pick, (slice) => TYPE_COLORS[slice.key] ?? "c-grey") : empty());
+    $("#weekday-chart").replaceChildren(ties.length
+      ? barChart(weekdayShares(ties).map((day) => ({ ...day, title: day.label })), "Ties by day of the week", pick) : empty());
+    $("#location-chart").replaceChildren(ties.length ? rankBars(locationShares(ties, TOP_LOCATIONS), "Ties by location", pick) : empty());
   }
 
   /** @param {number | null} rating */

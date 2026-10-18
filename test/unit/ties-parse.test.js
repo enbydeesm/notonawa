@@ -11,7 +11,7 @@ describe("parseTieInput", () => {
       success_rating: "4",
       notes: "",
       location_id: "loc1",
-      participants: [{ person_id: "p1", role: "rigger" }],
+      participants: [{ person_id: "p1", role: "top" }],
       plan_ids: ["pl1"],
       tags: ["Futomomo"],
     })).toEqual({
@@ -22,7 +22,7 @@ describe("parseTieInput", () => {
       success_rating: 4,
       notes: null,
       location_id: "loc1",
-      participants: [{ person_id: "p1", role: "rigger" }],
+      participants: [{ person_id: "p1", role: "top" }],
       plan_ids: ["pl1"],
       tags: ["Futomomo"],
     });
@@ -46,7 +46,8 @@ describe("parseTieInput", () => {
     expect(parseTieInput(dated).tie_type).toBeNull();
     expect(parseTieInput({ ...dated, tie_type: "" }).tie_type).toBeNull();
     expect(parseTieInput({ ...dated, tie_type: "floor" }).tie_type).toBe("floor");
-    expect(() => parseTieInput({ title: "x", tie_type: "hanging" })).toThrow("Expected one of: suspension, partial suspension, floor.");
+    expect(parseTieInput({ ...dated, tie_type: "hashira" }).tie_type).toBe("hashira");
+    expect(() => parseTieInput({ title: "x", tie_type: "hanging" })).toThrow("Expected one of: suspension, partial suspension, floor, hashira.");
   });
 
   it("rejects ratings and durations out of range", () => {
@@ -62,24 +63,37 @@ describe("parseParticipants", () => {
 
   it("needs a person and a known role for each", () => {
     expect(() => parseParticipants([{ person_id: "p1" }])).toThrow("needs a person and a role");
-    expect(() => parseParticipants([{ role: "model" }])).toThrow("needs a person and a role");
+    expect(() => parseParticipants([{ role: "bottom" }])).toThrow("needs a person and a role");
     expect(() => parseParticipants([{ person_id: "p1", role: "chef" }])).toThrow("Expected one of");
   });
 
   it("keeps one of the same person in the same role, but allows different roles", () => {
     expect(parseParticipants([
-      { person_id: "p1", role: "model" },
-      { person_id: "p1", role: "model" },
+      { person_id: "p1", role: "bottom" },
+      { person_id: "p1", role: "bottom" },
       { person_id: "p1", role: "photographer" },
     ])).toEqual([
-      { person_id: "p1", role: "model" },
+      { person_id: "p1", role: "bottom" },
       { person_id: "p1", role: "photographer" },
+    ]);
+  });
+
+  it("reads rigger and model (from before migration 0013) as top and bottom, and takes self tie", () => {
+    expect(parseParticipants([
+      { person_id: "p1", role: "rigger" },
+      { person_id: "p1", role: "top" },
+      { person_id: "p2", role: "model" },
+      { person_id: "p3", role: "self tie" },
+    ])).toEqual([
+      { person_id: "p1", role: "top" },
+      { person_id: "p2", role: "bottom" },
+      { person_id: "p3", role: "self tie" },
     ]);
   });
 
   it("rejects non-lists and more than 20 people", () => {
     expect(() => parseParticipants("p1")).toThrow("up to 20");
-    expect(() => parseParticipants(Array(21).fill({ person_id: "p", role: "model" }))).toThrow("up to 20");
+    expect(() => parseParticipants(Array(21).fill({ person_id: "p", role: "bottom" }))).toThrow("up to 20");
   });
 });
 

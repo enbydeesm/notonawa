@@ -9,33 +9,23 @@
   --line: #e4dfd8; --accent: #fec762; --accent-text: #222; --accent-ink: #8a5a00;
   --error: #b00020;
   --danger: #b00020; --danger-text: #fff;
-  /* The analytics' chart colors: --chart-1 is the bars, all seven are the
-     pie slices in turn. Told apart by lightness as well as hue. */
-  --chart-1: #c88a10; --chart-2: #3f73c8; --chart-3: #d0674f; --chart-4: #3f8f78;
-  --chart-5: #8b7fc0; --chart-6: #b9b2a6; --chart-7: #5f5a54;
+  /* The analytics' chart colors, the same in both modes (only the grey
+     differs): yellow for top and plain bars, purple for bottom, teal for
+     self tie; the tie types use them too, plus coral for hashira. Yellow
+     and purple differ in lightness as well as hue. */
+  --chart-yellow: #fec762; --chart-purple: #7e51a2; --chart-teal: #248686; --chart-coral: #e07a5f;
+  --chart-grey: #b9b2a6;
 }
-/* Dark mode: when the device is dark, unless light was picked in the menu,
-   or whenever dark was picked (data-theme is set by theme-init.js and
-   nav.js). The two blocks must match. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #161514; --card: #201f1d; --text: #eee; --muted: #a09a93;
-    --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
-    --error: #ff6b81;
-    --danger: #ff6b81; --danger-text: #161514;
-    --chart-1: #fec762; --chart-2: #6f9cf0; --chart-3: #e98a72; --chart-4: #6fbca5;
-    --chart-5: #a69be0; --chart-6: #8e877d; --chart-7: #57524c;
-  }
-}
+/* Dark mode: the account's choice, dark unless light was picked in Settings
+   (data-theme is set by theme-init.js before the page draws, then by
+   settings.js). Without data-theme (no script), the light colors above. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #161514; --card: #201f1d; --text: #eee; --muted: #a09a93;
   --line: #34312d; --accent: #fec762; --accent-text: #161514; --accent-ink: #fec762;
   --error: #ff6b81;
   --danger: #ff6b81; --danger-text: #161514;
-  --chart-1: #fec762; --chart-2: #6f9cf0; --chart-3: #e98a72; --chart-4: #6fbca5;
-  --chart-5: #a69be0; --chart-6: #8e877d; --chart-7: #57524c;
+  --chart-grey: #8e877d;
 }
 * { box-sizing: border-box; }
 body {
@@ -222,6 +212,27 @@ dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 }
 .menu-item svg { flex: none; width: 24px; height: 24px; }
 .menu-item[aria-current="page"] span { font-weight: 600; border-bottom: 2px solid var(--accent); }
+.menu-message:empty { display: none; }
+
+/* Settings: the light/dark switch on its own row, then the role names. */
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-row label { margin: 0; color: var(--text); font-size: 1rem; }
+.settings-heading { margin: 20px 0 0; font-size: 1rem; }
+.settings-form .message:empty { display: none; }
+/* An on/off switch: a pill with a knob, filled with the accent when on. */
+button.switch { flex: none; padding: 4px; border: none; border-radius: 999px; }
+.switch-track {
+  display: block; width: 44px; height: 26px; padding: 3px; border-radius: 999px;
+  background: var(--line); transition: background 0.15s;
+}
+.switch-knob {
+  display: block; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); transition: transform 0.15s;
+}
+.switch[aria-checked="true"] .switch-track { background: var(--accent); }
+.switch[aria-checked="true"] .switch-knob { transform: translateX(18px); }
+.switch:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .switch-track, .switch-knob { transition: none; } }
 
 /* A recovery code, shown once: big, easy to read and select. */
 .recovery-code {
@@ -499,27 +510,43 @@ dialog.form-dialog {
 
 /* Charts. */
 .bar-chart { display: block; width: 100%; height: auto; overflow: visible; }
-.bar-chart .bar rect { fill: var(--chart-1); }
 .bar-chart .bar.empty rect { fill: var(--line); }
 .bar-chart text { fill: var(--muted); font-size: 9px; text-anchor: middle; }
 .bar-chart .bar-value { fill: var(--text); font-weight: 600; }
 
 .partner-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .partner-bar svg { display: block; width: 100%; height: 16px; }
-.partner-bar rect { fill: var(--chart-1); }
+
 .partner-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
 .partner-count { color: var(--muted); font-size: 0.9rem; text-align: right; }
 
 .pie-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .pie { flex: none; width: 104px; height: 104px; }
-.pie .slice { fill: var(--c); stroke: var(--card); stroke-width: 0.02; }
+.pie .slice { stroke: var(--card); stroke-width: 0.02; }
 .pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.85rem; flex: 1; min-width: 10rem; }
 .swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
 .legend-name { overflow-wrap: anywhere; line-height: 1.25; }
 .legend-count { color: var(--muted); white-space: nowrap; }
-.chart-1 { --c: var(--chart-1); } .chart-2 { --c: var(--chart-2); } .chart-3 { --c: var(--chart-3); }
-.chart-4 { --c: var(--chart-4); } .chart-5 { --c: var(--chart-5); } .chart-6 { --c: var(--chart-6); }
-.chart-7 { --c: var(--chart-7); }
+/* A chart color: the bar or slice is filled with it, a swatch's background is it. */
+.c-yellow { --c: var(--chart-yellow); } .c-purple { --c: var(--chart-purple); } .c-teal { --c: var(--chart-teal); }
+.c-coral { --c: var(--chart-coral); } .c-grey { --c: var(--chart-grey); }
+:is(.c-yellow, .c-purple, .c-teal, .c-coral, .c-grey):is(rect, path, circle) { fill: var(--c); }
+/* The role-colored charts' key, under their headings. */
+.chart-key { list-style: none; margin: -4px 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--muted); }
+.chart-key li { display: flex; align-items: center; gap: 5px; }
+.chart-key .swatch { width: 10px; height: 10px; }
+/* Locations: the name right-aligned on the left, then the bar with its count just after. */
+.rank-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rank-row {
+  width: 100%; padding: 2px 0; border: none; border-radius: 6px; background: transparent;
+  color: inherit; font: inherit; font-weight: 400;
+  display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr); align-items: center; gap: 10px;
+}
+.rank-row:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 0.9rem; }
+.rank-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rank-bar { flex: none; display: block; height: 18px; }
+.rank-count { flex: none; color: var(--muted); font-size: 0.85rem; }
 /* Days of the week and locations side by side when there's room. */
 .pie-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 16px; }
 

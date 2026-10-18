@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   summarize, topPartners, typeShares, weekdayShares, locationShares, tiesByDay, percent, formatTotalTime, tieListHeading,
+  myRole, roleChartTies, withSegments,
 } from "../../public/js/stats.js";
 
 /** @typedef {import("../../public/js/stats.js").StatsTie} StatsTie */
@@ -26,11 +27,11 @@ describe("summarize", () => {
   it("counts ties, partners, locations, days, roles, time and rating", () => {
     const ties = [
       tie("1", { tie_date: "2026-10-01", location_id: "studio", duration_minutes: 60, success_rating: 5,
-        participants: [{ ...ME, role: "rigger" }, person("sam", "Sam", "model"), person("pat", "Pat", "photographer")] }),
+        participants: [{ ...ME, role: "top" }, person("sam", "Sam", "bottom"), person("pat", "Pat", "photographer")] }),
       tie("2", { tie_date: "2026-10-01", location_id: "studio", duration_minutes: 90, success_rating: 4,
         participants: [{ ...ME, role: "bottom" }, person("sam", "Sam", "top")] }),
       tie("3", { tie_date: "2026-10-05", location_id: "park",
-        participants: [{ ...ME, role: "spotter" }, person("alex", "Alex", "rigger"), person("kim", "Kim", "spotter")] }),
+        participants: [{ ...ME, role: "spotter" }, person("alex", "Alex", "top"), person("kim", "Kim", "spotter")] }),
     ];
     expect(summarize(ties)).toEqual({
       ties: 3, partners: 2, locations: 2, days: 2, asTop: 1, asBottom: 1,
@@ -48,12 +49,12 @@ describe("summarize", () => {
 describe("topPartners", () => {
   it("counts each partner once per tie, most first then by name, without me, spotters, photographers or the deleted", () => {
     const ties = [
-      tie("1", { participants: [{ ...ME, role: "top" }, person("sam", "Sam", "model"), person("sam", "Sam", "bottom")] }),
-      tie("2", { participants: [person("sam", "Sam", "model"), person("alex", "Alex", "rigger")] }),
-      tie("3", { participants: [person("bo", "Bo", "model"), person("kim", "Kim", "photographer")] }),
-      tie("4", { participants: [person("kim", "Kim", "spotter"), { person_id: null, person_name: null, is_self: false, role: "model" }] }),
+      tie("1", { participants: [{ ...ME, role: "top" }, person("sam", "Sam", "bottom"), person("sam", "Sam", "bottom")] }),
+      tie("2", { participants: [person("sam", "Sam", "bottom"), person("alex", "Alex", "top")] }),
+      tie("3", { participants: [person("bo", "Bo", "bottom"), person("kim", "Kim", "photographer")] }),
+      tie("4", { participants: [person("kim", "Kim", "spotter"), { person_id: null, person_name: null, is_self: false, role: "bottom" }] }),
       // Kim tying here counts, though Kim only spotted elsewhere.
-      tie("5", { participants: [person("kim", "Kim", "spotter"), person("kim", "Kim", "model")] }),
+      tie("5", { participants: [person("kim", "Kim", "spotter"), person("kim", "Kim", "bottom")] }),
     ];
     expect(topPartners(ties, 10)).toEqual([
       { key: "sam", label: "Sam", count: 2, tieIds: ["1", "2"] },
@@ -77,14 +78,59 @@ describe("typeShares", () => {
 });
 
 describe("weekdayShares", () => {
-  it("counts ties by weekday, busiest first, ties in week order", () => {
+  it("counts ties by weekday, every day from Sunday to Saturday", () => {
     const ties = [
       tie("1", { tie_date: "2026-10-03" }), // Saturday
       tie("2", { tie_date: "2026-10-10" }), // Saturday
       tie("3", { tie_date: "2026-10-05" }), // Monday
       tie("4", { tie_date: "2026-10-04" }), // Sunday
     ];
-    expect(weekdayShares(ties).map((s) => [s.label, s.count])).toEqual([["Sat", 2], ["Sun", 1], ["Mon", 1]]);
+    expect(weekdayShares(ties).map((s) => [s.label, s.count])).toEqual([
+      ["Sun", 1], ["Mon", 1], ["Tue", 0], ["Wed", 0], ["Thu", 0], ["Fri", 0], ["Sat", 2],
+    ]);
+    expect(weekdayShares(ties)[6].tieIds).toEqual(["1", "2"]);
+  });
+});
+
+describe("role-colored charts", () => {
+  const as = (/** @type {string} */ id, /** @type {string[]} */ roles) =>
+    tie(id, { participants: [...roles.map((role) => ({ ...ME, role })), person("sam", "Sam", "bottom")] });
+  const ties = [
+    as("1", ["top"]), as("2", ["bottom"]), as("3", ["self tie"]), as("4", ["spotter"]),
+    as("5", ["top", "bottom"]), as("6", ["photographer"]), tie("7", { participants: [person("sam", "Sam", "top")] }),
+  ];
+
+  it("know my role on a tie: a switch counts as top; spotting, photos or not being on it is none", () => {
+    expect(ties.map(myRole)).toEqual(["top", "bottom", "self tie", null, "top", null, null]);
+  });
+
+  it("count only top, bottom and self tie ties, by role", () => {
+    const { ties: counted, segmentOf } = roleChartTies(ties, "all");
+    expect(counted.map((t) => t.id)).toEqual(["1", "2", "3", "5"]);
+    expect(counted.map(segmentOf)).toEqual(["top", "bottom", "self tie", "top"]);
+    expect(roleChartTies(ties, "top").ties).toHaveLength(4);
+  });
+
+  it("count every tie, grey, with the filter on spotter or photographer", () => {
+    for (const filter of ["spotter", "photographer"]) {
+      const { ties: counted, segmentOf } = roleChartTies(ties, filter);
+      expect(counted).toHaveLength(7);
+      expect(new Set(counted.map(segmentOf))).toEqual(new Set(["other"]));
+    }
+  });
+
+  it("split each bar into its parts, in order, adding up to the bar", () => {
+    const { ties: counted, segmentOf } = roleChartTies(ties, "all");
+    const bars = [
+      { key: "a", count: 3, tieIds: ["3", "2", "1"] },
+      { key: "b", count: 1, tieIds: ["5"] },
+      { key: "c", count: 0, tieIds: [] },
+    ];
+    expect(withSegments(bars, counted, segmentOf).map((b) => b.segments)).toEqual([
+      [{ key: "top", count: 1, tieIds: ["1"] }, { key: "bottom", count: 1, tieIds: ["2"] }, { key: "self tie", count: 1, tieIds: ["3"] }],
+      [{ key: "top", count: 1, tieIds: ["5"] }],
+      [],
+    ]);
   });
 });
 

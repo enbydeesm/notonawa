@@ -17,8 +17,16 @@ import { capitalise } from "./format.js";
  */
 
 /** Self in one of these roles counts as a tie as top / as bottom. */
-export const TOP_ROLES = ["rigger", "top"];
-export const BOTTOM_ROLES = ["model", "bottom"];
+export const TOP_ROLES = ["top"];
+export const BOTTOM_ROLES = ["bottom"];
+/**
+ * The parts the role-colored charts split a bar into, in order: my role on
+ * the tie. "other" is only used when the role filter is spotter or
+ * photographer, where every bar is one grey part.
+ * @typedef {"top" | "bottom" | "self tie" | "other"} Segment
+ * @type {Segment[]}
+ */
+export const SEGMENTS = ["top", "bottom", "self tie", "other"];
 /** Someone only spotting or taking photos isn't counted as a partner. */
 export const NOT_PARTNER_ROLES = ["spotter", "photographer"];
 
@@ -31,6 +39,65 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  */
 function selfIn(tie, roles) {
   return tie.participants.some((p) => p.is_self && roles.includes(p.role));
+}
+
+/**
+ * My role on a tie for the role-colored charts: top, bottom or self tie;
+ * null if I was only spotting, taking photos, or not on it. A tie where I
+ * was both top and bottom (a switch) counts once, as top.
+ * @param {StatsTie} tie
+ * @returns {"top" | "bottom" | "self tie" | null}
+ */
+export function myRole(tie) {
+  if (selfIn(tie, TOP_ROLES)) return "top";
+  if (selfIn(tie, BOTTOM_ROLES)) return "bottom";
+  if (selfIn(tie, ["self tie"])) return "self tie";
+  return null;
+}
+
+/**
+ * The ties the role-colored charts count, and which part of a bar each is
+ * in. With the role filter on spotter or photographer, every tie (they're
+ * already only those) in one grey part; otherwise only the ties where I was
+ * top, bottom or self tie, by that role.
+ * @param {StatsTie[]} ties
+ * @param {string} roleFilter the Analytics role filter's value
+ * @returns {{ ties: StatsTie[], segmentOf: (tie: StatsTie) => Segment }}
+ */
+export function roleChartTies(ties, roleFilter) {
+  if (roleFilter === "spotter" || roleFilter === "photographer") {
+    return { ties, segmentOf: () => "other" };
+  }
+  return {
+    ties: ties.filter((tie) => myRole(tie) !== null),
+    segmentOf: (tie) => /** @type {Segment} */ (myRole(tie)),
+  };
+}
+
+/**
+ * Splits each bar (or partner) into parts by segmentOf, in SEGMENTS order,
+ * keeping only parts with ties. The parts' counts add up to the bar's.
+ * @template {{ count: number, tieIds: string[] }} T
+ * @param {T[]} bars
+ * @param {StatsTie[]} ties
+ * @param {(tie: StatsTie) => Segment} segmentOf
+ * @returns {(T & { segments: { key: Segment, count: number, tieIds: string[] }[] })[]}
+ */
+export function withSegments(bars, ties, segmentOf) {
+  const byId = new Map(ties.map((tie) => [tie.id, tie]));
+  return bars.map((bar) => {
+    /** @type {Map<Segment, string[]>} */
+    const parts = new Map();
+    for (const id of bar.tieIds) {
+      const tie = byId.get(id);
+      if (!tie) continue;
+      const key = segmentOf(tie);
+      parts.set(key, [...(parts.get(key) ?? []), id]);
+    }
+    const segments = SEGMENTS.filter((key) => parts.has(key))
+      .map((key) => ({ key, count: /** @type {string[]} */ (parts.get(key)).length, tieIds: /** @type {string[]} */ (parts.get(key)) }));
+    return { ...bar, segments };
+  });
 }
 
 /**
@@ -121,7 +188,7 @@ export function typeShares(ties) {
 }
 
 /**
- * Ties by day of the week, busiest first. Only days with ties.
+ * Ties by day of the week, Sunday to Saturday, every day (for a bar each).
  * @param {StatsTie[]} ties
  * @returns {Slice[]}
  */
@@ -133,7 +200,7 @@ export function weekdayShares(ties) {
     slice.count++;
     slice.tieIds.push(tie.id);
   }
-  return byCount(slices.filter((s) => s.count > 0), true);
+  return slices;
 }
 
 /**
@@ -195,17 +262,12 @@ export function formatTotalTime(minutes) {
 }
 
 /**
- * Most first; ties broken by name (or, for the days of the week, kept in
- * week order).
+ * Most first; ties broken by name.
  * @param {Slice[]} slices
- * @param {boolean} [keepOrder]
  */
-function byCount(slices, keepOrder = false) {
-  return slices
-    .map((slice, i) => ({ slice, i }))
-    .sort((a, b) => b.slice.count - a.slice.count
-      || (keepOrder ? a.i - b.i : a.slice.label.localeCompare(b.slice.label, undefined, { sensitivity: "base" })))
-    .map(({ slice }) => slice);
+function byCount(slices) {
+  return [...slices].sort((a, b) => b.count - a.count
+    || a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 }
 
 /**

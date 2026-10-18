@@ -14,7 +14,7 @@ async function userWithPlainNotes() {
   await run("INSERT INTO locations (id, owner_id, name, notes) VALUES (?, ?, 'Studio', 'plain location')", `l-${id}`, id);
   await run("INSERT INTO plans (id, owner_id, title, description, notes) VALUES (?, ?, 'TK', 'plain steps', ?)", `pl-${id}`, id, sealed("already sealed"));
   await run("INSERT INTO ties (id, owner_id, title, tie_date, notes) VALUES (?, ?, 'Floor', '2026-01-01', 'plain tie')", `t-${id}`, id);
-  await run("INSERT INTO tie_participants (id, tie_id, person_id, role, notes) VALUES (?, ?, ?, 'model', 'plain part')", `tp-${id}`, `t-${id}`, `p-${id}`);
+  await run("INSERT INTO tie_participants (id, tie_id, person_id, role, notes) VALUES (?, ?, ?, 'bottom', 'plain part')", `tp-${id}`, `t-${id}`, `p-${id}`);
   // Already encrypted, or empty: not pending.
   await run("INSERT INTO ties (id, owner_id, title, tie_date, notes) VALUES (?, ?, 'Done', '2026-01-02', ?)", `t2-${id}`, id, sealed("done"));
   await run("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'Empty', '2026-01-03')", `t3-${id}`, id);

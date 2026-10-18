@@ -21,10 +21,11 @@ describe("parseStatsFilters", () => {
   it("turns a role into the roles it covers", () => {
     expect(parseStatsFilters({ role: "all" }).self_roles).toBeNull();
     expect(parseStatsFilters({ role: "" }).self_roles).toBeNull();
-    expect(parseStatsFilters({ role: "top" }).self_roles).toEqual(["rigger", "top"]);
-    expect(parseStatsFilters({ role: "bottom" }).self_roles).toEqual(["model", "bottom"]);
+    expect(parseStatsFilters({ role: "top" }).self_roles).toEqual(["top"]);
+    expect(parseStatsFilters({ role: "bottom" }).self_roles).toEqual(["bottom"]);
+    expect(parseStatsFilters({ role: "self_tie" }).self_roles).toEqual(["self tie"]);
     expect(parseStatsFilters({ role: "spotter" }).self_roles).toEqual(["spotter"]);
-    expect(Object.keys(ROLE_GROUPS)).toEqual(["top", "bottom", "spotter", "photographer"]);
+    expect(Object.keys(ROLE_GROUPS)).toEqual(["top", "bottom", "self_tie", "spotter", "photographer"]);
   });
 
   it("refuses a role it doesn't know, a backwards range, and a page or keyword it ignores", () => {

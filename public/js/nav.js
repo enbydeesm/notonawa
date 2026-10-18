@@ -1,13 +1,16 @@
 // The view links at the top of the app, as icons (each named for screen
 // readers and in its tooltip), then the + button and the menu button (☰),
-// which opens a side panel of settings: light/dark mode, the account and
-// "Your data" links, and the privacy policy. Drawn once by app.js;
-// setCurrent() marks the view being shown.
+// which opens a side panel: Settings (light/dark mode and role names, in
+// their own dialog), the account and "Your data" links, the privacy policy
+// and Sign Out. Drawn once by app.js; setCurrent() marks the view being
+// shown.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
 import { navigate } from "./navigate.js";
-import { THEME_KEY, parseChoice, shownTheme, nextChoice } from "./theme.js";
+import { openSettings } from "./settings-dialog.js";
+import { api, errorMessage } from "./api.js";
+import { lock } from "./vault.js";
 
 /** The tabs: address, name and icon, in order. */
 export const PAGES = /** @type {const} */ ([
@@ -80,16 +83,19 @@ export function setCurrent(path) {
  * Esc or a tap on the dimmed page beside it.
  */
 function openMenu() {
-  const theme = themeRow();
+  const signOutMessage = h("p", { className: "message error menu-message", role: "alert" });
   const dialog = h(
     "dialog",
-    { className: "menu-panel", "aria-label": "Menu", onclose: () => { theme.stop(); dialog.remove(); } },
+    { className: "menu-panel", "aria-label": "Menu", onclose: () => dialog.remove() },
     h(
       "div",
       { className: "menu-inner" },
       // The app's logo. Search for "NotoNawa" when it's renamed.
       h("h2", { className: "menu-title" }, h("img", { src: "/img/logo.png", alt: "NotoNawa" })),
-      theme.row,
+      h("button", {
+        type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",
+        onclick: () => { dialog.close(); openSettings(); },
+      }, gearIcon(), h("span", {}, "Settings")),
       h("a", {
         href: "/account", className: "menu-item nav-account",
         "aria-current": current === "/account" ? "page" : null,
@@ -102,60 +108,29 @@ function openMenu() {
       // isn't part of the app, so it opens in a new tab and leaves the app
       // (and later its unlocked key) as it is.
       h("a", { href: "/privacy", target: "_blank", rel: "noopener", className: "menu-item menu-privacy" },
-        privacyIcon(), h("span", {}, "Privacy Policy"))
+        privacyIcon(), h("span", {}, "Privacy Policy")),
+      h("button", { type: "button", className: "menu-item menu-sign-out", onclick: signOut },
+        signOutIcon(), h("span", {}, "Sign Out")),
+      signOutMessage
     )
   );
+
+  // Signs out as the Account page does: the session ends on the server, the
+  // journal locks, and the sign-in view replaces this one.
+  async function signOut() {
+    try {
+      await api("/api/auth/logout", { method: "POST", body: {} });
+      lock();
+      dialog.close();
+      navigate("/signin", { replace: true });
+    } catch (err) {
+      signOutMessage.textContent = "Couldn't sign out: " + errorMessage(err);
+    }
+  }
   // The panel fills the dialog, so a click on the dialog itself is outside it.
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
   document.body.append(dialog);
   dialog.showModal();
-}
-
-const deviceDark = matchMedia("(prefers-color-scheme: dark)");
-
-/**
- * The menu's light/dark row: switches between light and dark mode (see
- * theme.js). Its tooltip says which way it will switch. Call stop() when the
- * menu closes.
- */
-function themeRow() {
-  const row = h("button", { type: "button", className: "menu-item menu-theme", onclick: toggle },
-    sunIcon(), h("span", {}, "Light / Dark Mode"));
-
-  // The choice on the page (put there from storage by theme-init.js) is the
-  // one in effect, even when storage is blocked.
-  function showing() {
-    return shownTheme(parseChoice(document.documentElement.dataset.theme), deviceDark.matches);
-  }
-  function label() {
-    row.title = showing() === "dark" ? "Switch to light mode" : "Switch to dark mode";
-  }
-  function toggle() {
-    const choice = nextChoice(showing(), deviceDark.matches);
-    if (choice) document.documentElement.dataset.theme = choice;
-    else delete document.documentElement.dataset.theme;
-    saveChoice(choice);
-    label();
-  }
-
-  // The device's mode can change while the menu is open (e.g. at sunset).
-  deviceDark.addEventListener("change", label);
-  label();
-  return { row, stop: () => deviceDark.removeEventListener("change", label) };
-}
-
-/**
- * Keeps the choice for next time. Just a convenience: if storage is
- * blocked, the choice lasts until the page is reloaded.
- * @param {import("./theme.js").Theme | null} choice
- */
-function saveChoice(choice) {
-  try {
-    if (choice) localStorage.setItem(THEME_KEY, choice);
-    else localStorage.removeItem(THEME_KEY);
-  } catch {
-    // storage blocked
-  }
 }
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -272,21 +247,29 @@ function privacyIcon() {
   return icon;
 }
 
-/** A sun whose disc is half filled: outlined on the left, solid on the right. */
-function sunIcon() {
+/** A cog with six teeth round a hole, for Settings. */
+function gearIcon() {
   const icon = lineIcon();
-  icon.append(
-    svg("circle", { cx: 12, cy: 12, r: 5 }),
-    svg("path", { d: "M12 7a5 5 0 0 1 0 10z", fill: "currentColor" })
-  );
-  // Eight rays, every 45 degrees.
-  for (let i = 0; i < 8; i++) {
-    const angle = (i * Math.PI) / 4;
-    const [x, y] = [Math.cos(angle), Math.sin(angle)];
-    const point = (/** @type {number} */ r) => [12 + r * x, 12 + r * y].map((n) => n.toFixed(2));
-    const [x1, y1] = point(8);
-    const [x2, y2] = point(10.5);
-    icon.append(svg("line", { x1, y1, x2, y2 }));
+  icon.setAttribute("stroke-linejoin", "round");
+  // Teeth every 60 degrees: each a short block standing out from the rim.
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    const mid = (i * Math.PI) / 3;
+    for (const [angle, r] of [[mid - 0.42, 7.2], [mid - 0.26, 10], [mid + 0.26, 10], [mid + 0.42, 7.2]]) {
+      points.push(`${(12 + r * Math.cos(angle)).toFixed(2)} ${(12 + r * Math.sin(angle)).toFixed(2)}`);
+    }
   }
+  icon.append(svg("path", { d: `M${points.join("L")}Z` }), svg("circle", { cx: 12, cy: 12, r: 3 }));
+  return icon;
+}
+
+/** A door with an arrow leaving through it, for Sign Out. */
+function signOutIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    svg("path", { d: "M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10" }),
+    svg("path", { d: "M10 12h10M16 8l4 4-4 4" })
+  );
   return icon;
 }

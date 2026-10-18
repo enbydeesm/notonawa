@@ -87,7 +87,7 @@ function comparable(doc) {
 /** Fills the signed-in test user's journal with linked, archived and deleted things. */
 async function fillJournal() {
   const me = await create("/api/people", { name: "Me", is_self: true });
-  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "model" });
+  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "bottom" });
   const gone = await create("/api/people", { name: "Gone" });
   await call(`/api/people/${sam}/archive`, { method: "POST" });
   await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', ?, '2026-01-02')",
@@ -101,7 +101,7 @@ async function fillJournal() {
   await sql("UPDATE plans SET version = 4 WHERE id = ?", tk).run();
   await create("/api/ties", {
     title: "Floor", tie_date: "2026-10-01", tie_type: "partial suspension", notes: sealed("Went well"), success_rating: 4, duration_minutes: 50, location_id: studio,
-    participants: [{ person_id: me, role: "rigger" }, { person_id: sam, role: "model" }, { person_id: gone, role: "spotter" }],
+    participants: [{ person_id: me, role: "top" }, { person_id: sam, role: "bottom" }, { person_id: gone, role: "spotter" }],
     plan_ids: [tk, tk2, dropped], tags: ["floor", "Futomomo"],
   });
   await create("/api/ties", { title: "At the old flat", tie_date: "2026-09-01", location_id: old });
@@ -172,12 +172,12 @@ describe("importing an export", () => {
     const saved = {
       tie_date: "2026-10-01", title: null, notes: null, tie_type: "floor", location_id: studio,
       duration_minutes: 30, success_rating: 4,
-      participants: [{ person_id: sam, role: "model" }, { person_id: alex, role: "rigger" }],
+      participants: [{ person_id: sam, role: "bottom" }, { person_id: alex, role: "top" }],
       plan_ids: [plan], tags: ["Floor", "kata"],
     };
     // Two untitled ties on the same day with no notes, told apart by their people.
     await add("/api/ties", saved);
-    await add("/api/ties", { ...saved, participants: [{ person_id: sam, role: "model" }] });
+    await add("/api/ties", { ...saved, participants: [{ person_id: sam, role: "bottom" }] });
 
     // As the export writes it: plans as objects, tags in any order and capitals.
     const same = {
@@ -187,7 +187,7 @@ describe("importing an export", () => {
     /** @type {Record<string, any>[]} */
     const variants = [
       same,
-      { ...same, participants: [{ person_id: alex, role: "model" }] },
+      { ...same, participants: [{ person_id: alex, role: "bottom" }] },
       { ...same, tags: ["floor"] },
       { ...same, tags: [...same.tags, "brand new"] },
       { ...same, plans: [] },
@@ -196,7 +196,7 @@ describe("importing an export", () => {
       { ...same, duration_minutes: 31 },
       { ...same, success_rating: null },
       { ...same, tie_date: "2026-10-02" },
-      { ...same, participants: [{ person_id: sam, role: "model" }] },
+      { ...same, participants: [{ person_id: sam, role: "bottom" }] },
     ];
     // Notes don't make a tie a candidate or not: the page compares them.
     variants.push({ ...same, notes: sealed("different notes") });
@@ -236,8 +236,8 @@ describe("importing an export", () => {
       plans: [{ plan_id: plan, plan_title: "Hip harness", plan_version: 2 }],
     });
     expect(tie.participants).toEqual(expect.arrayContaining([
-      { id: expect.any(String), person_id: sam, person_name: "sam", role: "model" },
-      expect.objectContaining({ person_name: "Alex", role: "rigger" }),
+      { id: expect.any(String), person_id: sam, person_name: "sam", role: "bottom" },
+      expect.objectContaining({ person_name: "Alex", role: "top" }),
     ]));
     const tags = (await call("/api/tags", { cookie: user.cookie })).body.map((/** @type {any} */ t) => t.name).sort();
     expect(tags).toEqual(["floor", "practice"]);
@@ -262,7 +262,7 @@ describe("importing an export", () => {
 
     const res = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: [
       { title: "Fine", tie_date: "2026-01-01", tags: ["would-be-new"] },
-      { title: "Sneaky", tie_date: "2026-01-01", participants: [{ person_id: theirs, role: "model" }] },
+      { title: "Sneaky", tie_date: "2026-01-01", participants: [{ person_id: theirs, role: "bottom" }] },
     ] } });
     expect(res).toEqual({ status: 400, body: { error: "Linked item not found." } });
     expect(await sql("SELECT count(*) AS n FROM ties WHERE owner_id = ?", user.id).first()).toEqual({ n: 0 });

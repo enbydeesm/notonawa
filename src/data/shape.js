@@ -56,6 +56,9 @@ export function exportDocument(rows, exportedAt) {
       // Only whether one is set: we never have the address, and the hash
       // is of no use to the user.
       recovery_email_set: !!rows.user.recovery_email_set,
+      // Role names and light/dark mode. An import into a journal still on
+      // the default role names takes the file's (public/js/views/data.js).
+      settings: { top_label: rows.user.top_label ?? null, bottom_label: rows.user.bottom_label ?? null, theme: rows.user.theme ?? null },
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
       // Messages from us just for me, and ones for everyone I dismissed
       // (not imported: they're ours, not part of the journal).

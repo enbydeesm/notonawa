@@ -43,8 +43,8 @@ describe("exportDocument", () => {
         { id: "t2", title: "B", location_id: "l1", location_deleted: 0 },
       ],
       participants: [
-        { tie_id: "t1", person_id: null, role: "model", difficulty_rating: 3, experience_rating: null, notes: "n" },
-        { tie_id: "t2", person_id: "p1", role: "rigger", difficulty_rating: null, experience_rating: 4, notes: null },
+        { tie_id: "t1", person_id: null, role: "bottom", difficulty_rating: 3, experience_rating: null, notes: "n" },
+        { tie_id: "t2", person_id: "p1", role: "top", difficulty_rating: null, experience_rating: 4, notes: null },
       ],
       tiePlans: [{ tie_id: "t1", plan_id: "pl1", plan_version: 2 }],
       tieTags: [{ tie_id: "t2", name: "floor" }, { tie_id: "t2", name: "Futomomo" }],
@@ -52,12 +52,12 @@ describe("exportDocument", () => {
 
     expect(doc.ties[0]).toMatchObject({
       id: "t1", location_deleted: true,
-      participants: [{ person_id: null, role: "model", difficulty_rating: 3, experience_rating: null, notes: "n" }],
+      participants: [{ person_id: null, role: "bottom", difficulty_rating: 3, experience_rating: null, notes: "n" }],
       plans: [{ plan_id: "pl1", plan_version: 2 }], tags: [], photos: [],
     });
     expect(doc.ties[1]).toMatchObject({
       id: "t2", location_id: "l1", location_deleted: false,
-      participants: [{ person_id: "p1", role: "rigger" }], plans: [], tags: ["floor", "Futomomo"],
+      participants: [{ person_id: "p1", role: "top" }], plans: [], tags: ["floor", "Futomomo"],
     });
   });
 

@@ -72,7 +72,7 @@ async function userWithEverything() {
   await sql("INSERT INTO tags (id, owner_id, name) VALUES (?, ?, 'box')", tag, id).run();
   await sql("INSERT INTO plan_tags (plan_id, tag_id) VALUES (?, ?)", plan, tag).run();
   const tie = await post("/api/ties", { tie_date: "2026-01-01",
-    title: "Session", location_id: loc, participants: [{ person_id: sam, role: "model" }], plan_ids: [plan], tags: ["box", "floor"],
+    title: "Session", location_id: loc, participants: [{ person_id: sam, role: "bottom" }], plan_ids: [plan], tags: ["box", "floor"],
   });
   // A photo's row (its file is tested in media.test.js).
   await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)

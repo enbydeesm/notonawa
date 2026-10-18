@@ -1,5 +1,5 @@
 // Routes for the account page: my passkeys, my sessions, my recovery code
-// and recovery email.
+// and recovery email; and my settings (role names, light/dark mode).
 // Adding a passkey is in auth/routes.js (it's the same flow as signing up).
 
 import { BadInput, NeedsReauth, json, notFound, noContent, readJson } from "../http.js";
@@ -8,8 +8,9 @@ import { isFresh, sha256Hex } from "../auth/session.js";
 import { clearSessionCookie } from "../auth/cookie.js";
 import {
   getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash, setRecoveryEmail,
-  deleteAccount,
+  deleteAccount, getSettings, updateSettings,
 } from "./db.js";
+import { parseSettings } from "./settings.js";
 import { parseRecoveryEmail } from "./parse.js";
 import { parseWrap } from "../keys/parse.js";
 import { hasKey, recoveryWrapStatements } from "../keys/db.js";
@@ -40,6 +41,24 @@ export async function handleAccount(request, env, user, url) {
       fresh: isFresh(user.session),
       ...(await getAccount(db, user.id, user.session.id)),
     });
+  }
+
+  // GET /api/account/settings -> { top_label, bottom_label, theme }: the
+  //   words I chose for the top and bottom roles (null: "top", "bottom")
+  //   and light or dark mode (null: not chosen yet). Read by every page at
+  //   start, so it's its own small request.
+  if (url.pathname === "/api/account/settings" && request.method === "GET") {
+    return json(await getSettings(db, user.id));
+  }
+
+  // PUT /api/account/settings  body { top_label?, bottom_label?, theme? }
+  //   -> { top_label, bottom_label, theme }: changes the ones sent. A role
+  //   name that's empty, or the role's own name, goes back to the default.
+  if (url.pathname === "/api/account/settings" && request.method === "PUT") {
+    const current = await getSettings(db, user.id);
+    const change = parseSettings(await readJson(request), current);
+    await updateSettings(db, user.id, change);
+    return json({ ...current, ...change });
   }
 
   // DELETE /api/account -> { passkey_ids }: deletes my account and everything

@@ -1,16 +1,23 @@
-// Light and dark mode. The app follows the device's setting unless the user
-// picks the other mode in the nav's menu (☰). That choice is kept in
-// localStorage as just "light" or "dark" (never journal data), and
-// theme-init.js reads it and applies it before each page draws. Pure (the
-// button and saving are in nav.js), so it's easy to test.
+// Light and dark mode. The mode is an account setting (users.theme), the
+// same on every device: new accounts start dark, and picking light in
+// Settings makes light the mode everywhere until it's changed again. The
+// device's own light/dark setting isn't followed.
+//
+// The page also keeps the last mode it showed in localStorage (just "light"
+// or "dark", never journal data), so theme-init.js can apply it before the
+// page draws, and so pages shown before signing in (sign-in, the privacy
+// policy) use it. Pure (applying and saving are in settings.js), so it's
+// easy to test.
 
 export const THEME_KEY = "theme";
+/** The mode before any is chosen, and where none is stored on this device. */
+export const DEFAULT_THEME = "dark";
 
 /** @typedef {"light" | "dark"} Theme */
 
 /**
- * @param {unknown} value a stored choice
- * @returns {Theme | null} null: no choice, follow the device
+ * @param {unknown} value a stored or saved choice
+ * @returns {Theme | null}
  */
 export function parseChoice(value) {
   return value === "light" || value === "dark" ? value : null;
@@ -18,21 +25,16 @@ export function parseChoice(value) {
 
 /**
  * @param {Theme | null} choice
- * @param {boolean} deviceDark
  * @returns {Theme} the mode on screen
  */
-export function shownTheme(choice, deviceDark) {
-  return choice ?? (deviceDark ? "dark" : "light");
+export function shownTheme(choice) {
+  return choice ?? DEFAULT_THEME;
 }
 
 /**
- * The choice to keep after the button is tapped: the other mode, or null
- * (follow the device again) when the device would show that mode anyway.
- * @param {Theme} showing
- * @param {boolean} deviceDark
- * @returns {Theme | null}
+ * @param {Theme} theme
+ * @returns {Theme}
  */
-export function nextChoice(showing, deviceDark) {
-  const next = showing === "dark" ? "light" : "dark";
-  return (next === "dark") === deviceDark ? null : next;
+export function otherTheme(theme) {
+  return theme === "dark" ? "light" : "dark";
 }

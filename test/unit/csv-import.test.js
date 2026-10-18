@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
-import { readExport, remapTies, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
+import { readExport, exportRoleNames, remapTies, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
+import { setRoleNames } from "../../public/js/roles.js";
 
 describe("parseCsv", () => {
   it("reads plain and quoted cells", () => {
@@ -46,13 +47,13 @@ describe("csvToImport", () => {
       {
         title: "Floor", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4, notes: "Good",
         location_id: "location-1",
-        participants: [{ person_id: "person-1", role: "model" }, { person_id: "person-2", role: "rigger" }],
+        participants: [{ person_id: "person-1", role: "bottom" }, { person_id: "person-2", role: "top" }],
         plans: [{ plan_id: "plan-1" }, { plan_id: "plan-2" }],
         tags: ["floor", "Practice"],
       },
       {
         title: null, tie_date: "2026-10-13", tie_type: "partial suspension", duration_minutes: null, success_rating: null, notes: null,
-        location_id: "location-1", participants: [{ person_id: "person-1", role: "rigger" }],
+        location_id: "location-1", participants: [{ person_id: "person-1", role: "top" }],
         plans: [{ plan_id: "plan-1" }], tags: [],
       },
     ]);
@@ -79,12 +80,12 @@ describe("csvToImport", () => {
     ]);
     expect(errors).toEqual([
       'Row 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").',
-      'Row 4: Give Sam a role, like "Sam (model)".',
-      'Row 5: "boss" isn\'t a role. Use one of: rigger, top, model, bottom, spotter, photographer.',
+      'Row 4: Give Sam a role, like "Sam (bottom)".',
+      'Row 5: "boss" isn\'t a role. Use one of: top, bottom, self tie, spotter, photographer.',
       "Row 6: The rating should be a whole number from 1 to 5.",
       'Row 7: Write the date as year-month-day, like 2026-10-12 (not "2026-02-30").',
       "Row 8: Add a date.",
-      'Row 9: "hanging" isn\'t a type. Use one of: suspension, partial suspension, floor.',
+      'Row 9: "hanging" isn\'t a type. Use one of: suspension, partial suspension, floor, hashira.',
       "Row 10: Add a date.",
     ]);
   });
@@ -97,6 +98,25 @@ describe("csvToImport", () => {
     expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
   });
 
+  it("reads my own role names, the roles' own, and rigger and model", () => {
+    setRoleNames({ top_label: "Rope Top", bottom_label: "bunny" });
+    try {
+      const { doc, errors } = csvToImport([
+        ["date", "people"],
+        ["2026-10-12", "Sam (rope  top); Alex (Bunny)"],
+        ["2026-10-13", "Sam (top); Alex (bottom); Kit (self tie)"],
+        ["2026-10-14", "Sam (rigger); Alex (model); Kit (Spotter)"],
+        ["2026-10-15", "Sam"],
+      ]);
+      expect(doc.ties.map((t) => t.participants.map((p) => p.role))).toEqual([
+        ["top", "bottom"], ["top", "bottom", "self tie"], ["top", "bottom", "spotter"],
+      ]);
+      expect(errors).toEqual(['Row 5: Give Sam a role, like "Sam (bunny)".']);
+    } finally {
+      setRoleNames(null);
+    }
+  });
+
   it("stops listing problems after 20", () => {
     const rows = [["date"], ...Array.from({ length: 30 }, () => ["bad"])];
     const { errors } = csvToImport(rows);
@@ -106,6 +126,14 @@ describe("csvToImport", () => {
 });
 
 describe("import steps", () => {
+  it("reads the role names an export was made with", () => {
+    expect(exportRoleNames({ account: { settings: { top_label: "rigger", bottom_label: null, theme: "dark" } } }))
+      .toEqual({ top_label: "rigger", bottom_label: null });
+    expect(exportRoleNames({ account: { settings: { top_label: null, bottom_label: " ", theme: "dark" } } })).toBeNull();
+    expect(exportRoleNames({ account: {} })).toBeNull();
+    expect(exportRoleNames(null)).toBeNull();
+  });
+
   it("reads only NotoNawa exports of a version it knows", () => {
     expect(readExport({ format: "notonawa-export", version: 1, ties: [{ title: "x" }] }))
       .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }] });
@@ -123,18 +151,18 @@ describe("import steps", () => {
     };
     expect(remapTies([{
       title: "t", location_id: "l",
-      participants: [{ person_id: "p", role: "model" }, { person_id: null, role: "spotter" }],
+      participants: [{ person_id: "p", role: "bottom" }, { person_id: null, role: "spotter" }],
       plans: [{ plan_id: "x", plan_version: 2 }],
     }], items)).toEqual([{
       title: "t", location_id: "L",
-      participants: [{ person_id: "P", role: "model" }, { person_id: null, role: "spotter" }],
+      participants: [{ person_id: "P", role: "bottom" }, { person_id: null, role: "spotter" }],
       plans: [{ plan_id: "X", plan_version: 2 }],
     }]);
   });
 
   it("names a tie that links to something not in the file", () => {
     const doc = readExport({ format: "notonawa-export", version: 1, people: [{ id: "p", name: "Sam" }],
-      ties: [{ title: "ok", participants: [{ person_id: "p", role: "model" }] }, { title: "Floor", location_id: "nowhere" }] });
+      ties: [{ title: "ok", participants: [{ person_id: "p", role: "bottom" }] }, { title: "Floor", location_id: "nowhere" }] });
     expect(() => checkLinks(doc)).toThrow('Tie 2 ("Floor") links to a location that isn\'t in the file.');
   });
 

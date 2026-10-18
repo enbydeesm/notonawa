@@ -15,14 +15,14 @@ export function isAllowedOrigin(request, origin) {
 
 /**
  * What a recovery-code session may do, apart from the /api/auth/ routes
- * (adding a passkey, signing out): see its account, and get the wraps it
- * needs to unlock with the code (to wrap the key for the new passkey).
- * Everything else waits until a passkey has been added.
+ * (adding a passkey, signing out): see its account and settings, and get
+ * the wraps it needs to unlock with the code (to wrap the key for the new
+ * passkey). Everything else waits until a passkey has been added.
  * @param {string} method
  * @param {string} path
  */
 export function allowedInRecovery(method, path) {
-  return method === "GET" && (path === "/api/account" || path === "/api/keys");
+  return method === "GET" && (path === "/api/account" || path === "/api/account/settings" || path === "/api/keys");
 }
 
 /**

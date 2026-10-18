@@ -60,6 +60,10 @@ account.
   [Messages from us](#messages-from-us)).
 - **Your invite.** Accounts are by invite for now. We record that an invite
   was used, and by which account, but nothing about who it was for.
+- **Your settings.** Whether you use light or dark mode, and the words
+  you've chosen for the top and bottom roles (if any), so every device you
+  use shows them the same way. They're stored as plain text, readable by
+  our server like the rest of the section below.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
@@ -210,9 +214,11 @@ We use one cookie: your session cookie. It's needed to keep you signed in. It
 can't be read by scripts, is only sent over secure connections and only to
 NotoNawa, and expires after 30 days, or sooner after 7 days without
 use. We use no other cookies, local storage for tracking, or similar
-technologies. If you switch between light and dark mode, the app remembers
-that choice in your browser's local storage (just the word "light" or
-"dark"); it never leaves your device.
+technologies. The app also remembers the last light or dark mode your
+browser showed in its local storage (just the word "light" or "dark"), so
+pages appear in the right colors before you sign in; that copy never
+leaves your device. Your mode itself is saved with your account (see
+[Your account](#your-account)).
 
 ## How long we keep your data
 

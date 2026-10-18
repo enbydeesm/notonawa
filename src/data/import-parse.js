@@ -11,7 +11,7 @@
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull, encryptedText } from "../parse.js";
 import { RESOURCES, parseFields } from "../resources/config.js";
-import { ROLES, TIE_TYPES } from "../ties/parse.js";
+import { TIE_TYPES, toRoleOrNull } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
 
 export const MAX_ITEMS = 5000; // of each kind, in one items request
@@ -133,7 +133,7 @@ function parseImportParticipants(value) {
   for (const item of list(value, "Participants")) {
     const p = asObject(item);
     const personId = parseId(p.person_id, true);
-    const role = toChoiceOrNull(p.role, ROLES);
+    const role = toRoleOrNull(p.role);
     if (!role) throw new BadInput("Each participant needs a role.");
     if (personId !== null) {
       const key = `${personId}|${role}`;

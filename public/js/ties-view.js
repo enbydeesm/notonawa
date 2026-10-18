@@ -5,9 +5,12 @@
 
 import { capitalise } from "./format.js";
 
-/** Same lists as the API (src/ties/parse.js). */
-export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
-export const TIE_TYPES = ["suspension", "partial suspension", "floor"];
+/**
+ * Same lists as the API (src/ties/parse.js). Top and bottom are shown with
+ * the account's names for them (roles.js).
+ */
+export const ROLES = ["top", "bottom", "self tie", "spotter", "photographer"];
+export const TIE_TYPES = ["suspension", "partial suspension", "floor", "hashira"];
 
 /**
  * rating is set on the rating's label, so the page can draw it as rope

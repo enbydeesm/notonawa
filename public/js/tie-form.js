@@ -7,7 +7,8 @@ import { h, $, showMessage, privateField } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
-import { ROLES, TIE_TYPES, participantLabel, planLabel } from "./ties-view.js";
+import { TIE_TYPES, participantLabel, planLabel } from "./ties-view.js";
+import { roleName, roleOptions } from "./roles.js";
 import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
@@ -184,13 +185,13 @@ function showTieForm(tie) {
     function addParticipantRow(existing) {
       if (existing && !existing.person_id) {
         const { name, role } = participantLabel(existing);
-        addDeletedRow(participantRows, existing.id, h("span", { className: "deleted" }, name.text), ` (${role})`);
+        addDeletedRow(participantRows, existing.id, h("span", { className: "deleted" }, name.text), ` (${roleName(role)})`);
         return;
       }
       const row = h("div", { className: "picker-row person-row" });
       const role = h("select", { className: "role", "aria-label": "Role" },
         h("option", { value: "" }, "Role"),
-        ROLES.map((r) => h("option", { value: r }, capitalise(r))));
+        roleOptions().map((r) => h("option", { value: r.value }, r.label)));
       const person = searchPicker({
         kind: "people", id: `tie-person-${++rowCount}`, label: { text: "Person" },
         source: sources.people, input: { className: "person" }, onError,

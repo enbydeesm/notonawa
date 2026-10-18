@@ -22,6 +22,7 @@ import { watchForLock } from "./lock.js";
 import { api } from "./api.js";
 import { consentState, setConsentState, onConsentRequired } from "./consent-state.js";
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
+import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -123,6 +124,10 @@ async function show({ fresh, scroll, focus }) {
 async function routeFor(addressed) {
   if (!addressed.needsKey) return addressed;
   if (!isUnlocked()) return UNLOCK;
+  // My role names and mode, before the journal is drawn with them.
+  await loadSettings().catch(() => {
+    // Unreachable for now: the defaults until the next view tries again.
+  });
   if (consentState() === null) {
     try {
       setConsentState(await api("/api/consent"));
@@ -165,6 +170,11 @@ onConsentRequired(() => {
   if (currentView !== "consent" && currentView !== "data" && currentView !== "account") {
     show({ fresh: true, scroll: 0, focus: true });
   }
+});
+
+// New role names saved in Settings: draw the view again with them.
+document.addEventListener(SETTINGS_SAVED, () => {
+  show({ fresh: true, scroll: window.scrollY, focus: false });
 });
 
 // Registered before any view's own popstate listener, so a view being left

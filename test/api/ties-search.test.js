@@ -28,7 +28,7 @@ describe("searching ties", () => {
     const alex = await create("/api/people", { name: "Alex" });
     /** @param {string} title @param {string[]} people */
     const tie = (title, people) => create("/api/ties", {
-      title, tie_date: "2026-01-01", participants: people.map((person_id) => ({ person_id, role: "model" })),
+      title, tie_date: "2026-01-01", participants: people.map((person_id) => ({ person_id, role: "bottom" })),
     });
     await tie("Both", [sam, alex]);
     await tie("Sam only", [sam]);
@@ -44,7 +44,7 @@ describe("searching ties", () => {
     const sam = await create("/api/people", { name: "Sam" });
     const alex = await create("/api/people", { name: "Alex" });
     await create("/api/ties", { tie_date: "2026-01-01",
-      title: "Switch", participants: [{ person_id: sam, role: "rigger" }, { person_id: sam, role: "model" }],
+      title: "Switch", participants: [{ person_id: sam, role: "top" }, { person_id: sam, role: "bottom" }],
     });
     expect(await titles({ person_ids: [sam] })).toEqual(["Switch"]);
     // Sam twice doesn't count as Sam and Alex.
@@ -95,7 +95,7 @@ describe("searching ties", () => {
   it("keeps only the ties a keyword matched on the device (match_ids), with the other filters", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const loc = await create("/api/locations", { name: "Combo" });
-    const with_ = [{ person_id: sam, role: "model" }];
+    const with_ = [{ person_id: sam, role: "bottom" }];
     const right = await create("/api/ties", { title: "Right", tie_date: "2026-05-01", location_id: loc, participants: with_ });
     const wrongDate = await create("/api/ties", { title: "Wrong date", tie_date: "2026-07-01", location_id: loc, participants: with_ });
     await create("/api/ties", { title: "Not matched", tie_date: "2026-05-01", location_id: loc, participants: with_ });
@@ -186,13 +186,13 @@ describe("paging ties", () => {
     const plan = await create("/api/plans", { title: "Box tie" });
     await create("/api/ties", {
       title: "Oldest", tie_date: "2020-01-01", location_id: loc,
-      participants: [{ person_id: sam, role: "model" }], plan_ids: [plan],
+      participants: [{ person_id: sam, role: "bottom" }], plan_ids: [plan],
     });
     for (let i = 0; i < 20; i++) await create("/api/ties", { title: `New ${i}`, tie_date: "2026-01-01", location_id: loc });
 
     const [oldest] = (await search({ location_ids: [loc], page: 2 })).body.ties;
     expect(oldest.title).toBe("Oldest");
-    expect(oldest.participants).toEqual([{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "model" }]);
+    expect(oldest.participants).toEqual([{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" }]);
     expect(oldest.plans).toEqual([{ id: expect.any(String), plan_id: plan, plan_title: "Box tie", plan_version: 1 }]);
   });
 });

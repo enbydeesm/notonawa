@@ -9,7 +9,9 @@
 //   duration  minutes
 //   rating    1 to 5
 //   location  a name
-//   people    Sam (model); Alex (rigger)
+//   people    Sam (bottom); Alex (top), with my names for top and bottom
+//             (Settings) or the roles' own; rigger and model read as top
+//             and bottom
 //   plans     plan titles, separated by ;
 //   tags      separated by ;
 //   notes
@@ -17,6 +19,7 @@
 // imported; names it doesn't have are added.
 
 import { ROLES, TIE_TYPES } from "./ties-view.js";
+import { roleName, roleFromName } from "./roles.js";
 import { tagKey } from "./tags.js";
 
 /** Column names as written in the file -> the field they fill. */
@@ -104,9 +107,9 @@ function rowToTie(get, { people, locations, plans }) {
     location_id: get.location ? locations.id(get.location) : null,
     participants: list(get.people).map((entry) => {
       const m = entry.match(/^(.+?)\s*\(\s*([^()]+?)\s*\)$/);
-      if (!m) throw new Error(`Give ${entry} a role, like "${entry} (model)".`);
-      const role = m[2].toLowerCase();
-      if (!ROLES.includes(role)) throw new Error(`"${m[2]}" isn't a role. Use one of: ${ROLES.join(", ")}.`);
+      if (!m) throw new Error(`Give ${entry} a role, like "${entry} (${roleName("bottom")})".`);
+      const role = roleFromName(m[2]);
+      if (!role) throw new Error(`"${m[2]}" isn't a role. Use one of: ${ROLES.map((r) => roleName(r)).join(", ")}.`);
       return { person_id: people.id(m[1]), role };
     }),
     plans: list(get.plans).map((title) => ({ plan_id: plans.id(title) })),

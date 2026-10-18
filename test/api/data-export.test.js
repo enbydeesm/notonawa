@@ -6,10 +6,10 @@ describe("GET /api/data/export", () => {
   it("exports everything in my account, links and deleted links included", async () => {
     const me = await signedInUser();
     await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES ('pk1', ?, 'PUBLIC-KEY', 'Phone')", me.id).run();
-    await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT' WHERE id = ?", me.id).run();
+    await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT', top_label = 'rigger', theme = 'light' WHERE id = ?", me.id).run();
     await sql(`INSERT INTO key_wraps (id, user_id, kind, passkey_id, salt, iv, wrapped, version)
                VALUES ('w1', ?, 'passkey', 'pk1', 'WRAP-SALT', 'WRAP-IV', 'WRAPPED-KEY', 1)`, me.id).run();
-    const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), default_role: "model" });
+    const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), default_role: "bottom" });
     const gone = await create("/api/people", { name: "Gone" });
     await sql(
       "INSERT INTO profile_notes (id, person_id, type, description) VALUES ('n1', ?, 'limit', 'No neck ties')", sam
@@ -20,7 +20,7 @@ describe("GET /api/data/export", () => {
     await call(`/api/plans/${variation}/archive`, { method: "POST" });
     const tie = await create("/api/ties", {
       title: "Floor session", tie_date: "2026-10-12", tie_type: "suspension", notes: sealed("Went well"), location_id: studio,
-      participants: [{ person_id: sam, role: "model" }, { person_id: gone, role: "spotter" }],
+      participants: [{ person_id: sam, role: "bottom" }, { person_id: gone, role: "spotter" }],
       plan_ids: [base], tags: ["floor"],
     });
     await call(`/api/people/${gone}`, { method: "DELETE" });
@@ -34,9 +34,10 @@ describe("GET /api/data/export", () => {
 
     expect(doc).toMatchObject({ format: "notonawa-export", version: 1 });
     expect(doc.account.recovery_email_set).toBe(true);
+    expect(doc.account.settings).toEqual({ top_label: "rigger", bottom_label: null, theme: "light" });
     expect(doc.account.passkeys).toEqual([{ name: "Phone", created_at: expect.any(String), last_used_at: null }]);
     expect(doc.people).toEqual([expect.objectContaining({
-      id: sam, name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), is_self: false, default_role: "model", archived_at: null,
+      id: sam, name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), is_self: false, default_role: "bottom", archived_at: null,
       profile_notes: [expect.objectContaining({ type: "limit", description: "No neck ties", is_current: true })],
     })]);
     expect(doc.locations).toEqual([expect.objectContaining({ id: studio, name: "Studio", latitude: 51.5, longitude: -0.1, is_default: false })]);
@@ -50,7 +51,7 @@ describe("GET /api/data/export", () => {
     expect(doc.ties).toEqual([expect.objectContaining({
       id: tie, title: "Floor session", tie_date: "2026-10-12", tie_type: "suspension", notes: sealed("Went well"), location_id: studio, location_deleted: false,
       participants: [
-        expect.objectContaining({ person_id: sam, role: "model" }),
+        expect.objectContaining({ person_id: sam, role: "bottom" }),
         expect.objectContaining({ person_id: null, role: "spotter" }),
       ],
       plans: [{ plan_id: base, plan_version: 1 }],

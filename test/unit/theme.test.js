@@ -1,6 +1,6 @@
 // Light/dark mode choice (public/js/theme.js). No DOM needed.
 import { describe, it, expect } from "vitest";
-import { parseChoice, shownTheme, nextChoice } from "../../public/js/theme.js";
+import { parseChoice, shownTheme, otherTheme, DEFAULT_THEME } from "../../public/js/theme.js";
 
 describe("parseChoice", () => {
   it("accepts only light or dark", () => {
@@ -11,23 +11,19 @@ describe("parseChoice", () => {
 });
 
 describe("shownTheme", () => {
-  it("follows the device without a choice", () => {
-    expect(shownTheme(null, true)).toBe("dark");
-    expect(shownTheme(null, false)).toBe("light");
+  it("is dark without a choice, whatever the device", () => {
+    expect(DEFAULT_THEME).toBe("dark");
+    expect(shownTheme(null)).toBe("dark");
   });
-  it("uses the choice over the device", () => {
-    expect(shownTheme("light", true)).toBe("light");
-    expect(shownTheme("dark", false)).toBe("dark");
+  it("uses the choice", () => {
+    expect(shownTheme("light")).toBe("light");
+    expect(shownTheme("dark")).toBe("dark");
   });
 });
 
-describe("nextChoice", () => {
-  it("picks the other mode when it differs from the device", () => {
-    expect(nextChoice("light", false)).toBe("dark");
-    expect(nextChoice("dark", true)).toBe("light");
-  });
-  it("goes back to following the device when the other mode is the device's", () => {
-    expect(nextChoice("dark", false)).toBeNull();
-    expect(nextChoice("light", true)).toBeNull();
+describe("otherTheme", () => {
+  it("switches between the two", () => {
+    expect(otherTheme("light")).toBe("dark");
+    expect(otherTheme("dark")).toBe("light");
   });
 });

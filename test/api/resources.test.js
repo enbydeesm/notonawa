@@ -141,8 +141,8 @@ describe("plans, people and locations", () => {
   });
 
   it("saves a person's default role, which must be one of the roles", async () => {
-    const id = await create("/api/people", { name: "Sam", default_role: "model" });
-    expect((await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id).default_role).toBe("model");
+    const id = await create("/api/people", { name: "Sam", default_role: "bottom" });
+    expect((await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id).default_role).toBe("bottom");
     const bad = await call("/api/people", { method: "POST", body: { name: "Kit", default_role: "chef" } });
     expect(bad.status).toBe(400);
     await call(`/api/people/${id}`, { method: "PUT", body: { name: "Sam", default_role: "" } });
@@ -189,13 +189,13 @@ describe("other users' data", () => {
 describe("deleting", () => {
   it("a person keeps their place in ties, shown as deleted", async () => {
     const person = await create("/api/people", { name: "Sam" });
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Floor", participants: [{ person_id: person, role: "model" }] });
+    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Floor", participants: [{ person_id: person, role: "bottom" }] });
 
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
 
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
-    expect(listed.participants).toEqual([{ id: expect.any(String), person_id: null, person_name: null, role: "model" }]);
+    expect(listed.participants).toEqual([{ id: expect.any(String), person_id: null, person_name: null, role: "bottom" }]);
   });
 
   it("a location marks its ties as '(location deleted)'", async () => {

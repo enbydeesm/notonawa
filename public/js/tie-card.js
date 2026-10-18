@@ -8,6 +8,7 @@ import { openTieForm } from "./tie-form.js";
 import { formatDate } from "./format.js";
 import { ratingHanks } from "./rope-rating.js";
 import { placeLine, participantLabel, peopleThatFit } from "./ties-view.js";
+import { roleName } from "./roles.js";
 import { open } from "./vault.js";
 
 /** @param {import("./ties-view.js").Label} label */
@@ -27,7 +28,7 @@ export function tieCard(tie, onEdit) {
   const place = placeLine(tie);
   const people = tie.participants.map((/** @type {any} */ p, /** @type {number} */ i) => {
     const { name, role } = participantLabel(p);
-    return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${role})`);
+    return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${roleName(role)})`);
   });
 
   return h("article", { className: "tie-card" },

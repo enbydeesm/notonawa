@@ -13,7 +13,8 @@ import { h, $, showMessage } from "../dom.js";
 import { saveFile } from "../download.js";
 import { parseCsv } from "../csv.js";
 import { csvToImport } from "../import-csv.js";
-import { readExport, itemsBody, remapTies, checkLinks, batches, describeItems, TIE_BATCH } from "../import-steps.js";
+import { readExport, exportRoleNames, itemsBody, remapTies, checkLinks, batches, describeItems, TIE_BATCH } from "../import-steps.js";
+import { adoptRoleNames } from "../settings.js";
 import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
@@ -105,6 +106,8 @@ export function mount() {
 
   /** The file being imported, once it's been read and previewed. @type {PendingImport | null} */
   let pending = null;
+  /** The role names in the file being imported (an export's), if any. */
+  let fileRoleNames = /** @type {ReturnType<typeof exportRoleNames>} */ (null);
 
   $("#export").addEventListener("click", async () => {
     const message = $("#export-message");
@@ -179,13 +182,16 @@ export function mount() {
       }
       forgetSearch();
       const photoResult = files && targets.length ? await importPhotos(targets, files) : null;
+      // The file's role names, if mine are still the defaults.
+      const tookNames = await adoptRoleNames(fileRoleNames).catch(() => false);
       preview.hidden = true;
       go.hidden = true;
       fileInput.value = "";
       pending = null;
       showMessage(importMessage, `Imported ${ties(added)}.` +
         (skipped ? ` Skipped ${ties(skipped)} already in your journal.` : "") +
-        (photoResult ? ` ${photoResult}` : ""), !!photoResult && /couldn't/.test(photoResult));
+        (photoResult ? ` ${photoResult}` : "") +
+        (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!photoResult && /couldn't/.test(photoResult));
     } catch (err) {
       // Batches already saved stay saved; running it again skips them.
       showMessage(importMessage, `Couldn't finish: ${errorMessage(err)} ` +
@@ -253,15 +259,20 @@ export function mount() {
       const files = await readZip(buffer);
       const name = journalEntry(files.keys());
       if (!name) throw new Error("This zip file isn't a NotoNawa export.");
-      return { doc: readExport(parseJson(new TextDecoder().decode(files.get(name)))), files };
+      const data = parseJson(new TextDecoder().decode(files.get(name)));
+      fileRoleNames = exportRoleNames(data);
+      return { doc: readExport(data), files };
     }
     const text = new TextDecoder().decode(buffer);
     if (/\.csv$/i.test(file.name) || file.type === "text/csv") {
       const { doc, errors } = csvToImport(parseCsv(text));
       if (errors.length) throw new Error(`Fix these in the file, then choose it again:\n${errors.join("\n")}`);
+      fileRoleNames = null;
       return { doc, files: null };
     }
-    return { doc: readExport(parseJson(text)), files: null };
+    const data = parseJson(text);
+    fileRoleNames = exportRoleNames(data);
+    return { doc: readExport(data), files: null };
   }
 
   /** @param {string} text */

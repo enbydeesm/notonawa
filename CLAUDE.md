@@ -88,7 +88,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   sessions, replacing the recovery code, setting or removing the recovery
   email (`PUT`/`DELETE /api/account/recovery-email`: a hash and salt only;
   `parse.js`), deleting the account (`DELETE /api/account`: one cascading
-  delete).
+  delete), and my settings (`GET`/`PUT /api/account/settings`: role names
+  and light/dark mode; `settings.js` (pure) parses them; migration 0013).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
   `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
@@ -129,12 +130,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body;
   a keyword is searched for on the device, which sends `match_ids`) is filtered and paged (20 per page by default)
   and returns `{ ties, total, all_total, page, page_size }` (`page_size`
-  20, 50 or 100; `sort` newest or oldest). `GET`/`PUT`/`DELETE
+  20, 50 or 100; `sort` newest or oldest). `ROLES` (top, bottom, self tie,
+  spotter, photographer) are checked with `toRoleOrNull`, which reads the
+  old "rigger" and "model" as top and bottom. `GET`/`PUT`/`DELETE
   /api/ties/:id` read, edit (with `keep_deleted` for deleted links to keep)
   and delete one tie. A tie's `tags` are sent as
   names; new ones are created when the tie is saved. `tie_type` is one of
-  `TIE_TYPES` (also in `public/js/ties-view.js` and a CHECK in migration
-  0004). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active
+  `TIE_TYPES` (also in `public/js/ties-view.js` and a CHECK, since
+  migration 0013). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active
   ones most recently on a tie (by tie date), for the tie form's pickers.
 - `src/stats/`: the analytics' data (`parse.js`: pure, the filters and
   `ROLE_GROUPS`; `db.js`; `routes.js`: `POST /api/stats/ties`, the ties in a
@@ -151,6 +154,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   shell: shows the view for the address, handles links and Back/Forward),
   `router.js` (pure: the routes, which link clicks stay in the app),
   `navigate.js` (`navigate(path, { replace })`: changing view from code),
+  `roles.js` (the words shown for roles: the account's names for top and
+  bottom, set once unlocked; `roleName`, `roleOptions`, `roleFromName`),
+  `settings.js` (reading my settings once unlocked, saving role names and
+  the mode) and `settings-dialog.js` (the Settings dialog),
   `crypto/keys.js` (pure: the data key, wrapping, the PRF salt),
   `crypto/fields.js` (pure: sealing and opening notes fields),
   `crypto/media.js` (pure: sealing and opening photos and their captions,
@@ -169,15 +176,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
-  Analytics; the + button and the ☰ menu panel; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  Analytics; the + button and the ☰ menu panel: Settings, Account, Your
+  data, Privacy Policy, Sign Out; drawn once, `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
   (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
   `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
   `rope-rating.js` (ratings drawn as rope hanks; `hankIcon`),
   `stats.js` and `stats-period.js` (pure: the analytics' numbers, and its
-  periods and bars), `charts.js` (bar and pie charts as SVG; bars, partners
-  and slices are buttons), `tie-card.js` (a tie as a card, shared by the
+  periods and bars; `roleChartTies` and `withSegments` split the tie count
+  and partner bars by my role), `charts.js` (bar, partner, location and pie
+  charts as SVG; bars, rows and slices are buttons), `tie-card.js` (a tie as a card, shared by the
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
   `resource-page.js` (list/edit pages), `list-tools.js` and `list-order.js`
@@ -294,6 +303,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   same batch; archiving clears it, and an archived location can't be made
   the default. A new tie starts at it (`tie-form.js`); imports add one only
   if the journal has none.
+- **Roles: one each for the two sides of a tie** (migration 0013): top,
+  bottom, self tie, spotter, photographer, on ties and as a person's
+  default role. The words shown for top and bottom are each account's
+  (`users.top_label`, `bottom_label`; null for "top", "bottom"): always
+  show a role through `roleName()` (public/js/roles.js), never the stored
+  value. Stored role names are plain text, can't be another role's name,
+  and the two must differ. Rigger and model are gone: the API and imports
+  read them as top and bottom. A tie's type is one of `TIE_TYPES`
+  (suspension, partial suspension, floor, hashira).
 - **A plan's type** (`plans.plan_type`: idea, harness or sequence; default
   idea) replaced Stage on the form. `stage` stays in the database and the
   export, but is `createOnly`, so editing a plan leaves it as it was.
@@ -337,15 +355,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `--text`, `--muted`, `--line`, `--accent` (fills: buttons, selected tags,
   underlines), `--accent-text` (text on `--accent`), `--accent-ink` (the
   accent as text or a thin outline: links, link buttons), `--error`,
-  `--danger`, `--danger-text`), redefined for dark mode in two blocks that
-  must match: `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }`
-  (the device is dark) and `:root[data-theme="dark"]` (dark picked in the
-  menu). Never hard-code colors elsewhere.
-- **Light/dark mode** follows the device unless the user picks the other mode
-  with "Light / Dark Mode" in the nav's ☰ menu (`nav.js`). The choice (`light`/`dark`) is
-  saved in localStorage and applied before the page draws by
-  `public/js/theme-init.js`, a plain script in the `<head>` of `index.html`
-  and `privacy.html`. `theme.js` holds the pure logic.
+  `--danger`, `--danger-text`, and the charts' `--chart-yellow`, `-purple`,
+  `-teal`, `-coral`, `-grey`, used through the classes `c-yellow` and so
+  on), redefined for dark mode in `:root[data-theme="dark"]`. Never
+  hard-code colors elsewhere. Charts: yellow for top and plain bars, purple
+  for bottom, teal for self tie; tie types yellow, purple, teal, coral.
+- **Light/dark mode is an account setting** (`users.theme`), the same on
+  every device: new accounts start dark, and the switch in Settings
+  (`settings-dialog.js`) changes it at once and saves it. The device's own
+  setting isn't followed. The last mode shown is also kept in
+  localStorage (`light`/`dark`) and applied before the page draws by
+  `public/js/theme-init.js` (dark if none), a plain script in the `<head>`
+  of `index.html` and `privacy.html`; once unlocked, `settings.js` applies
+  the account's. `theme.js` holds the pure logic.
 - **Layout**: mobile-first single column, `max-width: 640px`, 16px padding.
   Sections are `.card`s; forms stack label above input; `.row` puts two fields
   side by side.

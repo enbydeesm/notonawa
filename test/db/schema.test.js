@@ -29,7 +29,7 @@ describe("ownership triggers", () => {
     await sql("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'x', '2026-01-01')", tie, me).run();
     await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Theirs')", person, them).run();
     await expect(
-      sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, 'model')", newId("tp"), tie, person).run()
+      sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, 'bottom')", newId("tp"), tie, person).run()
     ).rejects.toThrow("ownership mismatch: participant");
   });
 
@@ -59,14 +59,39 @@ describe("constraints", () => {
     await sql("INSERT INTO people (id, owner_id, name, is_self) VALUES (?, ?, 'Them', 1)", newId("p"), them).run();
   });
 
-  it("only allow a known default role, or none", async () => {
-    await sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Sam', 'model')", newId("p"), me).run();
-    await expect(sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Kit', 'chef')", newId("p"), me).run())
-      .rejects.toThrow("CHECK constraint failed");
+  it("only allow a known default role, or none (rigger and model are gone since 0013)", async () => {
+    await sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Sam', 'bottom')", newId("p"), me).run();
+    await sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Solo', 'self tie')", newId("p"), me).run();
+    for (const role of ["chef", "rigger", "model"]) {
+      await expect(sql("INSERT INTO people (id, owner_id, name, default_role) VALUES (?, ?, 'Kit', ?)", newId("p"), me, role).run())
+        .rejects.toThrow("CHECK constraint failed");
+    }
+  });
+
+  it("only allow the roles top, bottom, self tie, spotter and photographer on a tie", async () => {
+    const tie = newId("tie");
+    const person = newId("person");
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'x', '2026-01-01')", tie, me).run();
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Sam')", person, me).run();
+    for (const role of ["top", "bottom", "self tie", "spotter", "photographer"]) {
+      await sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, ?)", newId("tp"), tie, person, role).run();
+    }
+    for (const role of ["rigger", "model"]) {
+      await expect(sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, ?)", newId("tp"), tie, person, role).run())
+        .rejects.toThrow("CHECK constraint failed");
+    }
+  });
+
+  it("keep account settings to known values", async () => {
+    await sql("UPDATE users SET top_label = 'rigger', bottom_label = 'bunny', theme = 'light' WHERE id = ?", me).run();
+    await expect(sql("UPDATE users SET theme = 'blue' WHERE id = ?", me).run()).rejects.toThrow("CHECK constraint failed");
+    await expect(sql("UPDATE users SET top_label = '' WHERE id = ?", me).run()).rejects.toThrow("CHECK constraint failed");
+    await expect(sql("UPDATE users SET top_label = ? WHERE id = ?", "x".repeat(25), me).run()).rejects.toThrow("CHECK constraint failed");
   });
 
   it("only allow a known tie type, or none", async () => {
     await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'partial suspension')", newId("tie"), me).run();
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'hashira')", newId("tie"), me).run();
     await sql("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'x', '2026-01-01')", newId("tie"), me).run();
     await expect(sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'Floor')", newId("tie"), me).run())
       .rejects.toThrow("CHECK constraint failed");

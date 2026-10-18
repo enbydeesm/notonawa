@@ -8,6 +8,7 @@ import { h, $ } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { hankIcon } from "../rope-rating.js";
 import { stat } from "../charts.js";
+import { roleName } from "../roles.js";
 import { openTieList, openOneTie } from "../tie-list-dialog.js";
 import { summarize, tiesByDay, percent, tieListHeading } from "../stats.js";
 import { initialPeriod, stepPeriod, monthGrid, monthRange, monthTitle } from "../stats-period.js";
@@ -51,8 +52,8 @@ export function mount(_root, _context) {
       stat("Ties", String(s.ties)),
       stat("Partners", String(s.partners)),
       stat("Locations", String(s.locations)),
-      stat("As top / rigger", String(s.asTop), `${percent(s.asTop, s.ties)}%`),
-      stat("As bottom / model", String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
+      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
+      stat(`As ${roleName("bottom")}`, String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
     drawMonth(y, m, tiesByDay(ties));
   }
 

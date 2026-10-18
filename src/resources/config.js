@@ -4,7 +4,7 @@
 // (never from the request), so they're safe to put in SQL text.
 
 import { BadInput } from "../http.js";
-import { ROLES } from "../ties/parse.js";
+import { toRoleOrNull } from "../ties/parse.js";
 import {
   cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, encryptedText,
 } from "../parse.js";
@@ -54,7 +54,7 @@ export const RESOURCES = {
       // one); the database allows one. Edits can't change who it is.
       is_self: { parse: toFlag, createOnly: true },
       // Filled in when they're added to a tie; still changeable there.
-      default_role: { parse: (v) => toChoiceOrNull(v, ROLES) },
+      default_role: { parse: toRoleOrNull },
     },
     columns: "id, name, pronouns, notes, is_self, default_role, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",

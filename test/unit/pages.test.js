@@ -81,8 +81,8 @@ describe("nextRating", () => {
 
 describe("participantLabel and planLabel", () => {
   it("show names, or a deleted label", () => {
-    expect(participantLabel({ person_name: "Sam", role: "model" })).toEqual({ name: { text: "Sam", deleted: false }, role: "model" });
-    expect(participantLabel({ person_name: null, role: "model" }).name).toEqual({ text: "(person deleted)", deleted: true });
+    expect(participantLabel({ person_name: "Sam", role: "bottom" })).toEqual({ name: { text: "Sam", deleted: false }, role: "bottom" });
+    expect(participantLabel({ person_name: null, role: "bottom" }).name).toEqual({ text: "(person deleted)", deleted: true });
     expect(planLabel({ plan_title: "Hip harness", plan_version: 2 })).toEqual({ text: "Hip harness (v2)", deleted: false });
     expect(planLabel({ plan_title: null, plan_version: 1 })).toEqual({ text: "(plan deleted)", deleted: true });
   });

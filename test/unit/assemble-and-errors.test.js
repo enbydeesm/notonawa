@@ -7,8 +7,8 @@ describe("assembleTies", () => {
   it("nests participants, plans and tag names under their ties, keeping tie order", () => {
     const ties = [{ id: "t2", title: "B" }, { id: "t1", title: "A" }];
     const participants = [
-      { tie_id: "t1", person_id: "p1", person_name: "Sam", role: "model" },
-      { tie_id: "t1", person_id: null, person_name: null, role: "rigger" },
+      { tie_id: "t1", person_id: "p1", person_name: "Sam", role: "bottom" },
+      { tie_id: "t1", person_id: null, person_name: null, role: "top" },
     ];
     const plans = [{ tie_id: "t2", plan_id: "pl1", plan_title: "Hip harness", plan_version: 1 }];
 
@@ -18,15 +18,15 @@ describe("assembleTies", () => {
       {
         id: "t1", title: "A", plans: [], tags: ["floor", "kata"],
         participants: [
-          { person_id: "p1", person_name: "Sam", role: "model" },
-          { person_id: null, person_name: null, role: "rigger" },
+          { person_id: "p1", person_name: "Sam", role: "bottom" },
+          { person_id: null, person_name: null, role: "top" },
         ],
       },
     ]);
   });
 
   it("ignores rows for ties that aren't in the list", () => {
-    expect(assembleTies([], [{ tie_id: "x", role: "model" }], [])).toEqual([]);
+    expect(assembleTies([], [{ tie_id: "x", role: "bottom" }], [])).toEqual([]);
   });
 });
 

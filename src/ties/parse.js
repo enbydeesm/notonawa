@@ -4,8 +4,15 @@ import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toChoiceOrNull, toDateOrNull, encryptedText } from "../parse.js";
 import { parseTagNames } from "../tags/parse.js";
 
-export const ROLES = ["rigger", "top", "model", "bottom", "spotter", "photographer"];
-export const TIE_TYPES = ["suspension", "partial suspension", "floor"];
+/**
+ * The roles on a tie (migration 0013). Top and bottom are one role each;
+ * the words shown for them are each account's choice (users.top_label and
+ * bottom_label; see src/account/settings.js).
+ */
+export const ROLES = ["top", "bottom", "self tie", "spotter", "photographer"];
+/** What older exports, CSVs and pages call top and bottom. */
+const OLD_ROLES = /** @type {Record<string, string>} */ ({ rigger: "top", model: "bottom" });
+export const TIE_TYPES = ["suspension", "partial suspension", "floor", "hashira"];
 /** @typedef {"locations" | "people" | "plans"} RecentType */
 /** @type {RecentType[]} what /api/ties/recent/:type lists */
 export const RECENT_TYPES = ["locations", "people", "plans"];
@@ -20,6 +27,17 @@ const MAX_FILTER_IDS = 50;
 const MAX_MATCH_IDS = 20_000;
 /** How the tags filter combines the chosen tags: ties with any of them, or all. */
 export const TAG_MATCHES = ["any", "all"];
+
+/**
+ * A role, or null if empty; "rigger" and "model" (from before migration
+ * 0013) are read as top and bottom.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function toRoleOrNull(value) {
+  const text = cleanText(value);
+  return toChoiceOrNull(text !== null && Object.hasOwn(OLD_ROLES, text) ? OLD_ROLES[text] : text, ROLES);
+}
 
 /**
  * @typedef {{ person_id: string, role: string }} ParticipantInput
@@ -77,7 +95,7 @@ export function parseParticipants(value) {
   const result = [];
   for (const item of value) {
     const personId = cleanText(item?.person_id);
-    const role = toChoiceOrNull(item?.role, ROLES);
+    const role = toRoleOrNull(item?.role);
     if (!personId || !role) throw new BadInput("Each participant needs a person and a role.");
     const key = `${personId}|${role}`;
     if (seen.has(key)) continue; // same person in the same role twice: keep one

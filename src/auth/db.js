@@ -88,8 +88,9 @@ export function insertPasskeyStatement(db, userId, p) {
 export function newUserStatements(db, userId, inviteHash, recoveryHash) {
   return [
     db.prepare(
-      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version)
-       VALUES (?, ?, ?, ${NOW}, ?)`
+      // New accounts start in dark mode (users.theme; see src/account/settings.js).
+      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version, theme)
+       VALUES (?, ?, ?, ${NOW}, ?, 'dark')`
     ).bind(userId, userId, recoveryHash, POLICY_VERSION),
     db.prepare(`UPDATE invites SET used_at = ${NOW}, used_by = ? WHERE code_hash = ?`).bind(userId, inviteHash),
     // Every journal starts with its owner's own profile, renamable on the

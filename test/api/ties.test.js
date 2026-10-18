@@ -15,7 +15,7 @@ describe("ties", () => {
       duration_minutes: 45,
       success_rating: 4,
       location_id: loc,
-      participants: [{ person_id: me, role: "rigger" }, { person_id: sam, role: "model" }],
+      participants: [{ person_id: me, role: "top" }, { person_id: sam, role: "bottom" }],
       plan_ids: [plan, plan],
     });
 
@@ -25,8 +25,8 @@ describe("ties", () => {
       location_id: loc, location_name: "Studio", location_deleted: 0,
     });
     expect(tie.participants).toEqual([
-      { id: expect.any(String), person_id: me, person_name: "Me", role: "rigger" },
-      { id: expect.any(String), person_id: sam, person_name: "Sam", role: "model" },
+      { id: expect.any(String), person_id: me, person_name: "Me", role: "top" },
+      { id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" },
     ]);
     // Duplicate plan ids are saved once, with the plan's current version.
     expect(tie.plans).toEqual([{ id: expect.any(String), plan_id: plan, plan_title: "Hip harness", plan_version: 1 }]);
@@ -67,10 +67,10 @@ describe("ties", () => {
     const gone = await post("/api/people", { name: "Gone", archive_now: true });
     const tk = await post("/api/plans", { title: "TK" });
     const hip = await post("/api/plans", { title: "Hip harness" });
-    await post("/api/ties", { title: "Old", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "model" }], plan_ids: [tk] });
+    await post("/api/ties", { title: "Old", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: [tk] });
     await post("/api/ties", {
       title: "New", tie_date: "2026-06-01", plan_ids: [hip],
-      participants: [{ person_id: alex, role: "model" }, { person_id: gone, role: "rigger" }],
+      participants: [{ person_id: alex, role: "bottom" }, { person_id: gone, role: "top" }],
     });
 
     expect(await recent("people")).toEqual([alex, sam]);
@@ -88,7 +88,7 @@ describe("ties", () => {
   it("still shows archived people and locations on existing ties", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const loc = await create("/api/locations", { name: "Old flat" });
-    const id = await create("/api/ties", { tie_date: "2026-01-01", title: "x", location_id: loc, participants: [{ person_id: sam, role: "model" }] });
+    const id = await create("/api/ties", { tie_date: "2026-01-01", title: "x", location_id: loc, participants: [{ person_id: sam, role: "bottom" }] });
 
     await call(`/api/people/${sam}/archive`, { method: "POST" });
     await call(`/api/locations/${loc}/archive`, { method: "POST" });
@@ -102,7 +102,7 @@ describe("ties", () => {
     const sam = await create("/api/people", { name: "Sam" });
     const res = await call("/api/ties", {
       method: "POST",
-      body: { title: "Half saved?", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "model" }], plan_ids: ["no-such-plan"] },
+      body: { title: "Half saved?", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: ["no-such-plan"] },
     });
     expect(res).toEqual({ status: 400, body: { error: "Linked item not found." } });
     expect(await sql("SELECT id FROM ties WHERE title = 'Half saved?'").first()).toBeNull();
@@ -143,11 +143,11 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
       title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, notes: sealed("n"),
-      participants: [{ person_id: j.sam, role: "model" }], plan_ids: [j.tk], tags: ["kata"],
+      participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["kata"],
     });
     expect(await j.get(id)).toMatchObject({
       id, title: "Floor", tie_date: "2026-05-01", tie_type: "floor", location_id: j.studio, location_name: "Studio", notes: sealed("n"),
-      participants: [{ id: expect.any(String), person_id: j.sam, person_name: "Sam", role: "model" }],
+      participants: [{ id: expect.any(String), person_id: j.sam, person_name: "Sam", role: "bottom" }],
       plans: [{ id: expect.any(String), plan_id: j.tk, plan_title: "TK", plan_version: 1 }],
       tags: ["kata"],
     });
@@ -157,19 +157,19 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
       title: "Before", tie_date: "2026-05-01", location_id: j.studio,
-      participants: [{ person_id: j.sam, role: "model" }], plan_ids: [j.tk], tags: ["old"],
+      participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["old"],
     });
     await sql("UPDATE ties SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?", id).run();
     const res = await j.put(id, {
       title: "After", tie_date: "2026-05-02", tie_type: "suspension", location_id: j.garden,
       duration_minutes: 30, success_rating: 5, notes: sealed("better"),
-      participants: [{ person_id: j.alex, role: "rigger" }], plan_ids: [j.hip], tags: ["new", "kata"],
+      participants: [{ person_id: j.alex, role: "top" }], plan_ids: [j.hip], tags: ["new", "kata"],
     });
     expect(res).toEqual({ status: 200, body: { id } });
     expect(await j.get(id)).toMatchObject({
       title: "After", tie_date: "2026-05-02", tie_type: "suspension", location_name: "Garden",
       duration_minutes: 30, success_rating: 5, notes: sealed("better"),
-      participants: [expect.objectContaining({ person_name: "Alex", role: "rigger" })],
+      participants: [expect.objectContaining({ person_name: "Alex", role: "top" })],
       plans: [expect.objectContaining({ plan_title: "Hip harness" })],
       tags: ["kata", "new"],
     });
@@ -180,7 +180,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("keeps the plan version and a person's link details when they stay on the tie", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "model" }], plan_ids: [j.tk],
+      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk],
     });
     // As an import might have left them: a rating and notes on Sam's link.
     await sql("UPDATE tie_participants SET experience_rating = 4, notes = 'loved it' WHERE tie_id = ?", id).run();
@@ -188,7 +188,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
 
     await j.put(id, {
       tie_date: "2026-05-01",
-      participants: [{ person_id: j.sam, role: "model" }, { person_id: j.alex, role: "rigger" }],
+      participants: [{ person_id: j.sam, role: "bottom" }, { person_id: j.alex, role: "top" }],
       plan_ids: [j.tk, j.hip],
     });
     const plans = await sql("SELECT plan_id, plan_version FROM tie_plans WHERE tie_id = ? ORDER BY plan_version", id).all();
@@ -197,16 +197,16 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     expect(sam).toEqual({ experience_rating: 4, notes: "loved it" });
 
     // Sam in a different role is a different link: the details don't carry over.
-    await j.put(id, { tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "rigger" }] });
+    await j.put(id, { tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "top" }] });
     expect((await sql("SELECT role, notes FROM tie_participants WHERE tie_id = ?", id).all()).results)
-      .toEqual([{ role: "rigger", notes: null }]);
+      .toEqual([{ role: "top", notes: null }]);
   });
 
   it("keeps deleted people, plans and a deleted location only when asked to", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
       tie_date: "2026-05-01", location_id: j.studio,
-      participants: [{ person_id: j.sam, role: "model" }, { person_id: j.alex, role: "rigger" }], plan_ids: [j.tk, j.hip],
+      participants: [{ person_id: j.sam, role: "bottom" }, { person_id: j.alex, role: "top" }], plan_ids: [j.tk, j.hip],
     });
     for (const path of [`/api/people/${j.sam}`, `/api/people/${j.alex}`, `/api/locations/${j.studio}`]) {
       await call(path, { method: "DELETE", cookie: j.cookie });
@@ -233,7 +233,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("deletes a tie, leaving its people, plans and tags", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "model" }], plan_ids: [j.tk], tags: ["kept-tag"],
+      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["kept-tag"],
     });
     expect((await call(`/api/ties/${id}`, { method: "DELETE", cookie: j.cookie })).status).toBe(204);
     expect((await call(`/api/ties/${id}`, { cookie: j.cookie })).status).toBe(404);

@@ -421,15 +421,16 @@ try {
   check("…and the recovery wrap matches again", await keysNow(), [true, true, true]);
   currentCode = afterReset[0] ?? "";
 
-  console.log("Light and dark mode");
+  console.log("Menu and Settings");
   const deviceMode = (value) => send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value }] });
-  // Background colour, the menu row's tooltip, data-theme and the saved choice.
-  // Opens the menu first if it's closed.
-  const menuOpen = `if (!$("dialog.menu-panel[open]")) await openMenu();`;
-  const themeState = `${menuOpen}
-    return [getComputedStyle(document.body).backgroundColor, $(".menu-theme").title,
-    document.documentElement.dataset.theme ?? null, localStorage.getItem("theme")];`;
-  const toggleTheme = `${menuOpen} $(".menu-theme").click(); await wait(100);`;
+  // Background colour, data-theme, the mode kept on this device, and the account's.
+  const themeState = `return [getComputedStyle(document.body).backgroundColor, document.documentElement.dataset.theme ?? null,
+    localStorage.getItem("theme"), (await (await fetch("/api/account/settings")).json()).theme];`;
+  const openSettings = `if (!$("dialog.menu-panel[open]")) await openMenu(); $(".menu-settings").click(); await wait(500);`;
+  const settingsState = `return [$("dialog.menu-panel") === null, $("#settings-title")?.textContent ?? null,
+    $("#settings-dark")?.getAttribute("aria-checked") ?? null,
+    [...document.querySelectorAll(".settings-form label")].map((l) => l.textContent),
+    [$("#settings-top")?.value, $("#settings-top")?.placeholder, $("#settings-bottom")?.value, $("#settings-bottom")?.placeholder]];`;
   const menuGone = `await wait(300); return $("dialog") === null;`;
   // Real key presses and taps (not events made by the page), as the browser
   // handles Esc and the backdrop itself.
@@ -437,21 +438,23 @@ try {
   const tap = async (type, x, y) => send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
   const LIGHT_BG = "rgb(250, 248, 245)";
   const DARK_BG = "rgb(22, 21, 20)";
+  // The device's own setting no longer matters: a light device starts dark.
   await deviceMode("light");
   await go("/");
   check("the menu button sits in the corner, after the +", await run(`
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("the menu opens with the logo, Light / Dark Mode (a half-filled sun), Account, Your data and Privacy Policy", await run(`
+  check("the menu opens with the logo, Settings (a gear), Account, Your data, Privacy Policy and Sign Out", await run(`
     await openMenu();
     return [$(".menu-title img").alt, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
-      $(".menu-theme svg path").getAttribute("fill"), document.querySelectorAll(".menu-theme svg line").length,
-      $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["NotoNawa", [["BUTTON", "Light / Dark Mode", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true]], "currentColor", 8, "/account", "/privacy"]);
-  check("Privacy Policy sits at the bottom of the panel", await run(`
-    const panel = $(".menu-inner").getBoundingClientRect(), row = $(".menu-privacy").getBoundingClientRect();
-    return [Math.round(panel.bottom - row.bottom), row.top - $(".nav-data").getBoundingClientRect().bottom > 100];`), [16, true]);
+      $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
+    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
+      true, "/account", "/privacy"]);
+  check("Privacy Policy and then Sign Out sit at the bottom of the panel", await run(`
+    const panel = $(".menu-inner").getBoundingClientRect(), privacy = $(".menu-privacy").getBoundingClientRect();
+    const out = $(".menu-sign-out").getBoundingClientRect();
+    return [Math.round(panel.bottom - out.bottom), Math.round(out.top - privacy.bottom), privacy.top - $(".nav-data").getBoundingClientRect().bottom > 100];`), [16, 0, true]);
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
@@ -462,25 +465,44 @@ try {
   await run(`await openMenu();`);
   await tap("mousePressed", 5, 300); await tap("mouseReleased", 5, 300);
   check("tapping beside the panel closes it", await run(menuGone), true);
-  check("a light device starts light", await run(themeState), [LIGHT_BG, "Switch to dark mode", null, null]);
-  check("tapping switches to dark and remembers it", await run(`${toggleTheme} ${themeState}`),
-    [DARK_BG, "Switch to light mode", "dark", "dark"]);
-  check("the menu stays open", await run(`return $("dialog.menu-panel[open]") !== null;`), true);
+  check("a new account is dark, on a light device too, and saved as dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
+  check("Settings replaces the menu with its dialog: the dark mode switch, then the role names, empty with muted defaults",
+    await run(`${openSettings} ${settingsState}`),
+    [true, "Settings", "true", ["Dark mode", "Person tying is called:", "Person being tied is called:"], ["", "top", "", "bottom"]]);
+  check("the switch changes the mode at once, and saves it to the account", await run(`
+    $("#settings-dark").click(); await wait(800);
+    return [$("#settings-dark").getAttribute("aria-checked"), ...(await (async () => { ${themeState} })())];`),
+    ["false", LIGHT_BG, "light", "light", "light"]);
+  check("Cancel closes the dialog, keeping the mode", await run(`
+    $(".settings-dialog .dialog-cancel").click(); await wait(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
+  await run(`localStorage.removeItem("theme");`);
   await go("/plans");
-  check("the choice carries over to other pages", await run(themeState), [DARK_BG, "Switch to light mode", "dark", "dark"]);
-  check("tapping back to the device's mode forgets the choice", await run(`${toggleTheme} ${themeState}`),
-    [LIGHT_BG, "Switch to dark mode", null, null]);
-  await deviceMode("dark");
-  await go("/");
-  check("a dark device starts dark", await run(themeState), [DARK_BG, "Switch to light mode", null, null]);
-  check("light can be picked on a dark device", await run(`${toggleTheme} ${themeState}`),
-    [LIGHT_BG, "Switch to dark mode", "light", "light"]);
-  await go("/people");
-  check("and carries over too", await run(themeState), [LIGHT_BG, "Switch to dark mode", "light", "light"]);
-  check("the tooltip follows the device changing while the menu is open", await run(`${toggleTheme} return $(".menu-theme").title;`),
-    "Switch to light mode");
-  await deviceMode("light");
-  check("…to light", await run(`await wait(100); ${themeState}`), [LIGHT_BG, "Switch to dark mode", null, null]);
+  check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
+    [LIGHT_BG, "light", "light", "light"]);
+  check("two roles can't have the same name", await run(`
+    ${openSettings} $("#settings-top").value = "Rope"; $("#settings-bottom").value = "rope"; $("#settings-save").click(); await wait(800);
+    return [$(".settings-dialog .message").textContent, $(".settings-dialog") !== null];`),
+    ["Couldn't save: Give the two roles different names.", true]);
+  check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
+    $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await wait(1200);
+    const saved = [$(".settings-dialog") === null, await (await fetch("/api/account/settings")).json()];
+    $(".nav-add").click(); await wait(800);
+    const tieRoles = [...document.querySelectorAll("dialog .role option")].map((o) => o.textContent);
+    $(".dialog-cancel").click(); await wait(300);
+    return [saved, tieRoles];`),
+    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light" }],
+      ["Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
+  await go("/analytics");
+  check("…the Analytics role filter and numbers", await run(`
+    return [[...$("#role").options].map((o) => o.text), [...document.querySelectorAll("#insights-stats dt")].map((d) => d.textContent).filter((t) => t.startsWith("As"))];`),
+    [["All roles", "As rigger", "As Rope bunny", "As self tie", "As spotter", "As photographer"], ["As rigger", "As Rope bunny"]]);
+  check("blank names go back to top and bottom", await run(`
+    ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await wait(1200);
+    return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
+    [{ top_label: null, bottom_label: null, theme: "light" }, ["As top", "As bottom"]]);
+  // Back to dark, the default, for the rest of the walkthrough.
+  await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
+  check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
 
   console.log("Single-page app");
   await go("/");
@@ -533,10 +555,10 @@ try {
   check("a new journal starts with 'Me'; add people, one with a default role", await run(`
     const first = titles();
     const roles = [...$("#default_role").options].map((o) => o.text);
-    set("#name", "Sam"); set("#pronouns", "they/them"); set("#default_role", "model"); await submit();
+    set("#name", "Sam"); set("#pronouns", "they/them"); set("#default_role", "bottom"); await submit();
     set("#name", "Alex"); await submit();
     return [first, roles, items().find((i) => i.startsWith("Sam |")).split(" | ")[1], titles()];`),
-    [["MeYou"], ["None", "Rigger", "Top", "Model", "Bottom", "Spotter", "Photographer"], "they/them · usually model", ["MeYou", "Alex", "Sam"]]);
+    [["MeYou"], ["None", "Top", "Bottom", "Self tie", "Spotter", "Photographer"], "they/them · usually bottom", ["MeYou", "Alex", "Sam"]]);
   check("'This is me' shows only on my own profile, ticked and greyed out, which can't be archived or deleted", await run(`
     const onAdd = $("#self-flag").hidden;
     await clickIn("Sam", "Edit"); const onSam = $("#self-flag").hidden;
@@ -731,14 +753,14 @@ try {
     role().value = "spotter"; await choosePick(box, "Sam"); const back = role().value;
     box.blur();
     return [empty, sam, me, back];`),
-    [["", ""], "model", "", "model"]);
+    [["", ""], "bottom", "", "bottom"]);
   check("save a full tie: the dialog closes and the list shows it", await run(`
     set("#tie-tie_type", "floor");
-    document.querySelectorAll(".role")[0].value = "rigger";
+    document.querySelectorAll(".role")[0].value = "top";
     set("#tie-duration_minutes", "45"); set("#tie-notes", "Smooth transitions");
     $("#tie-save").click(); await wait(1000);
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
-    [false, "Floor session", [true, "Floor at Studio", 4, "With: Me (rigger), Sam (model)", ["Floor", "Futomomo"]]]);
+    [false, "Floor session", [true, "Floor at Studio", 4, "With: Me (top), Sam (bottom)", ["Floor", "Futomomo"]]]);
   check("a tie needs a date: the form won't save without one", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await wait(600);
@@ -773,7 +795,7 @@ try {
     const all = async (type) => (await (await fetch("/api/" + type + "?archived=all")).json());
     const alex = (await all("people")).find((p) => p.name === "Alex").id;
     const hotel = (await all("locations")).find((l) => l.name === "Hotel").id;
-    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "model" }], tags: ["Futomomo", "Inversion"] });
+    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "bottom" }], tags: ["Futomomo", "Inversion"] });
     for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
@@ -804,7 +826,7 @@ try {
     const narrow = [line.innerText, line.querySelector(".tie-more").title];
     $("#tie-list").style.width = ""; await wait(400);
     return [narrow, line.innerText];`),
-    [["With: Me (rigger) +1", "Sam (model)"], "With: Me (rigger), Sam (model)"]);
+    [["With: Me (top) +1", "Sam (bottom)"], "With: Me (top), Sam (bottom)"]);
   check("filters list everyone A–Z, archived in muted text", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
     return [filterOptions("#people-filter"), filterOptions("#locations-filter")];`),
@@ -1034,7 +1056,7 @@ try {
   check("delete a person", await run(`await clickIn("Sam", "Delete"); await clickDialog("Delete permanently"); return titles();`), ["MeYou"]);
   await go("/");
   check("tie shows what was deleted", await run(`return card(0);`),
-    [true, "Floor at (location deleted)", 4, "With: (person deleted) (model), Me (rigger)", ["Futomomo"]]);
+    [true, "Floor at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]);
   check("tapping a title opens the tie to edit, deleted links shown as kept", await run(`
     $(".tie-title").click(); await wait(1000);
     const d = $("dialog[open]");
@@ -1044,17 +1066,17 @@ try {
       [...d.querySelectorAll("#tie-participants .person-row [role=combobox]")].map((b) => b.value),
       kept("#tie-plans"), tagChips("#tie-tags"), d.querySelectorAll(".hank-button.filled").length,
       [...d.querySelectorAll("button")].filter((b) => ["Save tie", "Cancel", "Delete tie"].includes(b.textContent)).map((b) => b.textContent), leakyFields()];`),
-    ["Edit tie", "Floor session", "floor", "45", "Smooth transitions", false, ["(person deleted) (model)"], ["Me"], ["(plan deleted)"], ["Futomomo"], 4,
+    ["Edit tie", "Floor session", "floor", "45", "Smooth transitions", false, ["(person deleted) (bottom)"], ["Me"], ["(plan deleted)"], ["Futomomo"], 4,
       ["Save tie", "Cancel", "Delete tie"], []]);
   check("saving an edit updates the tie, keeping the deleted links left in", await run(`
     set("#tie-title", "Floor session, edited"); $("#tie-save").click(); await wait(600); await settle();
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
-    [false, "Floor session, edited", [true, "Floor at (location deleted)", 4, "With: (person deleted) (model), Me (rigger)", ["Futomomo"]]]);
+    [false, "Floor session, edited", [true, "Floor at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]]);
   check("removing deleted links in the edit form drops them", await run(`
     $(".tie-title").click(); await wait(1000);
     $("#tie-participants .kept-deleted button").click(); $("#tie-location-deleted button").click();
     $("#tie-save").click(); await wait(600); await settle();
-    return card(0);`), [true, "Floor", 4, "With: Me (rigger)", ["Futomomo"]]);
+    return card(0);`), [true, "Floor", 4, "With: Me (top)", ["Futomomo"]]);
   await run(`await post("/api/ties", { title: "Throwaway", tie_date: "2030-01-01" });`);
   await go("/");
   check("Delete tie asks first; Cancel keeps it, Delete tie deletes it", await run(`
@@ -1123,6 +1145,15 @@ try {
   await run(`$("#sign-in").click();`);
   await sleep(2500);
   check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 24 of 24 ties"]);
+  await run(`await openMenu(); $(".menu-sign-out").click();`);
+  await sleep(1500);
+  check("Sign Out in the menu signs out too, and locks the journal", await run(`
+    return [location.pathname, $("nav").hidden, (await fetch("/api/tags")).status, document.documentElement.dataset.theme];`),
+    ["/signin", true, 401, "dark"]);
+  await go("/signin");
+  await run(`$("#sign-in").click();`);
+  await sleep(2500);
+  check("…and signing in again works", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 24 of 24 ties"]);
 
   console.log("Recovery");
   // Lose the phone: its passkey is gone. The new device has a new
@@ -1208,7 +1239,7 @@ try {
     const res = await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page_size: 100 }) })).json();
     return [msg, $("#import-go").hidden, res.ties.filter((t) => t.title?.startsWith("Imported"))
       .map((t) => [t.title, t.location_name, t.participants.map((p) => p.person_name + ":" + p.role).sort()])];`),
-    ["Imported 2 ties.", true, [["Imported two", "Beach", []], ["Imported one", place, ["Alex:model", "Robin:rigger"]]]]);
+    ["Imported 2 ties.", true, [["Imported two", "Beach", []], ["Imported one", place, ["Alex:bottom", "Robin:top"]]]]);
   check("a CSV with mistakes lists them by row, and saves nothing", await chooseFile("bad.csv", "text/csv", "date,title\n12/10/2026,x\n"),
     [[], null, 'Fix these in the file, then choose it again:\nRow 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").']);
   check("importing the export into the same journal has nothing to add", (await chooseFile(exported[0] ?? "x.json", "application/json", exportText)).slice(1),
@@ -1298,10 +1329,26 @@ try {
     const bar = document.querySelector("#tie-count-chart .bar-hits button"); const label = bar.getAttribute("aria-label");
     bar.click(); await wait(1000);
     const shown = [$("#tl-heading").textContent, document.querySelectorAll("#tl-list .tie-card").length];
-    const count = Number(label.match(/(\\d+) ties?$/)[1]);
+    const count = Number(label.match(/: (\\d+) ties?/)[1]);
     $("#tl-close").click(); await wait(200);
     return [shown[0].endsWith(count === 1 ? "· 1 tie" : "· " + count + " ties"), shown[1] === Math.min(count, 100), document.querySelector("dialog[open]") === null];`),
     [true, true, true]);
+  check("the tie count and partners are split by my role, with a key; days are seven yellow bars; locations are rows of bars", await run(`
+    const key = [...document.querySelectorAll("#tie-count-chart .chart-key li, #partner-chart .chart-key li")].map((li) => li.textContent);
+    const colors = new Set([...document.querySelectorAll("#tie-count-chart .bar rect, #partner-chart rect")].map((r) => r.getAttribute("class")).filter(Boolean));
+    const days = [...document.querySelectorAll("#weekday-chart .bar-label")].map((t) => t.textContent);
+    const rows = [...document.querySelectorAll("#location-chart .rank-row")].map((r) =>
+      [r.querySelector(".rank-name").textContent.length > 0, r.getAttribute("aria-label").endsWith(r.querySelector(".rank-count").textContent + (r.querySelector(".rank-count").textContent === "1" ? " tie" : " ties"))]);
+    const typeColors = [...document.querySelectorAll("#type-chart .legend-row .swatch")].map((s) => s.classList[1]);
+    return [key.length > 0 && key.every((k) => k.startsWith("As ")), [...colors].every((c) => ["c-yellow", "c-purple", "c-teal"].includes(c)),
+      days, rows.length > 0 && rows.every((row) => row[0] && row[1]),
+      getComputedStyle($("#weekday-chart .bar:not(.empty) rect")).fill, typeColors.every((c) => ["c-yellow", "c-purple", "c-teal", "c-coral", "c-grey"].includes(c))];`),
+    [true, true, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], true, "rgb(254, 199, 98)", true]);
+  check("with the role filter on spotter, the role-colored charts are grey", await run(`
+    set("#role", "spotter"); await wait(1000);
+    const classes = [...document.querySelectorAll("#tie-count-chart .bar:not(.empty) rect, #partner-chart rect")].map((r) => r.getAttribute("class"));
+    set("#role", "all"); await wait(1000);
+    return classes.every((c) => c === "c-grey");`), true);
   check("so does tapping a partner and a pie's legend", await run(`
     $("#partner-chart .partner-row").click(); await wait(1000); const partner = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);
     $("#type-chart .legend-row").click(); await wait(1000); const typeShown = document.querySelectorAll("#tl-list .tie-card").length > 0; $("#tl-close").click(); await wait(200);

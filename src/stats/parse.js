@@ -4,13 +4,14 @@ import { BadInput } from "../http.js";
 import { parseTieFilters } from "../ties/parse.js";
 
 /**
- * The roles the analytics filter offers, each a group of the roles a tie
- * can have: Self as top or rigger counts as "top", and so on.
+ * The roles the analytics filter offers (each the tie roles it matches;
+ * since migration 0013 that's one role each).
  * @type {Record<string, string[]>}
  */
 export const ROLE_GROUPS = {
-  top: ["rigger", "top"],
-  bottom: ["model", "bottom"],
+  top: ["top"],
+  bottom: ["bottom"],
+  self_tie: ["self tie"],
   spotter: ["spotter"],
   photographer: ["photographer"],
 };

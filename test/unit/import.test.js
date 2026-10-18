@@ -47,7 +47,7 @@ describe("parseImportItems", () => {
     expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", profile_notes: [{ type: "like", description: "plain" }] }] }))
       .toThrow("weren't encrypted");
     expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", notes: "plain" }] })).toThrow("weren't encrypted");
-    expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", participants: [{ person_id: "p", role: "model", notes: "plain" }] }] }))
+    expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", participants: [{ person_id: "p", role: "bottom", notes: "plain" }] }] }))
       .toThrow("weren't encrypted");
   });
 
@@ -79,8 +79,8 @@ describe("parseImportTies", () => {
     const [tie] = parseImportTies({ ties: [{
       title: "Floor", tie_date: "2026-10-12", duration_minutes: "45", location_id: null, location_deleted: true,
       participants: [
-        { person_id: "p1", role: "model", difficulty_rating: 3, notes: sealed("good") },
-        { person_id: "p1", role: "model" },
+        { person_id: "p1", role: "bottom", difficulty_rating: 3, notes: sealed("good") },
+        { person_id: "p1", role: "bottom" },
         { person_id: null, role: "spotter" },
       ],
       plans: [{ plan_id: "a", plan_version: 2 }, { plan_id: "a" }, { plan_id: null }],
@@ -89,7 +89,7 @@ describe("parseImportTies", () => {
     expect(tie).toMatchObject({
       title: "Floor", duration_minutes: 45, location_deleted: 1, success_rating: null,
       participants: [
-        { person_id: "p1", role: "model", difficulty_rating: 3, experience_rating: null, notes: sealed("good") },
+        { person_id: "p1", role: "bottom", difficulty_rating: 3, experience_rating: null, notes: sealed("good") },
         { person_id: null, role: "spotter" },
       ],
       plans: [{ plan_id: "a", plan_version: 2 }, { plan_id: null, plan_version: null }],
@@ -192,13 +192,13 @@ describe("planItems", () => {
 
 describe("linksKey", () => {
   it("lists people with roles, plans and tags, in any order", () => {
-    const key = linksKey([{ person_id: "b", role: "model" }, { person_id: "a", role: "rigger" }], ["p2", "p1"], ["t2", "t1"]);
-    expect(key).toBe("a|rigger,b|model;p1,p2;t1,t2");
-    expect(linksKey([{ person_id: "a", role: "rigger" }, { person_id: "b", role: "model" }], ["p1", "p2"], ["t1", "t2"])).toBe(key);
+    const key = linksKey([{ person_id: "b", role: "bottom" }, { person_id: "a", role: "top" }], ["p2", "p1"], ["t2", "t1"]);
+    expect(key).toBe("a|top,b|bottom;p1,p2;t1,t2");
+    expect(linksKey([{ person_id: "a", role: "top" }, { person_id: "b", role: "bottom" }], ["p1", "p2"], ["t1", "t2"])).toBe(key);
   });
 
   it("keeps deleted people and plans as empty entries, and is empty with no links", () => {
-    expect(linksKey([{ person_id: null, role: "model" }], [null], [])).toBe("|model;;");
+    expect(linksKey([{ person_id: null, role: "bottom" }], [null], [])).toBe("|bottom;;");
     expect(linksKey([], [], [])).toBe(";;");
   });
 });
@@ -206,7 +206,7 @@ describe("linksKey", () => {
 describe("planTies", () => {
   it("gives each tie and link a new id, and resolves tags to my spelling", () => {
     const ties = parseImportTies({ ties: [
-      { title: "A", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "model" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
+      { title: "A", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "bottom" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
       { title: "B", tie_date: "2026-01-02", tags: ["new"] },
     ] });
     const plan = planTies(ties, [{ id: "t", name: "Floor" }], counter());
@@ -214,8 +214,8 @@ describe("planTies", () => {
     expect(plan.rows.tags).toEqual([{ id: "new-1", name: "New" }]);
     expect(plan.rows.ties.map((t) => t.id)).toEqual(["new-2", "new-3"]);
     // Tags in the links key are ids: "t" is mine, "new-1" is being added.
-    expect(plan.rows.ties.map((t) => t.links)).toEqual(["p|model;pl;new-1,t", ";;new-1"]);
-    expect(plan.rows.participants).toEqual([expect.objectContaining({ id: "new-4", tie_id: "new-2", person_id: "p", role: "model" })]);
+    expect(plan.rows.ties.map((t) => t.links)).toEqual(["p|bottom;pl;new-1,t", ";;new-1"]);
+    expect(plan.rows.participants).toEqual([expect.objectContaining({ id: "new-4", tie_id: "new-2", person_id: "p", role: "bottom" })]);
     expect(plan.rows.tiePlans).toEqual([{ id: "new-5", tie_id: "new-2", plan_id: "pl", plan_version: null }]);
     expect(plan.rows.tieTags).toEqual([
       { tie_id: "new-2", name: "Floor" }, { tie_id: "new-2", name: "New" }, { tie_id: "new-3", name: "New" },

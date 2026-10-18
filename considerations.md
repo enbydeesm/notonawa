@@ -229,8 +229,9 @@ Each step leaves the app working and shippable on its own.
   machine if that's easy to forget. The plaintext backups from earlier
   migrations were deleted (2026-10-13).
 - **Import**: from an export, or a CSV of ties (one per row:
-  date, title, type, duration, rating, location, people as `Sam (model); Alex
-  (rigger)`, plans, tags, notes; `/import-template.csv`). Decided:
+  date, title, type, duration, rating, location, people as `Sam (bottom);
+  Alex (top)` (my own names for top and bottom, and the old rigger and
+  model, work too), plans, tags, notes; `/import-template.csv`). Decided:
   - **CSV is ties only.** People, locations and plans named in it that the
     journal doesn't have are created.
   - **Matched by name**, ignoring capitals (exact spelling first, active
@@ -791,8 +792,9 @@ the dark theme's background.
 
 Two views: Calendar (`/calendar`, the calendar tab: a month, with a hank on
 each day with ties) and Analytics (`/analytics`, the bar-chart tab: a
-period's numbers, tie count bars, top 10 partners, and pie charts of tie
-types, days of the week and locations). They started as two halves of one
+period's numbers, tie count bars, top 10 partners, a pie chart of tie
+types, and bars for the days of the week and locations; see "Chart colors
+and roles" below for how they look since 2026-10-17). They started as two halves of one
 Analytics view; Calendar got its own tab once the nav became icons
 (2026-10-16). Decided:
 
@@ -807,15 +809,15 @@ Analytics view; Calendar got its own tab once the nav became icons
   library.** Three simple kinds, and the calendar is custom anyway; no new
   third-party code in an app holding encrypted journal data (a supply-chain
   risk, and 70–150 KB more to load), nothing to upgrade, and colors come
-  from CSS variables (`--chart-1` to `--chart-7`) so they follow the theme
+  from CSS variables (`--chart-yellow` and so on) so they follow the theme
   and the CSP's no-style-attributes rule. If fancier charts are wanted later
   (zooming, trend lines), Chart.js is the lowest-risk library: no runtime
   dependencies.
 - **Partners** are the other people on a tie, leaving out my own profile,
   spotters and photographers (someone both spotting and modelling on a tie
   counts). Deleted people aren't counted.
-- **The role filter is about me**: "As top / rigger" is ties where my own
-  profile was top or rigger, and so on. Ties without me on them only count
+- **The role filter is about me**: "As top" (or my name for it) is ties
+  where my own profile was top, and so on. Ties without me on them only count
   under "All roles", so the top and bottom percentages can add up to less
   than 100% (rare, so accepted).
 - **More filters (people, locations, tags) match ANY of the choices within
@@ -826,6 +828,67 @@ Analytics view; Calendar got its own tab once the nav became icons
   month or the last 4 weeks; for All time a year each, or a month each while
   the ties span less than a year; for Custom a day each up to six weeks,
   then a month each.
+
+## Roles, role names, Settings and dark mode by default
+
+**Status:** built (2026-10-17, migration 0013)
+
+- **One role per side of a tie.** Rigger and top meant the same thing, as
+  did model and bottom, so they're now top and bottom, and each account
+  chooses the words shown for them (Settings: "Person tying is called",
+  "Person being tied is called"; `users.top_label`, `bottom_label`). The
+  stored role never changes, so counting, filtering and imports don't
+  depend on the words. Weighed: keeping rigger and model as their own
+  roles and letting people hide the ones they don't use. Rejected: two
+  roles for one thing split every count in two.
+- **Every account's data was converted** by the migration: rigger to top,
+  model to bottom, on ties and default roles. An account that only ever
+  used rigger (never top) got "rigger" as its name for top, so nothing
+  changed on its screen; the same for model. A person on one tie as both
+  rigger and top became one row (the top one kept, with its ratings and
+  notes; the other's were dropped, which no data had).
+- **Self tie is a role**, on ties and as a default role (so someone who
+  mostly ties themselves can make it their own profile's usual role). Its
+  name isn't customizable. Analytics has "As self tie".
+- **Hashira is a tie type**, after floor.
+- **Role names are stored as plain text**, like tag names, so they're there
+  before the journal is unlocked and the server can check them (1–24
+  characters, different from each other and from the other roles' names).
+- **Light/dark mode is an account setting** (`users.theme`), the same on
+  every device, changed by the switch in Settings at once (role names wait
+  for Save). New accounts start dark; accounts from before keep whatever
+  their device showed, saved the first time they open the app. The
+  device's own light/dark setting is no longer followed. Weighed: keeping
+  it per device. Rejected: picking light on one device should mean light
+  everywhere.
+- **Imports** read rigger and model (and my own names, in a CSV) as top and
+  bottom. An export carries its role names (`account.settings`); importing
+  it takes them only if mine are still the defaults, so names I chose are
+  never replaced.
+- **Settings is a dialog** opened from the menu's first row (a gear), in
+  place of the old Light / Dark Mode row; Sign Out is at the bottom of the
+  menu too, below the privacy policy, as well as on the Account page.
+
+## Chart colors and roles
+
+**Status:** built (2026-10-17)
+
+- **One palette in both modes**: yellow `#fec762` (the app's accent), purple
+  `#7e51a2`, teal `#248686`, coral `#e07a5f`, and a grey that's lighter or
+  darker to suit the mode. In light mode yellow is pale on white, so every
+  bar carries its count.
+- **The tie count and partner bars are split by my role**: top yellow,
+  bottom purple, self tie teal, with a key under the heading. They count
+  only ties where I was top, bottom or self tie; a switch (top and bottom on
+  one tie) counts once, as top, so the parts add up to the bar. With the
+  role filter on spotter or photographer, they count those ties in grey.
+  The other charts and the numbers at the top count every tie in the period.
+- **Tie types** keep a color each: suspension yellow, partial purple, floor
+  teal, hashira coral, not set grey.
+- **Days of the week** are seven yellow bars, Sunday to Saturday, days
+  without ties included. **Locations** are horizontal yellow bars, the
+  busiest 9 then the rest as Other: the name right-aligned on the left, the
+  count just after the bar.
 
 ## Tapping a chart or calendar day lists its ties
 

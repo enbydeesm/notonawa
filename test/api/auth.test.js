@@ -107,7 +107,11 @@ describe("signing up", () => {
     expect(account.passkeys).toMatchObject([{ id: passkey.id, name: "My phone", prf_capable: 1 }]);
 
     const user = await sql("SELECT * FROM users WHERE id = (SELECT user_id FROM passkeys WHERE id = ?)", passkey.id).first();
-    expect(user).toMatchObject({ terms_version: POLICY_VERSION, recovery_secret_hash: await sha256Hex(await secretFor(code)) });
+    // New accounts start in dark mode, on the default role names.
+    expect(user).toMatchObject({
+      terms_version: POLICY_VERSION, recovery_secret_hash: await sha256Hex(await secretFor(code)),
+      theme: "dark", top_label: null, bottom_label: null,
+    });
     expect(user?.email).toBe(user?.id);
     expect(user?.accepted_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
     // The journal starts with the owner's own profile.
