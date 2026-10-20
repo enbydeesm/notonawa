@@ -152,4 +152,5 @@ vite.config.ts.timestamp-*
 node_modules/
 # Database backups (contain journal data)
 backups/
-personal.code-workspace
+personal.code-workspace# Claude Code settings for this computer only
+.claude/settings.local.json
