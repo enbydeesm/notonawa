@@ -1,8 +1,7 @@
 // Database queries for ties.
 
 import { tieFilterSql } from "./search.js";
-import { tagNames } from "../tags/db.js";
-import { matchTags } from "../tags/parse.js";
+import { tagStatements } from "../tags/db.js";
 import { NOW } from "../sql.js";
 import { mediaOfStatement } from "../media/db.js";
 
@@ -100,7 +99,7 @@ export async function getTie(db, ownerId, id) {
 
 // A tie's own fields, its location's name and how many photos it has, for `ties t`.
 const TIE_COLUMNS = `
-  SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.created_at,
+  SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.album_url, t.created_at,
          t.location_id, t.location_deleted, l.name AS location_name,
          (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count
     FROM ties t
@@ -171,9 +170,10 @@ export async function insertTie(db, ownerId, tie) {
   const id = crypto.randomUUID();
   const statements = [
     db.prepare(
-      `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, duration_minutes, success_rating, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(id, ownerId, tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.duration_minutes, tie.success_rating, tie.notes),
+      `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, duration_minutes, success_rating, notes, album_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, ownerId, tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.duration_minutes, tie.success_rating,
+      tie.notes, tie.album_url),
   ];
   for (const p of tie.participants) {
     statements.push(
@@ -190,30 +190,9 @@ export async function insertTie(db, ownerId, tie) {
       ).bind(crypto.randomUUID(), id, planId, planId, ownerId)
     );
   }
-  statements.push(...await tagStatements(db, ownerId, id, tie.tags));
+  statements.push(...await tagStatements(db, ownerId, "tie", id, tie.tags));
   await db.batch(statements);
   return id;
-}
-
-/**
- * Links a tie to its tags. Tags not matching one of mine (ignoring capitals)
- * are created here. If the same tag was created a moment ago elsewhere, DO
- * NOTHING keeps that one, and the link finds it by name either way.
- * @param {D1Database} db
- * @param {string} ownerId
- * @param {string} tieId
- * @param {string[]} names
- */
-async function tagStatements(db, ownerId, tieId, names) {
-  const tags = names.length ? matchTags(await tagNames(db, ownerId), names) : [];
-  return tags.flatMap((tag) => [
-    ...(tag.isNew ? [
-      db.prepare("INSERT INTO tags (id, owner_id, name) VALUES (?, ?, ?) ON CONFLICT (owner_id, name) DO NOTHING")
-        .bind(crypto.randomUUID(), ownerId, tag.name),
-    ] : []),
-    db.prepare("INSERT INTO tie_tags (tie_id, tag_id) SELECT ?, id FROM tags WHERE owner_id = ? AND name = ?")
-      .bind(tieId, ownerId, tag.name),
-  ]);
 }
 
 /**
@@ -245,10 +224,10 @@ export async function updateTie(db, ownerId, id, tie) {
     db.prepare(
       `UPDATE ties SET title = ?, tie_date = ?, tie_type = ?, location_id = ?,
               location_deleted = CASE WHEN ? IS NULL AND ? THEN location_deleted ELSE 0 END,
-              duration_minutes = ?, success_rating = ?, notes = ?, updated_at = ${NOW}
+              duration_minutes = ?, success_rating = ?, notes = ?, album_url = ?, updated_at = ${NOW}
         WHERE id = ? AND owner_id = ?`
     ).bind(tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.location_id, keep.location ? 1 : 0,
-      tie.duration_minutes, tie.success_rating, tie.notes, id, ownerId),
+      tie.duration_minutes, tie.success_rating, tie.notes, tie.album_url, id, ownerId),
     db.prepare(
       `DELETE FROM tie_participants
         WHERE ${myTie}
@@ -273,7 +252,7 @@ export async function updateTie(db, ownerId, id, tie) {
          ON CONFLICT (tie_id, plan_id) DO NOTHING`
       ).bind(crypto.randomUUID(), id, planId, planId, ownerId)),
     db.prepare(`DELETE FROM tie_tags WHERE ${myTie}`).bind(id, ownerId),
-    ...await tagStatements(db, ownerId, id, tie.tags),
+    ...await tagStatements(db, ownerId, "tie", id, tie.tags),
   ];
   await db.batch(statements);
   return true;

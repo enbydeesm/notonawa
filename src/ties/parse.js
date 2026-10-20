@@ -44,8 +44,9 @@ export function toRoleOrNull(value) {
  * @typedef {{
  *   title: string | null,
  *   tie_date: string,
- *   tie_type: string | null,
+ *   tie_type: string,
  *   notes: string | null,
+ *   album_url: string | null,
  *   duration_minutes: number | null,
  *   success_rating: number | null,
  *   location_id: string | null,
@@ -56,9 +57,10 @@ export function toRoleOrNull(value) {
  */
 
 /**
- * Body: { title, tie_date, tie_type, duration_minutes, success_rating, notes, location_id,
- *         participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
+ * Body: { title, tie_date, tie_type, duration_minutes, success_rating, notes, album_url,
+ *         location_id, participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
  * tags are names, so new tags (created on save) and existing ones are sent alike.
+ * tie_type is required (migration 0014).
  * @param {Record<string, unknown>} body
  * @returns {TieInput}
  */
@@ -69,6 +71,7 @@ export function parseTieInput(body) {
     tie_type: toChoiceOrNull(body.tie_type, TIE_TYPES),
     // Encrypted in the browser.
     notes: encryptedText(body.notes),
+    album_url: encryptedText(body.album_url),
     duration_minutes: toIntOrNull(body.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(body.success_rating, 1, 5),
     location_id: cleanText(body.location_id),
@@ -77,10 +80,14 @@ export function parseTieInput(body) {
     tags: parseTagNames(body.tags),
   };
   // Every tie has a date, so a date search never leaves one out.
-  const date = tie.tie_date;
+  const { tie_date: date, tie_type: type } = tie;
   if (!date) throw new BadInput("Add a date.");
-  return { ...tie, tie_date: date };
+  if (!type) throw new BadInput(TYPE_NEEDED);
+  return { ...tie, tie_date: date, tie_type: type };
 }
+
+/** What a tie without a type is told, from the form or an import. */
+export const TYPE_NEEDED = "Choose a tie type: suspension, partial suspension, floor or hashira.";
 
 /**
  * @param {unknown} value

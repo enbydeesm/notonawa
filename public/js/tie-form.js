@@ -12,6 +12,7 @@ import { roleName, roleOptions } from "./roles.js";
 import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
+import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, forgetSearch } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
 
@@ -89,7 +90,8 @@ function showTieForm(tie) {
           privateField(h("input", { id: "tie-tie_date", name: "tie_date", type: "date", value: today(), required: true }))),
         h("div", {},
           h("label", { htmlFor: "tie-tie_type" }, "Type"),
-          h("select", { id: "tie-tie_type", name: "tie_type" },
+          // Required (migration 0014): "–" until a type is chosen.
+          h("select", { id: "tie-tie_type", name: "tie_type", required: true },
             h("option", { value: "" }, "–"),
             TIE_TYPES.map((t) => h("option", { value: t }, capitalise(t))))),
         h("div", { className: "minutes-field" },
@@ -111,6 +113,12 @@ function showTieForm(tie) {
         ratingPicker({ name: "success_rating", labelledBy: "tie-rating-label", value: tie?.success_rating ?? null })),
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       privateField(h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" })),
+      // Encrypted like the notes (crypto/fields.js).
+      h("label", { htmlFor: "tie-album_url" }, "Album link"),
+      privateField(h("input", {
+        id: "tie-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
+        placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
+      })),
       photos.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
@@ -294,6 +302,8 @@ function showTieForm(tie) {
 
       data.plan_ids = chosenPlans();
       data.tags = tags;
+      // Checked here: it's sealed before it's sent, so the server can't.
+      data.album_url = webLinkOrNull(data.album_url);
       if (savedId) {
         /** @param {HTMLElement} rows */
         const kept = (rows) => [...rows.querySelectorAll(".kept-deleted")].map((row) => /** @type {HTMLElement} */ (row).dataset.linkId);
@@ -339,7 +349,10 @@ function showTieForm(tie) {
       set("tie-tie_type", t.tie_type);
       set("tie-duration_minutes", t.duration_minutes);
       set("tie-notes", t.notes);
-      if (t.unreadable?.length) showMessage(message, "This tie's notes can't be decrypted. Saving replaces them.", true);
+      set("tie-album_url", t.album_url);
+      if (t.unreadable?.length) {
+        showMessage(message, "This tie's notes or album link can't be decrypted. Saving replaces them.", true);
+      }
       if (t.location_id) {
         location.pick(linked(t.location_id, t.location_name));
         locationRow.hidden = false;

@@ -4,8 +4,8 @@ import { RESOURCES, parseFields, checkEdit, parseArchivedFilter } from "../../sr
 describe("parseFields", () => {
   it("parses every field, in order, with defaults", () => {
     expect(parseFields(RESOURCES.plans, { title: "Hip harness", est_difficulty: "3" })).toEqual({
-      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of", "plan_type"],
-      values: ["Hip harness", "idea", null, null, 3, null, "idea"],
+      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of", "plan_type", "tie_type", "album_url"],
+      values: ["Hip harness", "idea", null, null, 3, null, "idea", null, null],
     });
   });
 
@@ -22,7 +22,12 @@ describe("parseFields", () => {
   });
 
   it("reads a plan's type, idea by default, and a location's default flag", () => {
-    expect(parseFields(RESOURCES.plans, { title: "x", plan_type: "sequence" }).values.at(-1)).toBe("sequence");
+    const plan = parseFields(RESOURCES.plans, { title: "x", plan_type: "sequence", tie_type: "floor" });
+    expect(plan.values[plan.columns.indexOf("plan_type")]).toBe("sequence");
+    expect(plan.values[plan.columns.indexOf("tie_type")]).toBe("floor");
+    expect(() => parseFields(RESOURCES.plans, { title: "x", tie_type: "hanging" })).toThrow("Expected one of");
+    // An album link arrives sealed, like notes.
+    expect(() => parseFields(RESOURCES.plans, { title: "x", album_url: "https://photos.app.goo.gl/x" })).toThrow("weren't encrypted");
     expect(() => parseFields(RESOURCES.plans, { title: "x", plan_type: "stage" })).toThrow("Expected one of");
     expect(parseFields(RESOURCES.locations, { name: "x", is_default: true }).values.at(-1)).toBe(1);
     // A plan's stage is no longer on the form, so edits leave it alone.

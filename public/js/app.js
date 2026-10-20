@@ -23,6 +23,7 @@ import { api } from "./api.js";
 import { consentState, setConsentState, onConsentRequired } from "./consent-state.js";
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
+import { showUnseenReleases } from "./whats-new.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -51,6 +52,8 @@ noticeBox();
 let currentView = null;
 // Whether this unlock has checked for notes left in plain text (see below).
 let leftoversChecked = false;
+// Whether this unlock has shown any release notes I haven't seen.
+let releasesChecked = false;
 /** @type {AbortController | null} */
 let controller = null;
 // Only the newest change of view is shown, if two overlap.
@@ -100,6 +103,14 @@ async function show({ fresh, scroll, focus }) {
   if (route.needsKey && !leftoversChecked) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
+  }
+  // Then, once per unlock, the release notes I haven't seen (not over the
+  // privacy policy agreement, which comes first and doesn't need the key).
+  if (route.needsKey && !releasesChecked) {
+    releasesChecked = true;
+    showUnseenReleases().catch(() => {
+      // Unreachable for now: shown after the next unlock instead.
+    });
   }
 
   window.scrollTo(0, scroll);
@@ -158,6 +169,7 @@ watchForLock();
 // which shows Unlock in place of anything that needs the key.
 onLock(() => {
   leftoversChecked = false;
+  releasesChecked = false;
   // Asked again after the next unlock (it may be someone else signing in).
   setConsentState(null);
   forgetNotices();

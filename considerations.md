@@ -977,3 +977,41 @@ Built from the roadmap's first group, with no database changes:
   in bold.
 - **Sign-in and Unlock** end with "Trouble signing in? Email
   contact@notonawa.app for assistance.", the address as a `mailto:` link.
+
+## Tie types, plan tags, album links and release notes (October 2026)
+
+Built together, as all but the release notes change the ties and plans
+tables (migration 0014).
+
+- **Every tie has a type.** Ties without one became hashira. The rule is
+  kept by two triggers rather than `NOT NULL`: changing the column would
+  mean rebuilding ties and every table linked to it, as 0013 did, for the
+  same effect. The API and imports refuse a tie without a type first, with
+  a friendlier message. Imports refuse rather than guess: an export saved
+  before 0014 with an untyped tie has to be fixed before it imports. The
+  tie form starts on "–" and won't save until a type is chosen.
+- **Plans have an optional tie type** (one, like ties) and **tags**. Ties
+  and plans share one list of tags (`plan_tags` existed since 0001, with
+  its ownership triggers, export and import), so deleting a tag takes it
+  off both. "Most recently used" still counts ties only; a tag used only on
+  plans sorts with the unused ones, and the Ties search's tag picker
+  leaves those out, as they can't match a tie. Analytics counts ties only.
+- **Album links are encrypted**, like notes: a shared album link can open
+  the photos for anyone who has it. So the server can't check one; the
+  page accepts only http(s) (`links.js`) before sealing, and checks again
+  before making one clickable. Any site is allowed, not just Google Photos
+  and iCloud. An import's duplicate check ignores the album link (it's
+  sealed): a tie that differs only by its album counts as the same. The
+  ties list now opens each page of ties on the device, for the cards'
+  album links.
+- **Version and release notes.** The version is the release date and that
+  day's release number, `YYYY.MM.DD.NNN` (three digits, so they compare as
+  text). RELEASES.md holds the notes, built into the page and the Worker by
+  `scripts/releases.mjs`, as PRIVACY.md is. Each account stores the last
+  version whose notes it saw (`users.seen_release`, plain text like the
+  other settings, and in PRIVACY.md). After unlocking, any releases since
+  then are shown together in one dialog, newest first (up to 10), so
+  several releases in a day mean one dialog, not several; closing it in
+  any way counts as seen. New accounts start on the current version, so
+  they get no backlog. The notes are signed-in only; the version also
+  shows on the sign-in screen and at the bottom of the menu.

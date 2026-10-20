@@ -4,7 +4,7 @@
 // (never from the request), so they're safe to put in SQL text.
 
 import { BadInput } from "../http.js";
-import { toRoleOrNull } from "../ties/parse.js";
+import { toRoleOrNull, TIE_TYPES } from "../ties/parse.js";
 import {
   cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, encryptedText,
 } from "../parse.js";
@@ -21,7 +21,10 @@ export const PLAN_TYPES = ["idea", "harness", "sequence"];
  *   columns: string,
  *   orderBy: string,
  *   archiveOnCreate?: boolean,
+ *   tagged?: boolean,
  * }} Resource
+ *   tagged: has tags (sent and listed as names; saved through routes.js,
+ *   as they're links, not a column)
  * @typedef {"plans" | "people" | "locations"} ResourceName
  */
 
@@ -38,12 +41,20 @@ export const RESOURCES = {
       est_difficulty: { parse: (v) => toIntOrNull(v, 1, 5) },
       variation_of: { parse: cleanText },
       plan_type: { parse: (v) => toChoiceOrNull(v, PLAN_TYPES) ?? "idea" },
+      // Optional, unlike a tie's (migration 0014).
+      tie_type: { parse: (v) => toChoiceOrNull(v, TIE_TYPES) },
+      album_url: { parse: encryptedText },
     },
-    columns: `id, title, stage, plan_type, description, notes, est_difficulty, variation_of, version, archived_at, created_at, updated_at,
-              (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count`,
+    // tags: a JSON list of names, A–Z (listRows reads it).
+    columns: `id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, variation_of, version,
+              archived_at, created_at, updated_at,
+              (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count,
+              (SELECT json_group_array(name) FROM (SELECT t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
+                WHERE pt.plan_id = plans.id ORDER BY t.name COLLATE NOCASE)) AS tags`,
     orderBy: "updated_at DESC",
     // "Add & archive" in the tie form's plan picker.
     archiveOnCreate: true,
+    tagged: true,
   },
   people: {
     fields: {

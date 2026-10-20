@@ -29,8 +29,15 @@ export async function listRows(db, name, ownerId, archived) {
   )
     .bind(ownerId)
     .all();
-  return results;
+  if (!RESOURCES[name].tagged) return results;
+  return results.map((row) => ({ ...row, tags: JSON.parse(/** @type {string} */ (row.tags)) }));
 }
+
+/**
+ * Builds the statements that link an item to its tags, given its id: run in
+ * the same batch as saving it. See tagStatements (tags/db.js).
+ * @typedef {(id: string) => Promise<D1PreparedStatement[]>} LinkStatements
+ */
 
 /**
  * @param {D1Database} db
@@ -40,15 +47,20 @@ export async function listRows(db, name, ownerId, archived) {
  * @param {boolean} archiveNow
  * @param {boolean} [makeDefault] locations: it's the new default, so the old
  *   one is cleared in the same batch
+ * @param {LinkStatements} [links] plans: its tags
  * @returns {Promise<string>} the new id
  */
-export async function insertRow(db, name, ownerId, { columns, values }, archiveNow, makeDefault = false) {
+export async function insertRow(db, name, ownerId, { columns, values }, archiveNow, makeDefault = false, links) {
   const id = crypto.randomUUID();
   const insert = db.prepare(
     `INSERT INTO ${name} (id, owner_id, ${columns.join(", ")}, archived_at)
      VALUES (?, ?, ${columns.map(() => "?").join(", ")}, ${archiveNow ? NOW : "NULL"})`
   ).bind(id, ownerId, ...values);
-  await db.batch([...(makeDefault ? [clearDefaultLocation(db, ownerId, id)] : []), insert]);
+  await db.batch([
+    ...(makeDefault ? [clearDefaultLocation(db, ownerId, id)] : []),
+    insert,
+    ...(links ? await links(id) : []),
+  ]);
   return id;
 }
 
@@ -61,17 +73,28 @@ export async function insertRow(db, name, ownerId, { columns, values }, archiveN
  * @param {{ columns: string[], values: unknown[] }} fields
  * @param {boolean} [makeDefault] locations: it's the new default, so the old
  *   one is cleared in the same batch
+ * @param {LinkStatements} [links] plans: its tags (the statements replace the old ones)
  */
-export async function updateRow(db, name, ownerId, id, { columns, values }, makeDefault = false) {
+export async function updateRow(db, name, ownerId, id, { columns, values }, makeDefault = false, links) {
   const update = db.prepare(
     `UPDATE ${name}
         SET ${columns.map((c) => `${c} = ?`).join(", ")}, updated_at = ${NOW}
       WHERE id = ? AND owner_id = ?
      RETURNING id`
   ).bind(...values, id, ownerId);
-  if (!makeDefault) return update.first();
-  const results = await db.batch([clearDefaultLocation(db, ownerId, id), update]);
-  return results[1].results[0] ?? null;
+  if (!makeDefault && !links) return update.first();
+  if (links) {
+    // Checked first: linking tags to a plan that isn't mine fails the batch
+    // (the ownership triggers), which should be a 404, not a 400.
+    const mine = await db.prepare(`SELECT 1 FROM ${name} WHERE id = ? AND owner_id = ?`).bind(id, ownerId).first();
+    if (!mine) return null;
+  }
+  const results = await db.batch([
+    ...(makeDefault ? [clearDefaultLocation(db, ownerId, id)] : []),
+    update,
+    ...(links ? await links(id) : []),
+  ]);
+  return results[makeDefault ? 1 : 0].results[0] ?? null;
 }
 
 /**

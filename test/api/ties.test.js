@@ -47,10 +47,10 @@ describe("ties", () => {
     // Tie dates, not the order the ties were added, decide which is most recent.
     const dates = { A: "2026-01-01", B: "2026-06-01", C: "2026-03-01", D: "2026-02-01", E: "2026-05-01", F: "2026-04-01", Archived: "2026-12-01" };
     for (const [name, date] of Object.entries(dates)) {
-      await post("/api/ties", { title: name, tie_date: date, location_id: ids[name] });
+      await post("/api/ties", { title: name, tie_type: "floor", tie_date: date, location_id: ids[name] });
     }
     // An older tie at B doesn't make B older.
-    await post("/api/ties", { title: "B again", tie_date: "2020-01-01", location_id: ids.B });
+    await post("/api/ties", { title: "B again", tie_type: "floor", tie_date: "2020-01-01", location_id: ids.B });
     await post(`/api/locations/${ids.Archived}/archive`, {});
 
     expect(await recent()).toEqual([ids.B, ids.E, ids.F, ids.C, ids.D]);
@@ -67,9 +67,9 @@ describe("ties", () => {
     const gone = await post("/api/people", { name: "Gone", archive_now: true });
     const tk = await post("/api/plans", { title: "TK" });
     const hip = await post("/api/plans", { title: "Hip harness" });
-    await post("/api/ties", { title: "Old", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: [tk] });
+    await post("/api/ties", { title: "Old", tie_type: "floor", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: [tk] });
     await post("/api/ties", {
-      title: "New", tie_date: "2026-06-01", plan_ids: [hip],
+      title: "New", tie_type: "floor", tie_date: "2026-06-01", plan_ids: [hip],
       participants: [{ person_id: alex, role: "bottom" }, { person_id: gone, role: "top" }],
     });
 
@@ -79,8 +79,8 @@ describe("ties", () => {
   });
 
   it("lists newest first", async () => {
-    const older = await create("/api/ties", { title: "Older", tie_date: "2020-01-01" });
-    const newer = await create("/api/ties", { title: "Newer", tie_date: "2030-01-01" });
+    const older = await create("/api/ties", { title: "Older", tie_type: "floor", tie_date: "2020-01-01" });
+    const newer = await create("/api/ties", { title: "Newer", tie_type: "floor", tie_date: "2030-01-01" });
     const ids = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.map((/** @type {any} */ t) => t.id);
     expect(ids.indexOf(newer)).toBeLessThan(ids.indexOf(older));
   });
@@ -88,7 +88,7 @@ describe("ties", () => {
   it("still shows archived people and locations on existing ties", async () => {
     const sam = await create("/api/people", { name: "Sam" });
     const loc = await create("/api/locations", { name: "Old flat" });
-    const id = await create("/api/ties", { tie_date: "2026-01-01", title: "x", location_id: loc, participants: [{ person_id: sam, role: "bottom" }] });
+    const id = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "x", location_id: loc, participants: [{ person_id: sam, role: "bottom" }] });
 
     await call(`/api/people/${sam}/archive`, { method: "POST" });
     await call(`/api/locations/${loc}/archive`, { method: "POST" });
@@ -102,7 +102,7 @@ describe("ties", () => {
     const sam = await create("/api/people", { name: "Sam" });
     const res = await call("/api/ties", {
       method: "POST",
-      body: { title: "Half saved?", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: ["no-such-plan"] },
+      body: { title: "Half saved?", tie_type: "floor", tie_date: "2026-01-01", participants: [{ person_id: sam, role: "bottom" }], plan_ids: ["no-such-plan"] },
     });
     expect(res).toEqual({ status: 400, body: { error: "Linked item not found." } });
     expect(await sql("SELECT id FROM ties WHERE title = 'Half saved?'").first()).toBeNull();
@@ -111,10 +111,33 @@ describe("ties", () => {
   it("rejects bad input", async () => {
     expect((await call("/api/ties", { method: "POST", body: {} })).body.error).toBe("Add a date.");
     expect((await call("/api/ties", { method: "POST", body: { title: "No date" } })).body.error).toBe("Add a date.");
-    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "chef" }] } })).status).toBe(400);
-    expect(await call("/api/ties", { method: "POST", body: { title: "Bad date", tie_date: "2026-02-30" } }))
+    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "chef" }] } })).status).toBe(400);
+    expect(await call("/api/ties", { method: "POST", body: { title: "Bad date", tie_type: "floor", tie_date: "2026-02-30" } }))
       .toEqual({ status: 400, body: { error: "Expected a date like 2026-10-12." } });
     expect(await sql("SELECT id FROM ties WHERE title = 'Bad date'").first()).toBeNull();
+  });
+
+  it("needs a type, on adding and editing (migration 0014)", async () => {
+    const missing = { status: 400, body: { error: "Choose a tie type: suspension, partial suspension, floor or hashira." } };
+    expect(await call("/api/ties", { method: "POST", body: { title: "Untyped", tie_date: "2026-01-01" } })).toEqual(missing);
+    expect(await call("/api/ties", { method: "POST", body: { title: "Untyped", tie_date: "2026-01-01", tie_type: "" } })).toEqual(missing);
+    expect(await sql("SELECT id FROM ties WHERE title = 'Untyped'").first()).toBeNull();
+    const id = await create("/api/ties", { title: "Typed", tie_date: "2026-01-01", tie_type: "hashira" });
+    expect(await call(`/api/ties/${id}`, { method: "PUT", body: { title: "Typed", tie_date: "2026-01-01" } })).toEqual(missing);
+    expect((await call(`/api/ties/${id}`)).body.tie_type).toBe("hashira");
+  });
+
+  it("keeps an album link sealed, as it's sent, and refuses one that isn't", async () => {
+    const album = sealed("https://photos.app.goo.gl/abc");
+    const id = await create("/api/ties", { title: "With album", tie_date: "2026-01-01", tie_type: "floor", album_url: album });
+    expect((await call(`/api/ties/${id}`)).body.album_url).toBe(album);
+    const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === id);
+    expect(listed.album_url).toBe(album);
+    const plain = await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", tie_type: "floor", album_url: "https://x.example" } });
+    expect(plain.status).toBe(400);
+    // Editing without one removes it.
+    await call(`/api/ties/${id}`, { method: "PUT", body: { title: "With album", tie_date: "2026-01-01", tie_type: "floor" } });
+    expect((await call(`/api/ties/${id}`)).body.album_url).toBeNull();
   });
 });
 
@@ -156,7 +179,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("saves every field and replaces the people, plans and tags", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      title: "Before", tie_date: "2026-05-01", location_id: j.studio,
+      title: "Before", tie_type: "floor", tie_date: "2026-05-01", location_id: j.studio,
       participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["old"],
     });
     await sql("UPDATE ties SET updated_at = '2020-01-01T00:00:00Z' WHERE id = ?", id).run();
@@ -180,14 +203,14 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("keeps the plan version and a person's link details when they stay on the tie", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk],
+      tie_type: "floor", tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk],
     });
     // As an import might have left them: a rating and notes on Sam's link.
     await sql("UPDATE tie_participants SET experience_rating = 4, notes = 'loved it' WHERE tie_id = ?", id).run();
     await sql("UPDATE plans SET version = 3 WHERE id IN (?, ?)", j.tk, j.hip).run();
 
     await j.put(id, {
-      tie_date: "2026-05-01",
+      tie_type: "floor", tie_date: "2026-05-01",
       participants: [{ person_id: j.sam, role: "bottom" }, { person_id: j.alex, role: "top" }],
       plan_ids: [j.tk, j.hip],
     });
@@ -197,7 +220,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     expect(sam).toEqual({ experience_rating: 4, notes: "loved it" });
 
     // Sam in a different role is a different link: the details don't carry over.
-    await j.put(id, { tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "top" }] });
+    await j.put(id, { tie_type: "floor", tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "top" }] });
     expect((await sql("SELECT role, notes FROM tie_participants WHERE tie_id = ?", id).all()).results)
       .toEqual([{ role: "top", notes: null }]);
   });
@@ -205,7 +228,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("keeps deleted people, plans and a deleted location only when asked to", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      tie_date: "2026-05-01", location_id: j.studio,
+      tie_type: "floor", tie_date: "2026-05-01", location_id: j.studio,
       participants: [{ person_id: j.sam, role: "bottom" }, { person_id: j.alex, role: "top" }], plan_ids: [j.tk, j.hip],
     });
     for (const path of [`/api/people/${j.sam}`, `/api/people/${j.alex}`, `/api/locations/${j.studio}`]) {
@@ -217,7 +240,7 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
 
     // Keep one deleted person, one deleted plan, and the deleted location.
     await j.put(id, {
-      tie_date: "2026-05-01",
+      tie_type: "floor", tie_date: "2026-05-01",
       keep_deleted: { participants: [before.participants[0].id], plans: [before.plans[0].id], location: true },
     });
     const kept = await j.get(id);
@@ -226,14 +249,14 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
     expect(kept.location_deleted).toBe(1);
 
     // Saved without them: they go.
-    await j.put(id, { tie_date: "2026-05-01" });
+    await j.put(id, { tie_type: "floor", tie_date: "2026-05-01" });
     expect(await j.get(id)).toMatchObject({ participants: [], plans: [], location_deleted: 0 });
   });
 
   it("deletes a tie, leaving its people, plans and tags", async () => {
     const j = await journal();
     const id = await j.add("/api/ties", {
-      tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["kept-tag"],
+      tie_type: "floor", tie_date: "2026-05-01", participants: [{ person_id: j.sam, role: "bottom" }], plan_ids: [j.tk], tags: ["kept-tag"],
     });
     expect((await call(`/api/ties/${id}`, { method: "DELETE", cookie: j.cookie })).status).toBe(204);
     expect((await call(`/api/ties/${id}`, { cookie: j.cookie })).status).toBe(404);
@@ -246,16 +269,16 @@ describe("one tie: GET, PUT and DELETE /api/ties/:id", () => {
   it("can't get, edit or delete someone else's tie", async () => {
     const mine = await journal();
     const theirs = await journal();
-    const id = await theirs.add("/api/ties", { title: "Theirs", tie_date: "2026-05-01", tags: ["their-tag"] });
+    const id = await theirs.add("/api/ties", { title: "Theirs", tie_type: "floor", tie_date: "2026-05-01", tags: ["their-tag"] });
     expect((await call(`/api/ties/${id}`, { cookie: mine.cookie })).status).toBe(404);
-    expect((await mine.put(id, { title: "Mine now", tie_date: "2026-05-01" })).status).toBe(404);
+    expect((await mine.put(id, { title: "Mine now", tie_type: "floor", tie_date: "2026-05-01" })).status).toBe(404);
     expect((await call(`/api/ties/${id}`, { method: "DELETE", cookie: mine.cookie })).status).toBe(404);
     expect(await theirs.get(id)).toMatchObject({ title: "Theirs", tags: ["their-tag"] });
   });
 
   it("rejects an edit without a date, changing nothing", async () => {
     const j = await journal();
-    const id = await j.add("/api/ties", { title: "Kept", tie_date: "2026-05-01" });
+    const id = await j.add("/api/ties", { title: "Kept", tie_type: "floor", tie_date: "2026-05-01" });
     expect(await j.put(id, { title: "Gone" })).toEqual({ status: 400, body: { error: "Add a date." } });
     expect((await j.get(id)).title).toBe("Kept");
   });

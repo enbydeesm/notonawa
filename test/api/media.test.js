@@ -53,7 +53,7 @@ async function fetchPart(id, part, cookie) {
 /** @param {string} ownerId @param {string} id */
 const stored = (ownerId, id) => env.PHOTOS.head(`${ownerId}/${id}`);
 
-const newTie = () => create("/api/ties", { tie_date: "2026-10-01", title: "Session" });
+const newTie = () => create("/api/ties", { tie_type: "floor", tie_date: "2026-10-01", title: "Session" });
 const newPlan = () => create("/api/plans", { title: "TK" });
 
 describe("uploading a photo", () => {
@@ -102,7 +102,7 @@ describe("uploading a photo", () => {
   it("won't add to another user's tie, or one that doesn't exist, and stores nothing", async () => {
     const other = await createOtherUser();
     const theirs = crypto.randomUUID();
-    await sql("INSERT INTO ties (id, owner_id, tie_date) VALUES (?, ?, '2026-10-01')", theirs, other).run();
+    await sql("INSERT INTO ties (id, owner_id, tie_date, tie_type) VALUES (?, ?, '2026-10-01', 'floor')", theirs, other).run();
     const me = await signedInUser();
     for (const tie of [theirs, "nope"]) {
       const res = await upload({ tie_id: tie });
@@ -142,7 +142,7 @@ describe("uploading a photo", () => {
   it("stops at 1 GB an account", async () => {
     const id = await createOtherUser();
     const cookie = await sessionCookieFor(id);
-    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_date: "2026-10-01" } })).body.id;
+    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_type: "floor", tie_date: "2026-10-01" } })).body.id;
     await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
                VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, ?)`, crypto.randomUUID(), id, tie, MAX_ACCOUNT_BYTES - 30).run();
     const res = await upload({ tie_id: tie }, { cookie, thumb: 10, full: 30 });
@@ -210,7 +210,7 @@ describe("a photo's caption, order and deletion", () => {
     const other = await createOtherUser();
     const tie = crypto.randomUUID();
     const plan = crypto.randomUUID();
-    await sql("INSERT INTO ties (id, owner_id, tie_date) VALUES (?, ?, '2026-10-01')", tie, other).run();
+    await sql("INSERT INTO ties (id, owner_id, tie_date, tie_type) VALUES (?, ?, '2026-10-01', 'floor')", tie, other).run();
     await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'Theirs')", plan, other).run();
     for (const [column, id] of [["tie_id", tie], ["plan_id", plan]]) {
       await expect(sql(`INSERT INTO media (id, owner_id, ${column}, kind, mime, position, thumb_bytes, bytes)
@@ -251,7 +251,7 @@ describe("deleting what photos are on deletes their files", () => {
   it("the account", async () => {
     const id = await createOtherUser();
     const cookie = await sessionCookieFor(id);
-    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_date: "2026-10-01" } })).body.id;
+    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_type: "floor", tie_date: "2026-10-01" } })).body.id;
     const plan = (await call("/api/plans", { method: "POST", cookie, body: { title: "TK" } })).body.id;
     await upload({ tie_id: tie }, { cookie });
     await upload({ plan_id: plan }, { cookie });
@@ -265,7 +265,7 @@ describe("deleting what photos are on deletes their files", () => {
   it("starting a new key (the old one can't open them)", async () => {
     const id = await createOtherUser();
     const cookie = await sessionCookieFor(id);
-    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_date: "2026-10-01" } })).body.id;
+    const tie = (await call("/api/ties", { method: "POST", cookie, body: { tie_type: "floor", tie_date: "2026-10-01" } })).body.id;
     await upload({ tie_id: tie }, { cookie });
     const { loginSecret, newRecoveryCode, readRecoveryCode } = await import("../../public/js/recovery.js");
     const secret = await loginSecret(/** @type {string} */ (readRecoveryCode(newRecoveryCode())));

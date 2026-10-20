@@ -6,6 +6,7 @@ import { NOW } from "../sql.js";
 import { idleCutoff, isoAt, lifetimeMs, newToken, sha256Hex } from "./session.js";
 // The policy version new accounts agree to (made from PRIVACY.md).
 import { POLICY_VERSION } from "../policy-version.js";
+import { APP_VERSION } from "../app-version.js";
 
 /** @typedef {import("./session.js").Session} Session */
 /** @typedef {import("./session.js").SessionKind} SessionKind */
@@ -88,10 +89,11 @@ export function insertPasskeyStatement(db, userId, p) {
 export function newUserStatements(db, userId, inviteHash, recoveryHash) {
   return [
     db.prepare(
-      // New accounts start in dark mode (users.theme; see src/account/settings.js).
-      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version, theme)
-       VALUES (?, ?, ?, ${NOW}, ?, 'dark')`
-    ).bind(userId, userId, recoveryHash, POLICY_VERSION),
+      // New accounts start in dark mode (users.theme; see src/account/settings.js),
+      // and as having seen this version's release notes: they're new to all of it.
+      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version, theme, seen_release)
+       VALUES (?, ?, ?, ${NOW}, ?, 'dark', ?)`
+    ).bind(userId, userId, recoveryHash, POLICY_VERSION, APP_VERSION),
     db.prepare(`UPDATE invites SET used_at = ${NOW}, used_by = ? WHERE code_hash = ?`).bind(userId, inviteHash),
     // Every journal starts with its owner's own profile, renamable on the
     // People page, so ties can list "Me" from the first one.

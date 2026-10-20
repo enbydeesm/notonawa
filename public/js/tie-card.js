@@ -10,6 +10,7 @@ import { ratingHanks } from "./rope-rating.js";
 import { placeLine, participantLabel, peopleThatFit } from "./ties-view.js";
 import { roleName } from "./roles.js";
 import { open } from "./vault.js";
+import { isWebLink } from "./links.js";
 
 /** @param {import("./ties-view.js").Label} label */
 function renderLabel(label) {
@@ -19,9 +20,9 @@ function renderLabel(label) {
 
 /**
  * A tie as a card: title (tap to edit) and date; type and location, and the
- * rating; who took part, on one line; its tags; and how many photos. Call
- * fitPeople() on its container once it's on the page.
- * @param {Record<string, any>} tie as POST /api/ties/search returns it
+ * rating; who took part, on one line; its tags; how many photos, and its
+ * album link. Call fitPeople() on its container once it's on the page.
+ * @param {Record<string, any>} tie as POST /api/ties/search returns it, opened
  * @param {(id: string) => void} onEdit runs when the title is tapped
  */
 export function tieCard(tie, onEdit) {
@@ -46,8 +47,21 @@ export function tieCard(tie, onEdit) {
       : null,
     tie.photo_count
       ? h("div", { className: "tie-photos" }, tie.photo_count === 1 ? "1 photo" : `${tie.photo_count} photos`)
-      : null
+      : null,
+    albumLink(tie.album_url, "tie-album")
   );
+}
+
+/**
+ * "Open album", in a new tab: only for a web link (it was checked before
+ * it was sealed, and is checked again here).
+ * @param {unknown} url opened
+ * @param {string} className
+ */
+export function albumLink(url, className) {
+  if (!isWebLink(url)) return null;
+  return h("div", { className },
+    h("a", { href: /** @type {string} */ (url), target: "_blank", rel: "noopener noreferrer" }, "Open album"));
 }
 
 /**

@@ -6,6 +6,7 @@ import { ORIGIN, call, sql, sessionCookieFor, createOtherUser, fakeWrap } from "
 import { newFakePasskey } from "../fake-passkey.js";
 import { sha256Hex, isoAt } from "../../src/auth/session.js";
 import { POLICY_VERSION } from "../../src/policy-version.js";
+import { APP_VERSION } from "../../src/app-version.js";
 import { newRecoveryCode, readRecoveryCode, loginSecret } from "../../public/js/recovery.js";
 import { newCode, normaliseCode } from "../../public/js/codes.js";
 
@@ -107,10 +108,11 @@ describe("signing up", () => {
     expect(account.passkeys).toMatchObject([{ id: passkey.id, name: "My phone", prf_capable: 1 }]);
 
     const user = await sql("SELECT * FROM users WHERE id = (SELECT user_id FROM passkeys WHERE id = ?)", passkey.id).first();
-    // New accounts start in dark mode, on the default role names.
+    // New accounts start in dark mode, on the default role names, and as
+    // having seen this version's release notes.
     expect(user).toMatchObject({
       terms_version: POLICY_VERSION, recovery_secret_hash: await sha256Hex(await secretFor(code)),
-      theme: "dark", top_label: null, bottom_label: null,
+      theme: "dark", top_label: null, bottom_label: null, seen_release: APP_VERSION,
     });
     expect(user?.email).toBe(user?.id);
     expect(user?.accepted_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
@@ -255,9 +257,9 @@ describe("sessions", () => {
   });
 
   it("can't be used for writes from another site", async () => {
-    const res = await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01" }, origin: "https://evil.example" });
+    const res = await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01" }, origin: "https://evil.example" });
     expect(res).toEqual({ status: 403, body: { error: "Not allowed" } });
-    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01" }, origin: null })).status).toBe(403);
+    expect((await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01" }, origin: null })).status).toBe(403);
   });
 });
 

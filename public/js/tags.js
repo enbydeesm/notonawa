@@ -8,9 +8,9 @@ export const MAX_TAGS = 30;
 export const MAX_TAG_LENGTH = 40;
 
 /**
- * @typedef {{ id: string | null, name: string, tie_count: number }} Tag
+ * @typedef {{ id: string | null, name: string, tie_count: number, plan_count: number }} Tag
  * id is null for a tag typed in the dialog that's only created once the tie
- * is saved.
+ * or plan is saved.
  */
 
 /**
@@ -48,11 +48,24 @@ export function filterTags(tags, text, limit = SHOWN_TAGS) {
 }
 
 /**
- * The confirmation's extra line when deleting a tag that ties use.
+ * The confirmation's extra line when deleting a tag that ties or plans use.
  * @param {number} tieCount
+ * @param {number} [planCount]
  * @returns {string | undefined}
  */
-export function deleteTagWarning(tieCount) {
-  if (tieCount === 0) return undefined;
-  return `Used on ${tieCount} ${tieCount === 1 ? "tie" : "ties"}; it'll be removed from ${tieCount === 1 ? "it" : "them"}.`;
+export function deleteTagWarning(tieCount, planCount = 0) {
+  const uses = [count(tieCount, "tie", "ties"), count(planCount, "plan", "plans")].filter(Boolean);
+  if (!uses.length) return undefined;
+  const one = tieCount + planCount === 1;
+  return `Used on ${uses.join(" and ")}; it'll be removed from ${one ? "it" : "them"}.`;
+}
+
+/**
+ * "1 tie", "3 plans", or "" for none.
+ * @param {number} n
+ * @param {string} one
+ * @param {string} many
+ */
+function count(n, one, many) {
+  return n ? `${n} ${n === 1 ? one : many}` : "";
 }

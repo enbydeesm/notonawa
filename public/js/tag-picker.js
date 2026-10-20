@@ -1,7 +1,8 @@
-// The "Edit tags" dialog, opened from the "Log a tie" form: search my tags,
-// pick some, type a new one and press +, or delete one I don't use any more.
-// The Ties search opens it too (forSearch), only to pick existing tags: a new
-// tag can't match any tie, and deleting tags isn't what a search is for.
+// The "Edit tags" dialog, opened from the "Log a tie" and Plans forms (ties
+// and plans share my tags): search my tags, pick some, type a new one and
+// press +, or delete one I don't use any more. The Ties search opens it too
+// (forSearch), only to pick tags already on a tie: any other can't match
+// one, and deleting tags isn't what a search is for.
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
@@ -15,11 +16,12 @@ import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from 
  * tag names on OK, or null if it's closed with Esc (nothing changes). Deleting
  * a tag is saved straight away, whichever way it closes.
  * @param {string[]} chosen
- * @param {{ forSearch?: boolean }} [options] forSearch: pick existing tags only
- *   (no adding or deleting)
+ * @param {{ forSearch?: boolean, noun?: "tie" | "plan" }} [options]
+ *   forSearch: pick tags on ties only (no adding or deleting)
+ *   noun: what the tags are for, for the limit's message
  * @returns {Promise<string[] | null>}
  */
-export function pickTags(chosen, { forSearch = false } = {}) {
+export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
   return new Promise((resolve) => {
     /** @type {string[] | null} */
     let result = null;
@@ -66,7 +68,7 @@ export function pickTags(chosen, { forSearch = false } = {}) {
     function select(name) {
       if (isSelected(name)) return;
       if (selected.length >= MAX_TAGS) {
-        showMessage(message, forSearch ? `Choose up to ${MAX_TAGS} tags.` : `A tie can have up to ${MAX_TAGS} tags.`, true);
+        showMessage(message, forSearch ? `Choose up to ${MAX_TAGS} tags.` : `A ${noun} can have up to ${MAX_TAGS} tags.`, true);
         return;
       }
       selected.push(name);
@@ -147,7 +149,7 @@ export function pickTags(chosen, { forSearch = false } = {}) {
       let tag = findTag(tags, name);
       if (!tag && forSearch) return;
       if (!tag) {
-        tag = { id: null, name, tie_count: 0 };
+        tag = { id: null, name, tie_count: 0, plan_count: 0 };
         tags.unshift(tag);
       }
       select(tag.name);
@@ -160,7 +162,7 @@ export function pickTags(chosen, { forSearch = false } = {}) {
     async function confirmDelete(tag) {
       const choice = await choose({
         title: `Delete tag '${tag.name}'?`,
-        message: deleteTagWarning(tag.tie_count),
+        message: deleteTagWarning(tag.tie_count, tag.plan_count),
         choices: [{ label: "Confirm", value: "delete", style: "solid-danger" }],
       });
       if (choice !== "delete") return;
@@ -176,7 +178,9 @@ export function pickTags(chosen, { forSearch = false } = {}) {
 
     async function loadTags() {
       try {
-        tags = await api("/api/tags");
+        /** @type {Tag[]} */
+        const mine = await api("/api/tags");
+        tags = forSearch ? mine.filter((t) => t.tie_count > 0) : mine;
       } catch (err) {
         showMessage(message, "Couldn't load tags: " + errorMessage(err), true);
       }
@@ -184,7 +188,7 @@ export function pickTags(chosen, { forSearch = false } = {}) {
       // A search only ever holds saved tags.
       if (!forSearch) {
         for (const name of [...selected].reverse()) {
-          if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0 });
+          if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0, plan_count: 0 });
         }
       }
       renderList();

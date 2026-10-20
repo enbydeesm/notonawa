@@ -36,7 +36,8 @@ const LINKS_KEY = `
 // My tie x is the same as the file's tie j in everything we can compare:
 // date, title, type, location, duration, rating, people, plans and tags.
 // (Not created_at: a CSV has none.) Not the notes: they're encrypted, so
-// the page compares those itself (import-dedupe.js).
+// the page compares those itself (import-dedupe.js). Nor the album link,
+// encrypted too: a tie that differs only by its album counts as the same.
 const SAME_BUT_NOTES = `
        x.owner_id = ?1 AND x.tie_date = ${j("tie_date")}
    AND x.title IS ${j("title")}
@@ -63,8 +64,10 @@ const SQL = {
               SELECT ${j("id")}, ?1, ${j("name")}, ${j("notes")}, ${j("maps_url")},
                      ${j("latitude")}, ${j("longitude")}, ${j("is_default")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
                 FROM json_each(?2) j`,
-  plans: `INSERT INTO plans (id, owner_id, title, stage, plan_type, description, notes, est_difficulty, version, archived_at, created_at, updated_at)
-          SELECT ${j("id")}, ?1, ${j("title")}, ${j("stage")}, ${j("plan_type")}, ${j("description")}, ${j("notes")},
+  plans: `INSERT INTO plans (id, owner_id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, version,
+                             archived_at, created_at, updated_at)
+          SELECT ${j("id")}, ?1, ${j("title")}, ${j("stage")}, ${j("plan_type")}, ${j("tie_type")}, ${j("description")}, ${j("notes")},
+                 ${j("album_url")},
                  ${j("est_difficulty")}, ${j("version")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
             FROM json_each(?2) j`,
   // Plans just inserted, so this isn't an edit: updated_at keeps the file's value.
@@ -77,9 +80,11 @@ const SQL = {
   // Exact duplicates of my ties are left out before this (the page sends
   // which to skip), so importing the same file twice, or again after a
   // failed batch, adds nothing twice.
-  ties: `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, location_deleted, duration_minutes, success_rating, notes, created_at, updated_at)
+  ties: `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, location_deleted, duration_minutes, success_rating, notes,
+                          album_url, created_at, updated_at)
          SELECT ${j("id")}, ?1, ${j("title")}, ${j("tie_date")}, ${j("tie_type")}, ${j("location_id")}, ${j("location_deleted")},
-                ${j("duration_minutes")}, ${j("success_rating")}, ${j("notes")}, ${time("created_at")}, ${time("updated_at")}
+                ${j("duration_minutes")}, ${j("success_rating")}, ${j("notes")}, ${j("album_url")},
+                ${time("created_at")}, ${time("updated_at")}
            FROM json_each(?2) j`,
   participants: `INSERT INTO tie_participants (id, tie_id, person_id, role, difficulty_rating, experience_rating, notes)
                  SELECT ${j("id")}, ${j("tie_id")}, ${j("person_id")}, ${j("role")},

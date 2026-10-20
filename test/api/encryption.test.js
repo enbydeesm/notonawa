@@ -13,11 +13,11 @@ async function userWithPlainNotes() {
   await run("INSERT INTO profile_notes (id, person_id, type, description) VALUES (?, ?, 'like', 'plain like')", `n-${id}`, `p-${id}`);
   await run("INSERT INTO locations (id, owner_id, name, notes) VALUES (?, ?, 'Studio', 'plain location')", `l-${id}`, id);
   await run("INSERT INTO plans (id, owner_id, title, description, notes) VALUES (?, ?, 'TK', 'plain steps', ?)", `pl-${id}`, id, sealed("already sealed"));
-  await run("INSERT INTO ties (id, owner_id, title, tie_date, notes) VALUES (?, ?, 'Floor', '2026-01-01', 'plain tie')", `t-${id}`, id);
+  await run("INSERT INTO ties (id, owner_id, title, tie_date, tie_type, notes) VALUES (?, ?, 'Floor', '2026-01-01', 'floor', 'plain tie')", `t-${id}`, id);
   await run("INSERT INTO tie_participants (id, tie_id, person_id, role, notes) VALUES (?, ?, ?, 'bottom', 'plain part')", `tp-${id}`, `t-${id}`, `p-${id}`);
   // Already encrypted, or empty: not pending.
-  await run("INSERT INTO ties (id, owner_id, title, tie_date, notes) VALUES (?, ?, 'Done', '2026-01-02', ?)", `t2-${id}`, id, sealed("done"));
-  await run("INSERT INTO ties (id, owner_id, title, tie_date) VALUES (?, ?, 'Empty', '2026-01-03')", `t3-${id}`, id);
+  await run("INSERT INTO ties (id, owner_id, title, tie_date, tie_type, notes) VALUES (?, ?, 'Done', '2026-01-02', 'floor', ?)", `t2-${id}`, id, sealed("done"));
+  await run("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'Empty', '2026-01-03', 'floor')", `t3-${id}`, id);
   return { id, cookie };
 }
 
@@ -27,12 +27,12 @@ describe("encrypting older notes", () => {
     await userWithPlainNotes();
     const pending = (await call("/api/encryption/pending", { cookie: me.cookie })).body;
     expect(pending).toEqual({
-      ties: [{ id: `t-${me.id}`, notes: "plain tie" }],
+      ties: [{ id: `t-${me.id}`, notes: "plain tie", album_url: null }],
       tie_participants: [{ id: `tp-${me.id}`, notes: "plain part" }],
       people: [{ id: `p-${me.id}`, notes: "plain person" }],
       profile_notes: [{ id: `n-${me.id}`, description: "plain like" }],
       locations: [{ id: `l-${me.id}`, notes: "plain location" }],
-      plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed") }],
+      plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed"), album_url: null }],
     });
   });
 

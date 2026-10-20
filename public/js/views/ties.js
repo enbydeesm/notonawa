@@ -11,7 +11,7 @@ import { findTag } from "../tags.js";
 import { showingText } from "../ties-view.js";
 import { tieCard, fitPeople, editTie } from "../tie-card.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
-import { searchTies } from "../vault.js";
+import { searchTies, open } from "../vault.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -260,7 +260,10 @@ export function mount(_root, { signal }) {
       if (keywordText.length > MAX_KEYWORD_LENGTH) throw new Error(`Search for ${MAX_KEYWORD_LENGTH} characters or fewer.`);
       const matchIds = keywordText ? await searchTies(keywordText) : null;
       if (request !== latestRequest) return;
-      const { ties, total, all_total, page, page_size } = await api("/api/ties/search", { method: "POST", body: searchBody(state, matchIds) });
+      const found = await api("/api/ties/search", { method: "POST", body: searchBody(state, matchIds) });
+      const { total, all_total, page, page_size } = found;
+      // Opened on the device for the cards' album links.
+      const ties = await open("tie", found.ties);
       if (request !== latestRequest) return;
       const totalPages = Math.ceil(total / page_size);
       count.textContent = showingText(total, all_total);

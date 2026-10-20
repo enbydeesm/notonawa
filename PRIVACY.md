@@ -1,10 +1,10 @@
-# NotoNawa Privacy Policy
+# NōtoNawa Privacy Policy
 
 **Last updated:** October 19, 2026
 
 ## The short version
 
-- NotoNawa is a private journal for rope practice. It is built so that
+- NōtoNawa is a private journal for rope practice. It is built so that
   **the most sensitive parts, your notes and your photos, are encrypted on
   your device before they leave it.** We can't read them, and neither can
   anyone who gets hold of our servers.
@@ -25,7 +25,7 @@
 
 ## Who we are
 
-NotoNawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
+NōtoNawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
 Contact us about privacy, give feedback, or tell us how frickin cool we are at contact@notonawa.app.
 
 ## What we collect
@@ -35,7 +35,7 @@ Contact us about privacy, give feedback, or tell us how frickin cool we are at c
 - **A passkey.** When you create a passkey, your device keeps the secret part.
   We store only the public part, an ID for it, the name you give it (e.g.
   "My phone") and when it was created and last used. A passkey can't be
-  used to identify you outside NotoNawa.
+  used to identify you outside NōtoNawa.
 - **Your sessions.** When you sign in we give your browser a random session
   token in a cookie. We store a scrambled (hashed) copy of it, which passkey
   you signed in with, when the session started, and when it was last used
@@ -59,8 +59,9 @@ Contact us about privacy, give feedback, or tell us how frickin cool we are at c
   was used, and by which account, but nothing about who it was for.
 - **Your settings.** Whether you use light or dark mode, and the words
   you've chosen for the top and bottom roles (if any), so every device you
-  use shows them the same way. They're stored as plain text, readable by
-  our server like the rest of the section below.
+  use shows them the same way, and which version of the app's release notes
+  you last saw, so "What's new" is shown once. They're stored as plain text,
+  readable by our server like the rest of the section below.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
@@ -87,8 +88,9 @@ analytics, advertising or tracking tools of any kind.
 ## What we can and can't read
 
 **Encrypted on your device, so only you can read them:** every notes field
-(on ties, people, locations and plans, including plan descriptions), and
-your photos, their thumbnails and captions.
+(on ties, people, locations and plans, including plan descriptions), the
+photo album links on ties and plans, and your photos, their thumbnails and
+captions.
 
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, people and
@@ -186,12 +188,12 @@ allow on this site, protects you further.
 Your journal may hold information about the people you tie with. Please only
 record what they would be comfortable with, and remove it if they ask.
 Entries about someone stay in your account. If that person also uses
-NotoNawa, they can't see your entries, and we don't tell them you've written
+NōtoNawa, they can't see your entries, and we don't tell them you've written
 about them.
 
 ## Where your data is stored
 
-NotoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is
+NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is
 our only service provider with access to stored data. We ask Cloudflare to
 store photos in North America [and the database in enam]; Cloudflare
 doesn't guarantee where data is kept, and its network may handle it in
@@ -209,7 +211,7 @@ Google.
 
 We use one cookie: your session cookie. It's needed to keep you signed in. It
 can't be read by scripts, is only sent over secure connections and only to
-NotoNawa, and expires after 30 days, or sooner after 7 days without
+NōtoNawa, and expires after 30 days, or sooner after 7 days without
 use. We use no other cookies, local storage for tracking, or similar
 technologies. The app also remembers the last light or dark mode your
 browser showed in its local storage (just the word "light" or "dark"), so
@@ -227,7 +229,7 @@ leaves your device. Your mode itself is saved with your account (see
   clean-up removes what was left within a day or two.
 - **When you delete your account**, everything in it (journal, photos,
   passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
-  or password manager may still list your passkey for NotoNawa; where the
+  or password manager may still list your passkey for NōtoNawa; where the
   browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
   recovery, so deleted data can remain there for up to 30 days before it
@@ -275,7 +277,7 @@ time by deleting your data or your account.
 
 ## Our own access
 
-The only person who can access NotoNawa's systems is Mx_Piggie,
+The only person who can access NōtoNawa's systems is Mx_Piggie,
 using an account protected by a hardware security key. We don't browse users'
 data. We would look at the readable parts of an account only when you ask us
 to (for example to help with a problem), or when the law requires it.

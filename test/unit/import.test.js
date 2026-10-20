@@ -42,12 +42,24 @@ describe("parseImportItems", () => {
     expect(() => parseImportItems({ plans: [{ id: "c", title: "X", plan_type: "bogus" }] })).toThrow("Expected one of");
   });
 
+  it("reads a plan's tie type (optional) and sealed album link", () => {
+    const items = parseImportItems({
+      plans: [{ id: "a", title: "TK", tie_type: "floor", album_url: sealed("https://photos.app.goo.gl/x") }, { id: "b", title: "Old" }],
+    });
+    expect(items.plans.map((p) => [p.tie_type, p.album_url])).toEqual([["floor", sealed("https://photos.app.goo.gl/x")], [null, null]]);
+    expect(() => parseImportItems({ plans: [{ id: "c", title: "X", tie_type: "dangling" }] })).toThrow("Expected one of");
+    expect(() => parseImportItems({ plans: [{ id: "c", title: "X", album_url: "https://photos.app.goo.gl/x" }] }))
+      .toThrow("weren't encrypted");
+  });
+
   it("refuses notes and descriptions that aren't encrypted", () => {
     expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", notes: "plain" }] })).toThrow("weren't encrypted");
     expect(() => parseImportItems({ people: [{ id: "1", name: "Sam", profile_notes: [{ type: "like", description: "plain" }] }] }))
       .toThrow("weren't encrypted");
     expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", notes: "plain" }] })).toThrow("weren't encrypted");
     expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", participants: [{ person_id: "p", role: "bottom", notes: "plain" }] }] }))
+      .toThrow("weren't encrypted");
+    expect(() => parseImportTies({ ties: [{ tie_date: "2026-01-01", tie_type: "floor", album_url: "https://photos.app.goo.gl/x" }] }))
       .toThrow("weren't encrypted");
   });
 
@@ -77,7 +89,8 @@ describe("parseImportItems", () => {
 describe("parseImportTies", () => {
   it("parses ties with ratings and notes on participants, and deleted links", () => {
     const [tie] = parseImportTies({ ties: [{
-      title: "Floor", tie_date: "2026-10-12", duration_minutes: "45", location_id: null, location_deleted: true,
+      title: "Floor", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: "45", location_id: null, location_deleted: true,
+      album_url: sealed("https://photos.app.goo.gl/x"),
       participants: [
         { person_id: "p1", role: "bottom", difficulty_rating: 3, notes: sealed("good") },
         { person_id: "p1", role: "bottom" },
@@ -87,7 +100,8 @@ describe("parseImportTies", () => {
       tags: ["floor", "FLOOR"],
     }] });
     expect(tie).toMatchObject({
-      title: "Floor", duration_minutes: 45, location_deleted: 1, success_rating: null,
+      title: "Floor", tie_type: "floor", duration_minutes: 45, location_deleted: 1, success_rating: null,
+      album_url: sealed("https://photos.app.goo.gl/x"),
       participants: [
         { person_id: "p1", role: "bottom", difficulty_rating: 3, experience_rating: null, notes: sealed("good") },
         { person_id: null, role: "spotter" },
@@ -98,12 +112,16 @@ describe("parseImportTies", () => {
   });
 
   it("never marks a tie with a location as having lost it", () => {
-    expect(parseImportTies({ ties: [{ title: "x", tie_date: "2026-01-01", location_id: "l1", location_deleted: true }] })[0].location_deleted).toBe(0);
+    expect(parseImportTies({ ties: [{ title: "x", tie_date: "2026-01-01", tie_type: "floor", location_id: "l1", location_deleted: true }] })[0]
+      .location_deleted).toBe(0);
   });
 
   it("names the tie in an error", () => {
-    expect(() => parseImportTies({ ties: [{ title: "ok", tie_date: "2026-01-01" }, { title: "Undated" }] }))
+    expect(() => parseImportTies({ ties: [{ title: "ok", tie_date: "2026-01-01", tie_type: "floor" }, { title: "Undated" }] }))
       .toThrow('Tie 2 ("Undated"): Add a date.');
+    // Every tie has a type: one without is refused, not guessed.
+    expect(() => parseImportTies({ ties: [{ title: "Untyped", tie_date: "2026-01-01" }] }))
+      .toThrow('Tie 1 ("Untyped"): Choose a tie type: suspension, partial suspension, floor or hashira.');
     expect(() => parseImportTies({ ties: [{ title: "Floor", tie_date: "12/10/2026" }] }))
       .toThrow('Tie 1 ("Floor"): Expected a date like 2026-10-12.');
     expect(() => parseImportTies({ ties: [{ title: "x", participants: [{ person_id: "p" }] }] })).toThrow("needs a role");
@@ -206,8 +224,8 @@ describe("linksKey", () => {
 describe("planTies", () => {
   it("gives each tie and link a new id, and resolves tags to my spelling", () => {
     const ties = parseImportTies({ ties: [
-      { title: "A", tie_date: "2026-01-01", participants: [{ person_id: "p", role: "bottom" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
-      { title: "B", tie_date: "2026-01-02", tags: ["new"] },
+      { title: "A", tie_date: "2026-01-01", tie_type: "floor", participants: [{ person_id: "p", role: "bottom" }], plans: [{ plan_id: "pl" }], tags: ["floor", "New"] },
+      { title: "B", tie_date: "2026-01-02", tie_type: "hashira", tags: ["new"] },
     ] });
     const plan = planTies(ties, [{ id: "t", name: "Floor" }], counter());
     expect(plan.newTags).toEqual(["New"]);

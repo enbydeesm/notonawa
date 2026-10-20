@@ -16,34 +16,34 @@ async function countTagsNamed(name) {
 
 describe("saving a tie with tags", () => {
   it("creates new tags and links existing ones, ignoring capitals", async () => {
-    const first = await create("/api/ties", { tie_date: "2026-01-01", title: "First", tags: ["Futomomo", "Floor"] });
+    const first = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "First", tags: ["Futomomo", "Floor"] });
     expect(await tieTagNames(first)).toEqual(["Floor", "Futomomo"]);
 
-    const second = await create("/api/ties", { tie_date: "2026-01-01", title: "Second", tags: ["futomomo", "Suspension"] });
+    const second = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "Second", tags: ["futomomo", "Suspension"] });
     expect(await tieTagNames(second)).toEqual(["Futomomo", "Suspension"]);
     expect(await countTagsNamed("futomomo")).toBe(1);
   });
 
   it("saves no tags if the tie fails", async () => {
-    const res = await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", tags: ["Never saved"], plan_ids: ["no-such-plan"] } });
+    const res = await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01", tags: ["Never saved"], plan_ids: ["no-such-plan"] } });
     expect(res.status).toBe(400);
     expect(await countTagsNamed("Never saved")).toBe(0);
   });
 
   it("rejects bad tag lists", async () => {
-    expect(await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", tags: "Floor" } }))
+    expect(await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01", tags: "Floor" } }))
       .toEqual({ status: 400, body: { error: "Tags should be a list of up to 30 tags." } });
   });
 });
 
 describe("GET /api/tags", () => {
   it("lists most recently used first (A–Z when it's the same tie), then unused A–Z, with tie counts", async () => {
-    const old = await create("/api/ties", { title: "Old", tie_date: "2020-01-01", tags: ["r-old", "r-both"] });
+    const old = await create("/api/ties", { title: "Old", tie_type: "floor", tie_date: "2020-01-01", tags: ["r-old", "r-both"] });
     const owner = (await sql("SELECT owner_id FROM ties WHERE id = ?", old).first())?.owner_id;
-    await create("/api/ties", { title: "New", tie_date: "2030-01-01", tags: ["r-new", "r-both"] });
-    await create("/api/ties", { title: "Oldest", tie_date: "2010-01-01", tags: ["r-oldest"] });
+    await create("/api/ties", { title: "New", tie_type: "floor", tie_date: "2030-01-01", tags: ["r-new", "r-both"] });
+    await create("/api/ties", { title: "Oldest", tie_type: "floor", tie_date: "2010-01-01", tags: ["r-oldest"] });
     // Same date as "New" but logged later, so it counts as more recent.
-    await create("/api/ties", { title: "New, later", tie_date: "2030-01-01", tags: ["r-later"] });
+    await create("/api/ties", { title: "New, later", tie_type: "floor", tie_date: "2030-01-01", tags: ["r-later"] });
     await sql("INSERT INTO tags (id, owner_id, name) VALUES ('u-b', ?, 'r-unused-b'), ('u-a', ?, 'R-unused-a')", owner, owner).run();
     // created_at is to the second, so pin the order of the two 2030 ties.
     await sql("UPDATE ties SET created_at = '2030-01-01T10:00:00Z' WHERE title = 'New'").run();
@@ -59,12 +59,21 @@ describe("GET /api/tags", () => {
 
 describe("DELETE /api/tags/:id", () => {
   it("deletes the tag and removes it from its ties", async () => {
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "x", tags: ["d-gone", "d-kept"] });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "x", tags: ["d-gone", "d-kept"] });
     const gone = (await call("/api/tags")).body.find((/** @type {any} */ t) => t.name === "d-gone");
 
     expect((await call(`/api/tags/${gone.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/tags/${gone.id}`, { method: "DELETE" })).status).toBe(404);
     expect(await tieTagNames(tie)).toEqual(["d-kept"]);
+  });
+
+  it("removes it from plans too", async () => {
+    const plan = await create("/api/plans", { title: "Tagged", tags: ["p-gone", "p-kept"] });
+    const gone = (await call("/api/tags")).body.find((/** @type {any} */ t) => t.name === "p-gone");
+    expect(gone).toMatchObject({ tie_count: 0, plan_count: 1 });
+    expect((await call(`/api/tags/${gone.id}`, { method: "DELETE" })).status).toBe(204);
+    const tags = (await call("/api/plans?archived=all")).body.find((/** @type {any} */ p) => p.id === plan).tags;
+    expect(tags).toEqual(["p-kept"]);
   });
 });
 
@@ -77,7 +86,7 @@ describe("other users' tags", () => {
     expect((await call("/api/tags/their-tag", { method: "DELETE" })).status).toBe(404);
 
     // The same name makes a tag of my own instead of linking theirs.
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "x", tags: ["o-theirs"] });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "x", tags: ["o-theirs"] });
     const linked = await sql("SELECT tag_id FROM tie_tags WHERE tie_id = ?", tie).first();
     expect(linked?.tag_id).not.toBe("their-tag");
     expect((await sql("SELECT name FROM tags WHERE id = 'their-tag'").first())?.name).toBe("o-theirs");

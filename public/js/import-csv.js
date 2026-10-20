@@ -1,11 +1,12 @@
 // Turning a CSV of ties (one per row) into an import, in the export's shape
 // (see import-steps.js). Pure, so it's easy to test.
 //
-// Columns, in any order (only date or title is needed; see
+// Columns, in any order (date and type are needed; see
 // /import-template.csv):
 //   date      2026-10-12
 //   title
-//   type      suspension, partial suspension or floor
+//   type      suspension, partial suspension, floor or hashira (every tie
+//             has one: a row without one is an error)
 //   duration  minutes
 //   rating    1 to 5
 //   location  a name
@@ -18,12 +19,14 @@
 //   plans     plan titles, separated by ;
 //   tags      separated by ;
 //   notes
+//   album     a link to a photo album (http or https)
 // People, locations and plans are matched to the journal's by name when
 // imported; names it doesn't have are added.
 
 import { ROLES, TIE_TYPES } from "./ties-view.js";
 import { roleName, roleFromName } from "./roles.js";
 import { tagKey } from "./tags.js";
+import { webLinkOrNull } from "./links.js";
 
 /** Column names as written in the file -> the field they fill. */
 const COLUMNS = /** @type {const} */ ({
@@ -39,8 +42,9 @@ const COLUMNS = /** @type {const} */ ({
   plans: "plans", plan: "plans",
   tags: "tags",
   notes: "notes",
+  album: "album", album_url: "album", album_link: "album",
 });
-const KNOWN = "date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes";
+const KNOWN = "date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes, album";
 const MAX_ERRORS = 20;
 
 /**
@@ -110,6 +114,7 @@ function rowToTie(get, { people, locations, plans }) {
     duration_minutes: wholeNumber(get.duration, 0, 1440, "The duration"),
     success_rating: wholeNumber(get.rating, 1, 5, "The rating"),
     notes: get.notes || null,
+    album_url: webLinkOrNull(get.album),
     location_id: get.location ? locations.id(get.location, coords(get)) : null,
     participants: list(get.people).map((entry) => {
       const m = entry.match(/^(.+?)\s*\(\s*([^()]+?)\s*\)$/);
@@ -211,11 +216,11 @@ function wholeNumber(cell, min, max, what) {
 }
 
 /**
- * The type, ignoring capitals, or null if the cell is empty.
+ * The type, ignoring capitals. Required: every tie has one.
  * @param {string | undefined} cell
  */
 function tieType(cell) {
-  if (!cell) return null;
+  if (!cell) throw new Error(`Add a type: ${TIE_TYPES.join(", ")}.`);
   const type = cell.toLowerCase().replace(/\s+/g, " ");
   if (!TIE_TYPES.includes(type)) throw new Error(`"${cell}" isn't a type. Use one of: ${TIE_TYPES.join(", ")}.`);
   return type;

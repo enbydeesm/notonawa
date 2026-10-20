@@ -99,25 +99,30 @@ find the cause.
 
 ## Ideas, not yet committed
 
->- Plans: “Type” becomes “Plan type”, plans get a tie type, and difficulty is picked with the rope-hank icons.
+>- Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.
 > - Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
 > - Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.
 > - Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens.
 
-- add an app version number, track release notes that can be displayed to users. put version number on the app somewhere (bottom of sign in screen, bottom of menu sidebar?)
-- Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account.
-- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
-- + button asks what to add: the + button first asks whether to add a tie, person, location or plan.
 
-- Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
-- Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
-- Photo album link: an optional, encrypted link to a Google or Apple Photos album on ties and plans.
+- Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account. the intro should be what is saved on WELCOME.md. I should also be able to force the welcome dialog to prompt one or all users like other message banners so users with existing accounts will see it at next login.
+- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
+- at the top of the plans view, replace the current 'add a plan' form with a button that opens a dialog with a form to add a new plan (similar to how the tie form works now) There should be a small card with the label "Add a Plan" and a yellow + button just like the add a tie button in the top nav. 
+- below that, add a search form that filters the plans list below it. The search form should look exactly like the Ties one, except it should have a Plan Type drop down instead of People, a Tie Type drop down instead of Locations, and no date filter, keeping the Tags filter.
+
+>- Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
+>- on the plans table and form, add 'Tie Type', using the same values as the tie type used for Ties,
+>- rename the 'type' column in the plans table to 'Plan Type'
+>- Photo album link: an optional link to a Google or Apple Photos album on ties and plans.
+>>- add tags to plans, same functionality as on Ties
+>- add an app version number, track release notes that can be displayed to users. put version number on the app at the bottom of sign in screen and the bottom of menu sidebar
+
 
 - **Thumbnails on tie cards.** The Ties list shows a photo count only,
   because thumbnails would mean up to 100 decrypts a page.
 - **Searching captions** with the keyword search (they're sealed bound to
   their photo, so the search index would need to fetch and open them).
-
+- Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
 
 - Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list.
 - People’s socials and city: optional platform and username rows, added with a + button and maybe found by the People search, plus a “based in” city.

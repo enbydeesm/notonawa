@@ -31,8 +31,8 @@ describe("POST /api/stats/ties", () => {
       location_id: place, tags: ["statstest-a"],
       participants: [{ person_id: me, role: "top" }, { person_id: sam, role: "bottom" }],
     });
-    await create("/api/ties", { tie_date: "2025-03-01" });
-    await create("/api/ties", { tie_date: "2025-04-01" });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2025-03-01" });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2025-04-01" });
 
     const ties = await statsTies({ from: "2025-03-01", to: "2025-03-31" });
     expect(ties.map((/** @type {any} */ t) => t.tie_date)).toEqual(["2025-03-01", "2025-03-02"]);
@@ -54,7 +54,7 @@ describe("POST /api/stats/ties", () => {
     const sam = await create("/api/people", { name: "Sam" });
     /** @param {string} tie_date @param {string} role */
     const tie = (tie_date, role) => create("/api/ties", {
-      tie_date, participants: [{ person_id: me, role }, { person_id: sam, role: "spotter" }],
+      tie_type: "floor", tie_date, participants: [{ person_id: me, role }, { person_id: sam, role: "spotter" }],
     });
     await tie("2025-05-01", "rigger");
     await tie("2025-05-02", "top");
@@ -63,7 +63,7 @@ describe("POST /api/stats/ties", () => {
     await tie("2025-05-05", "photographer");
     await tie("2025-05-07", "self tie");
     // Sam as a top doesn't make it a tie where I was the top.
-    await create("/api/ties", { tie_date: "2025-05-06", participants: [{ person_id: sam, role: "top" }] });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2025-05-06", participants: [{ person_id: sam, role: "top" }] });
     const may = { from: "2025-05-01", to: "2025-05-31" };
 
     expect(await dates({ ...may, role: "top" })).toEqual(["2025-05-01", "2025-05-02"]);
@@ -81,7 +81,7 @@ describe("POST /api/stats/ties", () => {
     const b = await create("/api/locations", { name: "B" });
     /** @param {string} tie_date @param {string[]} people @param {string} location_id @param {string[]} tags */
     const tie = (tie_date, people, location_id, tags) => create("/api/ties", {
-      tie_date, location_id, tags, participants: people.map((person_id) => ({ person_id, role: "bottom" })),
+      tie_type: "floor", tie_date, location_id, tags, participants: people.map((person_id) => ({ person_id, role: "bottom" })),
     });
     await tie("2025-06-01", [sam], a, ["statstest-x"]);
     await tie("2025-06-02", [alex], b, ["statstest-y"]);
@@ -101,14 +101,14 @@ describe("POST /api/stats/ties", () => {
   });
 
   it("covers all time when no dates are given", async () => {
-    await create("/api/ties", { tie_date: "2019-01-01" });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2019-01-01" });
     expect(await dates({})).toContain("2019-01-01");
   });
 
   it("shows a deleted person and location as such", async () => {
     const gone = await create("/api/people", { name: "Gone" });
     const place = await create("/api/locations", { name: "Gone place" });
-    await create("/api/ties", { tie_date: "2025-07-01", location_id: place, participants: [{ person_id: gone, role: "bottom" }] });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2025-07-01", location_id: place, participants: [{ person_id: gone, role: "bottom" }] });
     expect((await call(`/api/people/${gone}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/locations/${place}`, { method: "DELETE" })).status).toBe(204);
 
@@ -120,7 +120,7 @@ describe("POST /api/stats/ties", () => {
   it("only ever sees my own ties", async () => {
     const other = await createOtherUser();
     const cookie = await sessionCookieFor(other);
-    await create("/api/ties", { tie_date: "2025-08-01" });
+    await create("/api/ties", { tie_type: "floor", tie_date: "2025-08-01" });
     const res = await call("/api/stats/ties", { method: "POST", body: { from: "2025-08-01", to: "2025-08-01" }, cookie });
     expect(res).toEqual({ status: 200, body: { ties: [] } });
   });

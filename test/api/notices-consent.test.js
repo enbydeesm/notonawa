@@ -86,7 +86,7 @@ describe("agreeing to a changed privacy policy", () => {
     const id = await createOtherUser({ termsVersion: null });
     const cookie = await sessionCookieFor(id);
     expect((await call("/api/consent", { cookie })).body.needed).toBe(true);
-    expect((await call("/api/ties", { method: "POST", body: { tie_date: "2026-01-01" }, cookie })).status).toBe(403);
+    expect((await call("/api/ties", { method: "POST", body: { tie_type: "floor", tie_date: "2026-01-01" }, cookie })).status).toBe(403);
   });
 
   it("doesn't ask someone who agreed to the current version", async () => {

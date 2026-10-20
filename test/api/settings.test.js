@@ -4,18 +4,29 @@ import { call, createOtherUser, sessionCookieFor, signedInUser } from "../helper
 describe("account settings", () => {
   it("starts on the defaults, and saves only what's sent", async () => {
     await signedInUser();
-    expect((await call("/api/account/settings")).body).toEqual({ top_label: null, bottom_label: null, theme: null });
+    expect((await call("/api/account/settings")).body).toEqual({ top_label: null, bottom_label: null, theme: null, seen_release: null });
 
     const saved = await call("/api/account/settings", { method: "PUT", body: { top_label: " rigger ", theme: "light" } });
     expect(saved.status).toBe(200);
-    expect(saved.body).toEqual({ top_label: "rigger", bottom_label: null, theme: "light" });
+    expect(saved.body).toEqual({ top_label: "rigger", bottom_label: null, theme: "light", seen_release: null });
 
     await call("/api/account/settings", { method: "PUT", body: { bottom_label: "bunny" } });
-    expect((await call("/api/account/settings")).body).toEqual({ top_label: "rigger", bottom_label: "bunny", theme: "light" });
+    expect((await call("/api/account/settings")).body).toEqual({ top_label: "rigger", bottom_label: "bunny", theme: "light", seen_release: null });
 
     // Empty goes back to the default.
     await call("/api/account/settings", { method: "PUT", body: { top_label: "", bottom_label: "Bottom" } });
-    expect((await call("/api/account/settings")).body).toEqual({ top_label: null, bottom_label: null, theme: "light" });
+    expect((await call("/api/account/settings")).body).toEqual({ top_label: null, bottom_label: null, theme: "light", seen_release: null });
+  });
+
+  it("remembers the last release notes seen, leaving the rest alone", async () => {
+    await signedInUser();
+    const cookie = await sessionCookieFor(await createOtherUser());
+    const saved = await call("/api/account/settings", { method: "PUT", body: { seen_release: "2026.10.19.001" }, cookie });
+    expect(saved.body).toEqual({ top_label: null, bottom_label: null, theme: null, seen_release: "2026.10.19.001" });
+    expect((await call("/api/account/settings", { cookie })).body.seen_release).toBe("2026.10.19.001");
+    expect((await call("/api/account/settings", { method: "PUT", body: { seen_release: "newest" }, cookie })).status).toBe(400);
+    // Another account's is its own.
+    expect((await call("/api/account/settings")).body.seen_release).toBe(null);
   });
 
   it("refuses names that clash, with what's already saved too", async () => {

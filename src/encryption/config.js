@@ -1,15 +1,15 @@
-// The encrypted fields: notes and descriptions, sealed in the browser
+// The encrypted fields: notes, descriptions and album links, sealed in the browser
 // (public/js/crypto/fields.js has the same list; a unit test keeps them in
 // step). Table and column names used in SQL only come from here.
 
 /** @type {Record<string, string[]>} */
 export const ENCRYPTED_COLUMNS = {
-  ties: ["notes"],
+  ties: ["notes", "album_url"],
   tie_participants: ["notes"],
   people: ["notes"],
   profile_notes: ["description"],
   locations: ["notes"],
-  plans: ["description", "notes"],
+  plans: ["description", "notes", "album_url"],
 };
 
 /**

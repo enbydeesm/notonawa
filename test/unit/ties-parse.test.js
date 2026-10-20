@@ -10,6 +10,7 @@ describe("parseTieInput", () => {
       duration_minutes: "45",
       success_rating: "4",
       notes: "",
+      album_url: "",
       location_id: "loc1",
       participants: [{ person_id: "p1", role: "top" }],
       plan_ids: ["pl1"],
@@ -21,6 +22,7 @@ describe("parseTieInput", () => {
       duration_minutes: 45,
       success_rating: 4,
       notes: null,
+      album_url: null,
       location_id: "loc1",
       participants: [{ person_id: "p1", role: "top" }],
       plan_ids: ["pl1"],
@@ -28,23 +30,23 @@ describe("parseTieInput", () => {
     });
   });
 
-  it("needs a date, but not a title", () => {
+  it("needs a date and a type, but not a title", () => {
     expect(() => parseTieInput({})).toThrow("Add a date.");
-    expect(() => parseTieInput({ title: "x", tie_date: "" })).toThrow("Add a date.");
-    expect(parseTieInput({ tie_date: "2026-10-12" }).title).toBeNull();
+    expect(() => parseTieInput({ title: "x", tie_date: "", tie_type: "floor" })).toThrow("Add a date.");
+    expect(parseTieInput({ tie_date: "2026-10-12", tie_type: "floor" }).title).toBeNull();
   });
 
   it("only accepts a real YYYY-MM-DD tie date", () => {
-    expect(parseTieInput({ title: "x", tie_date: " 2024-02-29 " }).tie_date).toBe("2024-02-29");
+    expect(parseTieInput({ title: "x", tie_date: " 2024-02-29 ", tie_type: "floor" }).tie_date).toBe("2024-02-29");
     for (const bad of ["2026-02-30", "12/10/2026", "yesterday", "2026-10-12T21:00:00Z"]) {
       expect(() => parseTieInput({ title: "x", tie_date: bad })).toThrow("Expected a date like 2026-10-12.");
     }
   });
 
-  it("only accepts a known type, and none is fine", () => {
+  it("only accepts a known type, and needs one (migration 0014)", () => {
     const dated = { title: "x", tie_date: "2026-01-01" };
-    expect(parseTieInput(dated).tie_type).toBeNull();
-    expect(parseTieInput({ ...dated, tie_type: "" }).tie_type).toBeNull();
+    expect(() => parseTieInput(dated)).toThrow("Choose a tie type: suspension, partial suspension, floor or hashira.");
+    expect(() => parseTieInput({ ...dated, tie_type: "" })).toThrow("Choose a tie type");
     expect(parseTieInput({ ...dated, tie_type: "floor" }).tie_type).toBe("floor");
     expect(parseTieInput({ ...dated, tie_type: "hashira" }).tie_type).toBe("hashira");
     expect(() => parseTieInput({ title: "x", tie_type: "hanging" })).toThrow("Expected one of: suspension, partial suspension, floor, hashira.");

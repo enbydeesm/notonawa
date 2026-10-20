@@ -91,6 +91,7 @@ nav .nav-tab svg { display: block; width: 100%; height: 100%; }
 .tie-more { color: var(--muted); font-weight: 600; }
 .tie-tags { margin-top: 6px; gap: 6px; }
 .tie-photos { grid-column: 1 / -1; color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+.tie-album { grid-column: 1 / -1; font-size: 0.9rem; margin-top: 4px; }
 
 /* Photos: a grid of square thumbnails with their captions, and the viewer. */
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -206,7 +207,7 @@ dialog.menu-panel {
 @starting-style { dialog.menu-panel[open] { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
-.menu-privacy { margin-top: auto; }
+.menu-whats-new { margin-top: auto; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 .menu-title img { display: block; width: 160px; max-width: 100%; height: auto; margin: 0 auto; }
 .menu-item {
@@ -217,6 +218,8 @@ dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 .menu-item svg { flex: none; width: 24px; height: 24px; }
 .menu-item[aria-current="page"] span { font-weight: 600; border-bottom: 2px solid var(--accent); }
 .menu-message:empty { display: none; }
+/* The app's version, under everything in the menu and on sign-in. */
+.hint.app-version { margin-top: 12px; text-align: center; }
 
 /* Settings: the light/dark switch on its own row, then the role names. */
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -619,3 +622,12 @@ dialog.form-dialog {
 /* The Consent view's ways out. */
 .consent-ways { margin: 8px 0; padding-left: 20px; }
 .consent-ways li { margin: 4px 0; }
+
+/* A plan's tags and album link in the Plans list. */
+.item-tags { margin-top: 6px; gap: 6px; }
+.item-album { margin-top: 4px; font-size: 0.9rem; }
+
+/* What's new: each release's version, then its notes. */
+.whats-new .release h3 { margin: 12px 0 4px; font-size: 1rem; }
+.whats-new .release ul { margin: 0; padding-left: 20px; }
+.whats-new .release li { margin: 4px 0; }

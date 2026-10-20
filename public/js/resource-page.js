@@ -28,6 +28,7 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   canRemove?: (item: Item) => boolean,
  *   onLoad?: (items: Item[], archived: boolean) => void,
  *   searchable?: { noun: string, pinned?: (item: Item) => boolean },
+ *   prepare?: (data: Record<string, any>) => Record<string, any>,
  *   signal?: AbortSignal,
  * }} ResourcePageConfig
  *
@@ -43,6 +44,8 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * searchable: puts a search box (by name) and sort buttons (A–Z, date
  *   added; newest first to start) above the list. pinned items stay at the
  *   top (my own profile).
+ * prepare: turns the form's fields into what's sent, before it's sealed
+ *   (a plan's tags, and checking its album link); throws to refuse it.
  * confirmDelete: resolves to { query } to delete (query is appended to the
  *   DELETE URL), { archive: true } to archive instead, or null to cancel.
  */
@@ -220,7 +223,8 @@ export function setupResourcePage(config) {
     showMessage(message, "Saving…");
     try {
       // Notes are sealed here, on the device, before they're sent.
-      const body = await sealOne(KINDS[resource], formData());
+      const data = config.prepare ? config.prepare(formData()) : formData();
+      const body = await sealOne(KINDS[resource], data);
       let id = editingId;
       if (id) {
         await api(`/api/${resource}/${id}`, { method: "PUT", body });

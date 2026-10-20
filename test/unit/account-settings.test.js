@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSettings, MAX_ROLE_NAME } from "../../src/account/settings.js";
 
-const DEFAULTS = { top_label: null, bottom_label: null, theme: null };
+const DEFAULTS = { top_label: null, bottom_label: null, theme: null, seen_release: null };
 
 describe("parseSettings", () => {
   it("changes only what's sent", () => {
@@ -32,5 +32,12 @@ describe("parseSettings", () => {
     expect(() => parseSettings({ top_label: 5 }, DEFAULTS)).toThrow("should be text");
     expect(() => parseSettings({ theme: "blue" }, DEFAULTS)).toThrow("light or dark");
     expect(() => parseSettings({}, DEFAULTS)).toThrow("Nothing to change");
+  });
+
+  it("takes the last release seen, only as a version", () => {
+    expect(parseSettings({ seen_release: "2026.10.19.001" }, DEFAULTS)).toEqual({ seen_release: "2026.10.19.001" });
+    for (const bad of ["2026.10.19.01", "2026-10-19.001", "latest", 2026, null]) {
+      expect(() => parseSettings({ seen_release: bad }, DEFAULTS)).toThrow("isn't a version");
+    }
   });
 });

@@ -1,14 +1,16 @@
 // The view links at the top of the app, as icons (each named for screen
 // readers and in its tooltip), then the + button and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
-// their own dialog), the account and "Your data" links, the privacy policy
-// and Sign Out. Drawn once by app.js; setCurrent() marks the view being
-// shown.
+// their own dialog), the account and "Your data" links, What's new (the
+// release notes), the privacy policy, Sign Out and the app's version.
+// Drawn once by app.js; setCurrent() marks the view being shown.
 
 import { h, $ } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
 import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
+import { openWhatsNew } from "./whats-new.js";
+import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock } from "./vault.js";
 
@@ -104,14 +106,20 @@ function openMenu() {
         href: "/data", className: "menu-item nav-data",
         "aria-current": current === "/data" ? "page" : null,
       }, dataIcon(), h("span", {}, "Your data")),
-      // Pinned to the bottom of the panel. The same page sign-up links to. It
-      // isn't part of the app, so it opens in a new tab and leaves the app
-      // (and later its unlocked key) as it is.
+      // What's new, the privacy policy and signing out are pinned to the
+      // bottom of the panel.
+      h("button", {
+        type: "button", className: "menu-item menu-whats-new", "aria-haspopup": "dialog",
+        onclick: () => { dialog.close(); openWhatsNew(); },
+      }, sparkleIcon(), h("span", {}, "What's new")),
+      // The same page sign-up links to. It isn't part of the app, so it
+      // opens in a new tab and leaves the app (and its unlocked key) as it is.
       h("a", { href: "/privacy", target: "_blank", rel: "noopener", className: "menu-item menu-privacy" },
         privacyIcon(), h("span", {}, "Privacy Policy")),
       h("button", { type: "button", className: "menu-item menu-sign-out", onclick: signOut },
         signOutIcon(), h("span", {}, "Sign Out")),
-      signOutMessage
+      signOutMessage,
+      h("p", { className: "hint app-version" }, `Version ${APP_VERSION}`)
     )
   );
 
@@ -231,6 +239,17 @@ function dataIcon() {
     svg("path", { d: "M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" }),
     svg("path", { d: "M9 4v10M6 11l3 3 3-3" }),
     svg("path", { d: "M15 14V4M12 7l3-3 3 3" })
+  );
+  return icon;
+}
+
+/** A four-pointed star with a small one beside it, for What's new. */
+function sparkleIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    svg("path", { d: "M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8z" }),
+    svg("path", { d: "M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z" })
   );
   return icon;
 }

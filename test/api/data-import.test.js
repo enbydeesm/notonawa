@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { call, create, createOtherUser, sessionCookieFor, signedInUser, sql, sealed } from "../helpers.js";
 import { duplicatePositions } from "../../public/js/import-dedupe.js";
 import { convertJournal } from "../../public/js/journal-fields.js";
+import { ENCRYPTED } from "../../public/js/crypto/fields.js";
 import { readExport, itemsBody, remapTies, batches } from "../../public/js/import-steps.js";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
@@ -20,10 +21,9 @@ async function newUser() {
  * @param {any} doc
  */
 function sealFile(doc) {
-  const fields = { person: ["notes"], profileNote: ["description"], location: ["notes"], plan: ["description", "notes"], tie: ["notes"], participant: ["notes"] };
   return convertJournal(doc, async (kind, records) => records.map((r) => {
     const out = { ...r };
-    for (const f of fields[kind]) if (typeof r[f] === "string" && !r[f].startsWith("e1.")) out[f] = sealed(r[f].trim());
+    for (const f of ENCRYPTED[kind].fields) if (typeof r[f] === "string" && !r[f].startsWith("e1.")) out[f] = sealed(r[f].trim());
     return out;
   }));
 }
@@ -95,18 +95,21 @@ async function fillJournal() {
   const studio = await create("/api/locations", { name: "Studio", notes: sealed("Beam"), latitude: 51.5, longitude: -0.12, is_default: true });
   const old = await create("/api/locations", { name: "Old flat" });
   const tk = await create("/api/plans", { title: "TK", stage: "ready", plan_type: "harness", est_difficulty: 3 });
-  const tk2 = await create("/api/plans", { title: "TK 2", variation_of: tk });
+  const tk2 = await create("/api/plans", {
+    title: "TK 2", variation_of: tk, tie_type: "floor", album_url: sealed("https://photos.app.goo.gl/tk2"), tags: ["kata", "floor"],
+  });
   const dropped = await create("/api/plans", { title: "Dropped" });
   await call(`/api/plans/${tk}`, { method: "PUT", body: { title: "TK", plan_type: "harness", est_difficulty: 3 } });
   await sql("UPDATE plans SET version = 4 WHERE id = ?", tk).run();
   await create("/api/ties", {
     title: "Floor", tie_date: "2026-10-01", tie_type: "partial suspension", notes: sealed("Went well"), success_rating: 4, duration_minutes: 50, location_id: studio,
+    album_url: sealed("https://photos.app.goo.gl/floor"),
     participants: [{ person_id: me, role: "top" }, { person_id: sam, role: "bottom" }, { person_id: gone, role: "spotter" }],
     plan_ids: [tk, tk2, dropped], tags: ["floor", "Futomomo"],
   });
-  await create("/api/ties", { title: "At the old flat", tie_date: "2026-09-01", location_id: old });
-  await create("/api/ties", { tie_date: "2026-01-01", title: "No date" });
-  for (let i = 0; i < 5; i++) await create("/api/ties", { title: `Practice ${i}`, tie_date: `2026-08-0${i + 1}` });
+  await create("/api/ties", { title: "At the old flat", tie_type: "floor", tie_date: "2026-09-01", location_id: old });
+  await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "No date" });
+  for (let i = 0; i < 5; i++) await create("/api/ties", { title: `Practice ${i}`, tie_type: "floor", tie_date: `2026-08-0${i + 1}` });
   await call(`/api/people/${gone}`, { method: "DELETE" });
   await call(`/api/locations/${old}`, { method: "DELETE" });
   await call(`/api/plans/${dropped}?linked_ties=keep`, { method: "DELETE" });
@@ -136,7 +139,7 @@ describe("importing an export", () => {
   it("previews without saving anything", async () => {
     const user = await newUser();
     await call("/api/people", { method: "POST", body: { name: "sam" }, cookie: user.cookie });
-    await call("/api/ties", { method: "POST", body: { title: "Floor", tie_date: "2026-10-01" }, cookie: user.cookie });
+    await call("/api/ties", { method: "POST", body: { title: "Floor", tie_type: "floor", tie_date: "2026-10-01" }, cookie: user.cookie });
 
     const items = await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body: {
       preview: true, people: [{ id: "a", name: "Sam" }, { id: "b", name: "Alex" }], tags: ["new tag"],
@@ -149,7 +152,7 @@ describe("importing an export", () => {
       locations: [], plans: [], new_tags: ["new tag"],
     });
     const ties = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: {
-      preview: true, ties: [{ title: "New", tie_date: "2026-10-02" }, { title: "Floor", tie_date: "2026-10-01" }, { title: "x", tie_date: "2026-10-03", tags: ["t"] }],
+      preview: true, ties: [{ title: "New", tie_type: "floor", tie_date: "2026-10-02" }, { title: "Floor", tie_type: "floor", tie_date: "2026-10-01" }, { title: "x", tie_type: "floor", tie_date: "2026-10-03", tags: ["t"] }],
     } });
     // The candidates: my ties the same in all but the notes (encrypted, so
     // the page compares those), with their ids (for a skipped tie's photos).
@@ -233,6 +236,7 @@ describe("importing an export", () => {
     expect(tie).toMatchObject({
       title: "Floor practice", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4,
       location_name: "Studio", notes: sealed("Went well. Notes can have commas, in quotes."),
+      album_url: sealed("https://photos.app.goo.gl/example"),
       plans: [{ plan_id: plan, plan_title: "Hip harness", plan_version: 2 }],
     });
     expect(tie.participants).toEqual(expect.arrayContaining([
@@ -248,7 +252,7 @@ describe("importing an export", () => {
     const items = await importFile({
       format: "notonawa-export", version: 1,
       plans: [{ id: "p", title: "TK", version: 3 }],
-      ties: [{ title: "Tie", tie_date: "2026-01-01", plans: [{ plan_id: "p" }] }],
+      ties: [{ title: "Tie", tie_type: "floor", tie_date: "2026-01-01", plans: [{ plan_id: "p" }] }],
     }, user.cookie);
     expect(await sql("SELECT plan_version FROM tie_plans WHERE plan_id = ?", items.items.plans[0].id).first())
       .toEqual({ plan_version: 3 });
@@ -261,8 +265,8 @@ describe("importing an export", () => {
     await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Theirs')", theirs, stranger.id).run();
 
     const res = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: [
-      { title: "Fine", tie_date: "2026-01-01", tags: ["would-be-new"] },
-      { title: "Sneaky", tie_date: "2026-01-01", participants: [{ person_id: theirs, role: "bottom" }] },
+      { title: "Fine", tie_type: "floor", tie_date: "2026-01-01", tags: ["would-be-new"] },
+      { title: "Sneaky", tie_type: "floor", tie_date: "2026-01-01", participants: [{ person_id: theirs, role: "bottom" }] },
     ] } });
     expect(res).toEqual({ status: 400, body: { error: "Linked item not found." } });
     expect(await sql("SELECT count(*) AS n FROM ties WHERE owner_id = ?", user.id).first()).toEqual({ n: 0 });

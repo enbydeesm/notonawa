@@ -104,16 +104,27 @@
             </select>
           </div>
           <div>
+            <!-- Optional, unlike a tie's; views/plans.js adds the types. -->
+            <label for="tie_type">Tie type</label>
+            <select id="tie_type" name="tie_type">
+              <option value="">–</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
             <!-- Rope hanks, like a tie's rating (views/plans.js draws them). -->
             <label id="est_difficulty-label">Difficulty</label>
             <div id="est_difficulty-picker"></div>
           </div>
+          <div>
+            <label for="variation_of">Variation of</label>
+            <select id="variation_of" name="variation_of">
+              <option value="">N/A</option>
+            </select>
+          </div>
         </div>
-
-        <label for="variation_of">Variation of</label>
-        <select id="variation_of" name="variation_of">
-          <option value="">N/A</option>
-        </select>
 
         <label for="description">Description</label>
         <textarea id="description" name="description" placeholder="The sequence, step by step" autocomplete="off" spellcheck="false"></textarea>
@@ -121,7 +132,18 @@
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
+        <!-- Encrypted like the notes; views/plans.js sets its pattern and checks it. -->
+        <label for="album_url">Album link</label>
+        <input id="album_url" name="album_url" type="url" inputmode="url" placeholder="https://photos.app.goo.gl/…"
+          title="A web address, starting with https://" autocomplete="off" spellcheck="false">
+
         <div data-photos></div>
+
+        <div class="label-row">
+          <label id="plan-tags-label">Tags</label>
+          <button type="button" class="label-add" id="plan-add-tags" aria-label="Edit tags" title="Edit tags">+</button>
+        </div>
+        <div class="tag-row" id="plan-tags"></div>
 
         <button type="submit" class="primary">Add plan</button>
         <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
@@ -480,6 +502,8 @@
       </form>
     </section>
     <p class="hint help-line">Trouble signing in? Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
+    <!-- Filled in by views/signin.js (public/js/releases.js) -->
+    <p class="hint app-version" id="signin-version"></p>
   </template>
 
   <!-- In place of any view that needs the key, while the journal is locked -->

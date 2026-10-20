@@ -1,4 +1,4 @@
-// Routes for tags. Tags are created by saving a tie with them (POST /api/ties).
+// Routes for tags. Tags are created by saving a tie or plan with them.
 
 import { json, notFound, noContent } from "../http.js";
 import { listTags, deleteTag } from "./db.js";
@@ -16,8 +16,8 @@ const ITEM_PATH = /^\/api\/tags\/([^/]+)$/;
  * @returns {Promise<Response | null>}
  */
 export async function handleTags(request, env, user, url) {
-  // GET /api/tags -> all my tags with how many ties use each, most recently
-  //   used first; unused ones last, A–Z
+  // GET /api/tags -> all my tags with how many ties and plans use each, most recently
+  //   used on a tie first; ones on no tie last, A–Z
   if (url.pathname === "/api/tags" && request.method === "GET") {
     return json(await listTags(env.DB, user.id));
   }

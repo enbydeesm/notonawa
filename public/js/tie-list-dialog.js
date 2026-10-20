@@ -6,6 +6,7 @@
 import { api, errorMessage } from "./api.js";
 import { h } from "./dom.js";
 import { tieCard, fitPeople, editTie } from "./tie-card.js";
+import { open } from "./vault.js";
 
 const PAGE_SIZE = 100;
 
@@ -38,8 +39,10 @@ export function openTieList({ heading, tieIds, onChange }) {
       const res = await api("/api/ties/search", {
         method: "POST", body: { match_ids: tieIds, page: n, page_size: PAGE_SIZE, sort: "newest" },
       });
+      // Opened on the device for the cards' album links.
+      const ties = await open("tie", res.ties);
       if (n === 1) list.replaceChildren();
-      list.append(...res.ties.map((/** @type {Record<string, any>} */ tie) => tieCard(tie, openTie)));
+      list.append(...ties.map((/** @type {Record<string, any>} */ tie) => tieCard(tie, openTie)));
       fitPeople(list);
       page = n;
       more.hidden = n * PAGE_SIZE >= res.total;

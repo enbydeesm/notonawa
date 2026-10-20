@@ -37,5 +37,7 @@ describe("deleteTagWarning", () => {
     expect(deleteTagWarning(0)).toBeUndefined();
     expect(deleteTagWarning(1)).toBe("Used on 1 tie; it'll be removed from it.");
     expect(deleteTagWarning(3)).toBe("Used on 3 ties; it'll be removed from them.");
+    expect(deleteTagWarning(0, 1)).toBe("Used on 1 plan; it'll be removed from it.");
+    expect(deleteTagWarning(1, 2)).toBe("Used on 1 tie and 2 plans; it'll be removed from them.");
   });
 });

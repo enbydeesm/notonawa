@@ -5,6 +5,8 @@ import { toFlag } from "../parse.js";
 import { RESOURCES, RESOURCE_NAMES, parseFields, checkEdit, parseArchivedFilter } from "./config.js";
 import * as db from "./db.js";
 import { deleteObjects } from "../media/storage.js";
+import { parseTagNames } from "../tags/parse.js";
+import { tagStatements, clearTagsStatement } from "../tags/db.js";
 
 /** @typedef {import("./config.js").ResourceName} ResourceName */
 /** @typedef {import("../auth/user.js").User} User */
@@ -29,7 +31,7 @@ export async function handleResources(request, env, user, url) {
 
   // GET /api/:type?archived=false|true|all -> active items (pickers, default
   //   lists), archived items only, or both. The parameter is required.
-  // POST /api/:type           -> add
+  // POST /api/:type           -> add (a plan with its tags: names, new ones created)
   if ((m = url.pathname.match(LIST_PATH))) {
     const name = /** @type {ResourceName} */ (m[1]);
 
@@ -44,7 +46,8 @@ export async function handleResources(request, env, user, url) {
       const archiveNow = !!RESOURCES[name].archiveOnCreate && toFlag(body.archive_now) === 1;
       // An archived location can't be the default.
       if (archiveNow) setValue(fields, "is_default", 0);
-      const id = await db.insertRow(env.DB, name, user.id, fields, archiveNow, isNewDefault(name, fields));
+      const id = await db.insertRow(env.DB, name, user.id, fields, archiveNow, isNewDefault(name, fields),
+        tagLinks(env.DB, user.id, name, body));
       return json({ id }, 201);
     }
   }
@@ -71,13 +74,18 @@ export async function handleResources(request, env, user, url) {
     //   stage are ignored: who is me can't be changed, and stage is no longer
     //   on the form). A location saved with is_default becomes the default in
     //   place of the old one (the page asks first); an archived one can't be.
+    //   A plan's tags (names; new ones are created) replace its old ones.
     if (method === "PUT") {
-      const fields = parseFields(RESOURCES[name], await readJson(request), { editing: true });
+      const body = await readJson(request);
+      const fields = parseFields(RESOURCES[name], body, { editing: true });
       checkEdit(name, id, fields);
       if (isNewDefault(name, fields) && (await db.isArchived(env.DB, name, user.id, id))) {
         throw new BadInput("An archived location can't be the default. Restore it first.");
       }
-      const row = await db.updateRow(env.DB, name, user.id, id, fields, isNewDefault(name, fields));
+      const links = tagLinks(env.DB, user.id, name, body);
+      const replaceTags = links && (async (/** @type {string} */ itemId) =>
+        [clearTagsStatement(env.DB, user.id, "plan", itemId), ...await links(itemId)]);
+      const row = await db.updateRow(env.DB, name, user.id, id, fields, isNewDefault(name, fields), replaceTags);
       return row ? json(row) : notFound();
     }
 
@@ -105,6 +113,22 @@ export async function handleResources(request, env, user, url) {
   }
 
   return null;
+}
+
+/**
+ * For a resource with tags (plans), the statements linking an item to the
+ * body's tags; parsed now, so a bad list is refused before anything is
+ * saved. Undefined for the others.
+ * @param {D1Database} database
+ * @param {string} ownerId
+ * @param {ResourceName} name
+ * @param {Record<string, unknown>} body
+ * @returns {db.LinkStatements | undefined}
+ */
+function tagLinks(database, ownerId, name, body) {
+  if (!RESOURCES[name].tagged) return undefined;
+  const names = parseTagNames(body.tags);
+  return (id) => tagStatements(database, ownerId, "plan", id, names);
 }
 
 /**

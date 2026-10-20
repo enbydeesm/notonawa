@@ -32,13 +32,20 @@ describe("parseCsv", () => {
   });
 });
 
+/**
+ * The rows with a "type" column added (every tie needs one), floor on each.
+ * @param {string[][]} rows
+ */
+const typed = (rows) => rows.map((row, i) => [...row, i === 0 ? "type" : "floor"]);
+
 describe("csvToImport", () => {
   it("turns rows into ties, naming each person, location and plan once", () => {
     const { doc, errors } = csvToImport([
-      ["Date", "Title", "Type", "Duration", "Rating", "Location", "People", "Plans", "Tags", "Notes"],
-      ["2026-10-12", "Floor", "Floor", "45", "4", "Studio", "Sam (Model); Alex (rigger)", "TK; Hip harness", "floor; Practice", "Good"],
-      ["", "", "", "", "", "", "", "", "", ""],
-      ["2026-10-13", "", "Partial  Suspension", "", "", "studio", "sam (rigger)", "tk", "", ""],
+      ["Date", "Title", "Type", "Duration", "Rating", "Location", "People", "Plans", "Tags", "Notes", "Album"],
+      ["2026-10-12", "Floor", "Floor", "45", "4", "Studio", "Sam (Model); Alex (rigger)", "TK; Hip harness", "floor; Practice", "Good",
+        " https://photos.app.goo.gl/abc "],
+      ["", "", "", "", "", "", "", "", "", "", ""],
+      ["2026-10-13", "", "Partial  Suspension", "", "", "studio", "sam (rigger)", "tk", "", "", ""],
     ]);
     expect(errors).toEqual([]);
     expect(doc.people).toEqual([{ id: "person-1", name: "Sam" }, { id: "person-2", name: "Alex" }]);
@@ -47,37 +54,39 @@ describe("csvToImport", () => {
     expect(doc.ties).toEqual([
       {
         title: "Floor", tie_date: "2026-10-12", tie_type: "floor", duration_minutes: 45, success_rating: 4, notes: "Good",
-        location_id: "location-1",
+        album_url: "https://photos.app.goo.gl/abc", location_id: "location-1",
         participants: [{ person_id: "person-1", role: "bottom" }, { person_id: "person-2", role: "top" }],
         plans: [{ plan_id: "plan-1" }, { plan_id: "plan-2" }],
         tags: ["floor", "Practice"],
       },
       {
         title: null, tie_date: "2026-10-13", tie_type: "partial suspension", duration_minutes: null, success_rating: null, notes: null,
-        location_id: "location-1", participants: [{ person_id: "person-1", role: "top" }],
+        album_url: null, location_id: "location-1", participants: [{ person_id: "person-1", role: "top" }],
         plans: [{ plan_id: "plan-1" }], tags: [],
       },
     ]);
   });
 
   it("accepts columns in any order, and no title", () => {
-    const { doc, errors } = csvToImport([["notes", "date"], ["n", "2026-10-12"]]);
+    const { doc, errors } = csvToImport([["notes", "type", "date"], ["n", "hashira", "2026-10-12"]]);
     expect(errors).toEqual([]);
     expect(doc.ties[0]).toMatchObject({ title: null, notes: "n", tie_date: "2026-10-12" });
   });
 
   it("names the spreadsheet row of each problem", () => {
     const { errors } = csvToImport([
-      ["date", "title", "people", "rating", "duration", "type"],
-      ["12/10/2026", "x", "", "", "", ""],
-      ["", "", "", "", "", ""],
-      ["2026-10-12", "x", "Sam", "", "", ""],
-      ["2026-10-12", "x", "Sam (boss)", "", "", ""],
-      ["2026-10-12", "x", "", "6", "", ""],
-      ["2026-02-30", "x", "", "", "1.5", ""],
-      ["", "", "", "", "30", ""],
-      ["2026-10-12", "x", "", "", "", "hanging"],
-      ["", "Undated", "", "", "", ""],
+      ["date", "title", "people", "rating", "duration", "type", "album"],
+      ["12/10/2026", "x", "", "", "", "", ""],
+      ["", "", "", "", "", "", ""],
+      ["2026-10-12", "x", "Sam", "", "", "floor", ""],
+      ["2026-10-12", "x", "Sam (boss)", "", "", "floor", ""],
+      ["2026-10-12", "x", "", "6", "", "floor", ""],
+      ["2026-02-30", "x", "", "", "1.5", "", ""],
+      ["", "", "", "", "30", "", ""],
+      ["2026-10-12", "x", "", "", "", "hanging", ""],
+      ["", "Undated", "", "", "", "", ""],
+      ["2026-10-12", "No type", "", "", "", "", ""],
+      ["2026-10-12", "x", "", "", "", "floor", "javascript:alert(1)"],
     ]);
     expect(errors).toEqual([
       'Row 2: Write the date as year-month-day, like 2026-10-12 (not "12/10/2026").',
@@ -88,12 +97,14 @@ describe("csvToImport", () => {
       "Row 8: Add a date.",
       'Row 9: "hanging" isn\'t a type. Use one of: suspension, partial suspension, floor, hashira.',
       "Row 10: Add a date.",
+      "Row 11: Add a type: suspension, partial suspension, floor, hashira.",
+      "Row 12: The album link should be a web address, starting with https://",
     ]);
   });
 
   it("refuses unknown columns and files without headings or ties", () => {
-    expect(csvToImport([["date", "titel"], ["2026-10-12", "x"]]).errors)
-      .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes."]);
+    expect(csvToImport([["date", "titel", "type"], ["2026-10-12", "x", "floor"]]).errors)
+      .toEqual(["Unknown column: titel. Use date, title, type, duration, rating, location, latitude, longitude, people, plans, tags, notes, album."]);
     expect(csvToImport([["2026-10-12", "Floor"]]).errors[0]).toMatch("needs the column names");
     expect(csvToImport([["title"], ["Floor"]]).errors).toEqual(["The first row needs the column names, with a date column."]);
     expect(csvToImport([["date", "title"]]).errors).toEqual(["There are no ties in the file."]);
@@ -102,13 +113,13 @@ describe("csvToImport", () => {
   it("reads my own role names, the roles' own, and rigger and model", () => {
     setRoleNames({ top_label: "Rope Top", bottom_label: "bunny" });
     try {
-      const { doc, errors } = csvToImport([
+      const { doc, errors } = csvToImport(typed([
         ["date", "people"],
         ["2026-10-12", "Sam (rope  top); Alex (Bunny)"],
         ["2026-10-13", "Sam (top); Alex (bottom); Kit (self tie)"],
         ["2026-10-14", "Sam (rigger); Alex (model); Kit (Spotter)"],
         ["2026-10-15", "Sam"],
-      ]);
+      ]));
       expect(doc.ties.map((t) => t.participants.map((p) => p.role))).toEqual([
         ["top", "bottom"], ["top", "bottom", "self tie"], ["top", "bottom", "spotter"],
       ]);
@@ -119,14 +130,14 @@ describe("csvToImport", () => {
   });
 
   it("puts latitude and longitude on the row's location, once", () => {
-    const { doc, errors } = csvToImport([
+    const { doc, errors } = csvToImport(typed([
       ["date", "location", "Lat", "Long"],
       ["2026-10-12", "Gas Works", "47.6456", "-122.3344"],
       ["2026-10-13", "gas works", "", ""],
       ["2026-10-14", "Studio", "", ""],
       ["2026-10-15", "studio", "41.9", "-87.6"],
       ["2026-10-16", "Gas Works", "47.6456", "-122.3344"],
-    ]);
+    ]));
     expect(errors).toEqual([]);
     expect(doc.locations).toEqual([
       { id: "location-1", name: "Gas Works", latitude: 47.6456, longitude: -122.3344 },
@@ -136,14 +147,14 @@ describe("csvToImport", () => {
   });
 
   it("accepts lng and lon, and leaves locations without coordinates as they were", () => {
-    expect(csvToImport([["date", "location", "latitude", "lng"], ["2026-10-12", "A", "1", "2"]]).doc.locations)
+    expect(csvToImport(typed([["date", "location", "latitude", "lng"], ["2026-10-12", "A", "1", "2"]])).doc.locations)
       .toEqual([{ id: "location-1", name: "A", latitude: 1, longitude: 2 }]);
-    expect(csvToImport([["date", "location", "latitude", "lon"], ["2026-10-12", "A", "", ""]]).doc.locations)
+    expect(csvToImport(typed([["date", "location", "latitude", "lon"], ["2026-10-12", "A", "", ""]])).doc.locations)
       .toEqual([{ id: "location-1", name: "A" }]);
   });
 
   it("names the row of each coordinate problem", () => {
-    const { errors } = csvToImport([
+    const { errors } = csvToImport(typed([
       ["date", "location", "latitude", "longitude"],
       ["2026-10-12", "A", "47.6", ""],
       ["2026-10-12", "A", "", "-122.3"],
@@ -153,7 +164,7 @@ describe("csvToImport", () => {
       ["2026-10-12", "", "47.6", "-122.3"],
       ["2026-10-12", "B", "1", "2"],
       ["2026-10-12", "b", "1", "3"],
-    ]);
+    ]));
     expect(errors).toEqual([
       "Row 2: Give both a latitude and a longitude, or neither.",
       "Row 3: Give both a latitude and a longitude, or neither.",

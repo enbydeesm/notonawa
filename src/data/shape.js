@@ -56,9 +56,13 @@ export function exportDocument(rows, exportedAt) {
       // Only whether one is set: we never have the address, and the hash
       // is of no use to the user.
       recovery_email_set: !!rows.user.recovery_email_set,
-      // Role names and light/dark mode. An import into a journal still on
-      // the default role names takes the file's (public/js/views/data.js).
-      settings: { top_label: rows.user.top_label ?? null, bottom_label: rows.user.bottom_label ?? null, theme: rows.user.theme ?? null },
+      // Role names, light/dark mode and the last release notes seen. An
+      // import into a journal still on the default role names takes the
+      // file's (public/js/views/data.js); the rest isn't imported.
+      settings: {
+        top_label: rows.user.top_label ?? null, bottom_label: rows.user.bottom_label ?? null, theme: rows.user.theme ?? null,
+        seen_release: rows.user.seen_release ?? null,
+      },
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
       // Messages from us just for me, and ones for everyone I dismissed
       // (not imported: they're ours, not part of the journal).
@@ -80,8 +84,8 @@ export function exportDocument(rows, exportedAt) {
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,
     })),
     plans: rows.plans.map((p) => ({
-      id: p.id, title: p.title, stage: p.stage, plan_type: p.plan_type, description: p.description, notes: p.notes,
-      est_difficulty: p.est_difficulty, variation_of: p.variation_of, version: p.version,
+      id: p.id, title: p.title, stage: p.stage, plan_type: p.plan_type, tie_type: p.tie_type,
+      description: p.description, notes: p.notes, album_url: p.album_url, est_difficulty: p.est_difficulty, variation_of: p.variation_of, version: p.version,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       tags: (tagsByPlan.get(p.id) ?? []).map((t) => t.name),
       photos: (photosByPlan.get(p.id) ?? []).map(photoEntry),
@@ -89,7 +93,7 @@ export function exportDocument(rows, exportedAt) {
     tags: rows.tags.map((t) => t.name),
     ties: rows.ties.map((t) => ({
       id: t.id, title: t.title, tie_date: t.tie_date, tie_type: t.tie_type, duration_minutes: t.duration_minutes,
-      success_rating: t.success_rating, notes: t.notes,
+      success_rating: t.success_rating, notes: t.notes, album_url: t.album_url,
       location_id: t.location_id, location_deleted: !!t.location_deleted,
       created_at: t.created_at, updated_at: t.updated_at,
       participants: (participantsByTie.get(t.id) ?? []).map((p) => ({

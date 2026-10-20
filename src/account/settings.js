@@ -1,6 +1,7 @@
 // Account settings, the same on every device: the words shown for the top
-// and bottom roles, and light or dark mode (migration 0013). Pure, so it's
-// easy to test. The page's side is public/js/roles.js and theme.js.
+// and bottom roles, and light or dark mode (migration 0013), and the last
+// release whose notes I've seen (migration 0014). Pure, so it's easy to
+// test. The page's side is public/js/roles.js, theme.js and whats-new.js.
 //
 // A role name is stored only when it differs from the role itself, so an
 // account that never chose one keeps following the defaults. Role names
@@ -12,17 +13,22 @@ import { cleanText } from "../parse.js";
 
 export const THEMES = ["light", "dark"];
 export const MAX_ROLE_NAME = 24;
+/** A release's version, as scripts/releases-lib.mjs writes them. */
+const RELEASE_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
 /** Words a role name can't be, as they'd be confused with another role. */
 const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 
 /**
- * @typedef {{ top_label: string | null, bottom_label: string | null, theme: string | null }} Settings
+ * @typedef {{
+ *   top_label: string | null, bottom_label: string | null, theme: string | null, seen_release: string | null,
+ * }} Settings
  * @typedef {Partial<Settings>} SettingsChange only the settings sent
  */
 
 /**
  * The body of PUT /api/account/settings: any of top_label and bottom_label
- * (a word, or empty for the default) and theme ("light" or "dark").
+ * (a word, or empty for the default), theme ("light" or "dark") and
+ * seen_release (a version, e.g. 2026.10.19.001).
  * Checked against `current` so the two role names never end up the same.
  * @param {Record<string, unknown>} body
  * @param {Settings} current
@@ -36,6 +42,12 @@ export function parseSettings(body, current) {
   if (body.theme !== undefined) {
     if (typeof body.theme !== "string" || !THEMES.includes(body.theme)) throw new BadInput("Choose light or dark.");
     change.theme = body.theme;
+  }
+  if (body.seen_release !== undefined) {
+    if (typeof body.seen_release !== "string" || !RELEASE_FORMAT.test(body.seen_release)) {
+      throw new BadInput("That isn't a version of the app.");
+    }
+    change.seen_release = body.seen_release;
   }
   if (!Object.keys(change).length) throw new BadInput("Nothing to change.");
 

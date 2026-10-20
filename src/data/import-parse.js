@@ -11,7 +11,7 @@
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull, encryptedText } from "../parse.js";
 import { RESOURCES, parseFields } from "../resources/config.js";
-import { TIE_TYPES, toRoleOrNull } from "../ties/parse.js";
+import { TIE_TYPES, TYPE_NEEDED, toRoleOrNull } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
 
 export const MAX_ITEMS = 5000; // of each kind, in one items request
@@ -35,7 +35,8 @@ const MAX_ID_LENGTH = 100;
  *   archived_at: string | null,
  * }} LocationInput
  * @typedef {Times & {
- *   file_id: string, title: string, stage: string, plan_type: string, description: string | null, notes: string | null,
+ *   file_id: string, title: string, stage: string, plan_type: string, tie_type: string | null,
+ *   description: string | null, notes: string | null, album_url: string | null,
  *   est_difficulty: number | null, variation_of: string | null, version: number,
  *   archived_at: string | null, tags: string[],
  * }} PlanInput
@@ -47,7 +48,7 @@ const MAX_ID_LENGTH = 100;
  * }} ImportParticipant
  * @typedef {{ plan_id: string | null, plan_version: number | null }} ImportTiePlan
  * @typedef {Times & {
- *   title: string | null, tie_date: string, tie_type: string | null, notes: string | null,
+ *   title: string | null, tie_date: string, tie_type: string, notes: string | null, album_url: string | null,
  *   duration_minutes: number | null, success_rating: number | null,
  *   location_id: string | null, location_deleted: 0 | 1,
  *   participants: ImportParticipant[], plans: ImportTiePlan[], tags: string[],
@@ -104,6 +105,7 @@ function parseTie(t) {
     tie_date: toDateOrNull(t.tie_date),
     tie_type: toChoiceOrNull(t.tie_type, TIE_TYPES),
     notes: encryptedText(t.notes),
+    album_url: encryptedText(t.album_url),
     duration_minutes: toIntOrNull(t.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(t.success_rating, 1, 5),
     location_id: locationId,
@@ -116,9 +118,11 @@ function parseTie(t) {
     plans: parseImportTiePlans(t.plans),
     tags: parseTagNames(t.tags),
   };
-  const date = tie.tie_date;
+  const { tie_date: date, tie_type: type } = tie;
   if (!date) throw new BadInput("Add a date.");
-  return { ...tie, tie_date: date };
+  // Refused rather than guessed (migration 0014 filled in older ties).
+  if (!type) throw new BadInput(TYPE_NEEDED);
+  return { ...tie, tie_date: date, tie_type: type };
 }
 
 /**
@@ -215,12 +219,13 @@ function parseLocation(l) {
 /** @param {Record<string, unknown>} p @returns {PlanInput} */
 function parsePlan(p) {
   const { values } = parseFields(RESOURCES.plans, p);
-  const [title, stage, description, notes, estDifficulty, , planType] =
-    /** @type {[string, string, string | null, string | null, number | null, unknown, string]} */ (values);
+  const [title, stage, description, notes, estDifficulty, , planType, tieType, albumUrl] =
+    /** @type {[string, string, string | null, string | null, number | null, unknown, string, string | null, string | null]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(p.id)),
     // Files from before migration 0011 have no plan_type: they're ideas.
-    title, stage, plan_type: planType, description, notes, est_difficulty: estDifficulty,
+    title, stage, plan_type: planType, tie_type: tieType, description, notes, album_url: albumUrl,
+    est_difficulty: estDifficulty,
     variation_of: parseId(p.variation_of, true),
     version: toIntOrNull(p.version, 1, 1_000_000) ?? 1,
     ...archiveAndTimes(p),

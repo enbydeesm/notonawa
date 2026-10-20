@@ -70,8 +70,8 @@ export function planItems(items, existing, newId) {
     // Inserted without variation_of, which is set afterwards (variations), so
     // a plan can come before the one it's a variation of.
     plans: items.plans.flatMap((p, i) => plans[i].matched ? [] : [{
-      id: plans[i].id, title: p.title, stage: p.stage, plan_type: p.plan_type, description: p.description, notes: p.notes,
-      est_difficulty: p.est_difficulty, version: p.version,
+      id: plans[i].id, title: p.title, stage: p.stage, plan_type: p.plan_type, tie_type: p.tie_type,
+      description: p.description, notes: p.notes, album_url: p.album_url, est_difficulty: p.est_difficulty, version: p.version,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
     }]),
     variations: items.plans.flatMap((p, i) => plans[i].matched || p.variation_of === null ? [] : [{
@@ -102,7 +102,7 @@ export function planTies(ties, existingTags, newId) {
     rows: {
       tags: tags.rows,
       ties: ties.map((t, i) => ({
-        id: ids[i], title: t.title, tie_date: t.tie_date, tie_type: t.tie_type, notes: t.notes,
+        id: ids[i], title: t.title, tie_date: t.tie_date, tie_type: t.tie_type, notes: t.notes, album_url: t.album_url,
         duration_minutes: t.duration_minutes, success_rating: t.success_rating,
         location_id: t.location_id, location_deleted: t.location_deleted,
         created_at: t.created_at, updated_at: t.updated_at,

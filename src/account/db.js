@@ -124,18 +124,20 @@ export async function deleteAccount(db, userId) {
 }
 
 /**
- * My settings: role names and light/dark mode (see settings.js).
+ * My settings: role names, light/dark mode and the last release notes seen
+ * (see settings.js).
  * @param {D1Database} db
  * @param {string} userId
  * @returns {Promise<import("./settings.js").Settings>}
  */
 export async function getSettings(db, userId) {
-  const row = await db.prepare("SELECT top_label, bottom_label, theme FROM users WHERE id = ?")
+  const row = await db.prepare("SELECT top_label, bottom_label, theme, seen_release FROM users WHERE id = ?")
     .bind(userId).first();
   return {
     top_label: /** @type {string | null} */ (row?.top_label ?? null),
     bottom_label: /** @type {string | null} */ (row?.bottom_label ?? null),
     theme: /** @type {string | null} */ (row?.theme ?? null),
+    seen_release: /** @type {string | null} */ (row?.seen_release ?? null),
   };
 }
 
@@ -147,7 +149,7 @@ export async function getSettings(db, userId) {
  * @param {import("./settings.js").SettingsChange} change
  */
 export async function updateSettings(db, userId, change) {
-  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme"]).filter((c) => c in change);
+  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme", "seen_release"]).filter((c) => c in change);
   await db.prepare(`UPDATE users SET ${columns.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
     .bind(...columns.map((c) => change[c] ?? null), userId).run();
 }

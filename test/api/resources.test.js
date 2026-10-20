@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { call, create, createOtherUser, sql } from "../helpers.js";
+import { call, create, createOtherUser, sql, sealed, sessionCookieFor } from "../helpers.js";
 
 describe("plans, people and locations", () => {
   it("adds, lists and edits", async () => {
@@ -166,6 +166,50 @@ describe("plans, people and locations", () => {
   });
 });
 
+describe("a plan's tie type, album link and tags", () => {
+  it("saves an optional tie type and a sealed album link", async () => {
+    const album = sealed("https://photos.app.goo.gl/plan");
+    const id = await create("/api/plans", { title: "Typed plan", tie_type: "partial suspension", album_url: album });
+    const plain = await create("/api/plans", { title: "Untyped plan" });
+    const plans = (await call("/api/plans?archived=false")).body;
+    expect(plans.find((/** @type {any} */ p) => p.id === id)).toMatchObject({ tie_type: "partial suspension", album_url: album });
+    expect(plans.find((/** @type {any} */ p) => p.id === plain)).toMatchObject({ tie_type: null, album_url: null });
+
+    await call(`/api/plans/${id}`, { method: "PUT", body: { title: "Typed plan" } });
+    expect((await call("/api/plans?archived=false")).body.find((/** @type {any} */ p) => p.id === id))
+      .toMatchObject({ tie_type: null, album_url: null });
+
+    expect((await call("/api/plans", { method: "POST", body: { title: "x", tie_type: "hanging" } })).status).toBe(400);
+    expect((await call("/api/plans", { method: "POST", body: { title: "x", album_url: "https://plain.example" } })).status).toBe(400);
+  });
+
+  it("saves tags with a plan, creating new ones and sharing them with ties", async () => {
+    await create("/api/ties", { title: "x", tie_date: "2026-01-01", tie_type: "floor", tags: ["Shared"] });
+    const id = await create("/api/plans", { title: "Tagged plan", tags: ["shared", "Plan-only", "plan-only"] });
+    const listed = async () => (await call("/api/plans?archived=all")).body.find((/** @type {any} */ p) => p.id === id).tags;
+    // "shared" matched my "Shared"; the repeat was kept once.
+    expect(await listed()).toEqual(["Plan-only", "Shared"]);
+    const tags = (await call("/api/tags")).body;
+    expect(tags.filter((/** @type {any} */ t) => ["Shared", "Plan-only"].includes(t.name)).map((/** @type {any} */ t) => [t.name, t.tie_count, t.plan_count]))
+      .toEqual([["Shared", 1, 1], ["Plan-only", 0, 1]]);
+
+    // An edit replaces them; archiving keeps them.
+    await call(`/api/plans/${id}`, { method: "PUT", body: { title: "Tagged plan", tags: ["Edited"] } });
+    expect(await listed()).toEqual(["Edited"]);
+    await call(`/api/plans/${id}/archive`, { method: "POST" });
+    expect(await listed()).toEqual(["Edited"]);
+    await call(`/api/plans/${id}`, { method: "PUT", body: { title: "Tagged plan" } });
+    expect(await listed()).toEqual([]);
+  });
+
+  it("saves nothing when the tags are bad, and new plans list none", async () => {
+    expect((await call("/api/plans", { method: "POST", body: { title: "Bad tags", tags: "floor" } })).status).toBe(400);
+    expect(await sql("SELECT id FROM plans WHERE title = 'Bad tags'").first()).toBeNull();
+    const id = await create("/api/plans", { title: "No tags" });
+    expect((await call("/api/plans?archived=false")).body.find((/** @type {any} */ p) => p.id === id).tags).toEqual([]);
+  });
+});
+
 describe("other users' data", () => {
   it("can't be seen, edited, archived or deleted", async () => {
     const otherId = await createOtherUser();
@@ -181,15 +225,29 @@ describe("other users' data", () => {
   it("can't be linked to a tie", async () => {
     const otherId = await createOtherUser();
     await sql("INSERT INTO locations (id, owner_id, name) VALUES ('their-loc', ?, 'Their place')", otherId).run();
-    expect(await call("/api/ties", { method: "POST", body: { title: "x", tie_date: "2026-01-01", location_id: "their-loc" } }))
+    expect(await call("/api/ties", { method: "POST", body: { title: "x", tie_type: "floor", tie_date: "2026-01-01", location_id: "their-loc" } }))
       .toEqual({ status: 400, body: { error: "Linked item not found." } });
+  });
+
+  it("their plans can't be edited or tagged, and their tags aren't linked to mine", async () => {
+    const otherId = await createOtherUser();
+    const theirCookie = await sessionCookieFor(otherId);
+    const theirs = (await call("/api/plans", { method: "POST", body: { title: "Their plan", tags: ["their-tag"] }, cookie: theirCookie })).body.id;
+    expect((await call(`/api/plans/${theirs}`, { method: "PUT", body: { title: "Mine now", tags: ["mine"] } })).status).toBe(404);
+    const { results } = await sql("SELECT t.name, t.owner_id FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.plan_id = ?", theirs).all();
+    expect(results).toEqual([{ name: "their-tag", owner_id: otherId }]);
+    expect((await sql("SELECT title FROM plans WHERE id = ?", theirs).first())?.title).toBe("Their plan");
+    // The same name on my plan makes a tag of my own.
+    const mine = await create("/api/plans", { title: "My plan", tags: ["their-tag"] });
+    const linked = await sql("SELECT t.owner_id FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.plan_id = ?", mine).first();
+    expect(linked?.owner_id).not.toBe(otherId);
   });
 });
 
 describe("deleting", () => {
   it("a person keeps their place in ties, shown as deleted", async () => {
     const person = await create("/api/people", { name: "Sam" });
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Floor", participants: [{ person_id: person, role: "bottom" }] });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "Floor", participants: [{ person_id: person, role: "bottom" }] });
 
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(204);
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
@@ -200,7 +258,7 @@ describe("deleting", () => {
 
   it("a location marks its ties as '(location deleted)'", async () => {
     const loc = await create("/api/locations", { name: "Studio" });
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Suspension", location_id: loc });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "Suspension", location_id: loc });
 
     expect((await call(`/api/locations/${loc}`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
@@ -216,7 +274,7 @@ describe("deleting", () => {
 
   it("a plan with linked_ties=keep leaves '(plan deleted)' on its ties", async () => {
     const plan = await create("/api/plans", { title: "Hip harness" });
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=keep`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
@@ -225,7 +283,7 @@ describe("deleting", () => {
 
   it("a plan with linked_ties=remove drops it from its ties", async () => {
     const plan = await create("/api/plans", { title: "Hip harness" });
-    const tie = await create("/api/ties", { tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
+    const tie = await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "Attempt", plan_ids: [plan] });
 
     expect((await call(`/api/plans/${plan}?linked_ties=remove`, { method: "DELETE" })).status).toBe(204);
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);

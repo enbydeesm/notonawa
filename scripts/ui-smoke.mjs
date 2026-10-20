@@ -12,6 +12,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { APP_VERSION, RELEASES } from "../public/js/releases.js";
 
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PORT = 8799;
@@ -333,6 +334,8 @@ try {
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
     ["/signin", "choose", "none", "center", [true, "NotoNawa"]]);
+  check("sign-in shows the app's version at the bottom", await run(`
+    const v = $("#signin-version"); return [v.textContent, v === $("#view").lastElementChild];`), [`Version ${APP_VERSION}`, true]);
   const helpLine = `const p = $("#view .help-line"); return [p?.textContent, p?.querySelector("a")?.getAttribute("href"), p?.offsetParent !== null];`;
   check("sign-in says who to email for help", await run(helpLine),
     ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
@@ -450,16 +453,27 @@ try {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("the menu opens with the logo, Settings (a gear), Account, Your data, Privacy Policy and Sign Out", await run(`
+  check("the menu opens with the logo, Settings (a gear), Account, Your data, What's new, Privacy Policy and Sign Out", await run(`
     await openMenu();
     return [$(".menu-title img").alt, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
+    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "What's new", true],
+      ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
       true, "/account", "/privacy"]);
-  check("Privacy Policy and then Sign Out sit at the bottom of the panel", await run(`
-    const panel = $(".menu-inner").getBoundingClientRect(), privacy = $(".menu-privacy").getBoundingClientRect();
-    const out = $(".menu-sign-out").getBoundingClientRect();
-    return [Math.round(panel.bottom - out.bottom), Math.round(out.top - privacy.bottom), privacy.top - $(".nav-data").getBoundingClientRect().bottom > 100];`), [16, 0, true]);
+  check("What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
+    const box = (sel) => $(sel).getBoundingClientRect();
+    const panel = box(".menu-inner"), news = box(".menu-whats-new"), privacy = box(".menu-privacy"), out = box(".menu-sign-out"), version = box(".app-version");
+    return [Math.round(panel.bottom - version.bottom), version.top > out.bottom, Math.round(out.top - privacy.bottom), Math.round(privacy.top - news.bottom),
+      news.top - box(".nav-data").bottom > 100, $(".menu-inner .app-version").textContent];`), [16, true, 0, 0, true, `Version ${APP_VERSION}`]);
+  check("What's new shows the release notes, newest first, in place of the menu", await run(`
+    $(".menu-whats-new").click(); await wait(400);
+    const d = $("dialog.whats-new[open]");
+    const shown = [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, [...d.querySelectorAll("h3")].map((h) => h.textContent),
+      [...d.querySelectorAll(".release")[0].querySelectorAll("li")].length];
+    $("#whats-new-ok").click(); await wait(300);
+    return [...shown, $("dialog") === null];`),
+    [true, "What's new", RELEASES.slice(0, 10).map((r) => r.version), RELEASES[0].notes.length, true]);
+  await run(`await openMenu();`);
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
@@ -470,6 +484,20 @@ try {
   await run(`await openMenu();`);
   await tap("mousePressed", 5, 300); await tap("mouseReleased", 5, 300);
   check("tapping beside the panel closes it", await run(menuGone), true);
+  check("a new account has seen this version's notes, so nothing pops up", await run(`
+    return [(await (await fetch("/api/account/settings")).json()).seen_release, $("dialog.whats-new") === null];`), [APP_VERSION, true]);
+  // As if the app was updated since I last saw its notes.
+  await run(`await fetch("/api/account/settings", { method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ seen_release: "2000.01.01.001" }) });`);
+  await go("/");
+  check("after an update, unlocking shows one dialog with every release since, newest first; closing it marks them seen", await run(`
+    for (let i = 0; i < 20 && !$("dialog.whats-new[open]"); i++) await wait(100);
+    const versions = [...document.querySelectorAll("dialog.whats-new[open] h3")].map((h) => h.textContent);
+    $("#whats-new-ok").click(); await wait(600);
+    return [versions, $("dialog") === null, (await (await fetch("/api/account/settings")).json()).seen_release];`),
+    [RELEASES.slice(0, 10).map((r) => r.version), true, APP_VERSION]);
+  await go("/");
+  check("…and not again", await run(`await wait(500); return $("dialog.whats-new") === null;`), true);
   check("a new account is dark, on a light device too, and saved as dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
   check("Settings replaces the menu with its dialog: the dark mode switch, then the role names, empty with muted defaults",
     await run(`${openSettings} ${settingsState}`),
@@ -501,7 +529,7 @@ try {
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
     $(".dialog-cancel").click(); await wait(300);
     return [saved, tieRoles];`),
-    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light" }],
+    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION }],
       ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
   await go("/analytics");
   check("…the Analytics role filter and numbers", await run(`
@@ -510,7 +538,7 @@ try {
   check("blank names go back to top and bottom", await run(`
     ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await wait(1200);
     return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
-    [{ top_label: null, bottom_label: null, theme: "light" }, ["As top", "As bottom"]]);
+    [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION }, ["As top", "As bottom"]]);
   // Back to dark, the default, for the rest of the walkthrough.
   await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
@@ -664,6 +692,36 @@ try {
     $("[data-cancel-edit]").click(); await wait(200);
     return [$("label[for=plan_type]").textContent, listed, editing, filled(), $("[name=est_difficulty]").value];`),
     ["Plan type", 3, [3, "3"], 0, ""]);
+  check("a plan has an optional tie type, tags and an album link, shown in the list", await run(`
+    const types = [...$("#tie_type").options].map((o) => o.text);
+    await clickIn("Hip harness", "Edit");
+    set("#tie_type", "floor"); set("#album_url", "javascript:alert(1)");
+    const refused = $("#album_url").validity.patternMismatch;
+    set("#album_url", "https://photos.app.goo.gl/hip");
+    $("#plan-add-tags").click(); await wait(400);
+    const box = $("#tags-search"); box.value = "plan-tag"; $("#tags-add").click(); $("#tags-ok").click(); await wait(200);
+    const chips = tagChips("#plan-tags");
+    await submit();
+    const item = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Hip harness");
+    const link = item.querySelector(".item-album a");
+    const stored = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Hip harness");
+    return [types, refused, chips, item.querySelector(".item-meta").innerText, tagChips(".item .item-tags"),
+      [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags];`),
+    [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Harness · Floor · difficulty 3/5 · v1",
+      ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"]]);
+  check("editing a plan fills in its tie type, tags and album; Cancel empties them", await run(`
+    await clickIn("Hip harness", "Edit");
+    const editing = [$("#tie_type").value, $("#album_url").value, tagChips("#plan-tags")];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [editing, [$("#tie_type").value, $("#album_url").value, tagChips("#plan-tags")]];`),
+    [["floor", "https://photos.app.goo.gl/hip", ["plan-tag"]], ["", "", []]]);
+  // Back as it was, for the tag checks on ties later: no tags yet.
+  await run(`
+    await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await wait(400);
+    $(".tag-search .tag-x").click(); $("#tags-ok").click(); await wait(200);
+    set("#tie_type", ""); set("#album_url", ""); await submit();
+    const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "plan-tag");
+    if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
   check("the photo note says what photos are for, and when a new plan's are uploaded", await run(`
     const fresh = $("[data-photos] .hint").textContent;
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
@@ -707,7 +765,7 @@ try {
     second.closest(".picker-row").querySelector("button[aria-label=Remove]").click();
     return [listed, document.querySelectorAll("#tie-plans .picker-row").length];`),
     [["Hip harness, one-sided"], 1]);
-  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); await choosePick(lastBox("#tie-participants"), "Me", "Me (you)"); $("#tie-save").click(); await wait(500); return [lastBox("#tie-participants").value, $("#tie-message").textContent];`),
+  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); set("#tie-tie_type", "floor"); await choosePick(lastBox("#tie-participants"), "Me", "Me (you)"); $("#tie-save").click(); await wait(500); return [lastBox("#tie-participants").value, $("#tie-message").textContent];`),
     ["Me (you)", "Couldn't save: Choose a person and a role for each row, or remove it."]);
   check("Edit tags opens an empty tag dialog", await run(`
     $("#tie-add-tags").click(); await wait(600);
@@ -778,15 +836,27 @@ try {
     set("#tie-tie_type", "floor");
     document.querySelectorAll(".role")[0].value = "top";
     set("#tie-duration_minutes", "45"); set("#tie-notes", "Smooth transitions");
+    set("#tie-album_url", "https://photos.app.goo.gl/floor");
     $("#tie-save").click(); await wait(1000);
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
     [false, "Floor session", [true, "Floor at Studio", 4, "With: Me (top), Sam (bottom)", ["Floor", "Futomomo"]]]);
+  check("the card links to its album, which the server only has sealed", await run(`
+    const link = document.querySelector(".tie-card .tie-album a");
+    const stored = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ties[0];
+    return [link?.textContent, link?.href, link?.target, link?.rel, stored.album_url.startsWith("e1.")];`),
+    ["Open album", "https://photos.app.goo.gl/floor", "_blank", "noopener noreferrer", true]);
   check("a tie needs a date: the form won't save without one", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await wait(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_date").validity.valueMissing];
     $("#tie-form .dialog-cancel").click(); await wait(600);
     return [stayed, titles()];`), [[true, true], ["Floor session"]]);
+  check("a tie needs a type: the form won't save on –", await run(`
+    $(".nav-add").click(); await wait(600); set("#tie-title", "Typeless");
+    $("#tie-save").click(); await wait(600);
+    const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_type").value, $("#tie-tie_type").validity.valueMissing];
+    $("#tie-form .dialog-cancel").click(); await wait(600);
+    return [stayed, titles()];`), [[true, "", true], ["Floor session"]]);
   check("Cancel closes the dialog without saving", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
     [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
@@ -815,8 +885,8 @@ try {
     const all = async (type) => (await (await fetch("/api/" + type + "?archived=all")).json());
     const alex = (await all("people")).find((p) => p.name === "Alex").id;
     const hotel = (await all("locations")).find((l) => l.name === "Hotel").id;
-    await post("/api/ties", { title: "Hotel night", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "bottom" }], tags: ["Futomomo", "Inversion"] });
-    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
+    await post("/api/ties", { title: "Hotel night", tie_type: "suspension", tie_date: "2025-06-01", location_id: hotel, participants: [{ person_id: alex, role: "bottom" }], tags: ["Futomomo", "Inversion"] });
+    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_type: "floor", tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
@@ -922,7 +992,7 @@ try {
     await type("#q", "SMOOTH transitions"); const found = titles(); $("#clear").click(); await wait(800); return found;`),
     ["Floor session"]);
   check("capitals don't matter in any language: Ö finds ö", await run(`
-    $(".nav-add").click(); await wait(600); set("#tie-title", "Knot test"); set("#tie-notes", "  Öse knot, tied twice  ");
+    $(".nav-add").click(); await wait(600); set("#tie-title", "Knot test"); set("#tie-tie_type", "floor"); set("#tie-notes", "  Öse knot, tied twice  ");
     $("#tie-save").click(); await wait(1200);
     await type("#q", "öse"); const lower = titles(); await type("#q", "ÖSE KNOT"); const upper = titles();
     $("#clear").click(); await wait(800); return [lower, upper];`),
@@ -977,7 +1047,7 @@ try {
     await wait(500);
     return [new TextDecoder().decode(await file.arrayBuffer()).includes("SECRET-GPS"),
       document.querySelectorAll("#${prefix}-photos .photo-tile img").length, $("#${prefix}-photos-message").textContent];`);
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Photo test");`);
+  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Photo test"); set("#tie-tie_type", "floor");`);
   check("a new tie's photo is prepared and waits for the tie to be saved",
     await pickPhoto("tie", 3000, 1000, "camera.jpg"), [true, 1, ""]);
   check("…and is uploaded when it's saved, counted on the card", await run(`
@@ -1097,7 +1167,7 @@ try {
     $("#tie-participants .kept-deleted button").click(); $("#tie-location-deleted button").click();
     $("#tie-save").click(); await wait(600); await settle();
     return card(0);`), [true, "Floor", 4, "With: Me (top)", ["Futomomo"]]);
-  await run(`await post("/api/ties", { title: "Throwaway", tie_date: "2030-01-01" });`);
+  await run(`await post("/api/ties", { title: "Throwaway", tie_type: "floor", tie_date: "2030-01-01" });`);
   await go("/");
   check("Delete tie asks first; Cancel keeps it, Delete tie deletes it", await run(`
     const confirmDialog = () => { const all = document.querySelectorAll("dialog"); return all[all.length - 1]; };
@@ -1113,7 +1183,7 @@ try {
 
   console.log("+ on other tabs");
   await go("/plans");
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); $("#tie-save").click();`);
+  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
   await sleep(1500);
   check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
 
@@ -1247,7 +1317,7 @@ try {
     $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(1500);
     return [[...document.querySelectorAll("#import-preview .item")].map(flat), $("#import-go").hidden ? null : $("#import-go").textContent,
       $("#import-message").textContent];`);
-  const csv = `date,title,people,location,tags\n2026-11-01,Imported one,alex (model); Robin (rigger),${place},imported\n2026-11-02,Imported two,,Beach,\n`;
+  const csv = `date,title,type,people,location,tags\n2026-11-01,Imported one,floor,alex (model); Robin (rigger),${place},imported\n2026-11-02,Imported two,hashira,,Beach,\n`;
   check("a CSV shows what will happen before anything is saved", await chooseFile("ties.csv", "text/csv", csv), [[
     "Ties | 2 to add",
     "People | 1 new: Robin | 1 already in your journal: alex",
@@ -1269,7 +1339,7 @@ try {
 
   // With photos, the export is a zip that imports back.
   const photoTie = await run(`
-    const id = await post("/api/ties", { title: "Zip test", tie_date: "2026-11-05" });
+    const id = await post("/api/ties", { title: "Zip test", tie_type: "floor", tie_date: "2026-11-05" });
     const canvas = document.createElement("canvas"); canvas.width = 300; canvas.height = 200;
     canvas.getContext("2d").fillRect(0, 0, 150, 100);
     const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
