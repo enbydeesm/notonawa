@@ -113,5 +113,5 @@ is encrypted in the browser, so the server only stores and returns
 encrypted data.
 
 For the full rules and a file-by-file layout, see [CLAUDE.md](CLAUDE.md);
-for design decisions and planned features, see
-[considerations.md](considerations.md).
+for design decisions, see [considerations.md](considerations.md); for
+planned features still to build, see [roadmap.md](roadmap.md).

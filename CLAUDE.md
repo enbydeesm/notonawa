@@ -1,8 +1,9 @@
 # NotoNawa: instructions for Claude
 
 A private rope journal: plan ties, log what happened, and keep notes on the
-people and places involved. Design ideas we've weighed, and planned features,
-live in [considerations.md](considerations.md).
+people and places involved. Design ideas we've weighed live in
+[considerations.md](considerations.md); planned features that still need
+building live in [roadmap.md](roadmap.md).
 
 ## AI behavior rules
 
@@ -24,8 +25,9 @@ live in [considerations.md](considerations.md).
   new one. Check with `npx wrangler d1 migrations list notonawa --remote`.
   Test every migration on a copy of the local database first
   (`--persist-to <copy of .wrangler/state>`), seeded with linked data.
-- **Record design decisions** that we weigh but don't adopt, and planned
-  features, in considerations.md with the reasons.
+- **Record design decisions** that we weigh but don't adopt in
+  considerations.md with the reasons, and planned features that still need
+  building in roadmap.md (moving them to considerations.md once built).
 - **When the user's request won't work as stated** (e.g. it conflicts with a
   database constraint), say so, explain why, and propose the closest working
   alternative instead of silently changing it.
@@ -51,8 +53,9 @@ live in [considerations.md](considerations.md).
   Watch errors live with `npx wrangler tail`.
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
   the Worker. The app is one page (`index.html`) that stays loaded while you
-  move between views, so what it holds in memory (from step 4b, the unlocked
-  encryption key) survives a tab change: see "Single-page app" below.
+  move between views, so what it holds in memory (since the encryption
+  foundation, the unlocked encryption key) survives a tab change: see
+  "Single-page app" below.
 - **Tooling (dev only)**: ESLint, TypeScript (type checks the JS via JSDoc;
   `checkJs`, strict, implicit `any` allowed for now), Vitest with
   `@cloudflare/vitest-plugin` (tests run in the Workers runtime with D1 built
@@ -95,7 +98,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
   `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`
   and `/api/data/import/ties` (both take `preview`). See considerations.md,
-  "Step 3 as built".
+  "Export, import and deletion as built".
 - `src/media/`: photos on ties and plans (migration 0010; files in the R2
   bucket `PHOTOS`). `parse.js` (pure: limits, upload parameters, sealed
   captions, order), `db.js`, `storage.js` (R2: keys, deleting, the daily
@@ -409,8 +412,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 
 ### Privacy rules
 
-The plan and reasons are in considerations.md ("Planned: privacy and accounts
-roadmap"); [PRIVACY.md](PRIVACY.md) is the draft policy. Keep it true: when a
+The plan and reasons are in considerations.md ("Privacy and
+accounts"); [PRIVACY.md](PRIVACY.md) is the policy. Keep it true: when a
 change affects what's collected, stored, readable or kept, update it too.
 
 - **Never put user-entered text in a URL**, page address or API path/query
@@ -438,10 +441,11 @@ change affects what's collected, stored, readable or kept, update it too.
   to start or freshen a session.
 - **The encryption key lives only in the crypto Worker**, non-extractable.
   Never add a Worker operation that returns the key, or that wraps it
-  without proof (an existing wrap and its secret, given just now). Step 5's
-  operations work on whole records, never a general decrypt. Nothing
-  decrypted goes to localStorage, sessionStorage, IndexedDB or a cache.
-  Anything that ends the session or signs out must `lock()`.
+  without proof (an existing wrap and its secret, given just now). The
+  encrypted notes' operations work on whole records, never a general
+  decrypt. Nothing decrypted goes to localStorage, sessionStorage,
+  IndexedDB or a cache. Anything that ends the session or signs out must
+  `lock()`.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery
   code, setting or removing the recovery email, deleting the account. Throw `NeedsReauth`; the page asks for the passkey again
