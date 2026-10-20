@@ -126,6 +126,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   now, not dismissed), `POST /api/notices/:id/dismiss`.
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes.
+- `src/locations/`: location routes beyond the shared ones. `maps.js`
+  (pure: which Google Maps links we accept, reading their coordinates),
+  `resolve.js` (following a short link's redirects; `fetch` is passed in),
+  `routes.js` (`POST /api/locations/coords` with `{ url }`; routed before
+  resources in `index.js`).
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body;
   a keyword is searched for on the device, which sends `match_ids`) is filtered and paged (20 per page by default)
@@ -172,7 +177,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   photo sizes, limits, choosing a quality) and `photo-prep.js` (redrawing a
   photo on a canvas: strips its metadata, shrinks it, makes the thumbnail),
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
-  lock), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
+  lock), `photo-upload.js` (sealing and uploading one prepared photo and
+  its caption; used by the Photos section and import), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
@@ -194,7 +200,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (People and Locations: the search box and sort buttons, and the pure
   filtering and sorting), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
-  import's requests), `notices.js` (the banners between the nav and the
+  import's requests), `import-photos.js` (pure: an import's photos, taken
+  off its ties and plans before sending and uploaded once the rest is
+  saved), `zip.js` (pure apart from `DecompressionStream`: zip files for
+  exports with photos), `notices.js` (the banners between the nav and the
   view), `consent-state.js` (whether I must agree to a changed policy;
   `api.js` marks it on a 403 `consent`, and `app.js` then shows
   `views/consent.js` in place of journal views, except Your data and
