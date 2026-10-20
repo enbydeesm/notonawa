@@ -104,8 +104,8 @@ different users' rows.
   `privacy-html.mjs` (builds `privacy.html` and `src/policy-version.js` from
   PRIVACY.md).
 - **Commands:** `npm run check` runs lint, type check and tests.
-  `npm run test:ui` runs the walkthrough (`-- --only <chunks>` for some of
-  it). `npm run check:changed` runs only what the changed files need
+  `npm run test:ui` runs the walkthrough, 3 chunks at a time (`-- --only
+  <chunks>` for some of it, `-- --jobs 1` for one at a time). `npm run check:changed` runs only what the changed files need
   (`scripts/areas.mjs`), with `-- --ui` for their walkthrough chunks.
 
 ### Summary

@@ -1,7 +1,7 @@
 // The map of feature areas that picks which checks a change needs
 // (scripts/areas.mjs).
 import { describe, it, expect } from "vitest";
-import { AREAS, SHARED, TEST_SHARED, UI_SHARED, IGNORED, UI_CHUNKS, matches, planFor, planForAreas } from "../../scripts/areas.mjs";
+import { AREAS, SHARED, TEST_SHARED, UI_SHARED, IGNORED, UI_CHUNKS, UI_SECONDS, batches, matches, planFor, planForAreas } from "../../scripts/areas.mjs";
 
 // Every file the map has to cover, found by Vite when the test is built
 // (the tests run in the Workers runtime, which can't list folders). Keys
@@ -137,5 +137,35 @@ describe("planForAreas", () => {
 
   it("refuses a name that isn't an area", () => {
     expect(() => planForAreas(["peple"])).toThrow('No area called "peple".');
+  });
+});
+
+describe("batches", () => {
+  it("gives every chunk a time", () => {
+    expect(Object.keys(UI_SECONDS).sort()).toEqual([...UI_CHUNKS].sort());
+  });
+
+  it("shares chunks out so the runs take about as long, each in the walkthrough's order", () => {
+    const seconds = { a: 60, b: 30, c: 30, d: 20, e: 20, f: 20 };
+    expect(batches(["a", "b", "c", "d", "e", "f"], 3, seconds)).toEqual([["a"], ["b", "d", "f"], ["c", "e"]]);
+  });
+
+  it("uses every chunk once, and no more runs than chunks", () => {
+    const runs = batches(UI_CHUNKS, 3);
+    expect(runs.flat().sort()).toEqual([...UI_CHUNKS].sort());
+    expect(runs).toHaveLength(3);
+    const totals = runs.map((r) => r.reduce((sum, name) => sum + UI_SECONDS[name], 0));
+    expect(Math.max(...totals) - Math.min(...totals)).toBeLessThan(UI_SECONDS.account);
+    expect(batches(["people", "plans"], 3)).toEqual([["plans"], ["people"]]);
+  });
+
+  it("runs everything in one for one job (or a nonsense number)", () => {
+    expect(batches(["people", "plans"], 1)).toEqual([["people", "plans"]]);
+    expect(batches(["people", "plans"], 0)).toEqual([["people", "plans"]]);
+    expect(batches(["people"], Number.NaN)).toEqual([["people"]]);
+  });
+
+  it("counts an unlisted chunk as 30 seconds", () => {
+    expect(batches(["new", "people", "locations"], 2)).toEqual([["new"], ["people", "locations"]]);
   });
 });

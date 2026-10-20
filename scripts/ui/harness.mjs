@@ -10,8 +10,13 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const PORT = 8799;
-const DEBUG_PORT = 9333;
+// Several walkthroughs can run at once (scripts/ui-smoke.mjs --jobs), each
+// with its own database, app and Chrome: UI_SLOT (0, 1, 2…) gives each its
+// own ports.
+const SLOT = Number(process.env.UI_SLOT ?? 0);
+const PORT = 8799 + SLOT;
+const DEBUG_PORT = 9333 + SLOT;
+const INSPECTOR_PORT = 9430 + SLOT;
 export const BASE = `http://localhost:${PORT}`;
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,7 +29,41 @@ export const addFailure = () => { failures++; };
 
 function cleanup() {
   for (const child of children) child.kill();
+  children.length = 0;
   rmSync(workDir, { recursive: true, force: true });
+}
+// However this process ends (a crash too), its app and Chrome end with it:
+// one left running would hold its ports, and the next run on them would
+// test it instead of its own.
+process.on("exit", cleanup);
+
+/**
+ * Starts a program this walkthrough needs, stopping everything if it can't.
+ * @param {string} command
+ * @param {string[]} args
+ * @param {import("node:child_process").SpawnOptions} options
+ */
+function start(command, args, options) {
+  const child = spawn(command, args, options);
+  child.on("error", (err) => {
+    console.error(`Couldn't start ${command}: ${err.message}`);
+    process.exit(1);
+  });
+  children.push(child);
+}
+
+/**
+ * Stops if something is already answering on a port this run needs (most
+ * likely one left from an earlier run), rather than testing that.
+ * @param {string} url
+ * @param {string} what
+ */
+async function refuseIfInUse(url, what) {
+  const inUse = await fetch(url).then(() => true, () => false);
+  if (inUse) {
+    console.error(`Something is already running at ${url}, where ${what} goes. Stop it (an earlier walkthrough left running?) and try again.`);
+    process.exit(1);
+  }
 }
 
 export function check(label, actual, expected) {
@@ -80,18 +119,21 @@ config.dev = { ...config.dev, host: `localhost:${PORT}` };
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-children.push(spawn("npx", [
+await refuseIfInUse(`${BASE}/`, "wrangler dev");
+start("npx", [
   "wrangler", "dev", "--config", configPath, "--persist-to", dbDir, "--port", String(PORT),
+  "--inspector-port", String(INSPECTOR_PORT),
   "--var", `ORIGIN:${BASE}`, "--var", "RP_ID:localhost",
-], { stdio: "ignore", cwd: projectDir }));
+], { stdio: "ignore", cwd: projectDir });
 await waitFor(`${BASE}/`, "wrangler dev");
 
 // --- start Chrome and connect ------------------------------------------------
 
-children.push(spawn(CHROME, [
+await refuseIfInUse(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome's debugging port");
+start(CHROME, [
   "--headless=new", `--remote-debugging-port=${DEBUG_PORT}`, "--window-size=420,1400",
   "--no-first-run", `--user-data-dir=${path.join(workDir, "chrome")}`, "about:blank",
-], { stdio: "ignore" }));
+], { stdio: "ignore" });
 const targets = await (await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome")).json();
 const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
 await new Promise((resolve) => ws.addEventListener("open", resolve));

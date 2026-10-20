@@ -12,6 +12,37 @@ export const UI_CHUNKS = [
   "notes", "photos", "deleting", "account", "data", "insights",
 ];
 
+// About how long each chunk takes alone, in seconds (October 2026), for
+// sharing them out between parallel runs. Only their sizes against each
+// other matter, so they needn't be kept exact; a chunk not listed counts
+// as 30.
+export const UI_SECONDS = {
+  basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
+  notes: 19, photos: 33, deleting: 26, account: 67, data: 20, insights: 20,
+};
+
+/**
+ * Shares chunks out between `jobs` parallel runs so they finish at about
+ * the same time: the longest first, each to the run with least to do so
+ * far. Each run keeps the walkthrough's order. No empty runs.
+ * @param {string[]} chunks
+ * @param {number} jobs
+ * @param {Record<string, number>} [seconds]
+ * @returns {string[][]}
+ */
+export function batches(chunks, jobs, seconds = UI_SECONDS) {
+  const count = Math.max(1, Math.min(Math.floor(jobs) || 1, chunks.length));
+  const runs = Array.from({ length: count }, () => ({ chunks: /** @type {string[]} */ ([]), total: 0 }));
+  const time = (/** @type {string} */ name) => seconds[name] ?? 30;
+  const longestFirst = [...chunks].sort((a, b) => time(b) - time(a) || chunks.indexOf(a) - chunks.indexOf(b));
+  for (const name of longestFirst) {
+    const run = runs.reduce((least, r) => (r.total < least.total ? r : least));
+    run.chunks.push(name);
+    run.total += time(name);
+  }
+  return runs.map((r) => chunks.filter((name) => r.chunks.includes(name))).filter((r) => r.length);
+}
+
 /**
  * Files every part of the app depends on: a change to one runs every test
  * and every walkthrough chunk. So does a change to a file in no area.

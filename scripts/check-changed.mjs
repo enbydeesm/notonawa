@@ -6,6 +6,7 @@
 //
 //   npm run check:changed                 what's changed
 //   npm run check:changed -- --ui         …and its walkthrough chunks
+//                                         (3 at a time; --jobs 1 for one at a time)
 //   npm run check:changed -- people plans those areas, whatever changed
 //   npm run check:changed -- --list       what it would run, without running it
 //
@@ -18,7 +19,8 @@ import { AREAS, planFor, planForAreas } from "./areas.mjs";
 const args = process.argv.slice(2);
 const withUi = args.includes("--ui");
 const listOnly = args.includes("--list");
-const names = args.filter((a) => !a.startsWith("--"));
+const jobs = args.includes("--jobs") ? args[args.indexOf("--jobs") + 1] : null;
+const names = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--jobs");
 
 /** @param {string[]} gitArgs */
 function git(gitArgs) {
@@ -53,7 +55,7 @@ const steps = [
 if (plan.tests === "all") steps.push(["every test", ["npx", "vitest", "run"]]);
 else if (plan.tests.length) steps.push([`${plan.tests.length} test file(s)`, ["npx", "vitest", "run", ...plan.tests]]);
 for (const check of plan.generated) steps.push([`${check} file check`, GENERATED[check]]);
-if (withUi && plan.ui.length) steps.push([`walkthrough: ${plan.ui.join(", ")}`, ["node", "scripts/ui-smoke.mjs", "--only", plan.ui.join(",")]]);
+if (withUi && plan.ui.length) steps.push([`walkthrough: ${plan.ui.join(", ")}`, ["node", "scripts/ui-smoke.mjs", "--only", plan.ui.join(","), ...(jobs ? ["--jobs", jobs] : [])]]);
 
 console.log(names.length ? `Areas: ${plan.areas.join(", ")}` : `Changed areas: ${plan.areas.join(", ") || "none"}`);
 if (plan.everything.length) console.log(`Everything runs, for: ${plan.everything.join(", ")}`);

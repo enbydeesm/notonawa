@@ -1140,6 +1140,15 @@ about 6 minutes, too slow to run after every change.
   per chunk (a few seconds each): a full run went from about 6 to about 7
   minutes, while one area's change now takes well under a minute. A chunk
   that throws counts as a failure and the next one still runs.
-- **Not done yet: running chunks in parallel** (two or three wrangler and
-  Chrome pairs on their own ports) to shorten a full run. Now that chunks
-  are independent, it's mostly a change to the harness and runner.
+- **Chunks run in parallel, 3 at a time by default** (`--jobs`). Each
+  batch is a separate copy of `scripts/ui-smoke.mjs` with its own
+  database, `wrangler dev` and Chrome on its own ports (`UI_SLOT`), not
+  several Chrome tabs on one app: the harness keeps its state (the
+  recovery code, the passkey device, console errors) per process, and
+  separate databases mean one chunk's SQL (a notice for everyone, a
+  deleted key) can't reach another. Batches are shared out longest chunk
+  first (`batches()`, by `UI_SECONDS`), and each chunk's output is shown
+  whole when it's done, so the output stays readable. Each copy costs
+  about 0.5 to 1 GB. Steps that waited a fixed time are the risk on a
+  busy machine; `--jobs 1` runs them one at a time to tell a slow machine
+  from a real failure.

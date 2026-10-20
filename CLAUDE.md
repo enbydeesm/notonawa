@@ -288,6 +288,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   make, through the API), so any chunk runs alone. `scripts/ui/harness.mjs`
   starts wrangler and Chrome and has the helpers (`run`, `go`, `check`,
   `sql`). A check that relies on another chunk's data seeds it instead.
+  Chunks run 3 at a time by default (`--jobs`): each batch (`batches()` in
+  `scripts/areas.mjs`, sharing them out by `UI_SECONDS`) in its own copy of
+  the script, with its own database, app and Chrome on its own ports
+  (`UI_SLOT`). A step should wait for what it needs to show rather than a
+  fixed time, as a busy machine is slower.
 - `scripts/areas.mjs` (pure; `test/unit/areas.test.js`): the app as feature
   areas, each with its files, tests and walkthrough chunks, and the shared
   files that run everything. `scripts/check-changed.mjs` uses it.
@@ -297,7 +302,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
   matches PRIVACY.md, the release files match RELEASES.md and the welcome
   matches WELCOME.md. Run before a release.
-- `npm run check:changed [-- <area>…] [-- --ui] [-- --list]`: lint and type
+- `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint and type
   check, then only the tests (and with `--ui`, the walkthrough chunks) of
   the areas changed since the last commit, or of the areas named. A shared
   file, or one in no area, runs everything. `--list` shows what it would
@@ -332,11 +337,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   computer, in `backups/`; deletes ones older than 30 days when it runs.
   `node scripts/restore-backup.mjs <file>` decrypts one, or one of the
   daily backups (`.json.gz.enc`, with the backup private key).
-- `npm run test:ui [-- --only people,plans] [-- --list]`: UI walkthrough
-  in headless Chrome on a throwaway database (with a generated copy of
-  `wrangler.jsonc` whose sign-in rate limit is higher, as every page load
-  there locks and unlocks): every chunk (about 7 minutes), or the ones
-  named.
+- `npm run test:ui [-- --only people,plans] [-- --jobs N] [-- --list]`: UI
+  walkthrough in headless Chrome on throwaway databases (with a generated
+  copy of `wrangler.jsonc` whose sign-in rate limit is higher, as every
+  page load there locks and unlocks): every chunk, or the ones named, 3 at
+  a time (`--jobs 1`: one at a time, with output as it happens; use it to
+  tell whether a failure only happens when the machine is busy).
 - `npm run dev`: local app. `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
 
