@@ -1,6 +1,6 @@
 # NotoNawa Privacy Policy
 
-**Last updated:** October 17, 2026
+**Last updated:** October 19, 2026
 
 ## The short version
 
@@ -25,11 +25,8 @@
 
 ## Who we are
 
-NotoNawa is run by Mx_Piggie ("we", "us"), Seattle, WA, USA.
-Contact us about privacy at contact@notonawa.app.
-
-NotoNawa is for adults only. You must be 18 or older to create an
-account.
+NotoNawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
+Contact us about privacy, give feedback, or tell us how frickin cool we are at contact@notonawa.app.
 
 ## What we collect
 
