@@ -92,8 +92,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   email (`PUT`/`DELETE /api/account/recovery-email`: a hash and salt only;
   `parse.js`), deleting the account (`DELETE /api/account`: one cascading
   delete), and my settings (`GET`/`PUT /api/account/settings`: role names
-  and light/dark mode (migration 0013), and `seen_release`, the last release
-  notes shown (migration 0014); `settings.js` (pure) parses them).
+  and light/dark mode (migration 0013), `seen_release`, the last release
+  notes shown (migration 0014), and `hide_welcome`, the welcome's "Don't
+  show this again" (migration 0015); `settings.js` (pure) parses them).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
   `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
@@ -125,13 +126,25 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   notices); `index.js` refuses anything else with 403 `{ consent: true }`;
   `routes.js` (`GET /api/consent`, `POST /api/consent` with the version
   shown).
+- `src/feedback/`: bug reports and ideas from the menu's "Bug and
+  feedback" (migration 0015). `parse.js` (pure: kind bug or idea, message
+  up to 2,000 characters, the page's app version), `db.js` (at most
+  `FEEDBACK_PER_DAY` per account, checked in the insert), `routes.js`
+  (`POST /api/feedback`). Plain text, read with `scripts/feedback.mjs`.
+  Each one emails contact@notonawa.app (from itself) through the
+  `FEEDBACK_EMAIL` binding (`send_email`, Email Routing): `mail.js` (pure:
+  the subject and text, a bug report or feedback, with the kind, version
+  and time only, never what was written), `notify.js` (sends it; a failure
+  is logged, and doesn't fail the request).
 - `src/notices/`: messages from us (migration 0012), written only with
   `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
   now, not dismissed), `POST /api/notices/:id/dismiss`.
 - `src/resources/`: plans, people and locations, all described in one
   `RESOURCES` table (`config.js`) and handled by the same routes. Plans are
   `tagged`: their tags are sent and listed as names and saved in the same
-  batch (`LinkStatements` in `db.js`).
+  batch (`LinkStatements` in `db.js`). The plans list also has
+  `linked_ties` (id, title, date and rating of each tie it's on, newest
+  first); `jsonColumns` are parsed by `listRows`.
 - `src/locations/`: location routes beyond the shared ones. `maps.js`
   (pure: which Google Maps links we accept, reading their coordinates),
   `resolve.js` (following a short link's redirects; `fetch` is passed in),
@@ -190,6 +203,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `releases.js` (generated from RELEASES.md: `APP_VERSION`, `RELEASES`),
   `release-notes.js` (pure: the releases I haven't seen) and `whats-new.js`
   (the "What's new" dialog: from the menu, and once after an update),
+  `welcome-text.js` (generated from WELCOME.md by `scripts/welcome.mjs`)
+  and `welcome.js` (the welcome dialog: after each unlock, before What's
+  new, until "Don't show this again" is ticked), `feedback-dialog.js` (the
+  "Bug and feedback" form, with a `mailto:` link for screenshots and
+  replies),
   `photo-fit.js` (pure:
   photo sizes, limits, choosing a quality) and `photo-prep.js` (redrawing a
   photo on a canvas: strips its metadata, shrinks it, makes the thumbnail),
@@ -197,13 +215,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   lock), `photo-upload.js` (sealing and uploading one prepared photo and
   its caption; used by the Photos section and import), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
-  `format.js`, `ties-view.js` and `tie-search.js` (pure), `nav.js` (the tabs, as icons with their
+  `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
+  (pure: the Plans search, done on the device over the loaded plans and
+  kept only in memory, and a plan's tie count and average rating),
+  `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
   Analytics; the + button and the ☰ menu panel: Settings, Account, Your
-  data, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
-  (its "Edit tags" dialog; the Ties search's "Has Tags" opens it with
-  `forSearch`, for picking existing tags only) and `tags.js` (pure), `search-picker.js` (its
+  (its "Edit tags" dialog; the Ties and Plans searches' "Has Tags" open it
+  with `forSearch`, for picking existing tags only, on ties or, with
+  `noun: "plan"`, on plans) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
   `rope-rating.js` (ratings drawn as rope hanks; `hankIcon`),
@@ -214,7 +236,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: their colors and what a bar says in words), `tie-card.js` (a tie as a card, shared by the
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
-  `resource-page.js` (list/edit pages), `list-tools.js` and `list-order.js`
+  `resource-page.js` (list/edit pages; with `dialog`, the form is in a
+  dialog that + and Edit open, as on Plans), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure
   filtering and sorting), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
@@ -257,13 +280,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
-  matches PRIVACY.md and the release files match RELEASES.md. Run after
-  every change.
+  matches PRIVACY.md, the release files match RELEASES.md and the welcome
+  matches WELCOME.md. Run after every change.
 - `node scripts/releases.mjs`: rebuild `public/js/releases.js` and
   `src/app-version.js` after editing RELEASES.md. Each release is a
   `## YYYY.MM.DD.NNN` heading (the date, and 001, 002… that day; newest
   first) with `- ` notes; the newest is the app's version, shown on
   sign-in and in the menu. Add one before each deploy.
+- `node scripts/welcome.mjs`: rebuild `public/js/welcome-text.js` after
+  editing WELCOME.md (the welcome dialog's text: a heading, paragraphs, a
+  list, **bold**, *italics*; email addresses become links).
+- `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]
+  [--remote]`: the bug reports and ideas sent from the app, newest first.
+  Answer one with `notice.mjs --user <id>`.
 - `node scripts/privacy-html.mjs`: rebuild `public/privacy.html` after
   editing PRIVACY.md. A wording change stamps today's date on the policy
   and makes a new version (`src/policy-version.js`). Add
@@ -382,6 +411,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Notices are ours, not the journal's**: export lists the ones just for me
   and the ones I dismissed (`account.notices`); import ignores them. They're
   plain text on the page (`textContent`), never HTML.
+- **Feedback is plain text, for us to read**: never encrypted, so the form
+  warns not to put journal details in it. Export lists it
+  (`account.feedback`); import ignores it; it's deleted with the account.
 - **When a table or column is added, update export and import**
   (`src/data/`): the export must hold everything in an account, and an
   export must import back exactly (`test/api/data-import.test.js`). Account

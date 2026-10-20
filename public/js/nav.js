@@ -1,8 +1,9 @@
 // The view links at the top of the app, as icons (each named for screen
 // readers and in its tooltip), then the + button and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
-// their own dialog), the account and "Your data" links, What's new (the
-// release notes), the privacy policy, Sign Out and the app's version.
+// their own dialog), the account and "Your data" links, Bug and feedback,
+// What's new (the release notes), the privacy policy, Sign Out and the
+// app's version.
 // Drawn once by app.js; setCurrent() marks the view being shown.
 
 import { h, $ } from "./dom.js";
@@ -10,6 +11,7 @@ import { openTieForm } from "./tie-form.js";
 import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
+import { openFeedback } from "./feedback-dialog.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock } from "./vault.js";
@@ -106,8 +108,12 @@ function openMenu() {
         href: "/data", className: "menu-item nav-data",
         "aria-current": current === "/data" ? "page" : null,
       }, dataIcon(), h("span", {}, "Your data")),
-      // What's new, the privacy policy and signing out are pinned to the
-      // bottom of the panel.
+      // Feedback, What's new, the privacy policy and signing out are pinned
+      // to the bottom of the panel.
+      h("button", {
+        type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",
+        onclick: () => { dialog.close(); openFeedback(); },
+      }, feedbackIcon(), h("span", {}, "Bug and feedback")),
       h("button", {
         type: "button", className: "menu-item menu-whats-new", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openWhatsNew(); },
@@ -250,6 +256,25 @@ function sparkleIcon() {
   icon.append(
     svg("path", { d: "M10 3l1.8 5.2L17 10l-5.2 1.8L10 17l-1.8-5.2L3 10l5.2-1.8z" }),
     svg("path", { d: "M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z" })
+  );
+  return icon;
+}
+
+/**
+ * A speech bubble with a small bug over its bottom-left corner, for Bug and
+ * feedback. The bubble's outline stops short of the bug, so the two don't
+ * cross.
+ */
+function feedbackIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    // The bubble: a rounded box with its tail at the bottom right.
+    svg("path", { d: "M11 16h3l4 3.5V16h.5a2.5 2.5 0 0 0 2.5-2.5v-8A2.5 2.5 0 0 0 18.5 3h-12A2.5 2.5 0 0 0 4 5.5V11" }),
+    // The bug: a solid body and head, with legs and feelers.
+    svg("ellipse", { cx: 6, cy: 18, rx: 2.6, ry: 3.2, fill: "currentColor", stroke: "none" }),
+    svg("circle", { cx: 6, cy: 13.6, r: 1.4, fill: "currentColor", stroke: "none" }),
+    svg("path", { d: "M2 16l1.6.8M10 16l-1.6.8M1.8 19.5h1.6M10.2 19.5H8.6M2.5 22.5l1.4-1M9.5 22.5l-1.4-1M4.8 12.5L4 11M7.2 12.5L8 11", "stroke-width": 1.4 })
   );
   return icon;
 }

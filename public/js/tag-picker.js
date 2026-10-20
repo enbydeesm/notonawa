@@ -1,8 +1,8 @@
 // The "Edit tags" dialog, opened from the "Log a tie" and Plans forms (ties
 // and plans share my tags): search my tags, pick some, type a new one and
-// press +, or delete one I don't use any more. The Ties search opens it too
-// (forSearch), only to pick tags already on a tie: any other can't match
-// one, and deleting tags isn't what a search is for.
+// press +, or delete one I don't use any more. The Ties and Plans searches
+// open it too (forSearch), only to pick tags already on a tie (or a plan):
+// any other can't match one, and deleting tags isn't what a search is for.
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
@@ -17,8 +17,8 @@ import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from 
  * a tag is saved straight away, whichever way it closes.
  * @param {string[]} chosen
  * @param {{ forSearch?: boolean, noun?: "tie" | "plan" }} [options]
- *   forSearch: pick tags on ties only (no adding or deleting)
- *   noun: what the tags are for, for the limit's message
+ *   forSearch: pick tags on ties (or plans) only (no adding or deleting)
+ *   noun: what the tags are for: which ones a search lists, and the limit's message
  * @returns {Promise<string[] | null>}
  */
 export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
@@ -180,7 +180,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       try {
         /** @type {Tag[]} */
         const mine = await api("/api/tags");
-        tags = forSearch ? mine.filter((t) => t.tie_count > 0) : mine;
+        tags = forSearch ? mine.filter((t) => (noun === "plan" ? t.plan_count : t.tie_count) > 0) : mine;
       } catch (err) {
         showMessage(message, "Couldn't load tags: " + errorMessage(err), true);
       }

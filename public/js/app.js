@@ -24,6 +24,7 @@ import { consentState, setConsentState, onConsentRequired } from "./consent-stat
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { showUnseenReleases } from "./whats-new.js";
+import { showWelcome } from "./welcome.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -104,13 +105,17 @@ async function show({ fresh, scroll, focus }) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
   }
-  // Then, once per unlock, the release notes I haven't seen (not over the
-  // privacy policy agreement, which comes first and doesn't need the key).
+  // Then, once per unlock, the welcome (until I ask not to see it again)
+  // and the release notes I haven't seen, one after the other (not over
+  // the privacy policy agreement, which comes first and doesn't need the
+  // key).
   if (route.needsKey && !releasesChecked) {
     releasesChecked = true;
-    showUnseenReleases().catch(() => {
-      // Unreachable for now: shown after the next unlock instead.
-    });
+    // Unreachable for now: either is shown after the next unlock instead.
+    showWelcome()
+      .catch(() => {})
+      .then(() => showUnseenReleases())
+      .catch(() => {});
   }
 
   window.scrollTo(0, scroll);

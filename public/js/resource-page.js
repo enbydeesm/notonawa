@@ -1,5 +1,6 @@
-// Wires up a page for plans, people or locations: an add/edit form and a list
-// with Edit / Archive / Delete (or Restore / Delete when showing archived).
+// Wires up a page for plans, people or locations: an add/edit form (on the
+// page, or in a dialog) and a list with Edit / Archive / Delete (or Restore /
+// Delete when showing archived).
 
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
@@ -29,6 +30,8 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   onLoad?: (items: Item[], archived: boolean) => void,
  *   searchable?: { noun: string, pinned?: (item: Item) => boolean },
  *   prepare?: (data: Record<string, any>) => Record<string, any>,
+ *   dialog?: HTMLDialogElement,
+ *   filter?: (items: Item[]) => Item[],
  *   signal?: AbortSignal,
  * }} ResourcePageConfig
  *
@@ -48,19 +51,26 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   (a plan's tags, and checking its album link); throws to refuse it.
  * confirmDelete: resolves to { query } to delete (query is appended to the
  *   DELETE URL), { archive: true } to archive instead, or null to cancel.
+ * dialog: the form is in this dialog (plans), with its heading: add() and
+ *   Edit open it, and saving or [data-cancel-edit] closes it. Like the tie
+ *   form, a tap outside doesn't close it; Esc does.
+ * filter: what the page's own search finds (plans); redraw() after it
+ *   changes.
  */
 
 /**
  * @param {ResourcePageConfig} config
  */
 export function setupResourcePage(config) {
-  const { resource, form, list, archivedToggle, renderItem, confirmDelete } = config;
+  const { resource, form, list, archivedToggle, renderItem, confirmDelete, dialog } = config;
   const message = $(".message", form);
   const submit = /** @type {HTMLButtonElement} */ ($('button[type="submit"]', form));
   const cancel = /** @type {HTMLButtonElement} */ ($("[data-cancel-edit]", form));
-  const heading = $("h2", /** @type {HTMLElement} */ (form.closest(".card")));
+  const heading = $("h2", dialog ?? /** @type {HTMLElement} */ (form.closest(".card")));
   const addLabel = submit.textContent;
   const addHeading = heading.textContent;
+  // "Edit plan" in a dialog, where the heading is all there is to say what it's for.
+  const editHeading = dialog ? `Edit ${KINDS[resource]}` : "Edit";
   /** @type {string | null} */
   let editingId = null;
   /** @type {Item[]} */
@@ -89,7 +99,7 @@ export function setupResourcePage(config) {
    */
   function markEditing(id) {
     editingId = id;
-    heading.textContent = "Edit";
+    heading.textContent = editHeading;
     submit.textContent = "Save changes";
     cancel.hidden = false;
   }
@@ -97,9 +107,10 @@ export function setupResourcePage(config) {
   /** @param {Item | null} item */
   function setEditing(item) {
     editingId = item ? item.id : null;
-    heading.textContent = item ? "Edit" : addHeading;
+    heading.textContent = item ? editHeading : addHeading;
     submit.textContent = item ? "Save changes" : addLabel;
-    cancel.hidden = !item;
+    // In a dialog, Cancel closes it, adding or editing.
+    cancel.hidden = !item && !dialog;
     for (const el of form.querySelectorAll("[data-add-only]")) {
       /** @type {HTMLElement} */ (el).hidden = !!item;
     }
@@ -113,9 +124,21 @@ export function setupResourcePage(config) {
         if (el instanceof HTMLInputElement && el.type === "checkbox") el.checked = !!item[el.name];
         else el.value = item[el.name] ?? "";
       }
-      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (!dialog) form.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     showMessage(message, "");
+  }
+
+  /**
+   * Shows the form for an item (or a new one): in its dialog, if it has one.
+   * @param {Item | null} item
+   */
+  function openForm(item) {
+    setEditing(item);
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+      dialog.scrollTop = 0;
+    }
   }
 
   /** The form's named inputs, selects and textareas. */
@@ -178,7 +201,7 @@ export function setupResourcePage(config) {
       item.archived_at
         ? h("button", { type: "button", onclick: () => restore(item) }, "Restore")
         : [
-            h("button", { type: "button", onclick: () => setEditing(item) }, "Edit"),
+            h("button", { type: "button", onclick: () => openForm(item) }, "Edit"),
             removable ? h("button", { type: "button", onclick: () => archive(item) }, "Archive") : null,
           ],
       removable ? h("button", { type: "button", className: "danger", onclick: () => remove(item) }, "Delete") : null
@@ -203,8 +226,9 @@ export function setupResourcePage(config) {
       list.append(h("p", { className: "empty" }, archivedToggle.checked ? "Nothing archived." : "Nothing here yet. Add one above."));
       return;
     }
-    const shown = tools
+    const ordered = tools
       ? orderList(items, tools.query(), tools.order(), config.searchable?.pinned) : items;
+    const shown = config.filter ? config.filter(ordered) : ordered;
     if (shown.length === 0) list.append(h("p", { className: "empty" }, "No matches."));
     for (const item of shown) {
       const unreadable = item.unreadable?.length
@@ -241,8 +265,12 @@ export function setupResourcePage(config) {
           return;
         }
       }
-      setEditing(null);
-      showMessage(message, "Saved.");
+      if (dialog) {
+        dialog.close();
+      } else {
+        setEditing(null);
+        showMessage(message, "Saved.");
+      }
       await load();
     } catch (err) {
       showMessage(message, "Couldn't save: " + errorMessage(err), true);
@@ -250,11 +278,26 @@ export function setupResourcePage(config) {
       submit.disabled = false;
     }
   });
-  cancel.addEventListener("click", () => setEditing(null));
+  cancel.addEventListener("click", () => (dialog ? dialog.close() : setEditing(null)));
+  // Closed (saved, Cancel or Esc): photos picked but not saved are let go,
+  // and it opens fresh next time.
+  dialog?.addEventListener("close", () => {
+    photos?.close();
+    photos = null;
+    editingId = null;
+  });
   config.signal?.addEventListener("abort", () => photos?.close());
   archivedToggle.addEventListener("change", load);
 
   setEditing(null);
   load();
-  return { reload: load, items: () => items };
+  return {
+    reload: load,
+    items: () => items,
+    redraw: draw,
+    /** Opens the dialog to add one. */
+    add: () => openForm(null),
+    /** The item the form is editing (null: adding one, or closed). */
+    editing: () => editingId,
+  };
 }

@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 19, 2026
+**Last updated:** October 20, 2026
 
 ## The short version
 
@@ -59,9 +59,18 @@ Contact us about privacy, give feedback, or tell us how frickin cool we are at c
   was used, and by which account, but nothing about who it was for.
 - **Your settings.** Whether you use light or dark mode, and the words
   you've chosen for the top and bottom roles (if any), so every device you
-  use shows them the same way, and which version of the app's release notes
-  you last saw, so "What's new" is shown once. They're stored as plain text,
-  readable by our server like the rest of the section below.
+  use shows them the same way, which version of the app's release notes
+  you last saw, so "What's new" is shown once, and whether you've asked not
+  to see the welcome again. They're stored as plain text, readable by our
+  server like the rest of the section below.
+- **Bug reports and ideas you send us.** If you use "Bug and feedback" in
+  the menu, we store what you wrote, whether it's a bug or an idea, the
+  version of the app you were using and when you sent it, with your
+  account, so we can read it and answer with a message in the app. **It
+  isn't encrypted** (we have to be able to read it), so please don't put
+  journal details in it. It's included in your export and deleted with
+  your account. To attach a screenshot or get an answer by email, email us
+  instead.
 - **Your encryption keys, locked.** Your notes and photos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
@@ -251,9 +260,10 @@ Wherever you live, you can:
   photos, decrypted on your device into a file only you hold (a .zip when
   you have photos). It contains your
   whole journal, plus when you created your account and agreed to this
-  policy, your passkeys' names and dates, and whether you've set a recovery
-  email (not the address, which we don't have). The file isn't encrypted, so
-  keep it somewhere safe.
+  policy, your passkeys' names and dates, whether you've set a recovery
+  email (not the address, which we don't have), and any bug reports and
+  ideas you've sent us. The file isn't encrypted, so keep it somewhere
+  safe.
 - **Import** entries from an export, or ties from a spreadsheet (a CSV file).
   The file is read in your browser, and only the entries in it are sent to
   us, just as if you'd typed them in. Photos in an export are prepared and

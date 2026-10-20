@@ -6,7 +6,7 @@ describe("GET /api/data/export", () => {
   it("exports everything in my account, links and deleted links included", async () => {
     const me = await signedInUser();
     await sql("INSERT INTO passkeys (id, user_id, public_key, name) VALUES ('pk1', ?, 'PUBLIC-KEY', 'Phone')", me.id).run();
-    await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT', top_label = 'rigger', theme = 'light', seen_release = '2026.10.19.001' WHERE id = ?", me.id).run();
+    await sql("UPDATE users SET recovery_email_hash = 'EMAIL-HASH', recovery_email_salt = 'EMAIL-SALT', top_label = 'rigger', theme = 'light', seen_release = '2026.10.19.001', hide_welcome = 1 WHERE id = ?", me.id).run();
     await sql(`INSERT INTO key_wraps (id, user_id, kind, passkey_id, salt, iv, wrapped, version)
                VALUES ('w1', ?, 'passkey', 'pk1', 'WRAP-SALT', 'WRAP-IV', 'WRAPPED-KEY', 1)`, me.id).run();
     const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), default_role: "bottom" });
@@ -15,6 +15,7 @@ describe("GET /api/data/export", () => {
       "INSERT INTO profile_notes (id, person_id, type, description) VALUES ('n1', ?, 'limit', 'No neck ties')", sam
     ).run();
     const studio = await create("/api/locations", { name: "Studio", latitude: 51.5, longitude: -0.1 });
+    await call("/api/feedback", { method: "POST", body: { kind: "idea", message: "Dark mode charts", app_version: "2026.10.20.001" } });
     const base = await create("/api/plans", {
       title: "TK", tie_type: "floor", album_url: sealed("https://photos.app.goo.gl/tk"), tags: ["kata", "floor"],
     });
@@ -37,7 +38,10 @@ describe("GET /api/data/export", () => {
 
     expect(doc).toMatchObject({ format: "notonawa-export", version: 1 });
     expect(doc.account.recovery_email_set).toBe(true);
-    expect(doc.account.settings).toEqual({ top_label: "rigger", bottom_label: null, theme: "light", seen_release: "2026.10.19.001" });
+    expect(doc.account.settings).toEqual({ top_label: "rigger", bottom_label: null, theme: "light", seen_release: "2026.10.19.001", hide_welcome: true });
+    expect(doc.account.feedback).toEqual([
+      { kind: "idea", message: "Dark mode charts", app_version: "2026.10.20.001", created_at: expect.any(String) },
+    ]);
     expect(doc.account.passkeys).toEqual([{ name: "Phone", created_at: expect.any(String), last_used_at: null }]);
     expect(doc.people).toEqual([expect.objectContaining({
       id: sam, name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), is_self: false, default_role: "bottom", archived_at: null,

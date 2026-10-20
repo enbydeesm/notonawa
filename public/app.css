@@ -207,7 +207,7 @@ dialog.menu-panel {
 @starting-style { dialog.menu-panel[open] { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
-.menu-whats-new { margin-top: auto; }
+.menu-feedback { margin-top: auto; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 .menu-title img { display: block; width: 160px; max-width: 100%; height: auto; margin: 0 auto; }
 .menu-item {
@@ -631,3 +631,25 @@ dialog.form-dialog {
 .whats-new .release h3 { margin: 12px 0 4px; font-size: 1rem; }
 .whats-new .release ul { margin: 0; padding-left: 20px; }
 .whats-new .release li { margin: 4px 0; }
+
+/* Plans: "Add a Plan" with the + beside it, as small as a card gets. */
+.card.add-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.add-card h2 { margin: 0; }
+
+/* A plan's linked ties, in its form: the title (opens the tie), then its
+   rating at the end of the row. */
+.linked-ties { list-style: none; margin: 4px 0 12px; padding: 0; }
+.linked-tie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.linked-tie:last-child { border-bottom: none; }
+.linked-tie-title { min-width: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
+.plan-ties { margin-top: 2px; }
+
+/* The welcome: a heading, a few lines and a list, then the checkbox and OK. */
+.welcome ul { margin: 0 0 16px; padding-left: 20px; }
+.welcome li { margin: 6px 0; }
+.welcome-footer { align-items: center; justify-content: space-between; gap: 12px; }
+.welcome-footer label.inline { margin: 0; }
+
+/* Bug and feedback: the warning first, and the message's length under it. */
+.warning-note { padding: 8px 12px; border-left: 4px solid var(--error); background: var(--bg); border-radius: 6px; }
+.feedback-count { text-align: right; }

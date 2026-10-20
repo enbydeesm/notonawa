@@ -1015,3 +1015,62 @@ tables (migration 0014).
   any way counts as seen. New accounts start on the current version, so
   they get no backlog. The notes are signed-in only; the version also
   shows on the sign-in screen and at the bottom of the menu.
+
+## Welcome, Bug and feedback, and the Plans dialog and search (October 2026)
+
+Built for release 2026.10.20.001 (migration 0015).
+
+- **The welcome shows after each unlock until "Don't show this again" is
+  ticked** (`users.hide_welcome`, an account setting like the others, so
+  every device stops at once). OK without the box ticked means "show me
+  again next time", which is what the checkbox implies. The column starts
+  at 0 for every account, those made before it included, so existing
+  accounts see it at their next unlock with no separate "push it to
+  everyone" step. A way to send it again (as notices can be sent) wasn't
+  needed yet: setting `hide_welcome = 0` for an account does it. It shows
+  before What's new, one after the other, never both at once. The text is
+  WELCOME.md, built into `welcome-text.js` by `scripts/welcome.mjs` and
+  drawn with `h()` (the CSP and Trusted Types rule out putting HTML on the
+  page), as RELEASES.md and PRIVACY.md are built. It mentions features not
+  built yet (the map, workshops) on purpose.
+- **Feedback goes to D1, with email as the other way.** The app can't send
+  email, and a `mailto:` link alone isn't a form. So the form saves to a
+  `feedback` table (kind, message, app version, time), read with
+  `scripts/feedback.mjs`, and answered, if at all, with a notice to that
+  account: we don't have anyone's email address. The form also links to
+  our email for a screenshot or an answer by email. Feedback is plain
+  text, as we have to read it; the form warns not to put journal details
+  in it, and PRIVACY.md says so. It's in the export and deleted with the
+  account (import ignores it, like notices). The kind starts blank and is
+  required, so it's a choice, not a default. Ten a day per account,
+  counted in the insert itself.
+- **The Plans form is in a dialog** opened by + on a small "Add a Plan"
+  card, and by Edit, as the tie form is. `resource-page.js` does it with a
+  `dialog` setting, so People and Locations keep their forms on the page.
+  The dialog's ids start with `plan-`, as the tie form opens over it. As
+  with the tie form, a tap outside doesn't close it (a half-written plan
+  isn't lost); Esc does.
+- **The Plans search runs on the device**, over the plans already loaded
+  (their notes are opened for the list anyway), so it needs no API, and
+  the keyword never leaves the device. Plan type and tie type use the
+  Ties search's multi-select (any of those chosen); tags work as on Ties.
+  Unlike the Ties search, it isn't kept in the address: plans are few
+  enough that there's no paging to come back to, and it starts empty each
+  time Plans is shown.
+- **Linked ties come with the plans list** (`linked_ties`, a JSON column
+  like `tags`), not from a separate request per plan: the card's count
+  and average need them all anyway, and titles, dates and ratings aren't
+  encrypted. The average counts rated ties only, to one decimal place, and
+  is drawn as hanks rounded to the nearest whole one, with the number
+  beside it. Tapping a linked tie opens it in the tie form over the plan's;
+  saving it reloads the list and the form's linked ties, keeping what's
+  typed in the plan.
+- **An email for each report, for now.** Email Routing's `send_email`
+  binding sends from and to contact@notonawa.app (verified as a
+  destination), so no other address or service is involved. It says only
+  the kind (a bug report, or feedback for an idea), the app version and
+  the time, with the script to read it, so nothing anyone wrote is copied
+  into the inbox and PRIVACY.md needed no change. It's sent once the
+  report is saved; if it fails, the report is still saved and the error is
+  logged. A daily digest from the cron job is the plan once reports are
+  more frequent.

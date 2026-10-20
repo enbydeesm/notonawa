@@ -34,16 +34,6 @@ What changes from photos (weighed 2026-10-14):
 - **PRIVACY.md** will need updating (what's stripped, size limits, backups).
 - To decide then: the longest clip, and rewriting boxes or re-encoding.
 
-## The + button asks what to add
-
-**Status:** planned (2026-10-12)
-
-The + button in the nav (every page) opens the "Log a tie"
-dialog for now. Later it should first ask what to add (tie, person, location,
-and maybe plan) and open that dialog. `renderNav` in `public/js/nav.js` is
-where the choice goes; the person and location forms would need to move into
-dialogs the way the tie form did (`public/js/tie-form.js`).
-
 ## Final logo and icon files
 
 **Status:** planned; needs the artwork, then no code changes unless a
@@ -70,32 +60,19 @@ the dark theme's background.
 
 **Status:** planned, at the next full rebuild of `users`.
 
-The column is a leftover from Cloudflare Access: migration 0003 overwrote
-each email with the user's id, and new users get email = id, because SQLite
-won't drop a UNIQUE column and rebuilding `users` would cascade-delete every
-journal row (DROP TABLE runs an implicit DELETE). Drop it the next time
-`users` has to be rebuilt anyway, children first, like migration 0002. See
-"Passkey sign-in as built" in considerations.md.
+The column is a leftover from Cloudflare Access: migration 0003 overwrote each email with the user's id, and new users get email = id, because SQLite won't drop a UNIQUE column and rebuilding `users` would cascade-delete every journal row (DROP TABLE runs an implicit DELETE). Drop it the next time `users` has to be rebuilt anyway, children first, like migration 0002. See "Passkey sign-in as built" in considerations.md.
 
 ## Finishing a photo import that stopped part-way through a tie
 
 **Status:** known gap (2026-10-14).
 
-Re-running an import gives a tie that's skipped as a duplicate (or a plan
-matched by name) the file's photos only if it has none yet, so a failed
-import can be finished without making copies (`import-photos.js`). But if
-the import stopped part-way through one tie's photos, that tie already has
-some, so running it again skips the rest. A fix could compare photo ids,
-or how many photos the tie has with how many the file lists.
+Re-running an import gives a tie that's skipped as a duplicate (or a plan matched by name) the file's photos only if it has none yet, so a failed import can be finished without making copies (`import-photos.js`). But if the import stopped part-way through one tie's photos, that tie already has some, so running it again skips the rest. A fix could compare photo ids, or how many photos the tie has with how many the file lists.
 
 ## UI walkthrough sometimes hangs
 
 **Status:** to investigate (seen 2026-10-14).
 
-`npm run test:ui` sometimes hung on a step ("took over a minute") or met an
-Internal Server Error while unlocking, about 1 run in 2 at the time, before
-any photo UI existed. First check whether it still happens; if it does,
-find the cause.
+`npm run test:ui` sometimes hung on a step ("took over a minute") or met an Internal Server Error while unlocking, about 1 run in 2 at the time, before any photo UI existed. First check whether it still happens; if it does, find the cause.
 
 ## Ideas, not yet committed
 
@@ -105,10 +82,10 @@ find the cause.
 > - Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens.
 
 
-- Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account. the intro should be what is saved on WELCOME.md. I should also be able to force the welcome dialog to prompt one or all users like other message banners so users with existing accounts will see it at next login.
-- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
-- at the top of the plans view, replace the current 'add a plan' form with a button that opens a dialog with a form to add a new plan (similar to how the tie form works now) There should be a small card with the label "Add a Plan" and a yellow + button just like the add a tie button in the top nav. 
-- below that, add a search form that filters the plans list below it. The search form should look exactly like the Ties one, except it should have a Plan Type drop down instead of People, a Tie Type drop down instead of Locations, and no date filter, keeping the Tags filter.
+>- Welcome on new accounts: add an 'intro' dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account. the message should be what is saved on WELCOME.md. I also want to force the welcome dialog to prompt all currently existing accounts so they will see it at their next login after release.
+>- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details. add it above 'what's new' with an icon that looks like a message bubble with a little bug badge overlaying the bottom left corner
+>- at the top of the plans view, replace the current 'add a plan' form with a button that opens a dialog with a form to add a new plan (similar to how the tie form works now) There should be a small card with the label "Add a Plan" and a yellow + button just like the add a tie button in the top nav. 
+>- below that, add a search form that filters the plans list below it. The search form should look exactly like the Ties one, except it should have a Plan Type drop down instead of People, a Tie Type drop down instead of Locations, and no date filter, keeping the Tags filter.
 
 >- Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
 >- on the plans table and form, add 'Tie Type', using the same values as the tie type used for Ties,
@@ -118,14 +95,14 @@ find the cause.
 >- add an app version number, track release notes that can be displayed to users. put version number on the app at the bottom of sign in screen and the bottom of menu sidebar
 
 
-- **Thumbnails on tie cards.** The Ties list shows a photo count only,
-  because thumbnails would mean up to 100 decrypts a page.
-- **Searching captions** with the keyword search (they're sealed bound to
-  their photo, so the search index would need to fetch and open them).
+- **Thumbnails on tie cards.** The Ties list shows a photo count only, because thumbnails would mean up to 100 decrypts a page.
+- **Searching captions** with the keyword search (they're sealed bound to their photo, so the search index would need to fetch and open them).
 - Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
 
 - Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list.
-- People’s socials and city: optional platform and username rows, added with a + button and maybe found by the People search, plus a “based in” city.
+- People’s socials and city: on form add optional + button next to a label "Social & Scene Names". clicking the button adds a row with 2 drop downs (similar to people & roles on ties): one drop down for 'platform' with values: scene name, fetlife, instagram, x/twitter, bluesky, other. another drop down for alias, as an open text box
+- on people form, add an optional field for “Based in” with an example muted value on null that says 'e.g. Seattle, WA'.
+- when searching for People in the Ties or People view, also search the alias field and display the Person's name + (alias) in the search result drop down (e.g. "J (therawkitty)")
 
 - Education tracker: log the workshops you take (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
 

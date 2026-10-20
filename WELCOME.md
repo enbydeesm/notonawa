@@ -1,7 +1,7 @@
 ### Welcome to NōtoNawa, your secure tie planning and tracking journal. 
 
 Here's your quick and dirty guide:
-* **Ties** are your scenes and your labbing sessions. Log what you tied, who you tied with (or who took photos), where it happened, rate how it went, and make any notes you want to rememeber (e.g. what could have gone better).
+* **Ties** are your scenes and your labbing sessions. Log what you tied, who you tied with (or who took photos), where it happened, rate how it went, and make any notes you want to remember (e.g. what could have gone better).
 * **Plans** represent ties or elements you've been noodling on, and allows you to link them to Ties to keep track of iterations and/or attempts. Quickly add an idea to rough out later, keep detailed notes on harness steps, or plan out a suspension sequence. 
 * **People** are your tying partners, photographers, spotters, and educators you learn from. Add them once and pick them from a list when logging ties or workshops. You can quick-add new people from the New Tie form, and keep track of additional information about them in the People view. You can archive a person you don't expect to log again to remove them from the list when logging ties.
 * **Locations** are where you tie. They work pretty much like People do but you also can save a link to google/apple maps or coordinates. This helps you keep track of outdoor rope bomb locations and lets you plot your ties on a super cool map (if that's your kink).

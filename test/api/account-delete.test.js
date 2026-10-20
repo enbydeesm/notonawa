@@ -25,6 +25,7 @@ const OWNED_ROWS = {
   media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
   notices: "SELECT count(*) AS n FROM notices WHERE user_id = ?",
   notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
+  feedback: "SELECT count(*) AS n FROM feedback WHERE user_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -81,6 +82,7 @@ async function userWithEverything() {
   const notice = crypto.randomUUID();
   await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();
   await sql("INSERT INTO notice_dismissals (notice_id, user_id) VALUES (?, ?)", notice, id).run();
+  await post("/api/feedback", { kind: "bug", message: "The + button", app_version: "2026.10.20.001" });
   return { id, cookie };
 }
 

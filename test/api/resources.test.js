@@ -208,6 +208,24 @@ describe("a plan's tie type, album link and tags", () => {
     const id = await create("/api/plans", { title: "No tags" });
     expect((await call("/api/plans?archived=false")).body.find((/** @type {any} */ p) => p.id === id).tags).toEqual([]);
   });
+
+  it("lists the ties each plan is on, newest first, with their titles and ratings", async () => {
+    const plan = await create("/api/plans", { title: "Linked plan" });
+    const unused = await create("/api/plans", { title: "Unused plan" });
+    const older = await create("/api/ties", { title: "First go", tie_date: "2026-03-01", tie_type: "floor", success_rating: 2, plan_ids: [plan] });
+    const newer = await create("/api/ties", { title: "Second go", tie_date: "2026-04-01", tie_type: "floor", plan_ids: [plan, unused] });
+    await create("/api/ties", { title: "Not linked", tie_date: "2026-05-01", tie_type: "floor" });
+    const linked = async (/** @type {string} */ id) =>
+      (await call("/api/plans?archived=all")).body.find((/** @type {any} */ p) => p.id === id).linked_ties;
+    expect(await linked(plan)).toEqual([
+      { id: newer, title: "Second go", tie_date: "2026-04-01", success_rating: null },
+      { id: older, title: "First go", tie_date: "2026-03-01", success_rating: 2 },
+    ]);
+    expect((await linked(unused)).map((/** @type {any} */ t) => t.id)).toEqual([newer]);
+    // A deleted tie drops off; a new plan has none.
+    await call(`/api/ties/${newer}`, { method: "DELETE" });
+    expect(await linked(unused)).toEqual([]);
+  });
 });
 
 describe("other users' data", () => {

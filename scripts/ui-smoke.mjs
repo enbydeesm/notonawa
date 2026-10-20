@@ -208,7 +208,8 @@ const PAGE_HELPERS = `
     box.click(); await wait(800);
   };
   const pagerButtons = () => [...document.querySelectorAll("#pager button")].map((b) => b.textContent + (b.getAttribute("aria-current") ? "*" : ""));
-  const dialogButtons = () => [...document.querySelectorAll("dialog button")].map((b) => b.textContent);
+  // Open dialogs only: the Plans view keeps its form's dialog on the page, closed.
+  const dialogButtons = () => [...document.querySelectorAll("dialog[open] button")].map((b) => b.textContent);
   const tagBubbles = () => [...document.querySelectorAll("#tags-list .tag")].map((t) =>
     t.querySelector(".tag-toggle").textContent + (t.classList.contains("selected") ? "*" : "") + (t.querySelector(".tag-x") ? " ×" : ""));
   const tagChips = (sel) => [...document.querySelectorAll(sel + " .tag")].map((t) => t.firstChild.textContent);
@@ -223,7 +224,7 @@ const PAGE_HELPERS = `
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
   // Whether the logo image in sel has loaded, and its alt text.
   const logo = (sel) => { const img = $(sel); return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null]; };
-  const clickDialog = async (label) => { [...document.querySelectorAll("dialog button")].find((b) => b.textContent === label).click(); await wait(800); };
+  const clickDialog = async (label) => { [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 
 // A step that hasn't finished after this long is stuck: fail with what the
@@ -361,6 +362,32 @@ try {
     const r = await fetch("/api/auth/register/options", { method: "POST", credentials: "omit", headers: { "content-type": "application/json" },
       body: JSON.stringify({ invite: ${JSON.stringify(INVITE)}, adult: true, consent: true }) });
     return [r.status, (await r.json()).error];`), [400, "That invite code doesn't work. It may have been used or expired."]);
+
+  console.log("Welcome");
+  const welcomeShown = `for (let i = 0; i < 30 && !$("dialog.welcome[open]"); i++) await wait(100); return !!$("dialog.welcome[open]");`;
+  const hideWelcome = async () => (await run(`return (await (await fetch("/api/account/settings")).json()).hide_welcome;`));
+  check("a new account is welcomed once the journal shows: WELCOME.md, with its email linked", await run(`
+    ${welcomeShown.replace("return", "const open =")}
+    const d = $("dialog.welcome[open]");
+    return [open, d.querySelector("h2").textContent, d.querySelectorAll("li").length, d.querySelectorAll("li strong").length > 0,
+      d.querySelector("a[href^=mailto]")?.getAttribute("href"), $("#welcome-hide").checked, $("#welcome-ok").textContent];`),
+    [true, "Welcome to NōtoNawa, your secure tie planning and tracking journal.", 8, true, "mailto:contact@notonawa.app", false, "OK"]);
+  check("OK without the box ticked closes it, and it stays on", await run(`
+    $("#welcome-ok").click(); await wait(500); return [$("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
+    [true, false]);
+  await go("/");
+  check("so it's shown again after the next unlock; ticking \"Don't show this again\" saves that on the account", await run(`
+    ${welcomeShown.replace("return", "const open =")}
+    $("#welcome-hide").click(); $("#welcome-ok").click(); await wait(800);
+    return [open, $("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
+    [true, true, true]);
+  await go("/");
+  check("…and not again", await run(`await wait(800); return $("dialog.welcome") === null;`), true);
+  check("an account from before the welcome sees it too", [await hideWelcome(), (() => {
+    const done = spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", "--local", "--persist-to", dbDir, "--json",
+      "--command", "SELECT dflt_value FROM pragma_table_info('users') WHERE name = 'hide_welcome'"], { encoding: "utf8" });
+    return JSON.parse(done.stdout)[0].results[0].dflt_value;
+  })()], [true, "0"]);
   for (const pagePath of ["/plans", "/people", "/locations"]) {
     await go(pagePath);
     check(`${pagePath}: every field is kept out of form history and spellcheck`, await run(`return leakyFields();`), []);
@@ -453,20 +480,46 @@ try {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("the menu opens with the logo, Settings (a gear), Account, Your data, What's new, Privacy Policy and Sign Out", await run(`
+  check("the menu opens with the logo, Settings (a gear), Account, Your data, Bug and feedback, What's new, Privacy Policy and Sign Out", await run(`
     await openMenu();
     return [$(".menu-title img").alt, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "What's new", true],
+    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
       true, "/account", "/privacy"]);
-  check("What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
+  check("Bug and feedback, What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
     const box = (sel) => $(sel).getBoundingClientRect();
-    const panel = box(".menu-inner"), news = box(".menu-whats-new"), privacy = box(".menu-privacy"), out = box(".menu-sign-out"), version = box(".app-version");
+    const panel = box(".menu-inner"), feedback = box(".menu-feedback"), news = box(".menu-whats-new"), privacy = box(".menu-privacy"),
+      out = box(".menu-sign-out"), version = box(".app-version");
     return [Math.round(panel.bottom - version.bottom), version.top > out.bottom, Math.round(out.top - privacy.bottom), Math.round(privacy.top - news.bottom),
-      news.top - box(".nav-data").bottom > 100, $(".menu-inner .app-version").textContent];`), [16, true, 0, 0, true, `Version ${APP_VERSION}`]);
+      Math.round(news.top - feedback.bottom), feedback.top - box(".nav-data").bottom > 100, $(".menu-inner .app-version").textContent];`),
+    [16, true, 0, 0, 0, true, `Version ${APP_VERSION}`]);
+  check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
+    const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
+    return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);
+  check("Bug and feedback opens its form in place of the menu: a warning, a blank kind to choose, the message, an email link", await run(`
+    $(".menu-feedback").click(); await wait(400);
+    const d = $("dialog.feedback[open]");
+    return [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, d.querySelector(".warning-note").textContent.startsWith("Please don't include journal details"),
+      [...$("#feedback-kind").options].map((o) => o.text), $("#feedback-kind").value, $("#feedback-kind").required, $("#feedback-message").maxLength,
+      $("#feedback-mailto").getAttribute("href"), dialogButtons(), leakyFields()];`),
+    [true, "Bug and feedback", true, ["", "Bug", "Idea"], "", true, 2000,
+      "mailto:contact@notonawa.app?subject=" + encodeURIComponent(`NotoNawa feedback (version ${APP_VERSION})`), ["Submit", "Cancel"], []]);
+  check("it can't be sent without choosing bug or idea", await run(`
+    $("#feedback-message").value = "x"; $("#feedback-submit").click(); await wait(300);
+    return [$("#feedback-kind").validity.valueMissing, $("#feedback-status").textContent];`), [true, ""]);
+  check("sent, it says thank you; the message is saved with the app's version", await run(`
+    set("#feedback-kind", "bug"); $("#feedback-message").value = "Smoke test report"; $("#feedback-message").dispatchEvent(new Event("input"));
+    const count = $("#feedback-count").textContent;
+    $("#feedback-submit").click(); await wait(800);
+    const thanks = [$("dialog.feedback h2").textContent, $("#feedback-thanks").textContent];
+    $("#feedback-done").click(); await wait(300);
+    return [count, thanks, $("dialog") === null];`), ["17 / 2000", ["Thank you!", "We got your message."], true]);
+  check("…which scripts/feedback.mjs lists", script("feedback.mjs").includes(`bug  from ${await run(`return (await (await fetch("/api/keys")).json()).user_id;`)}  (version ${APP_VERSION})\n  Smoke test report`), true);
+  check("Cancel closes it", await run(`
+    await openMenu(); $(".menu-feedback").click(); await wait(300); $("#feedback-cancel").click(); await wait(300); return $("dialog") === null;`), true);
   check("What's new shows the release notes, newest first, in place of the menu", await run(`
-    $(".menu-whats-new").click(); await wait(400);
+    await openMenu(); $(".menu-whats-new").click(); await wait(400);
     const d = $("dialog.whats-new[open]");
     const shown = [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, [...d.querySelectorAll("h3")].map((h) => h.textContent),
       [...d.querySelectorAll(".release")[0].querySelectorAll("li")].length];
@@ -529,7 +582,7 @@ try {
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
     $(".dialog-cancel").click(); await wait(300);
     return [saved, tieRoles];`),
-    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION }],
+    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION, hide_welcome: true }],
       ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
   await go("/analytics");
   check("…the Analytics role filter and numbers", await run(`
@@ -538,7 +591,7 @@ try {
   check("blank names go back to top and bottom", await run(`
     ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await wait(1200);
     return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
-    [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION }, ["As top", "As bottom"]]);
+    [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true }, ["As top", "As bottom"]]);
   // Back to dark, the default, for the rest of the walkthrough.
   await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
@@ -677,27 +730,41 @@ try {
 
   console.log("Plans");
   await go("/plans");
-  check("add plans with a variation", await run(`
-    const types = [...$("#plan_type").options].map((o) => o.text);
-    set("#title", "Hip harness"); set("#plan_type", "harness"); $("#est_difficulty-picker .hank-button:nth-child(3)").click(); await submit();
-    set("#title", "Hip harness, one-sided"); set("#variation_of", optionValue($("#variation_of"), "Hip harness")); await submit();
-    return [types, $("#stage"), items().find((i) => i.startsWith("Hip harness |")), items().find((i) => i.startsWith("Hip harness, one-sided"))];`),
-    [["Idea", "Harness", "Sequence"], null, "Hip harness | Harness · difficulty 3/5 · v1 | Edit | Archive | Delete",
-      "Hip harness, one-sided | Idea · v1 · variation of Hip harness | Edit | Archive | Delete"]);
-  check("difficulty is rope hanks: the list shows them, editing fills them in, and Cancel clears them", await run(`
-    const filled = () => document.querySelectorAll("#est_difficulty-picker .hank-button.filled").length;
+  const addPlan = `$("#add-plan").click(); await wait(300);`;
+  check("Plans starts with a small \"Add a Plan\" card and its yellow +, then the search, then the list", await run(`
+    const cards = [...document.querySelectorAll("#view > section.card")];
+    const plus = $("#add-plan"), navPlus = $("nav .nav-add");
+    return [flat(cards[0]), getComputedStyle(plus).backgroundColor === getComputedStyle(navPlus).backgroundColor,
+      plus.getBoundingClientRect().right > cards[0].getBoundingClientRect().right - 40, cards[0].getBoundingClientRect().height < 80,
+      cards[1].getAttribute("aria-label"), $("#plan-dialog").open];`),
+    ["Add a Plan | +", true, true, true, "Search plans", false]);
+  check("+ opens the form in a dialog; add plans with a variation, each closing it", await run(`
+    ${addPlan}
+    const opened = [$("#plan-dialog").open, $("#plan-form-heading").textContent, $("#plan-linked").hidden, leakyFields()];
+    const types = [...$("#plan-plan_type").options].map((o) => o.text);
+    set("#plan-title", "Hip harness"); set("#plan-plan_type", "harness"); $("#plan-est_difficulty-picker .hank-button:nth-child(3)").click(); await submit();
+    const closed = $("#plan-dialog").open;
+    ${addPlan} set("#plan-title", "Hip harness, one-sided"); set("#plan-variation_of", optionValue($("#plan-variation_of"), "Hip harness")); await submit();
+    return [opened, types, closed, $("#stage"), items().find((i) => i.startsWith("Hip harness |")), items().find((i) => i.startsWith("Hip harness, one-sided"))];`),
+    [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
+      "Hip harness | Harness · difficulty 3/5 · v1 | 0 ties | Edit | Archive | Delete",
+      "Hip harness, one-sided | Idea · v1 · variation of Hip harness | 0 ties | Edit | Archive | Delete"]);
+  check("difficulty is rope hanks: the list shows them, Edit opens the dialog filled in, and Cancel closes it; + then starts empty", await run(`
+    const filled = () => document.querySelectorAll("#plan-est_difficulty-picker .hank-button.filled").length;
     const listed = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Hip harness")
       .querySelectorAll(".hank-rating .hank.filled").length;
-    await clickIn("Hip harness", "Edit"); const editing = [filled(), $("[name=est_difficulty]").value];
+    await clickIn("Hip harness", "Edit"); const editing = [$("#plan-dialog").open, $("#plan-form-heading").textContent, filled(), $("[name=est_difficulty]").value];
+    $("[data-cancel-edit]").click(); await wait(200); const closed = $("#plan-dialog").open;
+    ${addPlan} const fresh = [$("#plan-form-heading").textContent, filled(), $("[name=est_difficulty]").value, $("#plan-title").value];
     $("[data-cancel-edit]").click(); await wait(200);
-    return [$("label[for=plan_type]").textContent, listed, editing, filled(), $("[name=est_difficulty]").value];`),
-    ["Plan type", 3, [3, "3"], 0, ""]);
+    return [$("label[for=plan-plan_type]").textContent, listed, editing, closed, fresh];`),
+    ["Plan type", 3, [true, "Edit plan", 3, "3"], false, ["Add a plan", 0, "", ""]]);
   check("a plan has an optional tie type, tags and an album link, shown in the list", await run(`
-    const types = [...$("#tie_type").options].map((o) => o.text);
+    const types = [...$("#plan-tie_type").options].map((o) => o.text);
     await clickIn("Hip harness", "Edit");
-    set("#tie_type", "floor"); set("#album_url", "javascript:alert(1)");
-    const refused = $("#album_url").validity.patternMismatch;
-    set("#album_url", "https://photos.app.goo.gl/hip");
+    set("#plan-tie_type", "floor"); set("#plan-album_url", "javascript:alert(1)");
+    const refused = $("#plan-album_url").validity.patternMismatch;
+    set("#plan-album_url", "https://photos.app.goo.gl/hip");
     $("#plan-add-tags").click(); await wait(400);
     const box = $("#tags-search"); box.value = "plan-tag"; $("#tags-add").click(); $("#tags-ok").click(); await wait(200);
     const chips = tagChips("#plan-tags");
@@ -709,26 +776,28 @@ try {
       [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags];`),
     [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Harness · Floor · difficulty 3/5 · v1",
       ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"]]);
-  check("editing a plan fills in its tie type, tags and album; Cancel empties them", await run(`
+  check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
     await clickIn("Hip harness", "Edit");
-    const editing = [$("#tie_type").value, $("#album_url").value, tagChips("#plan-tags")];
+    const editing = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
     $("[data-cancel-edit]").click(); await wait(200);
-    return [editing, [$("#tie_type").value, $("#album_url").value, tagChips("#plan-tags")]];`),
+    ${addPlan} const fresh = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [editing, fresh];`),
     [["floor", "https://photos.app.goo.gl/hip", ["plan-tag"]], ["", "", []]]);
   // Back as it was, for the tag checks on ties later: no tags yet.
   await run(`
     await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await wait(400);
     $(".tag-search .tag-x").click(); $("#tags-ok").click(); await wait(200);
-    set("#tie_type", ""); set("#album_url", ""); await submit();
+    set("#plan-tie_type", ""); set("#plan-album_url", ""); await submit();
     const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "plan-tag");
     if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
   check("the photo note says what photos are for, and when a new plan's are uploaded", await run(`
-    const fresh = $("[data-photos] .hint").textContent;
+    ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     return [fresh, editing];`),
     ["Photos can be arranged and captioned to describe a sequence. They are uploaded when you save this form.",
       "Photos can be arranged and captioned to describe a sequence."]);
-  check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
+  check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#plan-variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
     ["N/A", "Hip harness, one-sided"]);
 
   console.log("Ties: logging");
@@ -1118,26 +1187,84 @@ try {
     return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 23 of 23 ties"]);
 
   await go("/plans");
-  await run(`set("#title", "Photo plan");`);
+  await run(`$("#add-plan").click(); await wait(300); set("#plan-title", "Photo plan");`);
   check("a new plan's photo waits for the plan to be saved", await pickPhoto("plan", 800, 600, "plan.jpg"), [true, 1, ""]);
-  check("…is uploaded when it's saved, and counted in the list", await run(`
+  check("…is uploaded when it's saved, closing the form, and counted in the list", await run(`
     await submit(); await wait(2000);
-    return [$("#form > .message").textContent, items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
-    ["Saved.", true]);
+    return [$("#plan-dialog").open, items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
+    [false, true]);
   check("editing the plan shows its photo", await run(`
     await clickIn("Photo plan", "Edit"); await wait(1500);
     const shown = document.querySelectorAll("#plan-photos .photo-tile img").length;
     const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Photo plan");
     const [photo] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
     const res = await fetch("/api/plans/" + plan.id + "?linked_ties=keep", { method: "DELETE" });
+    $("[data-cancel-edit]").click(); await wait(200);
     return [shown, photo.mime, res.status, (await fetch("/api/media/" + photo.id + "/thumb")).status];`),
     [1, "image/webp", 204, 404]);
+
+  console.log("Plans: linked ties and search");
+  await go("/plans");
+  // A plan of its own, on two ties (taken off again at the end, so the
+  // counts later on are as they were).
+  const linkedPlan = await run(`
+    const plan = await post("/api/plans", { title: "Linked plan", plan_type: "sequence", tie_type: "suspension", tags: ["search-tag"] });
+    const ties = [await post("/api/ties", { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] }),
+      await post("/api/ties", { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] })];
+    return { plan, ties };`);
+  await go("/plans");
+  check("a plan's card counts its ties and shows their average rating in hanks", await run(`
+    const line = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === "Linked plan").querySelector(".plan-ties");
+    return [line.firstChild.textContent, line.querySelectorAll(".hank.filled").length, line.querySelector(".visually-hidden").textContent,
+      line.querySelector(".plan-ties-average").textContent];`), ["2 ties", 4, "Average rating 3.5/5", " 3.5"]);
+  check("its form lists the linked ties, newest first, each with its rating at the end of the row", await run(`
+    await clickIn("Linked plan", "Edit");
+    const rows = [...document.querySelectorAll("#plan-linked-ties li")];
+    const row = rows[0].getBoundingClientRect(), hanks = rows[0].querySelector(".hank-rating").getBoundingClientRect();
+    return [$("#plan-linked").hidden, rows.map((li) => [li.querySelector("button").textContent, li.querySelectorAll(".hank.filled").length]),
+      Math.abs(row.right - hanks.right) < 2, row.top < hanks.bottom && hanks.top < row.bottom];`),
+    [false, [["Linked again", 3], ["Linked try", 4]], true, true]);
+  check("tapping one opens the tie over the plan; saving it updates both", await run(`
+    $("#plan-linked-ties button").click(); await wait(1500);
+    const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, $("#plan-dialog").open];
+    document.querySelectorAll("#tie-form .hank-button")[4].click(); $("#tie-save").click(); await wait(1500);
+    const rows = [...document.querySelectorAll("#plan-linked-ties li")].map((li) => li.querySelectorAll(".hank.filled").length);
+    $("[data-cancel-edit]").click(); await wait(300);
+    const line = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === "Linked plan").querySelector(".plan-ties");
+    return [opened, rows, $("#plan-dialog").open, line.querySelector(".plan-ties-average").textContent];`),
+    [["Edit tie", "Linked again", true], [5, 4], false, " 4.5"]);
+  const planTitles = `await wait(100); return titles();`;
+  check("the search: a keyword in the title", await run(`await type("#search-q", "ONE-SIDED"); ${planTitles}`), ["Hip harness, one-sided"]);
+  check("…Clear search shows them all again, and hides itself", await run(`
+    $("#search-clear").click(); await wait(200); return [titles().length, $("#search-q").value, $("#search-clear").hidden];`), [3, "", true]);
+  check("…any of the plan types chosen", await run(`
+    await pick("#search-plan-types", "Harness"); const one = titles(); await pick("#search-plan-types", "Sequence");
+    return [filterOptions("#search-plan-types"), one, titles()];`),
+    [["Harness", "Idea", "Sequence"], ["Hip harness"], ["Linked plan", "Hip harness"]]);
+  check("…tie types", await run(`
+    $("#search-clear").click(); await wait(200); await pick("#search-tie-types", "Suspension");
+    return [filterOptions("#search-tie-types"), titles()];`),
+    [["Floor", "Hashira", "Partial suspension", "Suspension"], ["Linked plan"]]);
+  check("…and tags: the picker lists only tags on plans", await run(`
+    $("#search-clear").click(); await wait(200);
+    $("#search-tags-choose").click(); await wait(600);
+    const offered = tagBubbles();
+    [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === "search-tag").click(); $("#tags-ok").click(); await wait(300);
+    return [offered, tagChips("#search-tag-filter"), titles(), $("#search-tags-any").getAttribute("aria-pressed")];`),
+    [["search-tag"], ["search-tag"], ["Linked plan"], "true"]);
+  check("…nothing found says so", await run(`
+    await type("#search-q", "zzz"); return [titles(), $("#list .empty")?.textContent];`), [[], "No matches."]);
+  await run(`
+    for (const id of ${JSON.stringify(linkedPlan.ties)}) await fetch("/api/ties/" + id, { method: "DELETE" });
+    await fetch("/api/plans/${linkedPlan.plan}?linked_ties=remove", { method: "DELETE" });
+    const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "search-tag");
+    if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
 
   console.log("Deleting");
   await go("/plans");
   check("plan delete dialog has the three options", await run(`await clickIn("Hip harness", "Delete"); return dialogButtons();`),
     ["Remove from linked ties too", "Just delete the plan", "Cancel"]);
-  check("cancel keeps the plan", await run(`await clickDialog("Cancel"); return [!!document.querySelector("dialog"), titles().length];`), [false, 2]);
+  check("cancel keeps the plan", await run(`await clickDialog("Cancel"); return [!!document.querySelector("dialog[open]"), titles().length];`), [false, 2]);
   check("'Just delete the plan'", await run(`await clickIn("Hip harness", "Delete"); await clickDialog("Just delete the plan"); return titles();`), ["Hip harness, one-sided"]);
   await go("/locations");
   check("location delete offers archiving instead", await run(`await clickIn("Studio", "Delete"); const b = dialogButtons(); await clickDialog("Delete permanently"); return [b, titles()];`),

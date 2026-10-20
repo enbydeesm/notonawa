@@ -22,9 +22,11 @@ export const PLAN_TYPES = ["idea", "harness", "sequence"];
  *   orderBy: string,
  *   archiveOnCreate?: boolean,
  *   tagged?: boolean,
+ *   jsonColumns?: string[],
  * }} Resource
  *   tagged: has tags (sent and listed as names; saved through routes.js,
  *   as they're links, not a column)
+ *   jsonColumns: columns listed as JSON text, which listRows parses
  * @typedef {"plans" | "people" | "locations"} ResourceName
  */
 
@@ -45,16 +47,23 @@ export const RESOURCES = {
       tie_type: { parse: (v) => toChoiceOrNull(v, TIE_TYPES) },
       album_url: { parse: encryptedText },
     },
-    // tags: a JSON list of names, A–Z (listRows reads it).
+    // tags: a JSON list of names, A–Z. linked_ties: a JSON list of the ties
+    // it's on, newest first, with what the Plans page shows of them (titles
+    // and ratings aren't encrypted). listRows reads both.
     columns: `id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, variation_of, version,
               archived_at, created_at, updated_at,
               (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count,
               (SELECT json_group_array(name) FROM (SELECT t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
-                WHERE pt.plan_id = plans.id ORDER BY t.name COLLATE NOCASE)) AS tags`,
+                WHERE pt.plan_id = plans.id ORDER BY t.name COLLATE NOCASE)) AS tags,
+              (SELECT json_group_array(json_object('id', id, 'title', title, 'tie_date', tie_date, 'success_rating', success_rating))
+                 FROM (SELECT t.id, t.title, t.tie_date, t.success_rating FROM tie_plans tp JOIN ties t ON t.id = tp.tie_id
+                        WHERE tp.plan_id = plans.id AND t.owner_id = plans.owner_id
+                        ORDER BY t.tie_date DESC, t.created_at DESC)) AS linked_ties`,
     orderBy: "updated_at DESC",
     // "Add & archive" in the tie form's plan picker.
     archiveOnCreate: true,
     tagged: true,
+    jsonColumns: ["tags", "linked_ties"],
   },
   people: {
     fields: {

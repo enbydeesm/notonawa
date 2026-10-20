@@ -15,7 +15,7 @@ export async function readAccount(db, userId) {
   const q = (/** @type {string} */ sql) => db.prepare(sql).bind(userId);
   const results = await db.batch([
     q(`SELECT created_at, accepted_at, terms_version, recovery_email_hash IS NOT NULL AS recovery_email_set,
-              top_label, bottom_label, theme, seen_release
+              top_label, bottom_label, theme, seen_release, hide_welcome
          FROM users WHERE id = ?`),
     q("SELECT name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at"),
     q(`SELECT id, name, pronouns, notes, is_self, default_role, archived_at, created_at, updated_at
@@ -49,11 +49,13 @@ export async function readAccount(db, userId) {
     q(`SELECT n.message, n.created_at, n.user_id IS NOT NULL AS just_for_me, d.dismissed_at
          FROM notices n LEFT JOIN notice_dismissals d ON d.notice_id = n.id AND d.user_id = ?1
         WHERE n.user_id = ?1 OR d.user_id = ?1 ORDER BY n.created_at, n.id`),
+    // Bug reports and ideas I've sent.
+    q("SELECT kind, message, app_version, created_at FROM feedback WHERE user_id = ? ORDER BY created_at, id"),
   ]);
-  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media, notices] =
+  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media, notices, feedback] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
-    ties, participants, tiePlans, tieTags, media, notices,
+    ties, participants, tiePlans, tieTags, media, notices, feedback,
   };
 }

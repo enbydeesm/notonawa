@@ -29,6 +29,7 @@ export const EXPORT_VERSION = 1;
  *   tieTags: Row[],
  *   media: Row[],
  *   notices: Row[],
+ *   feedback: Row[],
  * }} AccountRows
  */
 
@@ -56,18 +57,23 @@ export function exportDocument(rows, exportedAt) {
       // Only whether one is set: we never have the address, and the hash
       // is of no use to the user.
       recovery_email_set: !!rows.user.recovery_email_set,
-      // Role names, light/dark mode and the last release notes seen. An
+      // Role names, light/dark mode, the last release notes seen and
+      // whether the welcome is still shown. An
       // import into a journal still on the default role names takes the
       // file's (public/js/views/data.js); the rest isn't imported.
       settings: {
         top_label: rows.user.top_label ?? null, bottom_label: rows.user.bottom_label ?? null, theme: rows.user.theme ?? null,
-        seen_release: rows.user.seen_release ?? null,
+        seen_release: rows.user.seen_release ?? null, hide_welcome: !!rows.user.hide_welcome,
       },
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
       // Messages from us just for me, and ones for everyone I dismissed
       // (not imported: they're ours, not part of the journal).
       notices: rows.notices.map((n) => ({
         message: n.message, created_at: n.created_at, just_for_me: !!n.just_for_me, dismissed_at: n.dismissed_at,
+      })),
+      // Bug reports and ideas I sent (not imported either: they were for us).
+      feedback: rows.feedback.map((f) => ({
+        kind: f.kind, message: f.message, app_version: f.app_version, created_at: f.created_at,
       })),
     },
     people: rows.people.map((p) => ({

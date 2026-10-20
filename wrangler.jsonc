@@ -70,6 +70,15 @@
 			"remote": true
 		}
 	],
+	// Emails us when a bug report or idea is sent from the app
+	// (src/feedback/notify.js). Only to this address, which is verified in
+	// Email Routing for notonawa.app.
+	"send_email": [
+		{
+			"name": "FEEDBACK_EMAIL",
+			"destination_address": "contact@notonawa.app"
+		}
+	],
 	"d1_databases": [
 		{
 			"binding": "DB",

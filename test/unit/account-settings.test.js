@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSettings, MAX_ROLE_NAME } from "../../src/account/settings.js";
 
-const DEFAULTS = { top_label: null, bottom_label: null, theme: null, seen_release: null };
+const DEFAULTS = { top_label: null, bottom_label: null, theme: null, seen_release: null, hide_welcome: false };
 
 describe("parseSettings", () => {
   it("changes only what's sent", () => {
@@ -38,6 +38,14 @@ describe("parseSettings", () => {
     expect(parseSettings({ seen_release: "2026.10.19.001" }, DEFAULTS)).toEqual({ seen_release: "2026.10.19.001" });
     for (const bad of ["2026.10.19.01", "2026-10-19.001", "latest", 2026, null]) {
       expect(() => parseSettings({ seen_release: bad }, DEFAULTS)).toThrow("isn't a version");
+    }
+  });
+
+  it("takes whether to hide the welcome, only as true or false", () => {
+    expect(parseSettings({ hide_welcome: true }, DEFAULTS)).toEqual({ hide_welcome: true });
+    expect(parseSettings({ hide_welcome: false }, DEFAULTS)).toEqual({ hide_welcome: false });
+    for (const bad of [1, "true", null]) {
+      expect(() => parseSettings({ hide_welcome: bad }, DEFAULTS)).toThrow("show the welcome");
     }
   });
 });

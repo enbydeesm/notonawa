@@ -1,7 +1,8 @@
 // The account's settings on the page: role names (roles.js) and light/dark
 // mode (theme.js), read once the journal is unlocked and saved from the
-// Settings dialog (settings-dialog.js), and the last release notes seen
-// (whats-new.js). See src/account/settings.js.
+// Settings dialog (settings-dialog.js), the last release notes seen
+// (whats-new.js) and whether to show the welcome (welcome.js). See
+// src/account/settings.js.
 
 import { api } from "./api.js";
 import { setRoleNames, namesToAdopt } from "./roles.js";
@@ -11,6 +12,7 @@ import { onWipe } from "./vault.js";
 /**
  * @typedef {{
  *   top_label: string | null, bottom_label: string | null, theme: string | null, seen_release: string | null,
+ *   hide_welcome: boolean,
  * }} Settings
  */
 
@@ -79,6 +81,14 @@ export async function adoptRoleNames(fromFile) {
 export async function saveSeenRelease(version) {
   const settings = await api("/api/account/settings", { method: "PUT", body: { seen_release: version } });
   if (loaded) loaded = { ...loaded, seen_release: settings.seen_release };
+}
+
+/**
+ * Remembers on my account that the welcome shouldn't be shown again.
+ */
+export async function saveHideWelcome() {
+  const settings = await api("/api/account/settings", { method: "PUT", body: { hide_welcome: true } });
+  if (loaded) loaded = { ...loaded, hide_welcome: settings.hide_welcome };
 }
 
 /** @returns {import("./theme.js").Theme} the mode on screen */

@@ -29,8 +29,12 @@ export async function listRows(db, name, ownerId, archived) {
   )
     .bind(ownerId)
     .all();
-  if (!RESOURCES[name].tagged) return results;
-  return results.map((row) => ({ ...row, tags: JSON.parse(/** @type {string} */ (row.tags)) }));
+  const jsonColumns = RESOURCES[name].jsonColumns ?? [];
+  if (!jsonColumns.length) return results;
+  return results.map((row) => ({
+    ...row,
+    ...Object.fromEntries(jsonColumns.map((c) => [c, JSON.parse(/** @type {string} */ (row[c]))])),
+  }));
 }
 
 /**

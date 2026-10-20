@@ -124,20 +124,21 @@ export async function deleteAccount(db, userId) {
 }
 
 /**
- * My settings: role names, light/dark mode and the last release notes seen
- * (see settings.js).
+ * My settings: role names, light/dark mode, the last release notes seen and
+ * whether to show the welcome (see settings.js).
  * @param {D1Database} db
  * @param {string} userId
  * @returns {Promise<import("./settings.js").Settings>}
  */
 export async function getSettings(db, userId) {
-  const row = await db.prepare("SELECT top_label, bottom_label, theme, seen_release FROM users WHERE id = ?")
+  const row = await db.prepare("SELECT top_label, bottom_label, theme, seen_release, hide_welcome FROM users WHERE id = ?")
     .bind(userId).first();
   return {
     top_label: /** @type {string | null} */ (row?.top_label ?? null),
     bottom_label: /** @type {string | null} */ (row?.bottom_label ?? null),
     theme: /** @type {string | null} */ (row?.theme ?? null),
     seen_release: /** @type {string | null} */ (row?.seen_release ?? null),
+    hide_welcome: row?.hide_welcome === 1,
   };
 }
 
@@ -149,7 +150,9 @@ export async function getSettings(db, userId) {
  * @param {import("./settings.js").SettingsChange} change
  */
 export async function updateSettings(db, userId, change) {
-  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme", "seen_release"]).filter((c) => c in change);
+  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme", "seen_release", "hide_welcome"]).filter((c) => c in change);
+  // hide_welcome is stored as 1 or 0.
+  const value = (/** @type {typeof columns[number]} */ c) => (typeof change[c] === "boolean" ? Number(change[c]) : change[c] ?? null);
   await db.prepare(`UPDATE users SET ${columns.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
-    .bind(...columns.map((c) => change[c] ?? null), userId).run();
+    .bind(...columns.map(value), userId).run();
 }

@@ -87,17 +87,58 @@
   <template id="view-plans">
     <h1 class="visually-hidden">Plans</h1>
 
+    <!-- Opens the form below in its dialog (views/plans.js). -->
+    <section class="card add-card">
+      <h2 id="add-plan-label">Add a Plan</h2>
+      <button type="button" class="nav-add" id="add-plan" aria-labelledby="add-plan-label" title="Add a plan">+</button>
+    </section>
+
+    <!-- Like the Ties search, but over the plans already loaded: nothing
+         typed leaves the device (public/js/plans-view.js). -->
+    <section class="card" role="search" aria-label="Search plans">
+      <label for="search-q">Search</label>
+      <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
+
+      <label id="search-plan-types-label">Plan type</label>
+      <div id="search-plan-types"></div>
+
+      <label id="search-tie-types-label">Tie type</label>
+      <div id="search-tie-types"></div>
+
+      <div class="label-row">
+        <label id="search-tags-label">Has Tags</label>
+        <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+        <div class="match-toggle" role="group" aria-label="Match tags">
+          <button type="button" id="search-tags-any" aria-pressed="true" title="Plans with any of the tags">OR</button>
+          <button type="button" id="search-tags-all" aria-pressed="false" title="Plans with all of the tags">AND</button>
+        </div>
+      </div>
+      <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+
+      <button type="button" class="link" id="search-clear" hidden>Clear search</button>
+    </section>
+
     <section class="card">
-      <h2>Add a plan</h2>
+      <div class="card-header">
+        <h2>Your plans</h2>
+        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      </div>
+      <div id="list"><p class="empty">Loading…</p></div>
+    </section>
+
+    <!-- Adding and editing a plan. Ids start with "plan-": the tie form
+         opens over it (from a linked tie). -->
+    <dialog class="form-dialog" id="plan-dialog" aria-labelledby="plan-form-heading">
+      <h2 id="plan-form-heading">Add a plan</h2>
       <form id="form">
-        <label for="title">Title</label>
-        <input id="title" name="title" required placeholder="e.g. Hip harness to futomomo" autocomplete="off" spellcheck="false">
+        <label for="plan-title">Title</label>
+        <input id="plan-title" name="title" required placeholder="e.g. Hip harness to futomomo" autocomplete="off" spellcheck="false">
 
         <div class="row">
           <div>
             <!-- Type replaced Stage on the form (stage stays in the database). -->
-            <label for="plan_type">Plan type</label>
-            <select id="plan_type" name="plan_type">
+            <label for="plan-plan_type">Plan type</label>
+            <select id="plan-plan_type" name="plan_type">
               <option value="idea">Idea</option>
               <option value="harness">Harness</option>
               <option value="sequence">Sequence</option>
@@ -105,8 +146,8 @@
           </div>
           <div>
             <!-- Optional, unlike a tie's; views/plans.js adds the types. -->
-            <label for="tie_type">Tie type</label>
-            <select id="tie_type" name="tie_type">
+            <label for="plan-tie_type">Tie type</label>
+            <select id="plan-tie_type" name="tie_type">
               <option value="">–</option>
             </select>
           </div>
@@ -115,26 +156,26 @@
         <div class="row">
           <div>
             <!-- Rope hanks, like a tie's rating (views/plans.js draws them). -->
-            <label id="est_difficulty-label">Difficulty</label>
-            <div id="est_difficulty-picker"></div>
+            <label id="plan-est_difficulty-label">Difficulty</label>
+            <div id="plan-est_difficulty-picker"></div>
           </div>
           <div>
-            <label for="variation_of">Variation of</label>
-            <select id="variation_of" name="variation_of">
+            <label for="plan-variation_of">Variation of</label>
+            <select id="plan-variation_of" name="variation_of">
               <option value="">N/A</option>
             </select>
           </div>
         </div>
 
-        <label for="description">Description</label>
-        <textarea id="description" name="description" placeholder="The sequence, step by step" autocomplete="off" spellcheck="false"></textarea>
+        <label for="plan-description">Description</label>
+        <textarea id="plan-description" name="description" placeholder="The sequence, step by step" autocomplete="off" spellcheck="false"></textarea>
 
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+        <label for="plan-notes">Notes</label>
+        <textarea id="plan-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <!-- Encrypted like the notes; views/plans.js sets its pattern and checks it. -->
-        <label for="album_url">Album link</label>
-        <input id="album_url" name="album_url" type="url" inputmode="url" placeholder="https://photos.app.goo.gl/…"
+        <label for="plan-album_url">Album link</label>
+        <input id="plan-album_url" name="album_url" type="url" inputmode="url" placeholder="https://photos.app.goo.gl/…"
           title="A web address, starting with https://" autocomplete="off" spellcheck="false">
 
         <div data-photos></div>
@@ -145,19 +186,17 @@
         </div>
         <div class="tag-row" id="plan-tags"></div>
 
+        <!-- A saved plan's ties: tap one to open it (views/plans.js). -->
+        <div id="plan-linked" hidden>
+          <label id="plan-linked-label">Linked ties</label>
+          <ul class="linked-ties" id="plan-linked-ties" aria-labelledby="plan-linked-label"></ul>
+        </div>
+
         <button type="submit" class="primary">Add plan</button>
-        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
+        <button type="button" class="dialog-cancel" data-cancel-edit>Cancel</button>
         <p class="message"></p>
       </form>
-    </section>
-
-    <section class="card">
-      <div class="card-header">
-        <h2>Your plans</h2>
-        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
-      </div>
-      <div id="list"><p class="empty">Loading…</p></div>
-    </section>
+    </dialog>
   </template>
 
   <!-- People (/people) -->

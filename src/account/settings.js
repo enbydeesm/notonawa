@@ -1,7 +1,8 @@
 // Account settings, the same on every device: the words shown for the top
 // and bottom roles, and light or dark mode (migration 0013), and the last
-// release whose notes I've seen (migration 0014). Pure, so it's easy to
-// test. The page's side is public/js/roles.js, theme.js and whats-new.js.
+// release whose notes I've seen (migration 0014), and whether to stop
+// showing the welcome (migration 0015). Pure, so it's easy to test. The
+// page's side is public/js/roles.js, theme.js, whats-new.js and welcome.js.
 //
 // A role name is stored only when it differs from the role itself, so an
 // account that never chose one keeps following the defaults. Role names
@@ -21,6 +22,7 @@ const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 /**
  * @typedef {{
  *   top_label: string | null, bottom_label: string | null, theme: string | null, seen_release: string | null,
+ *   hide_welcome: boolean,
  * }} Settings
  * @typedef {Partial<Settings>} SettingsChange only the settings sent
  */
@@ -28,7 +30,8 @@ const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 /**
  * The body of PUT /api/account/settings: any of top_label and bottom_label
  * (a word, or empty for the default), theme ("light" or "dark") and
- * seen_release (a version, e.g. 2026.10.19.001).
+ * seen_release (a version, e.g. 2026.10.19.001) and hide_welcome (true or
+ * false).
  * Checked against `current` so the two role names never end up the same.
  * @param {Record<string, unknown>} body
  * @param {Settings} current
@@ -48,6 +51,10 @@ export function parseSettings(body, current) {
       throw new BadInput("That isn't a version of the app.");
     }
     change.seen_release = body.seen_release;
+  }
+  if (body.hide_welcome !== undefined) {
+    if (typeof body.hide_welcome !== "boolean") throw new BadInput("Say whether to show the welcome again.");
+    change.hide_welcome = body.hide_welcome;
   }
   if (!Object.keys(change).length) throw new BadInput("Nothing to change.");
 
