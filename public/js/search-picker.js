@@ -7,7 +7,7 @@
 
 import { api, errorMessage } from "./api.js";
 import { h, privateField } from "./dom.js";
-import { searchChoices, addOffer } from "./search-choices.js";
+import { searchChoices, addOffer, choiceLabel } from "./search-choices.js";
 
 /**
  * @typedef {import("./search-choices.js").PickerItem} PickerItem
@@ -76,7 +76,7 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
       el: h("li", {
         id: `${listId}-${i}`, role: "option", className: "combo-option", "aria-selected": "false",
         onmousedown: keepFocus, onclick: pickItem(item),
-      }, item.label ?? item.name),
+      }, choiceLabel(item, query)),
       pick: pickItem(item),
     }));
     const rows = items.map((item) => item.el);

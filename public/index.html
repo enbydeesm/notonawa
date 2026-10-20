@@ -203,39 +203,14 @@
   <template id="view-people">
     <h1 class="visually-hidden">People</h1>
 
-    <section class="card">
-      <h2>Add a person</h2>
-      <form id="form">
-        <!-- "This is me" shows only when editing my own profile, ticked and
-             greyed out: it can't be changed (people.js). -->
-        <div class="name-row">
-          <label for="name">Name</label>
-          <label class="self-flag" id="self-flag" hidden><input type="checkbox" name="is_self" disabled> This is me</label>
-        </div>
-        <input id="name" name="name" required autocomplete="off" spellcheck="false">
-
-        <div class="row">
-          <div>
-            <label for="pronouns">Pronouns</label>
-            <input id="pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
-          </div>
-          <div>
-            <label for="default_role">Default role</label>
-            <!-- The roles are added by people.js, from the same list as the tie form's. -->
-            <select id="default_role" name="default_role">
-              <option value="">None</option>
-            </select>
-          </div>
-        </div>
-
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
-
-        <button type="submit" class="primary">Add person</button>
-        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
-        <p class="message"></p>
-      </form>
+    <!-- Opens the form below in its dialog, as tapping a name does (views/people.js). -->
+    <section class="card add-card">
+      <h2 id="add-person-label">Add a Person</h2>
+      <button type="button" class="nav-add" id="add-person" aria-labelledby="add-person-label" title="Add a person">+</button>
     </section>
+
+    <!-- The search box and sort buttons (resource-page.js puts them here). -->
+    <section class="card" role="search" aria-label="Search people" id="people-search"></section>
 
     <section class="card">
       <div class="card-header">
@@ -244,6 +219,58 @@
       </div>
       <div id="list"><p class="empty">Loading…</p></div>
     </section>
+
+    <dialog class="form-dialog" id="person-dialog" aria-labelledby="person-form-heading">
+      <h2 id="person-form-heading">Add a person</h2>
+      <form id="form">
+        <!-- "This is me" shows only when editing my own profile, ticked and
+             greyed out: it can't be changed (people.js). -->
+        <div class="name-row">
+          <label for="person-name">Name</label>
+          <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" disabled> This is me</label>
+        </div>
+        <input id="person-name" name="name" required autocomplete="off" spellcheck="false">
+
+        <div class="row">
+          <div>
+            <label for="person-pronouns">Pronouns</label>
+            <input id="person-pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="person-default_role">Default role</label>
+            <!-- The roles are added by people.js, from the same list as the tie form's. -->
+            <select id="person-default_role" name="default_role">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Encrypted, like the notes and the names below. -->
+        <label for="person-based_in">Based in</label>
+        <input id="person-based_in" name="based_in" placeholder="e.g. Seattle, WA" autocomplete="off" spellcheck="false">
+
+        <label class="inline educator-flag"><input type="checkbox" name="is_educator"> Educator</label>
+
+        <!-- Rows of platform and name, added with + (people.js). -->
+        <div class="label-row">
+          <label id="person-aliases-label">Social &amp; Scene Names</label>
+          <button type="button" class="label-add" id="person-add-alias" aria-label="Add a social or scene name" title="Add a social or scene name">+</button>
+        </div>
+        <div id="person-aliases" role="group" aria-labelledby="person-aliases-label"></div>
+
+        <label for="person-notes">Notes</label>
+        <textarea id="person-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+
+        <button type="submit" class="primary">Add person</button>
+        <!-- Archive (or Restore) and Delete go in data-item-actions while
+             editing (resource-page.js, actionsInDialog). -->
+        <div class="dialog-actions">
+          <button type="button" data-cancel-edit>Close</button>
+          <span class="dialog-item-actions" data-item-actions></span>
+        </div>
+        <p class="message"></p>
+      </form>
+    </dialog>
   </template>
 
   <!-- Locations (/locations) -->

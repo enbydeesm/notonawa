@@ -51,4 +51,11 @@ describe("orderList", () => {
     orderList(people, "", { sort: "name", descending: false });
     expect(people).toEqual(copy);
   });
+
+  it("finds people by their aliases too", () => {
+    const withAliases = [...people, { id: "e", name: "J", created_at: "2026-01-04T00:00:00Z", aliases: '[{"platform":"fetlife","alias":"RawKitty"}]' }];
+    expect(names(orderList(withAliases, "kitty", DEFAULT_ORDER))).toEqual(["J"]);
+    expect(names(orderList(withAliases, "zz", DEFAULT_ORDER))).toEqual([]);
+  });
 });
+

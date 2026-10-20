@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { searchChoices, addOffer, pickerSource, RECENT_COUNT } from "../../public/js/search-choices.js";
+import { searchChoices, addOffer, pickerSource, choiceLabel, RECENT_COUNT } from "../../public/js/search-choices.js";
 
 /**
  * @param {string} id
@@ -104,5 +104,37 @@ describe("pickerSource", () => {
       { id: "l1", name: "Studio", created_at: "t1", isDefault: true },
       { id: "l2", name: "Park", created_at: "t2" },
     ]);
+  });
+
+  it("reads people's opened aliases", () => {
+    const rows = [
+      { id: "p1", name: "J", aliases: '[{"platform":"scene","alias":"therawkitty"}]', archived_at: null, created_at: "t1" },
+      { id: "p2", name: "Sam", aliases: null, archived_at: null, created_at: "t2" },
+    ];
+    expect(pickerSource(rows, []).active).toEqual([
+      { id: "p1", name: "J", created_at: "t1", aliases: [{ platform: "scene", alias: "therawkitty" }] },
+      { id: "p2", name: "Sam", created_at: "t2" },
+    ]);
+  });
+});
+
+describe("people's aliases in the picker", () => {
+  const j = { id: "j", name: "J", created_at: "t1", aliases: [/** @type {const} */ ({ platform: "scene", alias: "therawkitty" }), /** @type {const} */ ({ platform: "fetlife", alias: "knotty" })] };
+  const sam = { id: "s", name: "Sam", created_at: "t2" };
+  const me = { id: "m", name: "Me", label: "Me (you)", isSelf: true, created_at: "t0", aliases: [/** @type {const} */ ({ platform: "scene", alias: "dee" })] };
+
+  it("finds a person by an alias as well as by name", () => {
+    expect(ids(searchChoices([j, sam, me], [], "KNOT"))).toEqual(["j"]);
+    expect(ids(searchChoices([j, sam, me], [], "dee"))).toEqual(["m"]);
+    expect(ids(searchChoices([j, sam, me], [], "sa"))).toEqual(["s"]);
+  });
+
+  it("shows the alias that matched, or the scene name, or just the name; mine with (you)", () => {
+    expect(choiceLabel(j, "knot")).toBe("J (knotty)");
+    expect(choiceLabel(j, "j")).toBe("J (therawkitty)");
+    expect(choiceLabel(j, "")).toBe("J (therawkitty)");
+    expect(choiceLabel(sam, "sa")).toBe("Sam");
+    expect(choiceLabel(me, "")).toBe("Me (dee) (you)");
+    expect(choiceLabel({ id: "x", name: "Studio", created_at: "t" }, "")).toBe("Studio");
   });
 });

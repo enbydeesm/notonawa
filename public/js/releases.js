@@ -1,10 +1,19 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.20.001";
+export const APP_VERSION = "2026.10.20.002";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.20.002",
+    "notes": [
+      "People: tap + on \"Add a Person\" to add someone in a pop-up form. Tap a name to see their details; Archive and Delete are there too.",
+      "People can have \"Based in\", social and scene names (FetLife, Instagram and more), and an \"Educator\" tick. Like notes, these are encrypted so only you can read them.",
+      "People's cards show their pronouns, usual role, where they're based and their other names, with a cap for educators.",
+      "Searching for people, on People, the tie form and the Ties search, finds their social and scene names too."
+    ]
+  },
   {
     "version": "2026.10.20.001",
     "notes": [

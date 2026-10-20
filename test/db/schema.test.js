@@ -102,6 +102,13 @@ describe("constraints", () => {
     await sql("UPDATE ties SET title = 'y' WHERE id = ?", tie).run();
   });
 
+  it("keep a person's educator flag to 0 or 1, starting at 0 (migration 0016)", async () => {
+    const person = newId("p");
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Kit')", person, me).run();
+    expect(await sql("SELECT is_educator FROM people WHERE id = ?", person).first()).toEqual({ is_educator: 0 });
+    await expect(sql("UPDATE people SET is_educator = 2 WHERE id = ?", person).run()).rejects.toThrow("CHECK constraint failed");
+  });
+
   it("only allow a known tie type on a plan, or none", async () => {
     const plan = newId("plan");
     await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, me).run();

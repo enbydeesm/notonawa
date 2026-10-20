@@ -30,6 +30,10 @@ describe("parseFields", () => {
     expect(() => parseFields(RESOURCES.plans, { title: "x", album_url: "https://photos.app.goo.gl/x" })).toThrow("weren't encrypted");
     expect(() => parseFields(RESOURCES.plans, { title: "x", plan_type: "stage" })).toThrow("Expected one of");
     expect(parseFields(RESOURCES.locations, { name: "x", is_default: true }).values.at(-1)).toBe(1);
+    // A person's city and other names are sealed in the browser, like notes.
+    expect(() => parseFields(RESOURCES.people, { name: "x", based_in: "Seattle, WA" })).toThrow("weren't encrypted");
+    expect(() => parseFields(RESOURCES.people, { name: "x", aliases: '[{"platform":"scene","alias":"k"}]' })).toThrow("weren't encrypted");
+    expect(parseFields(RESOURCES.people, { name: "x", is_educator: true }).values).toContain(1);
     // A plan's stage is no longer on the form, so edits leave it alone.
     expect(parseFields(RESOURCES.plans, { title: "x" }, { editing: true }).columns).not.toContain("stage");
   });
@@ -37,13 +41,13 @@ describe("parseFields", () => {
   it("leaves out create-only fields when editing: an edit can't change who is me", () => {
     expect(parseFields(RESOURCES.people, { name: "Sam", is_self: true }).columns).toContain("is_self");
     const edit = parseFields(RESOURCES.people, { name: "Sam", is_self: true }, { editing: true });
-    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role"]);
-    expect(edit.values).toEqual(["Sam", null, null, null]);
+    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role", "is_educator", "based_in", "aliases"]);
+    expect(edit.values).toEqual(["Sam", null, null, null, 0, null, null]);
   });
 
   it("ignores fields that aren't part of the resource", () => {
     const { columns } = parseFields(RESOURCES.people, { name: "Sam", owner_id: "someone-else", archived_at: "x" });
-    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role"]);
+    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role", "is_educator", "based_in", "aliases"]);
   });
 });
 

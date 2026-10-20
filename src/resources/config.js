@@ -75,8 +75,14 @@ export const RESOURCES = {
       is_self: { parse: toFlag, createOnly: true },
       // Filled in when they're added to a tie; still changeable there.
       default_role: { parse: toRoleOrNull },
+      // Who shows up in a workshop's educators list (migration 0016).
+      is_educator: { parse: toFlag },
+      // Encrypted in the browser: aliases is a sealed JSON list of
+      // { platform, alias } (public/js/aliases.js).
+      based_in: { parse: encryptedText },
+      aliases: { parse: encryptedText },
     },
-    columns: "id, name, pronouns, notes, is_self, default_role, archived_at, created_at, updated_at",
+    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",
     // "Add & archive" in the tie form's people picker: someone tied with once.
     archiveOnCreate: true,

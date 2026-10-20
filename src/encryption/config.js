@@ -6,7 +6,7 @@
 export const ENCRYPTED_COLUMNS = {
   ties: ["notes", "album_url"],
   tie_participants: ["notes"],
-  people: ["notes"],
+  people: ["notes", "based_in", "aliases"],
   profile_notes: ["description"],
   locations: ["notes"],
   plans: ["description", "notes", "album_url"],

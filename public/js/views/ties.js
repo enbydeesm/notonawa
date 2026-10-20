@@ -6,6 +6,7 @@ import { api, errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
+import { readAliases } from "../aliases.js";
 import { pickTags } from "../tag-picker.js";
 import { findTag } from "../tags.js";
 import { showingText } from "../ties-view.js";
@@ -171,12 +172,13 @@ export function mount(_root, { signal }) {
   // covers your whole history.
   async function loadFilterOptions() {
     try {
+      // People are opened, for their aliases (searched too).
       const [people, locations] = await Promise.all([
-        api("/api/people?archived=all"), api("/api/locations?archived=all"),
+        api("/api/people?archived=all").then((rows) => open("person", rows)), api("/api/locations?archived=all"),
       ]);
       /** @param {Record<string, any>} item */
       const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });
-      peopleFilter.setOptions(people.map(option));
+      peopleFilter.setOptions(people.map((person) => ({ ...option(person), aliases: readAliases(person.aliases) })));
       locationsFilter.setOptions(locations.map(option));
     } catch (err) {
       count.textContent = "Couldn't load people and locations: " + errorMessage(err);

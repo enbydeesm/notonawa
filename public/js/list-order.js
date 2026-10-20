@@ -3,11 +3,13 @@
 // list-tools.js draws the search box and sort buttons.
 
 import { normaliseKeyword } from "./search-match.js";
+import { readAliases } from "./aliases.js";
 
 /**
  * @typedef {"name" | "created"} SortKey
  * @typedef {{ sort: SortKey, descending: boolean }} ListOrder
- * @typedef {{ id: string, name?: string | null, created_at?: string }} Listed
+ *   aliases: a person's opened aliases (JSON text), searched too
+ * @typedef {{ id: string, name?: string | null, created_at?: string, aliases?: string | null }} Listed
  */
 
 /** Newest first, to start with. @type {ListOrder} */
@@ -26,8 +28,9 @@ export function nextOrder(order, sort) {
 }
 
 /**
- * The items whose name contains the search (capitals don't matter), in the
- * chosen order. A pinned item (my own profile) comes first, when it matches.
+ * The items whose name (or a person's alias) contains the search (capitals
+ * don't matter), in the chosen order. A pinned item (my own profile) comes
+ * first, when it matches.
  * @template {Listed} T
  * @param {T[]} items
  * @param {string} query
@@ -39,7 +42,8 @@ export function orderList(items, query, order, pinned = () => false) {
   const keyword = normaliseKeyword(query);
   const shown = keyword === null
     ? [...items]
-    : items.filter((item) => (item.name ?? "").toLocaleLowerCase().includes(keyword));
+    : items.filter((item) => [item.name ?? "", ...readAliases(item.aliases).map((a) => a.alias)]
+      .some((text) => text.toLocaleLowerCase().includes(keyword)));
   const direction = order.descending ? -1 : 1;
   /** @param {T} a @param {T} b */
   const byName = (a, b) => (a.name ?? "").localeCompare(b.name ?? "", undefined, { sensitivity: "base", numeric: true });

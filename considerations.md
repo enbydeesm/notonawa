@@ -1074,3 +1074,42 @@ Built for release 2026.10.20.001 (migration 0015).
   report is saved; if it fails, the report is still saved and the error is
   logged. A daily digest from the cron job is the plan once reports are
   more frequent.
+
+## People: educators, based in, social and scene names, and the People dialog (October 2026)
+
+Built for release 2026.10.20.002 (migration 0016).
+
+- **"Based in" and the social and scene names are encrypted**, like notes.
+  A FetLife handle or scene name next to a real name and a city is more
+  identifying than anything else we keep, and nothing on the server needs
+  to read them: every people search already runs on the device. Names and
+  pronouns stay readable (the pickers, import's matching by name and the
+  ties' "With:" line use them), as PRIVACY.md says. The educator flag is
+  readable too: a yes/no, which a workshop's educators list will need.
+- **The names are one sealed column (`people.aliases`), not a table.** A
+  JSON list of `{ platform, alias }` (`public/js/aliases.js`), sealed
+  whole, so the server can't see how many there are or which platforms
+  they're on, and there's no new table, ownership triggers or export and
+  import code for it: it travels like notes. The cost is that the server
+  can't query them, which it never needs to. The opened text is checked
+  on the way in (`readAliases`): anything that isn't a list of them reads
+  as none, an unknown platform as "other".
+- **What a search shows**, as asked: an alias that matches shows as "Name
+  (that alias)", even when the name matches too; otherwise the first scene
+  name, if there is one ("J (therawkitty)"), or just the name. So typing
+  "sam" shows "Sam (knotsam)" when Sam's FetLife name contains it. With
+  nothing typed, the scene name shows. People, the tie form's picker and
+  the Ties search's People filter all use `personMatch`, so they agree;
+  the pickers and the filter open people's rows first to read them. The
+  tie form still offers "Add to list" for what's typed, as it does for
+  part of a name.
+- **The People form is a dialog**, like Plans, opened by + on "Add a
+  Person" and by tapping a name; the search is a card of its own between
+  them and the list (`searchable.slot`). The cards have no buttons
+  (`actionsInDialog` in `resource-page.js`): Archive (or Restore) and
+  Delete sit beside Close under Save, and close the dialog when done. "Me"
+  gets Close only, as the API refuses the rest. Notes show in the dialog
+  only; the card shows pronouns, the usual role as an outlined tag (in
+  the account's words), "based in …", "aka …" (scene names first, others
+  with their platform), and a cap, in the accent outline, for educators.
+  The workshops that will use the educator flag aren't built yet.

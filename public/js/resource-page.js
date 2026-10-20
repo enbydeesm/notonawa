@@ -22,15 +22,16 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   form: HTMLFormElement,
  *   list: HTMLElement,
  *   archivedToggle: HTMLInputElement,
- *   renderItem: (item: Item, items: Item[]) => any,
+ *   renderItem: (item: Item, items: Item[], edit: () => void) => any,
  *   confirmDelete: (item: Item) => Promise<DeleteChoice>,
  *   beforeFill?: (item: Item) => void,
  *   onEdit?: (item: Item | null) => void,
  *   canRemove?: (item: Item) => boolean,
  *   onLoad?: (items: Item[], archived: boolean) => void,
- *   searchable?: { noun: string, pinned?: (item: Item) => boolean },
+ *   searchable?: { noun: string, pinned?: (item: Item) => boolean, slot?: HTMLElement },
  *   prepare?: (data: Record<string, any>) => Record<string, any>,
  *   dialog?: HTMLDialogElement,
+ *   actionsInDialog?: boolean,
  *   filter?: (items: Item[]) => Item[],
  *   signal?: AbortSignal,
  * }} ResourcePageConfig
@@ -44,9 +45,10 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   adding one (null), after it's reset.
  * canRemove: false hides an item's Archive and Delete buttons (my own
  *   profile); the API refuses them too.
+ * renderItem: draws an item's part of its row; edit opens it in the form.
  * searchable: puts a search box (by name) and sort buttons (A–Z, date
- *   added; newest first to start) above the list. pinned items stay at the
- *   top (my own profile).
+ *   added; newest first to start) above the list, or in slot. pinned items
+ *   stay at the top (my own profile).
  * prepare: turns the form's fields into what's sent, before it's sealed
  *   (a plan's tags, and checking its album link); throws to refuse it.
  * confirmDelete: resolves to { query } to delete (query is appended to the
@@ -54,6 +56,9 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * dialog: the form is in this dialog (plans), with its heading: add() and
  *   Edit open it, and saving or [data-cancel-edit] closes it. Like the tie
  *   form, a tap outside doesn't close it; Esc does.
+ * actionsInDialog: the rows have no buttons (renderItem calls edit, e.g.
+ *   from the name); Archive (or Restore) and Delete are in the dialog
+ *   instead, in its [data-item-actions] element, for the item being edited.
  * filter: what the page's own search finds (plans); redraw() after it
  *   changes.
  */
@@ -79,7 +84,11 @@ export function setupResourcePage(config) {
   /** @type {ReturnType<typeof photoSection> | null} */
   let photos = null;
   const tools = config.searchable ? listTools({ noun: config.searchable.noun, onChange: draw }) : null;
-  if (tools) list.before(tools.element);
+  if (tools) {
+    if (config.searchable?.slot) config.searchable.slot.append(tools.element);
+    else list.before(tools.element);
+  }
+  const itemActions = config.actionsInDialog ? $("[data-item-actions]", form) : null;
 
   /**
    * A fresh Photos section for the item being edited (or a new one).
@@ -115,6 +124,7 @@ export function setupResourcePage(config) {
       /** @type {HTMLElement} */ (el).hidden = !!item;
     }
     form.reset();
+    itemActions?.replaceChildren(...(item ? dialogActions(item) : []));
     config.onEdit?.(item);
     showPhotos(item ? item.id : null);
     if (item) {
@@ -173,14 +183,21 @@ export function setupResourcePage(config) {
     }
   }
 
-  /** @param {Item} item */
-  function archive(item) {
-    return act(() => api(`/api/${resource}/${item.id}/archive`, { method: "POST" }), "Couldn't archive");
+  /** Done with an item from its dialog (archived, restored or deleted). */
+  function closeDialog() {
+    if (config.actionsInDialog && dialog?.open) dialog.close();
   }
 
   /** @param {Item} item */
-  function restore(item) {
-    return act(() => api(`/api/${resource}/${item.id}/restore`, { method: "POST" }), "Couldn't restore");
+  async function archive(item) {
+    await act(() => api(`/api/${resource}/${item.id}/archive`, { method: "POST" }), "Couldn't archive");
+    closeDialog();
+  }
+
+  /** @param {Item} item */
+  async function restore(item) {
+    await act(() => api(`/api/${resource}/${item.id}/restore`, { method: "POST" }), "Couldn't restore");
+    closeDialog();
   }
 
   /** @param {Item} item */
@@ -189,7 +206,23 @@ export function setupResourcePage(config) {
     if (!choice) return;
     if ("archive" in choice) return archive(item);
     await act(() => api(`/api/${resource}/${item.id}${choice.query}`, { method: "DELETE" }), "Couldn't delete");
+    closeDialog();
     if (editingId === item.id) setEditing(null);
+  }
+
+  /**
+   * The dialog's Archive (or Restore) and Delete, with actionsInDialog.
+   * @param {Item} item
+   */
+  function dialogActions(item) {
+    const removable = config.canRemove?.(item) ?? true;
+    if (!removable) return [];
+    return [
+      item.archived_at
+        ? h("button", { type: "button", onclick: () => restore(item) }, "Restore")
+        : h("button", { type: "button", onclick: () => archive(item) }, "Archive"),
+      h("button", { type: "button", className: "danger", onclick: () => remove(item) }, "Delete"),
+    ];
   }
 
   /** @param {Item} item */
@@ -233,7 +266,8 @@ export function setupResourcePage(config) {
     for (const item of shown) {
       const unreadable = item.unreadable?.length
         ? h("div", { className: "item-meta deleted" }, "(can't decrypt the notes)") : null;
-      list.append(h("div", { className: "item" }, renderItem(item, items), unreadable, renderActions(item)));
+      list.append(h("div", { className: "item" }, renderItem(item, items, () => openForm(item)), unreadable,
+        config.actionsInDialog ? null : renderActions(item)));
     }
   }
 

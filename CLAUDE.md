@@ -237,7 +237,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
   `resource-page.js` (list/edit pages; with `dialog`, the form is in a
-  dialog that + and Edit open, as on Plans), `list-tools.js` and `list-order.js`
+  dialog that + and Edit open, as on Plans and People; with
+  `actionsInDialog`, Archive and Delete are in the dialog, not on the
+  cards, as on People), `aliases.js` (pure: a person's social and scene
+  names, sealed as one JSON field; `personMatch`, what a people search
+  finds and shows), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure
   filtering and sorting), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
@@ -384,6 +388,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   single transaction, so a failure saves nothing.
 - **Notes, descriptions and album links are encrypted** (`ties.notes`,
   `ties.album_url`, `tie_participants.notes`, `people.notes`,
+  `people.based_in`, `people.aliases` (migration 0016),
   `profile_notes.description`, `locations.notes`, `plans.description`,
   `plans.notes`, `plans.album_url`): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,

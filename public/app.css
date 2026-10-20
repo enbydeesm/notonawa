@@ -595,6 +595,26 @@ dialog.form-dialog {
 .self-flag[hidden] { display: none; }
 .self-flag input { width: 14px; height: 14px; margin: 0; }
 .self-flag:has(input:disabled) { opacity: 0.6; }
+.educator-flag { margin: 12px 0 4px; }
+.alias-row input { flex: 1.4; min-width: 0; }
+
+/* A person's card: the name (which opens their dialog), pronouns, usual
+   role as an outlined tag, and an educator's cap at the right. */
+.person-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.person-title .badge { margin-left: 0; }
+.person-title .item-meta { font-weight: 400; }
+.person-name {
+  padding: 0; border: none; border-radius: 0; background: none; text-align: left;
+  font-size: 1rem; font-weight: 600; color: var(--text); overflow-wrap: anywhere;
+}
+.person-name:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.role-tag { padding: 1px 10px; font-size: 0.8rem; }
+.educator-icon { width: 22px; height: 22px; margin-left: auto; flex: none; stroke: var(--accent-ink); }
+
+/* An edit dialog's Close, Archive (or Restore) and Delete, in a row below Save. */
+.dialog-actions { display: flex; gap: 8px; margin-top: 8px; }
+.dialog-actions > button, .dialog-item-actions > button { flex: 1; padding: 10px; }
+.dialog-item-actions { display: contents; }
 
 /* People and Locations: a search box with the sort buttons beside it. */
 .list-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }

@@ -1,7 +1,8 @@
 // What the tie form's search pickers (location, people, plans) list and
 // offer to add. Pure (no DOM), so it's easy to test.
 
-import { nameMatches, sortByName } from "./tie-search.js";
+import { sortByName } from "./tie-search.js";
+import { personMatch, readAliases } from "./aliases.js";
 
 /** How many a picker shows before anything is typed (besides me). */
 export const RECENT_COUNT = 5;
@@ -10,18 +11,20 @@ export const RECENT_COUNT = 5;
  * name is what's searched and matched (a plan's title); label is what's
  * shown, if different (e.g. "Me (you)"). isSelf marks my own profile;
  * defaultRole is a person's usual role; isDefault marks the location new
- * ties start with.
+ * ties start with. aliases: a person's scene names and handles, which are
+ * searched too.
  * @typedef {{
  *   id: string, name: string, label?: string, created_at: string,
  *   isSelf?: boolean, defaultRole?: string, isDefault?: boolean,
+ *   aliases?: import("./aliases.js").Alias[],
  * }} PickerItem
  */
 
 /**
  * With nothing typed: the items most recently on a tie (recentIds, from the
  * API, newest first), topped up with the newest added, up to RECENT_COUNT.
- * With something typed: every item whose name contains it, ignoring
- * capitals, A–Z. Either way my own profile comes first when it's listed
+ * With something typed: every item whose name (or a person's alias)
+ * contains it, ignoring capitals, A–Z. Either way my own profile comes first when it's listed
  * (with nothing typed it always is, on top of the RECENT_COUNT others).
  * @param {PickerItem[]} items my active items
  * @param {string[]} recentIds
@@ -33,7 +36,7 @@ export function searchChoices(items, recentIds, query) {
   const others = items.filter((item) => item !== me);
   const meFirst = (/** @type {PickerItem[]} */ list) => (me && list.includes(me) ? [me, ...list.filter((item) => item !== me)] : list);
 
-  if (query.trim()) return meFirst(sortByName(items.filter((item) => nameMatches(item.name, query))));
+  if (query.trim()) return meFirst(sortByName(items.filter((item) => personMatch(item.name, item.aliases ?? [], query).matches)));
   const rest = recentOrNewest(others, recentIds);
   return me ? [me, ...rest] : rest;
 }
@@ -52,6 +55,18 @@ function recentOrNewest(items, recentIds) {
     chosen.add(item);
   }
   return [...chosen].slice(0, RECENT_COUNT);
+}
+
+/**
+ * How an item is shown in the list for what's typed: a person with the
+ * alias that matched, or their scene name (see personMatch), and mine
+ * with "(you)".
+ * @param {PickerItem} item
+ * @param {string} query
+ */
+export function choiceLabel(item, query) {
+  const { label } = personMatch(item.name, item.aliases ?? [], query);
+  return item.isSelf ? `${label} (you)` : label;
 }
 
 /**
@@ -90,7 +105,8 @@ function tidy(text) {
 
 /**
  * Turns the API's rows (from ?archived=all) into a picker's items. Plans
- * are named by their title; my own profile is labelled "(you)".
+ * are named by their title; my own profile is labelled "(you)". People's
+ * rows are opened first, so their aliases can be read.
  * @param {Record<string, any>[]} rows
  * @param {string[]} recent ids from /api/ties/recent/:type
  * @returns {PickerSource}
@@ -105,6 +121,8 @@ export function pickerSource(rows, recent) {
     if (row.is_self) Object.assign(item, { label: `${name} (you)`, isSelf: true });
     if (row.default_role) item.defaultRole = row.default_role;
     if (row.is_default) item.isDefault = true;
+    const aliases = readAliases(row.aliases);
+    if (aliases.length) item.aliases = aliases;
     (row.archived_at ? source.archived : source.active).push(item);
   }
   return source;

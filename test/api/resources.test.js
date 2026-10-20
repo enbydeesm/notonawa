@@ -19,6 +19,21 @@ describe("plans, people and locations", () => {
     expect(plan?.updated_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
   });
 
+  it("keeps a person's educator flag, and their sealed city and other names", async () => {
+    const id = await create("/api/people", {
+      name: "Kit", is_educator: true, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"kit"}]'),
+    });
+    const found = (await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id);
+    expect(found).toEqual(expect.objectContaining({
+      is_educator: 1, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"kit"}]'),
+    }));
+    expect((await call(`/api/people/${id}`, { method: "PUT", body: { name: "Kit" } })).status).toBe(200);
+    expect(await sql("SELECT is_educator, based_in, aliases FROM people WHERE id = ?", id).first())
+      .toEqual({ is_educator: 0, based_in: null, aliases: null });
+    expect((await call("/api/people", { method: "POST", body: { name: "Plain", based_in: "Seattle, WA" } })).status).toBe(400);
+    expect((await call("/api/people", { method: "POST", body: { name: "Plain", aliases: "[]" } })).status).toBe(400);
+  });
+
   it("rejects bad input with a friendly message", async () => {
     expect(await call("/api/people", { method: "POST", body: { pronouns: "they/them" } }))
       .toEqual({ status: 400, body: { error: "Give the person a name." } });

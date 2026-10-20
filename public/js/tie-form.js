@@ -13,7 +13,7 @@ import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { sealOne, forgetSearch } from "./vault.js";
+import { sealOne, forgetSearch, open } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
 
 /** @type {Promise<boolean> | null} */
@@ -266,7 +266,9 @@ function showTieForm(tie) {
         // it instead of adding a second one.
         const kinds = /** @type {const} */ (["locations", "people", "plans"]);
         const loaded = await Promise.all(kinds.map((kind) => Promise.all([
-          api(`/api/${kind}?archived=all`), api(`/api/ties/recent/${kind}`),
+          // People are opened, for their aliases (searched too).
+          api(`/api/${kind}?archived=all`).then((rows) => (kind === "people" ? open("person", rows) : rows)),
+          api(`/api/ties/recent/${kind}`),
         ])));
         // Filled in place: the pickers already hold these objects.
         kinds.forEach((kind, i) => Object.assign(sources[kind], pickerSource(...loaded[i])));

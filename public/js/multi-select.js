@@ -2,10 +2,13 @@
 // locations. Archived options show in muted text.
 
 import { h, privateField } from "./dom.js";
-import { sortByName, nameMatches } from "./tie-search.js";
+import { sortByName } from "./tie-search.js";
+import { personMatch } from "./aliases.js";
 
 /**
- * @typedef {{ id: string, name: string, archived: boolean }} Option
+ * aliases: a person's scene names and handles, searched too (and shown
+ * as "Name (alias)", as personMatch says).
+ * @typedef {{ id: string, name: string, archived: boolean, aliases?: import("./aliases.js").Alias[] }} Option
  * @typedef {{
  *   labelledBy: string,
  *   placeholder: string,
@@ -57,9 +60,10 @@ export function multiSelect({ labelledBy, placeholder, searchLabel, onChange }) 
   }
 
   function renderOptions() {
-    const shown = options.filter((o) => nameMatches(o.name, search.value));
+    const shown = options.map((o) => ({ o, ...personMatch(o.name, o.aliases ?? [], search.value) }))
+      .filter(({ matches }) => matches);
     list.replaceChildren(
-      ...shown.map((o) =>
+      ...shown.map(({ o, label }) =>
         h("label", { className: o.archived ? "inline archived" : "inline" },
           h("input", {
             type: "checkbox", value: o.id, checked: selected.has(o.id),
@@ -71,7 +75,7 @@ export function multiSelect({ labelledBy, placeholder, searchLabel, onChange }) 
               onChange([...selected]);
             },
           }),
-          o.name))
+          label))
     );
     if (shown.length === 0) {
       list.append(h("p", { className: "hint" }, options.length ? "No matches." : "Nothing to choose yet."));

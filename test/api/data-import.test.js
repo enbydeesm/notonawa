@@ -87,7 +87,10 @@ function comparable(doc) {
 /** Fills the signed-in test user's journal with linked, archived and deleted things. */
 async function fillJournal() {
   const me = await create("/api/people", { name: "Me", is_self: true });
-  const sam = await create("/api/people", { name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "bottom" });
+  const sam = await create("/api/people", {
+    name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "bottom",
+    is_educator: true, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"sammy"}]'),
+  });
   const gone = await create("/api/people", { name: "Gone" });
   await call(`/api/people/${sam}/archive`, { method: "POST" });
   await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', ?, '2026-01-02')",
