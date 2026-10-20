@@ -99,30 +99,47 @@ find the cause.
 
 ## Ideas, not yet committed
 
-From building encrypted photos; each would need a decision first.
+>- Plans: “Type” becomes “Plan type”, plans get a tie type, and difficulty is picked with the rope-hank icons.
+> - Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
+> - Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.
+> - Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens.
+
+- add an app version number, track release notes that can be displayed to users. put version number on the app somewhere (bottom of sign in screen, bottom of menu sidebar?)
+- Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account.
+- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
+- + button asks what to add: the + button first asks whether to add a tie, person, location or plan.
+
+- Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
+- Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
+- Photo album link: an optional, encrypted link to a Google or Apple Photos album on ties and plans.
 
 - **Thumbnails on tie cards.** The Ties list shows a photo count only,
   because thumbnails would mean up to 100 decrypts a page.
 - **Searching captions** with the keyword search (they're sealed bound to
   their photo, so the search index would need to fetch and open them).
-- Education tracker: log the workshops you take (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
+
+
 - Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list.
 - People’s socials and city: optional platform and username rows, added with a + button and maybe found by the People search, plus a “based in” city.
-- Tie type required: existing ties without one get filled in, and new ties must have a type (open question: “self tie” is a role, not a tie type).
-- Plans get a tie type.
-- Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
+
+- Education tracker: log the workshops you take (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
+
 - Map of ties: a map with a marker for each location that has coordinates, drawn without sending your locations to an outside map service.
-- Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account.
-- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
+
 - Drag photos into order: rearrange photos on ties and plans by dragging, by finger or mouse, keeping the Move earlier/later buttons.
-- Photo album link: an optional, encrypted link to a Google or Apple Photos album on ties and plans.
-- + button asks what to add: the + button first asks whether to add a tie, person, location or plan.
+
+
 - Videos: encrypted video clips on ties and plans, with their location and device details removed.
 - Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons.
 
 ## dev order: 
 1. Quick polish (no database changes). These are small, low-risk and visible straight away.
 
+Default location first in Locations
+“THIS CAN’T BE UNDONE.” on its own line
+Contact info on the sign-in and Unlock screens
+Rope-hank icons for plan difficulty, and “Plan type” as the label
+“–” for a blank tie type
 Final logo and icons, whenever the files are ready
 
 2. Ties and plans data (one migration). All of these change the ties and plans tables, so doing them together means rebuilding ties once instead of three times. It also means updating export, import and the CSV template once.
@@ -132,6 +149,7 @@ Optional time on ties
 Tie type on plans
 Photo album link on ties and plans
 
+
 3. Photos. Dragging photos into order touches only the page. It sits next to the album link but is separate from the data work, so it’s easy to test alone.
 
 4. People. Socials, “based in” city and the educator checkbox. These stand on their own, and the education tracker builds on them, so they come before it.
@@ -140,6 +158,7 @@ Photo album link on ties and plans
 
 Welcome dialog for new accounts.
 Bug and feedback form. It needs a PRIVACY.md update, so it pairs well with the welcome, which also mentions privacy.
+add an app version number, track release notes that can be displayed to users. put version number on the app somewhere (bottom of sign in screen, bottom of menu sidebar?)
 + button asks what to add. It turns the person and location forms into dialogs, which the education tracker will reuse.
 
 6. Education tracker. This is the biggest piece: new tables, a list view, the resume view, and export, import and Analytics support. Settle where it goes in the navigation first, since there are already six tabs.
