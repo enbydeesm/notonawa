@@ -1,9 +1,12 @@
-// Locations view.
+// Locations view: "Add a Location" (the + opens the form in a dialog, as
+// tapping a name does), a search over them, and the list. The dialog holds
+// Archive (or Restore) and Delete; the cards have no buttons.
 
 import { h, $ } from "../dom.js";
 import { api, errorMessage } from "../api.js";
 import { choose, confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
+import { placeText } from "../list-order.js";
 
 /**
  * @param {HTMLElement} _root the view's element
@@ -15,12 +18,12 @@ export function mount(_root, { signal }) {
   // Not offered for a location being archived as it's added.
   /** @type {string | null} */
   let editingId = null;
-  const isDefault = /** @type {HTMLInputElement} */ ($("#is_default"));
-  const archiveNow = /** @type {HTMLInputElement} */ ($("#archive_now"));
+  const isDefault = /** @type {HTMLInputElement} */ ($("#location-is_default"));
+  const archiveNow = /** @type {HTMLInputElement} */ ($("#location-archive_now"));
   function showDefaultFlag() {
     const archiving = !editingId && archiveNow.checked;
     if (archiving) isDefault.checked = false;
-    $("#default-flag").hidden = archiving;
+    $("#location-default-flag").hidden = archiving;
   }
   archiveNow.addEventListener("change", showDefaultFlag);
   isDefault.addEventListener("change", async () => {
@@ -42,24 +45,33 @@ export function mount(_root, { signal }) {
     if (choice !== "replace") isDefault.checked = false;
   });
 
-  setupResourcePage({
+  const page = setupResourcePage({
     resource: "locations",
+    signal,
     form: $("#form"),
     list: $("#list"),
     archivedToggle: $("#show-archived"),
+    dialog: $("#location-dialog"),
+    actionsInDialog: true,
     // The default location stays at the top, whatever the order.
-    searchable: { noun: "locations", pinned: (loc) => !!loc.is_default },
+    searchable: { noun: "locations", pinned: (loc) => !!loc.is_default, slot: $("#locations-search") },
     onEdit: (loc) => { editingId = loc?.id ?? null; showDefaultFlag(); },
 
-    renderItem: (loc) => [
-      h("div", { className: "item-title" }, loc.name,
-        loc.is_default ? h("span", { className: "badge" }, "Default") : null),
-      loc.notes ? h("div", { className: "item-notes" }, loc.notes) : null,
-      // The API only accepts http(s) links; check again before making one clickable.
-      /^https?:\/\//.test(loc.maps_url || "")
-        ? h("div", {}, h("a", { href: loc.maps_url, target: "_blank", rel: "noopener noreferrer" }, "Open in Maps"))
-        : null,
-    ],
+    // The name (which opens the dialog), then where it is and its notes.
+    renderItem: (loc, _locations, edit) => {
+      const place = placeText({ city: loc.city, state_province: loc.state_province, country: loc.country });
+      return [
+        h("div", { className: "item-title name-title" },
+          h("button", { type: "button", className: "name-button", onclick: edit }, loc.name),
+          loc.is_default ? h("span", { className: "badge" }, "Default") : null),
+        place ? h("div", { className: "item-meta" }, place) : null,
+        loc.notes ? h("div", { className: "item-notes" }, loc.notes) : null,
+        // The API only accepts http(s) links; check again before making one clickable.
+        /^https?:\/\//.test(loc.maps_url || "")
+          ? h("div", {}, h("a", { href: loc.maps_url, target: "_blank", rel: "noopener noreferrer" }, "Open in Maps"))
+          : null,
+      ];
+    },
 
     confirmDelete: (loc) =>
       confirmDeleteOrArchive({
@@ -70,13 +82,15 @@ export function mount(_root, { signal }) {
       }),
   });
 
+  $("#add-location").addEventListener("click", () => page.add(), { signal });
+
   // Pasting a Google Maps link fills in the coordinates, which can still be
   // edited. The server reads them (following a short link to Google if needed),
   // as the page itself can't reach Google.
-  const mapsUrl = /** @type {HTMLInputElement} */ ($("#maps_url"));
-  const latitude = /** @type {HTMLInputElement} */ ($("#latitude"));
-  const longitude = /** @type {HTMLInputElement} */ ($("#longitude"));
-  const mapsHint = $("#maps-hint");
+  const mapsUrl = /** @type {HTMLInputElement} */ ($("#location-maps_url"));
+  const latitude = /** @type {HTMLInputElement} */ ($("#location-latitude"));
+  const longitude = /** @type {HTMLInputElement} */ ($("#location-longitude"));
+  const mapsHint = $("#location-maps-hint");
   const HINT = mapsHint.textContent;
   let lookup = 0;
   /** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -99,7 +113,7 @@ export function mount(_root, { signal }) {
     clearTimeout(timer);
     lookup++;
     mapsHint.textContent = HINT;
-    $("#default-flag").hidden = false;
+    $("#location-default-flag").hidden = false;
   });
 
   /**

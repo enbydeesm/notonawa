@@ -15,7 +15,7 @@ export default async function () {
       new Set([...tabs, add, menu].map(top)).size, menu.getBoundingClientRect().right > $("nav").getBoundingClientRect().right - 4];`),
     [true, 1, true]);
   check("a new journal starts with 'Me'; add people from the + card, one with a default role", await run(`
-    const first = [personNames(), personCard("Me"), !!document.querySelector(".person-title .badge")];
+    const first = [personNames(), personCard("Me"), !!document.querySelector(".name-title .badge")];
     const roles = [...$("#person-default_role").options].map((o) => o.text);
     $("#add-person").click(); await wait(300);
     const adding = [$("#person-dialog").open, $("#person-form-heading").textContent, personButtons(), $("#person-dialog button[type=submit]").textContent];
@@ -30,12 +30,29 @@ export default async function () {
     await openPerson("Sam"); const onSam = [$("#person-self-flag").hidden, personButtons()]; $("[data-cancel-edit]").click(); await wait(200);
     await openPerson("Me"); const box = $("[name=is_self]");
     const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
-    const onMe = [$("#person-self-flag").hidden, box.checked, box.disabled, Math.abs(mid($("#person-self-flag")) - mid($("label[for=person-name]"))) < 3, personButtons()];
+    const onMe = [$("#person-self-flag").hidden, box.checked, box.disabled, Math.abs(mid($("#person-self-flag")) - mid($("#person-form-heading"))) < 3, personButtons()];
     $("[data-cancel-edit]").click(); await wait(200);
     const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
     const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
     return [onAdd, onSam, onMe, $("#person-dialog").open, refused];`),
     [true, [true, ["Close", "Archive", "Delete"]], [false, true, true, true, ["Close"]], false, [400, 400]]);
+  check("the + comes first on its card; Educator sits on the Name row and 'This is me' on the heading's, both at the right", await run(`
+    const add = $("#add-person"), label = $("#add-person-label"), addCard = add.closest(".card");
+    const plusFirst = [addCard.firstElementChild === add, add.getBoundingClientRect().left - addCard.getBoundingClientRect().left < 40,
+      label.getBoundingClientRect().left - add.getBoundingClientRect().right < 24];
+    await openPerson("Me");
+    const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+    const right = (el) => el.getBoundingClientRect().right > $("#person-name").getBoundingClientRect().right - 4;
+    const educator = $("[name=is_educator]").closest("label"), self = $("#person-self-flag");
+    const placed = [Math.abs(mid(educator) - mid($("label[for=person-name]"))) < 3, right(educator), right(self), mid(self) < mid(educator)];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [plusFirst, placed];`), [[true, true, true], [true, true, true, true]]);
+  check("pronouns and social names aren't capitalized as they're typed; the platform's text is smaller", await run(`
+    $("#add-person").click(); await wait(300); $("#person-add-alias").click();
+    const caps = [$("#person-pronouns").autocapitalize, $(".alias-name").autocapitalize];
+    const smaller = parseFloat(getComputedStyle($(".alias-platform")).fontSize) < parseFloat(getComputedStyle($("#person-pronouns")).fontSize);
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [caps, smaller];`), [["none", "none"], true]);
   check("tapping a name opens their details, with where they're based, educator and social names", await run(`
     await openPerson("Sam");
     const state = [$("#person-form-heading").textContent, $("#person-name").value, $("#person-dialog button[type=submit]").textContent, $("#person-based_in").placeholder];

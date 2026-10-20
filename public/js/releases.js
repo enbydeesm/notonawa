@@ -1,10 +1,19 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.20.002";
+export const APP_VERSION = "2026.10.20.003";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.20.003",
+    "notes": [
+      "Locations: tap + on \"Add a Location\" to add one in a pop-up form. Tap a name to edit it; Archive and Delete are there too.",
+      "Locations can have a city, state or province and country, shown on their cards. Searching locations finds those too.",
+      "Plans, People and Locations: the + now comes first on their \"Add\" cards.",
+      "People: \"Educator\" now sits beside the Name, and \"This is me\" beside the form's title. Pronouns and social names no longer start with a capital letter as you type them."
+    ]
+  },
   {
     "version": "2026.10.20.002",
     "notes": [

@@ -6,6 +6,13 @@ Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
+## 2026.10.20.003
+
+- Locations: tap + on "Add a Location" to add one in a pop-up form. Tap a name to edit it; Archive and Delete are there too.
+- Locations can have a city, state or province and country, shown on their cards. Searching locations finds those too.
+- Plans, People and Locations: the + now comes first on their "Add" cards.
+- People: "Educator" now sits beside the Name, and "This is me" beside the form's title. Pronouns and social names no longer start with a capital letter as you type them.
+
 ## 2026.10.20.002
 
 - People: tap + on "Add a Person" to add someone in a pop-up form. Tap a name to see their details; Archive and Delete are there too.

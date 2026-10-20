@@ -7,13 +7,14 @@ export default async function () {
   console.log("Plans");
   await go("/plans");
   const addPlan = `$("#add-plan").click(); await wait(300);`;
-  check("Plans starts with a small \"Add a Plan\" card and its yellow +, then the search, then the list", await run(`
+  check("Plans starts with a small \"Add a Plan\" card, its yellow + first at the left, then the search, then the list", await run(`
     const cards = [...document.querySelectorAll("#view > section.card")];
-    const plus = $("#add-plan"), navPlus = $("nav .nav-add");
+    const plus = $("#add-plan"), navPlus = $("nav .nav-add"), label = $("#add-plan-label");
     return [flat(cards[0]), getComputedStyle(plus).backgroundColor === getComputedStyle(navPlus).backgroundColor,
-      plus.getBoundingClientRect().right > cards[0].getBoundingClientRect().right - 40, cards[0].getBoundingClientRect().height < 80,
+      plus.getBoundingClientRect().left - cards[0].getBoundingClientRect().left < 40,
+      label.getBoundingClientRect().left - plus.getBoundingClientRect().right < 24, cards[0].getBoundingClientRect().height < 80,
       cards[1].getAttribute("aria-label"), $("#plan-dialog").open];`),
-    ["Add a Plan | +", true, true, true, "Search plans", false]);
+    ["+ | Add a Plan", true, true, true, true, "Search plans", false]);
   check("+ opens the form in a dialog; add plans with a variation, each closing it", await run(`
     ${addPlan}
     const opened = [$("#plan-dialog").open, $("#plan-form-heading").textContent, $("#plan-linked").hidden, leakyFields()];

@@ -92,13 +92,17 @@ export const RESOURCES = {
       name: { parse: cleanText, required: "Give the location a name." },
       notes: { parse: encryptedText },
       maps_url: { parse: toUrlOrNull },
+      // Where it is (migration 0017): plain text, typed in.
+      city: { parse: cleanText },
+      state_province: { parse: cleanText },
+      country: { parse: cleanText },
       latitude: { parse: (v) => toNumberOrNull(v, -90, 90) },
       longitude: { parse: (v) => toNumberOrNull(v, -180, 180) },
       // The location new ties start with; one at most (migration 0011).
       // Setting it clears the old one (routes.js).
       is_default: { parse: toFlag },
     },
-    columns: "id, name, notes, maps_url, latitude, longitude, is_default, archived_at, created_at, updated_at",
+    columns: "id, name, notes, maps_url, city, state_province, country, latitude, longitude, is_default, archived_at, created_at, updated_at",
     orderBy: "name COLLATE NOCASE",
     // "Archive now" on the add screen and "Add & archive" in the tie form: a
     // one-off spot, saved but kept out of pickers.

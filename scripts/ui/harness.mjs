@@ -265,13 +265,14 @@ const PAGE_HELPERS = `
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
   // Whether the logo image in sel has loaded, and its alt text.
   const logo = (sel) => { const img = $(sel); return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null]; };
-  // People's cards: each name is a button that opens their dialog.
-  const personNames = () => [...document.querySelectorAll(".person-name")].map((b) => b.textContent);
-  const openPerson = async (name) => { [...document.querySelectorAll(".person-name")].find((b) => b.textContent === name).click(); await wait(500); };
+  // People's and Locations' cards: each name is a button that opens its dialog.
+  const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);
+  const openPerson = async (name) => { [...document.querySelectorAll(".name-button")].find((b) => b.textContent === name).click(); await wait(500); };
+  const openItem = openPerson;
   // A person's card: name, pronouns, role tag, educator's cap, the rows under the name, and how many buttons.
   const personCard = (name) => {
-    const item = [...document.querySelectorAll(".person-name")].find((b) => b.textContent === name).closest(".item");
-    return [name, item.querySelector(".person-title .item-meta")?.textContent ?? null, item.querySelector(".role-tag")?.textContent ?? null,
+    const item = [...document.querySelectorAll(".name-button")].find((b) => b.textContent === name).closest(".item");
+    return [name, item.querySelector(".name-title .item-meta")?.textContent ?? null, item.querySelector(".role-tag")?.textContent ?? null,
       !!item.querySelector(".educator-icon"), [...item.querySelectorAll(":scope > .item-meta")].map((m) => m.textContent), item.querySelectorAll("button").length];
   };
   const personButtons = () => [...document.querySelectorAll("#person-dialog .dialog-actions button")].map((b) => b.textContent);

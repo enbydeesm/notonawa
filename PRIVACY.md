@@ -104,7 +104,8 @@ social and scene names, and your photos, their thumbnails and captions.
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, people and
 locations (such as names, pronouns, titles, dates, types, ratings, who took
-part and whether someone is an educator),
+part, whether someone is an educator, and a location's city, state or
+province and country),
 your tags, when things were created, changed or archived and how they link
 together, and for each photo which tie or plan it's on, its size, its file
 type and when it was added (not what it shows).

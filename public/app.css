@@ -127,6 +127,8 @@ textarea { min-height: 90px; resize: vertical; }
    the minutes as wide as three digits, and the type gets the rest. The
    minutes' spin arrows are hidden so they don't cover the digits. */
 .row > .date-field, .row > .minutes-field { flex: none; }
+/* A location's Lat and Long: room for about six digits, beside the country. */
+.row > .coord-field { flex: none; width: 6.5rem; }
 /* A row of mixed fields (date, drop-down, number) drawn at one height: each
    kind otherwise has its own (the date box's calendar icon makes it taller). */
 .same-height :is(input, select) { height: 2.75rem; }
@@ -587,27 +589,31 @@ dialog.form-dialog {
 #tl-more { width: 100%; margin-top: 4px; padding: 10px; }
 #tl-more[hidden] { display: none; }
 
-/* People: "This is me" on the Name label's row, at the right, only on my
-   own profile, greyed out as it can't be changed. */
+/* People: a checkbox at the right of a row: "Educator" on the Name label's
+   row, and "This is me" on the dialog heading's, only on my own profile,
+   greyed out as it can't be changed. Locations' "Default on new ties" too. */
 .name-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0 4px; }
-.name-row label { margin: 0; }
+.name-row label, .name-row h2 { margin: 0; }
+.name-row.heading-row { margin: 0 0 12px; }
 .self-flag { display: inline-flex; align-items: center; gap: 6px; }
 .self-flag[hidden] { display: none; }
 .self-flag input { width: 14px; height: 14px; margin: 0; }
 .self-flag:has(input:disabled) { opacity: 0.6; }
-.educator-flag { margin: 12px 0 4px; }
 .alias-row input { flex: 1.4; min-width: 0; }
+/* Smaller, so "Scene name" fits once chosen. */
+.alias-row .alias-platform { font-size: 0.85rem; }
 
-/* A person's card: the name (which opens their dialog), pronouns, usual
-   role as an outlined tag, and an educator's cap at the right. */
-.person-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.person-title .badge { margin-left: 0; }
-.person-title .item-meta { font-weight: 400; }
-.person-name {
+/* A person's or location's card: the name (which opens its dialog), then
+   a person's pronouns, usual role as an outlined tag, and an educator's cap
+   at the right, or a location's "Default" badge. */
+.name-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.name-title .badge { margin-left: 0; }
+.name-title .item-meta { font-weight: 400; }
+.name-button {
   padding: 0; border: none; border-radius: 0; background: none; text-align: left;
   font-size: 1rem; font-weight: 600; color: var(--text); overflow-wrap: anywhere;
 }
-.person-name:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.name-button:hover { text-decoration: underline; text-decoration-color: var(--accent); }
 .role-tag { padding: 1px 10px; font-size: 0.8rem; }
 .educator-icon { width: 22px; height: 22px; margin-left: auto; flex: none; stroke: var(--accent-ink); }
 
@@ -652,9 +658,12 @@ dialog.form-dialog {
 .whats-new .release ul { margin: 0; padding-left: 20px; }
 .whats-new .release li { margin: 4px 0; }
 
-/* Plans: "Add a Plan" with the + beside it, as small as a card gets. */
+/* "Add a Plan", "Add a Person", "Add a Location": the + and its label, as
+   small as a card gets. */
 .card.add-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
 .add-card h2 { margin: 0; }
+/* The + first, with its label just after it. */
+.card.add-card.plus-first { justify-content: flex-start; }
 
 /* A plan's linked ties, in its form: the title (opens the tie), then its
    rating at the end of the row. */

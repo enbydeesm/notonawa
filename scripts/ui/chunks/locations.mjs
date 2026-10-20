@@ -6,47 +6,84 @@ export default async function () {
   await freshAccount();
   console.log("Locations");
   await go("/locations");
-  check("add locations (one archived now)", await run(`
-    set("#name", "Studio"); set("#maps_url", "https://maps.app.goo.gl/abc"); await submit();
-    set("#name", "Hotel"); set("[name=archive_now]", true); await submit();
-    set("#name", "Old flat"); await submit();
-    return [titles(), [...document.querySelectorAll("#list a")].map((a) => a.href)];`),
-    [["Old flat", "Studio"], ["https://maps.app.goo.gl/abc"]]);
+  check("add locations from the + card, in a dialog (one archived now)", await run(`
+    const add = $("#add-location"), addCard = add.closest(".card");
+    const plusFirst = [addCard.firstElementChild === add, $("#locations-search").previousElementSibling === addCard];
+    add.click(); await wait(300);
+    const adding = [$("#location-dialog").open, $("#location-form-heading").textContent, $("#location-dialog button[type=submit]").textContent,
+      [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent)];
+    set("#location-name", "Studio"); set("#location-maps_url", "https://maps.app.goo.gl/abc");
+    set("#location-city", "Seattle"); set("#location-state_province", "WA"); set("#location-country", "USA"); await submit();
+    const closed = !$("#location-dialog").open;
+    add.click(); await wait(300); set("#location-name", "Hotel"); set("[name=archive_now]", true); await submit();
+    add.click(); await wait(300); set("#location-name", "Old flat"); set("#location-country", "Canada"); await submit();
+    return [plusFirst, adding, closed, items(), [...document.querySelectorAll("#list a")].map((a) => a.href), leakyFields()];`),
+    [[true, true], [true, "Add a location", "Add location", ["Close"]], true,
+      ["Old flat | Canada", "Studio | Seattle, WA, USA | Open in Maps"], ["https://maps.app.goo.gl/abc"], []]);
+  check("City and State/Province sit below the Maps link; Country beside narrow Lat and Long", await run(`
+    $("#add-location").click(); await wait(300);
+    const box = (sel) => $(sel).getBoundingClientRect();
+    const order = [box("#location-maps_url").bottom < box("#location-city").top, box("#location-city").bottom < box("#location-latitude").top,
+      Math.abs(box("#location-city").top - box("#location-state_province").top) < 2,
+      Math.abs(box("#location-country").top - box("#location-latitude").top) < 2, box("#location-country").right < box("#location-latitude").left,
+      box("#location-latitude").width < box("#location-country").width, box("#location-latitude").width < 130];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return order;`), [true, true, true, true, true, true, true]);
   check("a Maps link fills in editable coordinates", await run(`
-    const link = $("#maps_url"); link.value = "https://www.google.com/maps/place/Studio/@51.5,-0.12,17z/data=!4m2!3m1!8m2!3d51.51!4d-0.13";
+    $("#add-location").click(); await wait(300);
+    const link = $("#location-maps_url"); link.value = "https://www.google.com/maps/place/Studio/@51.5,-0.12,17z/data=!4m2!3m1!8m2!3d51.51!4d-0.13";
     link.dispatchEvent(new Event("input")); await wait(1200);
-    const filled = [$("#latitude").value, $("#longitude").value, $("#maps-hint").textContent];
-    $("form").reset(); return [filled, $("#latitude").value, $("#maps-hint").textContent];`),
-    [["51.51", "-0.13", "Coordinates filled in from the link."], "", "Paste a link to fill in the latitude and longitude."]);
-  check("'Archive now' is hidden while editing", await run(`await clickIn("Studio", "Edit"); const hidden = $("[data-add-only]").hidden; $("[data-cancel-edit]").click(); return hidden;`), true);
-  check("one-off is in the archived list", await run(`set("#show-archived", true); await wait(600); return titles();`), ["Hotel"]);
-  await go("/locations");
+    const filled = [$("#location-latitude").value, $("#location-longitude").value, $("#location-maps-hint").textContent];
+    $("#location-latitude").value = "47.6062095"; const precise = $("#location-latitude").checkValidity();
+    $("form").reset(); const reset = [$("#location-latitude").value, $("#location-maps-hint").textContent];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [filled, precise, reset];`),
+    [["51.51", "-0.13", "Coordinates filled in from the link."], true, ["", "Paste a link to fill in the latitude and longitude."]]);
+  check("tapping a name opens it to edit, with Archive and Delete in the dialog and none on the cards", await run(`
+    const cardButtons = [...document.querySelectorAll("#list .item")].map((i) => i.querySelectorAll("button").length);
+    await openItem("Studio");
+    const state = [$("#location-form-heading").textContent, $("#location-name").value, $("#location-city").value, $("#location-state_province").value,
+      $("#location-country").value, $("[data-add-only]").hidden, [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent)];
+    set("#location-city", "Tacoma"); await submit();
+    const stored = (await (await fetch("/api/locations?archived=false")).json()).find((l) => l.name === "Studio");
+    return [cardButtons, state, !$("#location-dialog").open, [stored.city, stored.state_province, stored.country]];`),
+    [[1, 1], ["Edit location", "Studio", "Seattle", "WA", "USA", true, ["Close", "Archive", "Delete"]], true, ["Tacoma", "WA", "USA"]]);
+  check("one-off is in the archived list, and Restore is in its dialog", await run(`
+    set("#show-archived", true); await wait(600); const archived = personNames();
+    await openItem("Hotel"); const buttons = [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent);
+    $("[data-cancel-edit]").click(); await wait(200); set("#show-archived", false); await wait(600);
+    return [archived, buttons];`), [["Hotel"], ["Close", "Restore", "Delete"]]);
   check("'Default on new ties' sits on the Name row, at the right, and isn't offered when archiving now", await run(`
-    const flag = $("#default-flag"); const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
-    const placed = [Math.abs(mid(flag) - mid($("label[for=name]"))) < 3, flag.getBoundingClientRect().right > $("#name").getBoundingClientRect().right - 4];
-    set("#is_default", true); set("[name=archive_now]", true); const archiving = [flag.hidden, $("#is_default").checked];
+    $("#add-location").click(); await wait(300);
+    const flag = $("#location-default-flag"); const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+    const placed = [Math.abs(mid(flag) - mid($("label[for=location-name]"))) < 3, flag.getBoundingClientRect().right > $("#location-name").getBoundingClientRect().right - 4];
+    set("#location-is_default", true); set("[name=archive_now]", true); const archiving = [flag.hidden, $("#location-is_default").checked];
     set("[name=archive_now]", false); const back = flag.hidden;
+    $("[data-cancel-edit]").click(); await wait(200);
     return [placed, archiving, back];`), [[true, true], [true, false], false]);
   check("one location is the default, kept at the top; ticking another asks to replace it, and Cancel unticks it", await run(`
     const dialogButton = (text) => [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === text);
-    await clickIn("Studio", "Edit"); $("#is_default").click(); await wait(400); const noPrompt = $("dialog[open]") === null; await submit();
-    const pinned = titles();
-    await clickIn("Old flat", "Edit"); $("#is_default").click(); await wait(400);
-    const prompt = $("dialog[open] h2")?.textContent; dialogButton("Cancel").click(); await wait(200);
-    const cancelled = $("#is_default").checked;
-    $("#is_default").click(); await wait(400); dialogButton("Replace").click(); await wait(200);
-    const kept = $("#is_default").checked; await submit();
+    await openItem("Studio"); $("#location-is_default").click(); await wait(400);
+    const noPrompt = document.querySelectorAll("dialog[open]").length === 1; await submit();
+    const pinned = personNames(); const badge = !!$("#list .item .badge");
+    await openItem("Old flat"); $("#location-is_default").click(); await wait(400);
+    const prompt = [...document.querySelectorAll("dialog[open] h2")].pop()?.textContent; dialogButton("Cancel").click(); await wait(200);
+    const cancelled = $("#location-is_default").checked;
+    $("#location-is_default").click(); await wait(400); dialogButton("Replace").click(); await wait(200);
+    const kept = $("#location-is_default").checked; await submit();
     const stored = (await (await fetch("/api/locations?archived=false")).json()).filter((l) => l.is_default).map((l) => l.name);
-    return [noPrompt, pinned, prompt, cancelled, kept, titles(), stored];`),
-    [true, ["StudioDefault", "Old flat"], "Replace Studio as your default location?", false, true, ["Old flatDefault", "Studio"], ["Old flat"]]);
-  check("locations: search and sort too", await run(`
-    const box = $(".list-search"); box.value = "stu"; box.dispatchEvent(new Event("input")); await wait(50); const found = titles();
-    box.value = ""; box.dispatchEvent(new Event("input")); $(".sort-button[data-sort=name]").click(); await wait(50);
-    return [found, titles()];`), [["Studio"], ["Old flatDefault", "Studio"]]);
+    return [noPrompt, pinned, badge, prompt, cancelled, kept, personNames(), stored];`),
+    [true, ["Studio", "Old flat"], true, "Replace Studio as your default location?", false, true, ["Old flat", "Studio"], ["Old flat"]]);
+  check("locations: a search card (by name or where it is) and sorts too", await run(`
+    const box = $(".list-search"); const inCard = box.closest(".card").id;
+    const search = async (text) => { box.value = text; box.dispatchEvent(new Event("input")); await wait(50); return personNames(); };
+    const found = [await search("stu"), await search("tacoma"), await search("canada"), await search("zz")];
+    await search(""); $(".sort-button[data-sort=name]").click(); await wait(50);
+    return [inCard, found, personNames()];`), ["locations-search", [["Studio"], ["Studio"], ["Old flat"], []], ["Old flat", "Studio"]]);
   check("a new tie starts at the default location; then it's unset again", await run(`
-    $(".nav-add").click(); await wait(1200);
+    $("nav .nav-add").click(); await wait(1200);
     const start = [$("#tie-location").offsetParent !== null, $("#tie-location").value, $("#tie-location-show").hidden];
     $("dialog[open] .dialog-cancel").click(); await wait(300);
-    await clickIn("Old flatDefault", "Edit"); $("#is_default").click(); await submit();
-    return [start, titles()];`), [[true, "Old flat", true], ["Old flat", "Studio"]]);
+    await openItem("Old flat"); $("#location-is_default").click(); await submit();
+    return [start, !!$("#list .item .badge")];`), [[true, "Old flat", true], false]);
 }

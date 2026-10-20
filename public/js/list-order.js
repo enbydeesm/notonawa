@@ -1,4 +1,5 @@
-// The order of the People and Locations lists: a search by name, and a sort
+// The order of the People and Locations lists: a search by name (and a
+// person's aliases, or where a location is), and a sort
 // by name (A–Z) or by when each was added. Pure, so it's easy to test;
 // list-tools.js draws the search box and sort buttons.
 
@@ -9,8 +10,22 @@ import { readAliases } from "./aliases.js";
  * @typedef {"name" | "created"} SortKey
  * @typedef {{ sort: SortKey, descending: boolean }} ListOrder
  *   aliases: a person's opened aliases (JSON text), searched too
- * @typedef {{ id: string, name?: string | null, created_at?: string, aliases?: string | null }} Listed
+ *   city, state_province, country: where a location is, searched too
+ * @typedef {{
+ *   id: string, name?: string | null, created_at?: string, aliases?: string | null,
+ *   city?: string | null, state_province?: string | null, country?: string | null,
+ * }} Listed
  */
+
+/**
+ * Where a location is, as its card shows it: "Seattle, WA, USA", leaving
+ * out what isn't filled in ("" if none is).
+ * @param {Pick<Listed, "city" | "state_province" | "country">} place
+ * @returns {string}
+ */
+export function placeText(place) {
+  return [place.city, place.state_province, place.country].filter(Boolean).join(", ");
+}
 
 /** Newest first, to start with. @type {ListOrder} */
 export const DEFAULT_ORDER = { sort: "created", descending: true };
@@ -28,7 +43,8 @@ export function nextOrder(order, sort) {
 }
 
 /**
- * The items whose name (or a person's alias) contains the search (capitals
+ * The items whose name (or a person's alias, or a location's city, state or
+ * province or country) contains the search (capitals
  * don't matter), in the chosen order. A pinned item (my own profile) comes
  * first, when it matches.
  * @template {Listed} T
@@ -42,7 +58,7 @@ export function orderList(items, query, order, pinned = () => false) {
   const keyword = normaliseKeyword(query);
   const shown = keyword === null
     ? [...items]
-    : items.filter((item) => [item.name ?? "", ...readAliases(item.aliases).map((a) => a.alias)]
+    : items.filter((item) => [item.name ?? "", ...readAliases(item.aliases).map((a) => a.alias), placeText(item)]
       .some((text) => text.toLocaleLowerCase().includes(keyword)));
   const direction = order.descending ? -1 : 1;
   /** @param {T} a @param {T} b */

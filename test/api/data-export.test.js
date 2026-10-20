@@ -14,7 +14,7 @@ describe("GET /api/data/export", () => {
     await sql(
       "INSERT INTO profile_notes (id, person_id, type, description) VALUES ('n1', ?, 'limit', 'No neck ties')", sam
     ).run();
-    const studio = await create("/api/locations", { name: "Studio", latitude: 51.5, longitude: -0.1 });
+    const studio = await create("/api/locations", { name: "Studio", city: "Leeds", country: "UK", latitude: 51.5, longitude: -0.1 });
     await call("/api/feedback", { method: "POST", body: { kind: "idea", message: "Dark mode charts", app_version: "2026.10.20.001" } });
     const base = await create("/api/plans", {
       title: "TK", tie_type: "floor", album_url: sealed("https://photos.app.goo.gl/tk"), tags: ["kata", "floor"],
@@ -47,7 +47,9 @@ describe("GET /api/data/export", () => {
       id: sam, name: "Sam", pronouns: "they/them", notes: sealed("Likes floor work"), is_self: false, default_role: "bottom", archived_at: null,
       profile_notes: [expect.objectContaining({ type: "limit", description: "No neck ties", is_current: true })],
     })]);
-    expect(doc.locations).toEqual([expect.objectContaining({ id: studio, name: "Studio", latitude: 51.5, longitude: -0.1, is_default: false })]);
+    expect(doc.locations).toEqual([expect.objectContaining({
+      id: studio, name: "Studio", city: "Leeds", state_province: null, country: "UK", latitude: 51.5, longitude: -0.1, is_default: false,
+    })]);
     // Made in the same second, so in either order.
     expect(doc.plans).toHaveLength(2);
     expect(doc.plans).toEqual(expect.arrayContaining([

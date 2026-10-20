@@ -147,7 +147,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   batch (`LinkStatements` in `db.js`). The plans list also has
   `linked_ties` (id, title, date and rating of each tie it's on, newest
   first); `jsonColumns` are parsed by `listRows`.
-- `src/locations/`: location routes beyond the shared ones. `maps.js`
+- `src/locations/`: location routes beyond the shared ones (a location's
+  `city`, `state_province` and `country`, plain text, are ordinary
+  resource fields since migration 0017). `maps.js`
   (pure: which Google Maps links we accept, reading their coordinates),
   `resolve.js` (following a short link's redirects; `fetch` is passed in),
   `routes.js` (`POST /api/locations/coords` with `{ url }`; routed before
@@ -239,13 +241,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
   `resource-page.js` (list/edit pages; with `dialog`, the form is in a
-  dialog that + and Edit open, as on Plans and People; with
+  dialog that + and Edit open, as on Plans, People and Locations; with
   `actionsInDialog`, Archive and Delete are in the dialog, not on the
-  cards, as on People), `aliases.js` (pure: a person's social and scene
+  cards, as on People and Locations), `aliases.js` (pure: a person's social and scene
   names, sealed as one JSON field; `personMatch`, what a people search
   finds and shows), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure
-  filtering and sorting), `csv.js`, `import-csv.js` and
+  filtering and sorting; `placeText`, a location's "City, State,
+  Country"), `csv.js`, `import-csv.js` and
   `import-steps.js` (pure: reading CSVs, CSV rows to an import, and an
   import's requests), `import-photos.js` (pure: an import's photos, taken
   off its ties and plans before sending and uploaded once the rest is

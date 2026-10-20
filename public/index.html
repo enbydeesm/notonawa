@@ -88,9 +88,9 @@
     <h1 class="visually-hidden">Plans</h1>
 
     <!-- Opens the form below in its dialog (views/plans.js). -->
-    <section class="card add-card">
-      <h2 id="add-plan-label">Add a Plan</h2>
+    <section class="card add-card plus-first">
       <button type="button" class="nav-add" id="add-plan" aria-labelledby="add-plan-label" title="Add a plan">+</button>
+      <h2 id="add-plan-label">Add a Plan</h2>
     </section>
 
     <!-- Like the Ties search, but over the plans already loaded: nothing
@@ -204,9 +204,9 @@
     <h1 class="visually-hidden">People</h1>
 
     <!-- Opens the form below in its dialog, as tapping a name does (views/people.js). -->
-    <section class="card add-card">
-      <h2 id="add-person-label">Add a Person</h2>
+    <section class="card add-card plus-first">
       <button type="button" class="nav-add" id="add-person" aria-labelledby="add-person-label" title="Add a person">+</button>
+      <h2 id="add-person-label">Add a Person</h2>
     </section>
 
     <!-- The search box and sort buttons (resource-page.js puts them here). -->
@@ -221,20 +221,24 @@
     </section>
 
     <dialog class="form-dialog" id="person-dialog" aria-labelledby="person-form-heading">
-      <h2 id="person-form-heading">Add a person</h2>
+      <!-- "This is me" shows only when editing my own profile, ticked and
+           greyed out: it can't be changed (people.js). It's outside the form,
+           so form="form" keeps it in the form's fields. -->
+      <div class="name-row heading-row">
+        <h2 id="person-form-heading">Add a person</h2>
+        <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" form="form" disabled> This is me</label>
+      </div>
       <form id="form">
-        <!-- "This is me" shows only when editing my own profile, ticked and
-             greyed out: it can't be changed (people.js). -->
         <div class="name-row">
           <label for="person-name">Name</label>
-          <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" disabled> This is me</label>
+          <label class="self-flag"><input type="checkbox" name="is_educator"> Educator</label>
         </div>
         <input id="person-name" name="name" required autocomplete="off" spellcheck="false">
 
         <div class="row">
           <div>
             <label for="person-pronouns">Pronouns</label>
-            <input id="person-pronouns" name="pronouns" placeholder="e.g. they/them" autocomplete="off" spellcheck="false">
+            <input id="person-pronouns" name="pronouns" placeholder="e.g. they/them" autocapitalize="none" autocomplete="off" spellcheck="false">
           </div>
           <div>
             <label for="person-default_role">Default role</label>
@@ -248,8 +252,6 @@
         <!-- Encrypted, like the notes and the names below. -->
         <label for="person-based_in">Based in</label>
         <input id="person-based_in" name="based_in" placeholder="e.g. Seattle, WA" autocomplete="off" spellcheck="false">
-
-        <label class="inline educator-flag"><input type="checkbox" name="is_educator"> Educator</label>
 
         <!-- Rows of platform and name, added with + (people.js). -->
         <div class="label-row">
@@ -277,45 +279,14 @@
   <template id="view-locations">
     <h1 class="visually-hidden">Locations</h1>
 
-    <section class="card">
-      <h2>Add a location</h2>
-      <form id="form">
-        <!-- Only one location is the default; ticking another asks whether
-             to replace it (locations.js). Not for one archived now. -->
-        <div class="name-row">
-          <label for="name">Name</label>
-          <label class="self-flag" id="default-flag"><input type="checkbox" name="is_default" id="is_default"> Default on new ties</label>
-        </div>
-        <input id="name" name="name" required autocomplete="off" spellcheck="false">
-
-        <label for="maps_url">Google Maps link (dropped pins work best)</label>
-        <input id="maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off" spellcheck="false">
-        <p class="hint" id="maps-hint">Paste a link to fill in the latitude and longitude.</p>
-
-        <div class="row">
-          <div>
-            <label for="latitude">Latitude</label>
-            <input id="latitude" name="latitude" type="number" step="any" min="-90" max="90" autocomplete="off" spellcheck="false">
-          </div>
-          <div>
-            <label for="longitude">Longitude</label>
-            <input id="longitude" name="longitude" type="number" step="any" min="-180" max="180" autocomplete="off" spellcheck="false">
-          </div>
-        </div>
-
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
-
-        <div data-add-only>
-          <label class="inline"><input type="checkbox" name="archive_now" id="archive_now"> Archive now</label>
-          <p class="hint">For a one-off spot: it's saved for your ties, but kept out of the location picker.</p>
-        </div>
-
-        <button type="submit" class="primary">Add location</button>
-        <button type="button" class="link" data-cancel-edit hidden>Cancel editing</button>
-        <p class="message"></p>
-      </form>
+    <!-- Opens the form below in its dialog, as tapping a name does (views/locations.js). -->
+    <section class="card add-card plus-first">
+      <button type="button" class="nav-add" id="add-location" aria-labelledby="add-location-label" title="Add a location">+</button>
+      <h2 id="add-location-label">Add a Location</h2>
     </section>
+
+    <!-- The search box and sort buttons (resource-page.js puts them here). -->
+    <section class="card" role="search" aria-label="Search locations" id="locations-search"></section>
 
     <section class="card">
       <div class="card-header">
@@ -324,6 +295,67 @@
       </div>
       <div id="list"><p class="empty">Loading…</p></div>
     </section>
+
+    <dialog class="form-dialog" id="location-dialog" aria-labelledby="location-form-heading">
+      <h2 id="location-form-heading">Add a location</h2>
+      <form id="form">
+        <!-- Only one location is the default; ticking another asks whether
+             to replace it (locations.js). Not for one archived now. -->
+        <div class="name-row">
+          <label for="location-name">Name</label>
+          <label class="self-flag" id="location-default-flag"><input type="checkbox" name="is_default" id="location-is_default"> Default on new ties</label>
+        </div>
+        <input id="location-name" name="name" required autocomplete="off" spellcheck="false">
+
+        <label for="location-maps_url">Google Maps link (dropped pins work best)</label>
+        <input id="location-maps_url" name="maps_url" type="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off" spellcheck="false">
+        <p class="hint" id="location-maps-hint">Paste a link to fill in the latitude and longitude.</p>
+
+        <div class="row">
+          <div>
+            <label for="location-city">City</label>
+            <input id="location-city" name="city" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="location-state_province">State/Province</label>
+            <input id="location-state_province" name="state_province" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+
+        <!-- Narrow coordinates: they show the first few digits, and hold all of them. -->
+        <div class="row">
+          <div>
+            <label for="location-country">Country</label>
+            <input id="location-country" name="country" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="coord-field">
+            <label for="location-latitude">Lat</label>
+            <input id="location-latitude" name="latitude" type="number" step="any" min="-90" max="90" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="coord-field">
+            <label for="location-longitude">Long</label>
+            <input id="location-longitude" name="longitude" type="number" step="any" min="-180" max="180" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+
+        <label for="location-notes">Notes</label>
+        <textarea id="location-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
+
+        <div data-add-only>
+          <label class="inline"><input type="checkbox" name="archive_now" id="location-archive_now"> Archive now</label>
+          <p class="hint">For a one-off spot: it's saved for your ties, but kept out of the location picker.</p>
+        </div>
+
+        <button type="submit" class="primary">Add location</button>
+        <!-- Archive (or Restore) and Delete go in data-item-actions while
+             editing (resource-page.js, actionsInDialog). -->
+        <div class="dialog-actions">
+          <button type="button" data-cancel-edit>Close</button>
+          <span class="dialog-item-actions" data-item-actions></span>
+        </div>
+        <p class="message"></p>
+      </form>
+    </dialog>
   </template>
 
   <!-- Calendar: a month, with its numbers and a hank on each day with ties.

@@ -57,6 +57,7 @@ export function mount(_root, { signal }) {
       PLATFORMS.map((p) => h("option", { value: p.value }, p.label)));
     const name = privateField(h("input", {
       type: "text", className: "alias-name", placeholder: "Name or handle", "aria-label": `Name or handle ${n}`,
+      autocapitalize: "none",
     }));
     if (alias) {
       platform.value = alias.platform;
@@ -106,8 +107,8 @@ export function mount(_root, { signal }) {
     renderItem: (person, _people, edit) => {
       const aka = akaText(readAliases(person.aliases));
       return [
-        h("div", { className: "item-title person-title" },
-          h("button", { type: "button", className: "person-name", onclick: edit }, person.name),
+        h("div", { className: "item-title name-title" },
+          h("button", { type: "button", className: "name-button", onclick: edit }, person.name),
           person.is_self ? h("span", { className: "badge" }, "You") : null,
           person.pronouns ? h("span", { className: "item-meta" }, person.pronouns) : null,
           person.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(person.default_role))) : null,

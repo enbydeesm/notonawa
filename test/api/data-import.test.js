@@ -95,7 +95,8 @@ async function fillJournal() {
   await call(`/api/people/${sam}/archive`, { method: "POST" });
   await sql("INSERT INTO profile_notes (id, person_id, type, description, noted_on) VALUES (?, ?, 'injury', ?, '2026-01-02')",
     crypto.randomUUID(), sam, sealed("Left shoulder")).run();
-  const studio = await create("/api/locations", { name: "Studio", notes: sealed("Beam"), latitude: 51.5, longitude: -0.12, is_default: true });
+  const studio = await create("/api/locations", {
+    name: "Studio", notes: sealed("Beam"), city: "Seattle", state_province: "WA", country: "USA", latitude: 51.5, longitude: -0.12, is_default: true });
   const old = await create("/api/locations", { name: "Old flat" });
   const tk = await create("/api/plans", { title: "TK", stage: "ready", plan_type: "harness", est_difficulty: 3 });
   const tk2 = await create("/api/plans", {

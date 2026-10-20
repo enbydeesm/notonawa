@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_ORDER, nextOrder, orderList } from "../../public/js/list-order.js";
+import { DEFAULT_ORDER, nextOrder, orderList, placeText } from "../../public/js/list-order.js";
 
 const people = [
   { id: "a", name: "sam", created_at: "2026-01-02T00:00:00Z" },
@@ -57,5 +57,23 @@ describe("orderList", () => {
     expect(names(orderList(withAliases, "kitty", DEFAULT_ORDER))).toEqual(["J"]);
     expect(names(orderList(withAliases, "zz", DEFAULT_ORDER))).toEqual([]);
   });
+
+  it("finds locations by their city, state or province and country too", () => {
+    const places = [
+      { id: "s", name: "Studio", created_at: "2026-01-02T00:00:00Z", city: "Seattle", state_province: "WA", country: "USA" },
+      { id: "d", name: "Dojo", created_at: "2026-01-01T00:00:00Z", city: null, state_province: "Ontario", country: "Canada" },
+    ];
+    expect(names(orderList(places, "seattle", DEFAULT_ORDER))).toEqual(["Studio"]);
+    expect(names(orderList(places, "ontario", DEFAULT_ORDER))).toEqual(["Dojo"]);
+    expect(names(orderList(places, "a", DEFAULT_ORDER))).toEqual(["Studio", "Dojo"]);
+    expect(names(orderList(places, "leeds", DEFAULT_ORDER))).toEqual([]);
+  });
 });
 
+describe("placeText", () => {
+  it("joins what's filled in", () => {
+    expect(placeText({ city: "Seattle", state_province: "WA", country: "USA" })).toBe("Seattle, WA, USA");
+    expect(placeText({ city: null, state_province: "Ontario", country: "Canada" })).toBe("Ontario, Canada");
+    expect(placeText({})).toBe("");
+  });
+});

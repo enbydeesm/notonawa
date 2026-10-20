@@ -64,6 +64,7 @@ export function planItems(items, existing, newId) {
     }))),
     locations: items.locations.flatMap((l, i) => locations[i].matched ? [] : [{
       id: locations[i].id, name: l.name, notes: l.notes, maps_url: l.maps_url,
+      city: l.city, state_province: l.state_province, country: l.country,
       latitude: l.latitude, longitude: l.longitude,
       is_default: l.file_id === defaultLocation ? 1 : 0,
       archived_at: l.archived_at, created_at: l.created_at, updated_at: l.updated_at,

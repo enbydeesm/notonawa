@@ -13,8 +13,10 @@ export default async function () {
   check("cancel keeps the plan", await run(`await clickDialog("Cancel"); return [!!document.querySelector("dialog[open]"), titles().length];`), [false, 2]);
   check("'Just delete the plan'", await run(`await clickIn("Hip harness", "Delete"); await clickDialog("Just delete the plan"); return titles();`), ["Hip harness, one-sided"]);
   await go("/locations");
-  check("location delete offers archiving instead", await run(`await clickIn("Studio", "Delete"); const b = dialogButtons(); await clickDialog("Delete permanently"); return [b, titles()];`),
-    [["Archive instead", "Delete permanently", "Cancel"], ["Back garden", "Old flat"]]);
+  check("location delete, from its dialog, offers archiving instead", await run(`
+    await openItem("Studio"); [...document.querySelectorAll("#location-dialog button")].find((b) => b.textContent === "Delete").click(); await wait(300);
+    const b = dialogButtons().slice(-3); await clickDialog("Delete permanently"); return [b, $("#location-dialog").open, personNames()];`),
+    [["Archive instead", "Delete permanently", "Cancel"], false, ["Back garden", "Old flat"]]);
   await go("/people");
   check("delete a person from their dialog", await run(`
     await openPerson("Sam"); [...document.querySelectorAll("#person-dialog button")].find((b) => b.textContent === "Delete").click(); await wait(300);

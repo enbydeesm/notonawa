@@ -1152,3 +1152,38 @@ about 6 minutes, too slow to run after every change.
   about 0.5 to 1 GB. Steps that waited a fixed time are the risk on a
   busy machine; `--jobs 1` runs them one at a time to tell a slow machine
   from a real failure.
+
+## Locations: city, state or province and country, and the Locations dialog (October 2026)
+
+**Status:** built (2026-10-20)
+
+- **Where a location is** (migration 0017): `city`, `state_province` and
+  `country`, typed in, all optional. Plain text, like the name and the
+  coordinates (which already say exactly where it is), so the server can
+  list them and later filter by them. Cards show them as "Seattle, WA,
+  USA" (`placeText`), and the list's search finds them.
+- **Not built yet: filling them in from a Maps link, or from a pasted
+  address.** A dropped-pin link holds only coordinates, and a place link
+  holds the address as free text whose format changes by country, so
+  splitting it on commas isn't reliable; an address needs geocoding to get
+  coordinates at all. Both need a geocoding service, called from the
+  Worker (as short links are) so the page's CSP doesn't change:
+  - **OpenStreetMap Nominatim**: free, no key; works from coordinates
+    (dropped pins too) and addresses. Its usage policy asks for at most
+    one request a second, a User-Agent saying who we are, and the credit
+    "© OpenStreetMap contributors" near the fields.
+  - **Google Geocoding API**: closest to what Google Maps shows; needs a
+    Cloud account with billing and a secret key.
+  - **Parsing the place link's text only**: free and private, but fills
+    in nothing for dropped pins or addresses.
+
+  Leaning to Nominatim. Either service would see a location (from
+  Cloudflare's address, not the user's), so PRIVACY.md would need to say
+  so, with a notice first. A pasted street address wouldn't be stored.
+- **The Locations dialog**, as on People: "Add a Location" with the +
+  first, a search card, and the form in a dialog that + and tapping a name
+  open, with Archive (or Restore) and Delete inside it. Lat and Long are
+  narrow (about six digits show) but hold full precision.
+- **People's form**: "This is me" moved to the dialog heading's row, and
+  Educator to the Name row, both at the right. Pronouns and social names
+  aren't capitalized as they're typed (`autocapitalize="none"`).

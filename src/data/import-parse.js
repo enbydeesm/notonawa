@@ -32,7 +32,8 @@ const MAX_ID_LENGTH = 100;
  * }} PersonInput
  * @typedef {Times & {
  *   file_id: string, name: string, notes: string | null,
- *   maps_url: string | null, latitude: number | null, longitude: number | null, is_default: 0 | 1,
+ *   maps_url: string | null, city: string | null, state_province: string | null, country: string | null,
+ *   latitude: number | null, longitude: number | null, is_default: 0 | 1,
  *   archived_at: string | null,
  * }} LocationInput
  * @typedef {Times & {
@@ -209,11 +210,11 @@ function parseProfileNote(n) {
 /** @param {Record<string, unknown>} l @returns {LocationInput} */
 function parseLocation(l) {
   const { values } = parseFields(RESOURCES.locations, l);
-  const [name, notes, mapsUrl, latitude, longitude, isDefault] =
-    /** @type {[string, string | null, string | null, number | null, number | null, 0 | 1]} */ (values);
+  const [name, notes, mapsUrl, city, stateProvince, country, latitude, longitude, isDefault] =
+    /** @type {[string, string | null, string | null, string | null, string | null, string | null, number | null, number | null, 0 | 1]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(l.id)),
-    name, notes, maps_url: mapsUrl, latitude, longitude, is_default: isDefault,
+    name, notes, maps_url: mapsUrl, city, state_province: stateProvince, country, latitude, longitude, is_default: isDefault,
     ...archiveAndTimes(l),
   };
 }

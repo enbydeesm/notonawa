@@ -61,8 +61,10 @@ const SQL = {
                         ${j("is_current")}, ${time("created_at")}, ${time("updated_at")}
                    FROM json_each(?2) j
                   WHERE EXISTS (SELECT 1 FROM people WHERE id = ${j("person_id")} AND owner_id = ?1)`,
-  locations: `INSERT INTO locations (id, owner_id, name, notes, maps_url, latitude, longitude, is_default, archived_at, created_at, updated_at)
+  locations: `INSERT INTO locations (id, owner_id, name, notes, maps_url, city, state_province, country, latitude, longitude, is_default,
+                                     archived_at, created_at, updated_at)
               SELECT ${j("id")}, ?1, ${j("name")}, ${j("notes")}, ${j("maps_url")},
+                     ${j("city")}, ${j("state_province")}, ${j("country")},
                      ${j("latitude")}, ${j("longitude")}, ${j("is_default")}, ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
                 FROM json_each(?2) j`,
   plans: `INSERT INTO plans (id, owner_id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, version,

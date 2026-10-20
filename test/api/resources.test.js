@@ -34,6 +34,15 @@ describe("plans, people and locations", () => {
     expect((await call("/api/people", { method: "POST", body: { name: "Plain", aliases: "[]" } })).status).toBe(400);
   });
 
+  it("keeps a location's city, state or province and country, as plain text", async () => {
+    const id = await create("/api/locations", { name: "Studio", city: " Seattle ", state_province: "WA", country: "USA" });
+    const found = (await call("/api/locations?archived=false")).body.find((/** @type {any} */ l) => l.id === id);
+    expect(found).toMatchObject({ city: "Seattle", state_province: "WA", country: "USA" });
+    expect((await call(`/api/locations/${id}`, { method: "PUT", body: { name: "Studio", city: "Tacoma", country: "" } })).status).toBe(200);
+    expect(await sql("SELECT city, state_province, country FROM locations WHERE id = ?", id).first())
+      .toEqual({ city: "Tacoma", state_province: null, country: null });
+  });
+
   it("rejects bad input with a friendly message", async () => {
     expect(await call("/api/people", { method: "POST", body: { pronouns: "they/them" } }))
       .toEqual({ status: 400, body: { error: "Give the person a name." } });
