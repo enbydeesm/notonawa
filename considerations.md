@@ -3,90 +3,98 @@
 Design ideas we've weighed, planned features, and the reasons behind them, so
 we can revisit them later.
 
-## Planned: privacy and accounts roadmap
+## Privacy and accounts
 
-**Status:** planned, next up (2026-10-12)
+**Status:** built and deployed (all 13 migrations applied to the remote
+database, checked 2026-10-19). Videos aren't built: they're in
+[roadmap.md](roadmap.md).
 
 Goal: open the app to other users, with notes and photos end-to-end encrypted
 so that even we (and Cloudflare) can't read them. [PRIVACY.md](PRIVACY.md)
-is the draft policy describing the finished result; keep it in step with
-what's built, and don't publish it until every step below is live.
+describes the result; keep it in step with what's built.
 
-### Order
+### The features, in the order they were built
 
-Each step leaves the app working and shippable on its own.
+Each one left the app working and shippable on its own.
 
-1. **Hardening baseline.** *Built 2026-10-12.* Security headers on every response (strict CSP
-   with Trusted Types, `Cache-Control: no-store` on pages and API,
-   `Referrer-Policy: no-referrer`, `nosniff`, `frame-ancestors 'none'`,
-   COOP/CORP, `Permissions-Policy`, HSTS). The search keyword leaves the page
-   URL and the API URL: the list is fetched with `POST /api/ties/search`, the
-   keyword travels only in the body, and it never goes into history. Free-text
-   fields get `autocomplete="off"` and `spellcheck="false"`. No stored request
-   logs. *First because
-   it's small, needs no packages or migrations, and closes leaks that exist
-   today (search words in browser history and request logs).*
-2. **Passkey sign-in and app sessions (replaces Cloudflare Access).**
-   *Built 2026-10-13, not yet deployed; see "Step 2 as built" below.* WebAuthn
-   registration and sign-in in the Worker; `__Host-` session cookie
-   (`HttpOnly; Secure; SameSite=Strict`, 30 days max, 7 days idle) with only
-   a SHA-256 hash of the token stored; Origin check on writes; rate-limited
-   sign-in; several passkeys per account; recovery code; "your sessions" with
-   sign out everywhere; 18+ confirmation and consent for sensitive data at
-   sign-up. Registration asks for the PRF extension and records whether each
-   passkey supports it, ready for step 4. Moves the existing account across.
-   No email is collected; `users.email` is emptied (see below). *Before encryption
-   because the keys hang off passkeys and the recovery code.*
-3. **Account export and deletion**, plus the retention rules in PRIVACY.md:
-   JSON export, delete-account (cascades through D1), encrypted operator
-   backups with a fixed retention. Import was added too. *Built 2026-10-13,
-   not yet deployed; see "Step 3 as built" below.* *Before encryption while
-   it's simple; steps 4–6 each extend it.*
-3b. **Optional recovery email**, stored only as a salted hash, so the
-   operator can check that someone asking to recover an account owns it.
-   PRIVACY.md now strongly recommends a second passkey and the recovery code,
-   and says recovery isn't guaranteed. *Built 2026-10-14, not yet deployed;
-   see "Step 3b as built" below.*
-4a. **Single-page app (no change in behaviour).** One document with a
-   client-side router; the pages become views (`<template>`s in
-   `index.html` plus a module per view, loaded with `import()`), each with
-   an AbortController so nothing leaks between views. Sign-in becomes a
-   view; the privacy page stays a static page, opened from the app in a new
-   tab. *Needed because the key lives only in a Worker's memory: in a
-   multi-page app every tab change is a page load, which kills the Worker
-   (and fires `pagehide`), so each one would mean using the passkey again,
-   and even sign-in → home would lose the key.* Decided 2026-10-14.
-   *Built 2026-10-14, not yet deployed; see "Step 4a as built" below.*
-4. **Encryption foundation** (4b, after 4a). Per-user random data key (AES-256-GCM), wrapped
-   by a key derived from each passkey's PRF output and by the recovery code;
-   wrapped copies stored on the server. A dedicated Web Worker holds the
-   non-extractable key and all decrypted data; pages ask it for results only.
-   Lock (drop key and plaintext, clear rendered notes) after 15 min idle,
-   5 min hidden, on sign-out and on `pagehide`; unlock with the passkey.
-   Nothing decrypted goes to localStorage, sessionStorage, IndexedDB or a
-   service-worker cache. *Built 2026-10-14, not yet deployed; see "Step 4b
-   as built" below.*
-5. **Encrypted notes and on-device search.** Encrypt the free-text fields:
-   `ties.notes`, `tie_participants.notes`, `people.notes`,
-   `profile_notes.description`, `locations.notes`,
-   `plans.description`, `plans.notes`. Existing plaintext is encrypted by
-   the browser on first unlock and the plaintext columns cleared. Keyword
-   search moves into the crypto Worker (matching with `toLocaleLowerCase`,
-   which also fixes the "Ö"/"ö" limitation below); the server takes a list of
-   matching tie ids instead of a keyword, and `q` leaves the API entirely.
-   Export decrypts on the device. *Before photos because it removes plaintext
-   that exists today, and it builds the crypto Worker plumbing photos reuse.*
-   *Built 2026-10-14, not yet deployed; see "Step 5 as built" below.*
-6. **Encrypted photos.** Private R2 bucket (no public access, no `r2.dev`
-   URL); the browser strips metadata by redrawing the image on a canvas
-   (`createImageBitmap` applies the EXIF rotation first), makes a thumbnail,
-   encrypts both and uploads through an owner-checked Worker route. Shown
-   from `blob:` URLs that are revoked on lock. Deleting a tie or the account
-   deletes its R2 objects; export includes decrypted photos. *Built
-   2026-10-14, not yet deployed; see "Step 6 decisions" and "Step 6 as
-   built" below.*
-7. **Videos** (after photos; not started). See "Step 7: videos, weighed"
-   below. Step 6 is built so videos need no new migration or export format.
+- **Hardening baseline.** *Built 2026-10-12.* Security headers on every
+  response (strict CSP with Trusted Types, `Cache-Control: no-store` on
+  pages and API, `Referrer-Policy: no-referrer`, `nosniff`,
+  `frame-ancestors 'none'`, COOP/CORP, `Permissions-Policy`, HSTS). The
+  search keyword left the page URL and the API URL (`POST
+  /api/ties/search`, keyword in the body only, never in history). Free-text
+  fields get `autocomplete="off"` and `spellcheck="false"`. No stored
+  request logs. *First because it was small, needed no packages or
+  migrations, and closed leaks that existed then (search words in browser
+  history and request logs).* The Worker's headers
+  (`src/security-headers.js`) and the static files' (`public/_headers`)
+  are the same apart from the CSP, and a unit test checks they stay that
+  way: on 2026-10-19 the Worker was found to be missing
+  `Permissions-Policy`.
+- **Passkey sign-in and app sessions** (replaced Cloudflare Access).
+  *Built 2026-10-13; see "Passkey sign-in as built".* WebAuthn registration
+  and sign-in in the Worker; `__Host-` session cookie (`HttpOnly; Secure;
+  SameSite=Strict`, 30 days max, 7 days idle) with only a SHA-256 hash of
+  the token stored; Origin check on writes; rate-limited sign-in; several
+  passkeys per account; recovery code; "your sessions" with sign out
+  everywhere; 18+ confirmation and consent for sensitive data at sign-up.
+  Registration asks for the PRF extension and records whether each passkey
+  supports it. The existing account was moved across. No email is
+  collected: `users.email` now just holds the user's id (see "Passkey
+  sign-in as built"). *Before encryption because the keys hang off
+  passkeys and the recovery code.*
+- **Account export, import and deletion**, plus the retention rules in
+  PRIVACY.md: JSON export, delete-account (one cascading delete), encrypted
+  operator backups with a fixed retention, and import (from an export or a
+  CSV). *Built 2026-10-13; see "Export, import and deletion as built".*
+  *Built before encryption while it was simple; the encryption features
+  each extended it.*
+- **Optional recovery email**, stored only as a salted hash, so the
+  operator can check that someone asking to recover an account owns it.
+  PRIVACY.md strongly recommends a second passkey and the recovery code,
+  and says recovery isn't guaranteed. *Built 2026-10-14; see "Recovery
+  email as built".*
+- **Single-page app** (no change in behaviour). One document with a
+  client-side router; the pages became views (`<template>`s in
+  `index.html` plus a module per view, loaded with `import()`), each with
+  an AbortController so nothing leaks between views. Sign-in became a
+  view; the privacy page stays a static page, opened from the app in a new
+  tab. *Needed because the key lives only in a Worker's memory: in a
+  multi-page app every tab change is a page load, which kills the Worker
+  (and fires `pagehide`), so each one would mean using the passkey again,
+  and even sign-in → home would lose the key.* Decided and *built
+  2026-10-14; see "Single-page app as built".*
+- **Encryption foundation** (built on the single-page app). Per-user random
+  data key (AES-256-GCM), wrapped by a key derived from each passkey's PRF
+  output and by the recovery code; wrapped copies stored on the server. A
+  dedicated Web Worker holds the non-extractable key and all decrypted
+  data; pages ask it for results only. Lock (drop key and plaintext, clear
+  rendered notes) after 15 min idle, 5 min hidden, on sign-out and on
+  `pagehide`; unlock with the passkey. Nothing decrypted goes to
+  localStorage, sessionStorage, IndexedDB or a service-worker cache.
+  *Built 2026-10-14; see "Encryption foundation as built".*
+- **Encrypted notes and on-device search.** The free-text fields are
+  encrypted: `ties.notes`, `tie_participants.notes`, `people.notes`,
+  `profile_notes.description`, `locations.notes`, `plans.description`,
+  `plans.notes`. Older plaintext is encrypted by the browser after unlock
+  and overwritten. Keyword search moved into the crypto Worker (matching
+  with `toLocaleLowerCase`, which also fixed "Keyword search ignores case
+  for A–Z only" below); the server takes a list of matching tie ids
+  instead of a keyword, and `q` left the API entirely. Export decrypts on
+  the device. *Before photos because it removed plaintext that existed,
+  and it built the crypto Worker plumbing photos reuse.* *Built
+  2026-10-14; see "Encrypted notes as built".*
+- **Encrypted photos.** Private R2 bucket (no public access, no `r2.dev`
+  URL); the browser strips metadata by redrawing the image on a canvas
+  (`createImageBitmap` applies the EXIF rotation first), makes a thumbnail,
+  encrypts both and uploads through an owner-checked Worker route. Shown
+  from `blob:` URLs that are revoked on lock. Deleting a tie, plan or the
+  account deletes its R2 objects; export includes decrypted photos.
+  *Built 2026-10-14; see "Encrypted photos: decisions" and "Encrypted
+  photos as built".*
+- **Videos** come after photos and aren't started: see
+  [roadmap.md](roadmap.md), which also has what we weighed. Photos were
+  built so videos need no new migration or export format.
 
 ### Decided along the way
 
@@ -94,9 +102,10 @@ Each step leaves the app working and shippable on its own.
   Third-party sign-in tells that company the user has an account here, and
   email would be another identifier to protect. Recovery is via a second
   passkey or the recovery code, and as a last resort the operator (only for
-  accounts with a recovery email; see "Step 3b as built").
-- **Step 4 design notes** (2026-10-14, from planning; as built, with the
-  changes from review, in "Step 4b as built"):
+  accounts with a recovery email; see "Recovery email as built").
+- **Encryption foundation design notes** (2026-10-14, from planning; as
+  built, with the changes from review, in "Encryption foundation as
+  built"):
   - Sign-in is discoverable (no `allowCredentials`), so PRF can't use
     `evalByCredential`: one fixed app-wide salt in `prf.eval.first`, and
     HKDF(PRF output, a random salt per wrap, info "notonawa wrap v1")
@@ -110,7 +119,7 @@ Each step leaves the app working and shippable on its own.
     to wrap it again.
   - PRF results at registration are patchy, so a new passkey often needs a
     follow-up `get()` with that credential to wrap the key for it.
-  - The existing account has no wrapped key, and the browser never had its
+  - The existing account had no wrapped key, and the browser never had its
     recovery code: first unlock runs a one-time setup that also makes a new
     recovery code.
   - An operator-made recovery code has no wrap, so that account signs in but
@@ -120,15 +129,17 @@ Each step leaves the app working and shippable on its own.
     only its URL, plus `worker-src 'self'`.
   - The PRF output passes through the page (`navigator.credentials` only
     runs there): transfer the buffer to the Worker so the page's copy is
-    emptied. PRIVACY.md should say so.
+    emptied. PRIVACY.md says so.
   - Wraps are checked by unwrapping them before upload: the server can't
     tell a bad wrap from a good one.
   - Once notes are encrypted, the recovery email's ⓘ text should add that
-    a recovery never brings back encrypted notes and photos.
+    a recovery never brings back encrypted notes and photos. (Done: it
+    says signing in that way doesn't unlock them.)
 - **Titles, names, dates, ratings, links, tags, location coordinates and map
   links stay readable by the server** so filtering, sorting and paging keep
   working server-side. PRIVACY.md says so plainly. **Revisit** encrypting
-  people's names and location coordinates/map links once step 5 is done.
+  people's names and location coordinates/map links, now that encrypted
+  notes are done.
 - **Passkeys without PRF** unlock with the recovery code. **Revisit** if that
   turns out to be common enough to need a passphrase option.
 - **Spellcheck is off** (`spellcheck="false"`) on free-text fields, along
@@ -141,42 +152,49 @@ Each step leaves the app working and shippable on its own.
   HTTPS-only regardless; preloading the domain itself would add nothing.
 - **No stored request logs** (`observability.enabled: false`). Errors are
   only visible live with `wrangler tail`. Accepted (2026-10-12).
-- **Packages per step** (each still needs approval when its step starts):
-  - Step 1: none.
-  - Step 2: verifying WebAuthn responses needs CBOR and COSE-key parsing and
-    signature checks for several algorithms. Possible by hand with WebCrypto,
-    but it's security-critical and easy to get subtly wrong, so the plan is
-    `@simplewebauthn/server` in the Worker. The browser side needs nothing:
-    `navigator.credentials` plus `PublicKeyCredential.parseCreationOptionsFromJSON`
-    / `parseRequestOptionsFromJSON`, with a small hand-written fallback for
+- **Packages per feature** (each needed approval when its work started):
+  - Hardening baseline: none.
+  - Passkey sign-in: verifying WebAuthn responses needs CBOR and COSE-key
+    parsing and signature checks for several algorithms. Possible by hand
+    with WebCrypto, but it's security-critical and easy to get subtly
+    wrong, so the Worker uses `@simplewebauthn/server`. The browser side
+    needs nothing: `navigator.credentials` plus
+    `PublicKeyCredential.parseCreationOptionsFromJSON` /
+    `parseRequestOptionsFromJSON`, with a small hand-written fallback for
     browsers without them.
-  - Steps 3–5: none (WebCrypto does AES-GCM, HKDF and PBKDF2). Step 3 was
-    built without any: CSV parsing and backup encryption are hand-written.
-  - Step 6: none for JPEG, PNG and WebP: redrawing on a canvas and re-encoding
-    writes a new file that has no metadata. HEIC is the exception: only Safari
-    decodes it. iPhones usually convert to JPEG when the file input
-    `accept`s only JPEG/PNG/WebP, so try that first; a HEIC decoder (WASM) is
-    the fallback if needed.
+  - Export and import, the recovery email, the encryption foundation and
+    encrypted notes: none (WebCrypto does AES-GCM, HKDF and PBKDF2). CSV
+    parsing and backup encryption are hand-written.
+  - Encrypted photos: none for JPEG, PNG and WebP: redrawing on a canvas
+    and re-encoding writes a new file that has no metadata. HEIC is the
+    exception: only Safari decodes it. iPhones usually convert to JPEG when
+    the file input `accept`s only JPEG/PNG/WebP, so that's what we rely on;
+    no HEIC decoder.
 
-### Step 2 as built
+### Passkey sign-in as built
 
 - **`users.email` couldn't be dropped.** SQLite won't drop a UNIQUE column,
   and rebuilding `users` would cascade-delete every journal row (DROP TABLE
   runs an implicit DELETE). Migration 0003 overwrites each email with the
-  user's id instead, and new users get email = id. **Drop the column** at the
-  next full table rebuild (children-first, like migration 0002).
+  user's id instead, and new users get email = id. Dropping the column at
+  the next full table rebuild is in [roadmap.md](roadmap.md).
 - **Moving the existing account:** no Access-and-passkeys overlap. After
-  deploying, `node scripts/recovery-code.mjs <id> --remote` gives the account
-  a recovery code; sign in with it and add a passkey. Then remove the Access
-  application in Zero Trust.
+  deploying, `node scripts/recovery-code.mjs <id> --remote` gave the
+  account a recovery code; sign in with it and add a passkey. Then remove
+  the Access application in Zero Trust.
 - **Recovery code → login secret.** The browser derives a login secret
   (HKDF-SHA256, info "login") from the code and sends only that; the server
   keeps its SHA-256. The code is 160 random bits, so a fast hash is enough.
-  Step 4 must derive the key-wrapping key with a different `info`.
-- **A recovery session** lasts 15 minutes and can only see the account and
-  add a passkey; adding one turns it into a full session. The old code keeps
-  working until a new one is set (the page does that straight after), so a
-  crash mid-way can't lock anyone out.
+  The key-wrapping key is derived with a different `info` (see "Encryption
+  foundation as built").
+- **A recovery session** lasts 15 minutes and can only add a passkey,
+  sign out, and read three things (`allowedInRecovery` in
+  `src/auth/guard.js`): the account, my settings (so the right role names
+  and light/dark mode show), and the wrapped keys (to unlock with the code
+  and wrap the key for the new passkey). Adding a passkey turns it into a
+  full session. The old code keeps working until a new one is set (the
+  page does that straight after), so a crash mid-way can't lock anyone
+  out.
 - **"Confirm it's you"** (fresh session, 10 minutes) for adding or removing a
   passkey and replacing the recovery code, so a stolen session can't quietly
   take over the account. Renaming and ending sessions don't need it.
@@ -184,13 +202,12 @@ Each step leaves the app working and shippable on its own.
 - **Invites:** 80-bit codes, single use, 14 days by default; the trigger on
   `invites` makes two sign-ups racing for one invite fail cleanly.
 - **`prf_capable`** comes from the browser's `prf.enabled` at registration;
-  NULL when it doesn't say (some only report PRF at sign-in). Step 4 should
-  fill unknowns in at sign-in.
+  NULL when it doesn't say (some only report PRF at sign-in). Sign-in and
+  unlock fill unknowns in.
 - **Rate limit:** 20 requests a minute per IP across `/api/auth/` (Cloudflare's
   rate-limit binding, counted in memory).
-- **Not yet:** account deletion and export (step 3; since built).
 
-### Step 3 as built
+### Export, import and deletion as built
 
 - **Export** (`GET /api/data/export`, the "Your data" page): one JSON file,
   `format: "notonawa-export"`, `version: 1`. Items keep their ids so the
@@ -198,21 +215,21 @@ Each step leaves the app working and shippable on its own.
   and `location_deleted`. Account details are only dates, the terms version
   and passkey names: no hashes, public keys or sessions. The page fetches it
   and saves it from a `blob:` URL (revoked after 10 s) rather than linking to
-  the route, so step 5 can decrypt on the device first.
-- **Photos in exports (step 6), decided now:** the export becomes a `.zip`
-  holding `notonawa.json` and a `photos/` folder, files named by photo
-  id. Each tie and plan lists its photos in `photos: [{ id, file, caption,
-  position, created_at }]`, `file` being the path inside the zip, so the
-  JSON stays the record of what's attached where (titles repeat and change;
-  ids don't). The browser builds the zip, because only it can decrypt the
-  photos: a store-only zip (JPEGs are already compressed) is ~100 lines with
-  a CRC32, no package. Import then saves the journal first and uploads each
-  photo afterwards, one by one, to the new tie or plan id (R2 uploads can't be
-  in a D1 transaction). `photos` is already in version 1, always empty, so
-  step 6 needs no new version; import will accept both `.json` and `.zip`.
-  Not chosen: base64 inside the JSON (a third bigger, one huge file, photos
-  not viewable) or a separate photo download (the link depends on keeping
-  two files together).
+  the route, so it can decrypt on the device first.
+- **Photos in exports**, decided before photos were built: the export
+  becomes a `.zip` holding `notonawa.json` and a `photos/` folder, files
+  named by photo id. Each tie and plan lists its photos in `photos: [{ id,
+  file, caption, position, created_at }]`, `file` being the path inside the
+  zip, so the JSON stays the record of what's attached where (titles repeat
+  and change; ids don't). The browser builds the zip, because only it can
+  decrypt the photos: a store-only zip (JPEGs are already compressed) is
+  ~100 lines with a CRC32, no package. Import then saves the journal first
+  and uploads each photo afterwards, one by one, to the new tie or plan id
+  (R2 uploads can't be in a D1 transaction). `photos` was in version 1 from
+  the start, so photos needed no new version; import accepts both `.json`
+  and `.zip`. Not chosen: base64 inside the JSON (a third bigger, one huge
+  file, photos not viewable) or a separate photo download (the link
+  depends on keeping two files together).
 - **Delete account** (`DELETE /api/account`): needs a fresh session and
   typing "delete". One `DELETE FROM users` cascades through everything
   (tested table by table, and that other users are untouched). Then the page
@@ -220,14 +237,17 @@ Each step leaves the app working and shippable on its own.
   it, so the passkey can disappear from the user's password manager.
 - **Daily cleanup:** a cron trigger (`src/cleanup.js`) deletes ended
   sessions and expired challenges, as PRIVACY.md promises.
-- **Backups:** `scripts/backup.mjs --remote` exports D1, encrypts it
-  (PBKDF2-SHA256 600k + AES-256-GCM via WebCrypto, header authenticated) and
-  deletes backups older than 7 days, matching D1's own rolling history on
-  the Free plan. **Old backups are only deleted when the script runs**, so
-  it must run at least weekly (or `--prune-only`) for PRIVACY.md's "no more
-  than 7 days" to hold. **Revisit** with a scheduled job on the operator's
-  machine if that's easy to forget. The plaintext backups from earlier
-  migrations were deleted (2026-10-13).
+- **Backups:** `scripts/backup.mjs --remote` exports D1 and encrypts it
+  (PBKDF2-SHA256 600k + AES-256-GCM via WebCrypto, header authenticated).
+  The plaintext backups from earlier migrations were deleted (2026-10-13).
+  **Kept 30 days** (`RETENTION_DAYS` in `scripts/backup-lib.mjs`), as
+  PRIVACY.md says; confirmed 2026-10-19. It first kept 7, matching D1's
+  rolling history on the Free plan, and had to run weekly for that to
+  hold. Since the Worker's own daily backup (see "Notices, agreeing to
+  policy changes, and daily backups" below, also 30 days), this script is
+  only an extra copy on the Mac, and deletes old ones only when it runs,
+  so it should run at least monthly. PRIVACY.md's "up to 30 days" for
+  D1's own history covers both the Free plan's 7 days and Paid's 30.
 - **Import**: from an export, or a CSV of ties (one per row:
   date, title, type, duration, rating, location, latitude, longitude, people
   as `Sam (bottom); Alex (top)` (my own names for top and bottom, and the old
@@ -265,13 +285,14 @@ Each step leaves the app working and shippable on its own.
   - **Preview first:** both requests take `preview: true` and save nothing;
     the page shows what's new, what matched and how many ties are skipped
     before the user confirms.
-  - **Step 5:** once notes are encrypted, the page must encrypt them before
-    sending; it already builds every request, so only that step is new.
+  - **Encrypted notes:** the page encrypts notes before sending; it already
+    built every request, so only that part was new (see "Encrypted notes as
+    built", import duplicates).
 - **Ties import keeps more than the tie form does:** participants' ratings
   and notes, plan versions, deleted links and timestamps, so an export
   round-trips exactly (tested).
 
-### Step 3b as built
+### Recovery email as built
 
 - **Recovery email, optional, hashed in the browser**
   (`public/js/recovery-email.js`): the address is trimmed and lower-cased,
@@ -306,7 +327,7 @@ Each step leaves the app working and shippable on its own.
 - **Export** says only `recovery_email_set`; the hash and salt never leave
   the server. Import ignores it. Account deletion removes it with `users`.
 
-### Step 4a as built
+### Single-page app as built
 
 - **One page:** `public/index.html` holds the nav's place, `#view`, and a
   `<template>` per view with the markup the old pages had (moved over
@@ -341,7 +362,7 @@ Each step leaves the app working and shippable on its own.
 - **A missing file** (e.g. a mistyped script path) also gets `index.html`,
   which `nosniff` refuses to run as a script, so it fails loudly.
 
-### Step 4b as built
+### Encryption foundation as built
 
 - **Threat model, plainly:** the crypto Worker keeps the key from being
   *taken* (it's non-extractable, never sent anywhere, and only wrapped again
@@ -351,9 +372,9 @@ Each step leaves the app working and shippable on its own.
   script out (strict CSP with Trusted Types, no third-party code) and
   limiting where data could go (`connect-src 'self'` stops `fetch` to other
   sites; it could still be written into a readable field through our own
-  API, or carried off by navigating the page). PRIVACY.md says so. Step 5's
-  Worker operations will act on whole records (decrypt a tie's notes for
-  display, search), never a general `decrypt(ciphertext)`: that limits
+  API, or carried off by navigating the page). PRIVACY.md says so. The
+  Worker's operations for notes act on whole records (decrypt a tie's notes
+  for display, search), never a general `decrypt(ciphertext)`: that limits
   misuse a little, not entirely.
 - **Keys** (`public/js/crypto/keys.js`): one random AES-256-GCM data key per
   user. Wraps use AES-GCM `wrapKey` with a key from HKDF-SHA256(secret, a
@@ -372,7 +393,7 @@ Each step leaves the app working and shippable on its own.
   transferred to it (the page's buffer is emptied), and it zeroes PRF bytes
   after use; a typed recovery code is a string and can't be wiped.
 - **`vault.js`** starts the Worker through the Trusted Types policy
-  `crypto-worker` (allows only `/js/crypto-worker.js`; the CSP now has
+  `crypto-worker` (allows only `/js/crypto-worker.js`; the CSP has
   `trusted-types crypto-worker` and `worker-src 'self'`). Locking is
   `worker.terminate()`.
 - **PRF output is never sent.** `toJSON()` (and our fallback) copy the
@@ -418,11 +439,11 @@ Each step leaves the app working and shippable on its own.
   limit is 1000; the app and its config are unchanged, and the limit is
   still tested in `test/api/auth.test.js`. A "limits off" switch in the
   app was rejected: it could be left on in production by mistake.
-- **Deploying:** apply migration 0009 first. Existing accounts (yours) get
-  "Set up encryption" at their first unlock, with a new recovery code to
-  save; other passkeys need the code once each.
+- **Deploying** (done): migration 0009 first. Existing accounts got "Set up
+  encryption" at their first unlock, with a new recovery code to save;
+  other passkeys need the code once each.
 
-### Step 5 as built
+### Encrypted notes as built
 
 - **Format:** `e1.<iv>.<ciphertext>` (base64url) in the same columns (no
   migration). AES-256-GCM with the data key; the additional data is
@@ -434,8 +455,9 @@ Each step leaves the app working and shippable on its own.
   these fields everywhere: forms, ties, both imports, `/api/encryption/seal`.
 - **Not bound to the row** (decided 2026-10-14): the server could swap two
   of the same user's notes. Binding to the row would need the browser to
-  choose every new row's id, imports included. **Revisit** with photos,
-  which will have browser-made ids anyway.
+  choose every new row's id, imports included. Photos, whose ids the
+  browser makes anyway, are bound to theirs; notes still aren't.
+  **Revisit** if the browser comes to make every row's id.
 - **The Worker works on whole records of a kind** (`seal`, `open`,
   `searchTies`, `forgetSearch`); `vault.js` exposes `seal`, `sealOne`,
   `open`, `searchTies`. A field that won't open is null and listed in
@@ -473,18 +495,18 @@ Each step leaves the app working and shippable on its own.
   found the NOT NULL failure). PRIVACY.md already says what the old key
   encrypted is lost.
 - **No sentence on D1's history or backups holding pre-encryption plain
-  text** (decided 2026-10-14): only test data exists so far.
+  text** (decided 2026-10-14): only test data existed then.
 
-### Step 6 decisions
+### Encrypted photos: decisions
 
 Agreed 2026-10-14, before building:
 
 - **Photos on ties and plans.** A plan's photos belong to the plan, not to
   one version. A tie that uses a plan doesn't show the plan's photos.
 - **Table `media`** (migration 0010), not `photos`, with `kind` (`photo`;
-  `video` is allowed by the CHECK for step 7, refused by the API) and
-  `mime`. The export keeps the `photos` list step 3 planned, each entry
-  with its `kind`.
+  `video` is allowed by the CHECK for videos, refused by the API) and
+  `mime`. The export keeps the `photos` list that export and import
+  planned, each entry with its `kind`.
 - **One R2 object per photo**, `<owner id>/<photo id>` in the private
   `notonawa-photos` bucket (location hint `enam`: users are in the US
   and Canada; R2's only jurisdictions are EU and FedRAMP). The object is the
@@ -493,7 +515,7 @@ Agreed 2026-10-14, before building:
   photo, streamed into R2 (almost no Worker CPU).
 - **Ids made by the browser** (`crypto.randomUUID()`), so the sealed photo
   and its caption are bound to the photo's id and the user: the server
-  can't swap one for another (settles step 5's "Revisit with photos").
+  can't swap one for another.
 - **Preparing a photo** (browser): the input takes JPEG, PNG and WebP (so
   iPhones convert HEIC themselves); `createImageBitmap` applies the EXIF
   rotation; redrawn on a canvas (white behind transparency) and saved as
@@ -508,10 +530,12 @@ Agreed 2026-10-14, before building:
   again inside the INSERT so two uploads at once can't both get past).
 - **Captions** up to 200 characters, sealed; shown under each thumbnail.
   **Reordering** with "Move earlier" / "Move later" in the photo viewer
-  (simpler on touch screens and with screen readers than dragging; dragging
-  may come later). New photos go last. Captions aren't searched (for now).
+  (simpler on touch screens and with screen readers than dragging). New
+  photos go last. Captions aren't searched. Dragging and searching
+  captions are in [roadmap.md](roadmap.md) as ideas.
 - **Ties list** shows a photo count only, not thumbnails (up to 100
-  decrypts a page). **Revisit** if thumbnails are wanted there.
+  decrypts a page). **Revisit** if thumbnails are wanted there (also in
+  roadmap.md as an idea).
 - **Deleting** a tie, plan or the account, or starting a new key, deletes
   the rows in D1 (cascades) and then the R2 files. Rows and files can't
   change in one transaction, so the daily clean-up deletes files that have
@@ -520,7 +544,7 @@ Agreed 2026-10-14, before building:
   photos only if it has none yet, so a failed import can be run again to
   finish without making copies.
 
-### Step 6 as built
+### Encrypted photos as built
 
 - **Sealed format:** each part (thumbnail, full size) is a 12-byte IV and
   its AES-GCM ciphertext, with additional data
@@ -533,7 +557,7 @@ Agreed 2026-10-14, before building:
   that are buffers are transferred, not copied. Captions are sealed bound
   to their photo, not through `seal`, so they're not in the
   encrypted-columns lists.
-- **Locking** now also runs `onWipe` hooks, even for a quiet lock (account
+- **Locking** also runs `onWipe` hooks, even for a quiet lock (account
   deleted): `photo-urls.js` revokes every `blob:` URL and empties the
   images showing them.
 - **CSP:** `img-src 'self' blob:`. `connect-src 'self'` still keeps `fetch`
@@ -554,42 +578,19 @@ Agreed 2026-10-14, before building:
   Photo lists come off the file before anything is sealed or sent
   (`import-photos.js`), so a plain caption is never sent. Each photo is
   prepared again (a zip from elsewhere could hold metadata). The ties
-  request now answers each tie's new id, and the duplicate candidates
-  their ids. **Known gap:** if an import stops part-way through one tie's
+  request answers each tie's new id, and the duplicate candidates their
+  ids. **Known gap:** if an import stops part-way through one tie's
   photos, running it again skips that tie (it has some photos already).
-- **Backups** (`scripts/backup.mjs`) are of D1 only: photos aren't backed
-  up, which PRIVACY.md says.
-- **Deploying:** create the bucket (`npx wrangler r2 bucket create
+  Fixing it is in [roadmap.md](roadmap.md).
+- **Backups** are of D1 only: photos aren't backed up, which PRIVACY.md
+  says. (True of `scripts/backup.mjs` and of the daily backup added
+  later.)
+- **Deploying** (done): create the bucket (`npx wrangler r2 bucket create
   notonawa-photos --location enam`, public access left off), apply
   migration 0010, then deploy.
-- **Not built (yet):** thumbnails on tie cards, dragging to reorder,
-  captions in keyword search, videos (step 7).
-- **The UI walkthrough sometimes hangs** on a step ("took over a minute")
-  or meets an Internal Server Error while unlocking. Seen on the phase 1
-  commit too (1 run in 2), before any photo UI or photo steps, so not
-  caused by them. **Revisit:** find the cause.
-
-### Step 7: videos, weighed
-
-Not started. What changes from photos (2026-10-14):
-
-- **Metadata:** MP4/MOV files carry GPS, dates and the device model in their
-  own boxes; a canvas can't strip them. Either rewrite the boxes by hand
-  (fast, keeps full quality) or re-encode (WebCodecs plus a muxer package,
-  e.g. mediabunny, which needs approval; slow on phones, but strips
-  everything and shrinks the file a lot).
-- **Size:** about 40 MB a minute for 1080p from an iPhone, about 170 MB for
-  4K. A Worker takes at most 100 MB a request, so uploads need R2 multipart
-  (parts of at least 5 MB).
-- **Encryption** in fixed-size pieces (say 1 MB), each with its number and
-  an "is last" flag in the additional data, so the server can't cut a
-  video short or reorder it.
-- **Playback:** download, decrypt into memory, play from a `blob:` URL
-  (`media-src blob:`). Fine for short clips, heavy on phones for long ones.
-  Streaming would need MediaSource (patchy on iPhone) or a service worker
-  holding the key, which breaks "the key lives only in the crypto Worker".
-- **Thumbnail:** a frame drawn from a `<video>` onto a canvas.
-- To decide then: the longest clip, and rewriting boxes or re-encoding.
+- **The UI walkthrough sometimes hung** on a step ("took over a minute")
+  or met an Internal Server Error while unlocking, before any photo UI
+  existed. Finding the cause is in [roadmap.md](roadmap.md).
 
 ### Weighed and not adopted
 
@@ -600,7 +601,6 @@ Not started. What changes from photos (2026-10-14):
   `scripts/recovery-code.mjs` as a last resort for signing in.
 - **Challenges in a signed cookie** instead of the `auth_challenges` table:
   stateless, but can't be made single-use without storing something anyway.
-
 - **Cloudflare Access for everyone:** built for teams, priced per seat beyond
   the free tier, and not a public sign-up flow.
 - **Hosted auth (Clerk, Auth0, Supabase Auth, …):** another company holding
@@ -613,17 +613,6 @@ Not started. What changes from photos (2026-10-14):
 - **Blind index for keyword search** (HMAC'd words stored server-side): keeps
   server paging, but matches whole words only and shows the server which
   ties share words. On-device search is affordable at journal scale.
-
-
-## Planned: the + button asks what to add
-
-**Status:** planned (2026-10-12)
-
-The + button in the nav (every page) opens the "Log a tie"
-dialog for now. Later it should first ask what to add (tie, person, location,
-and maybe plan) and open that dialog. `renderNav` in `public/js/nav.js` is
-where the choice goes; the person and location forms would need to move into
-dialogs the way the tie form did (`public/js/tie-form.js`).
 
 ## Adjustable ties per page, and sorting
 
@@ -653,7 +642,7 @@ query string has no real null and `archived=` is easy to send by accident.
 
 ## Keyword search ignores case for A–Z only
 
-**Status:** fixed in step 5 (2026-10-14)
+**Status:** fixed by encrypted notes and on-device search (2026-10-14)
 
 Tie keyword search used SQLite `LIKE`, which ignores case only for ASCII
 letters: "Ö" didn't match "ö". Search now happens on the device with
@@ -719,7 +708,7 @@ leaves no stray tags behind, and a failed save creates none. The match uses
 JavaScript's `toLocaleLowerCase` on both the page and the server, so unlike
 the keyword search, "Ö" and "ö" count as the same tag.
 
-## Planned: tags on the ties list
+## Tags on the ties list
 
 **Status:** built (filter 2026-10-13, tags on each tie 2026-10-14)
 
@@ -773,25 +762,6 @@ and all; the search returns `all_total`).
 - **Deleting** a tie asks first. Its people, plans and tags stay; there's no
   archive for ties.
 
-## Planned: final logo and icon files
-
-For now every image in `public/img/` is the same placeholder (230×191, the
-whole logo with its wording). Each spot has its own file so the final
-versions can be swapped in one at a time, with no code changes.
-
-| File | Where it shows | What it should be |
-| --- | --- | --- |
-| `logo.png` | Top centre of Sign in (and Create an account and Use a recovery code, the same page), Unlock, and the top of the menu. Shown 220px wide on Sign in and Unlock, 160px in the menu. | The full logo with wording, transparent background, at least 660px wide (3× the largest size, for sharp phone screens). Readable on the light background (`#faf8f5`) as well as the dark one (`#201f1d` in the menu): the white wording in the placeholder disappears in light mode. Or an SVG. |
-| `favicon.png` | The browser tab (app and privacy policy). | The book and knot only, no wording (it can't be read at this size). Square, 32×32 or 48×48, transparent background. An SVG (`favicon.svg`, `type="image/svg+xml"`) would be sharper at every size. |
-| `apple-touch-icon.png` | The icon for "Add to Home Screen" on iPhone and iPad. | Square, 180×180, solid background (iOS fills transparency with black), the book and knot with about 10% padding. iOS rounds the corners itself. |
-| `icon-192.png` | The Android/Chrome home-screen icon (`manifest.webmanifest`). | Square, 192×192, the book and knot. |
-| `icon-512.png` | The Android splash screen and app installs (`manifest.webmanifest`). | Square, 512×512, the book and knot. |
-
-If a file's format or size changes, update its `<link>` in `index.html` and
-`scripts/privacy-html.mjs` (then run `node scripts/privacy-html.mjs`), or the
-`icons` list in `manifest.webmanifest`. The manifest's colours (`#161514`) are
-the dark theme's background.
-
 ## Analytics: counted on the device, charts drawn by hand
 
 **Status:** built (2026-10-15)
@@ -808,9 +778,10 @@ Analytics view; Calendar got its own tab once the nav became icons
   /api/stats/ties` returns only what the counting needs (date, type, length,
   rating, location, who took part in which role), and `public/js/stats.js`
   and `stats-period.js` do the counting. The numbers stay testable as pure
-  functions, and every bar, slice and day keeps its tie ids for the planned
-  drill-down below. Weighed: counting in SQL (`GROUP BY`) per chart. Fewer
-  bytes, but a query per chart and nothing to drill into.
+  functions, and every bar, slice and day keeps its tie ids for the drill-down
+  ("Tapping a chart or calendar day lists its ties", below). Weighed:
+  counting in SQL (`GROUP BY`) per chart. Fewer bytes, but a query per
+  chart and nothing to drill into.
 - **Charts are hand-drawn SVG (`public/js/charts.js`), not a chart
   library.** Three simple kinds, and the calendar is custom anyway; no new
   third-party code in an app holding encrypted journal data (a supply-chain

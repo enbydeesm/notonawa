@@ -17,7 +17,7 @@ export const MAX_ACCOUNT_BYTES = 1024 * 1024 * 1024;
 /** A sealed caption (a caption is up to 200 characters; sealing adds a third and more). */
 export const MAX_SEALED_CAPTION = 2000;
 
-/** What can be uploaded so far; videos come later (step 7). */
+/** What can be uploaded so far; videos come later (see roadmap.md). */
 export const KINDS = /** @type {const} */ (["photo"]);
 export const MIMES = /** @type {const} */ (["image/jpeg", "image/webp"]);
 

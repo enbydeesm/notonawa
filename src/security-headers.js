@@ -1,7 +1,8 @@
 // Security headers for every response the Worker sends: API answers, errors,
 // and anything it passes through from ASSETS. Static files served straight
 // from public/ (without running the Worker) get theirs from public/_headers;
-// keep the shared ones (everything but the CSP) the same in both.
+// keep the shared ones (everything but the CSP) the same in both (a unit
+// test checks).
 
 // The API only ever returns JSON, so it needs no scripts, styles or frames.
 export const SECURITY_HEADERS = Object.freeze({
@@ -10,6 +11,7 @@ export const SECURITY_HEADERS = Object.freeze({
   "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=(), browsing-topics=()",
   "referrer-policy": "no-referrer",
   // includeSubDomains: .app is HTTPS-only anyway (see considerations.md).
   "strict-transport-security": "max-age=31536000; includeSubDomains",

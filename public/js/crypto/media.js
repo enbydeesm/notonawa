@@ -10,7 +10,7 @@
 // A caption is sealed like a notes field ("e1.<iv>.<ciphertext>", so the
 // server checks it the same way), but bound to its photo's id too.
 //
-// Videos (step 7) will need a format in pieces, with its own version.
+// Videos (see roadmap.md) will need a format in pieces, with its own version.
 
 import { toBase64url, fromBase64url } from "./keys.js";
 import { isSealed, CantOpen } from "./fields.js";

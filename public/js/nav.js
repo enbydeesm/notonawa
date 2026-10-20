@@ -34,7 +34,7 @@ let navElement = null;
 /** Draws the nav at the top of <main>, once. */
 export function renderNav() {
   // For now + always logs a tie. Later it will ask what to add (see
-  // considerations.md).
+  // roadmap.md).
   async function add() {
     if (!(await openTieForm())) return;
     if (current === "/") document.dispatchEvent(new CustomEvent(TIE_SAVED));

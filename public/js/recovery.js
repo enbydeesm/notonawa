@@ -1,8 +1,8 @@
 // Recovery codes. The browser makes one and shows it to the user once; the
 // code itself is never sent anywhere. The server gets a login secret derived
-// from it (HKDF) and keeps only a hash of that. Later (step 4 in
-// considerations.md) a different derivation of the code will unlock the
-// user's encryption key, and the login secret can't be turned into that.
+// from it (HKDF) and keeps only a hash of that. A different derivation of
+// the code (crypto/keys.js) unlocks the user's encryption key, and the
+// login secret can't be turned into that.
 // Pure apart from WebCrypto, and shared with scripts/recovery-code.mjs.
 
 import { newCode, normaliseCode } from "./codes.js";
