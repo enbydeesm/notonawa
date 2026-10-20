@@ -10,3 +10,9 @@ declare module "*?raw" {
   const text: string;
   export default text;
 }
+
+// Vite's import.meta.glob: the paths of the files matching a pattern, found
+// when the test is built (test/unit/areas.test.js).
+interface ImportMeta {
+  glob(pattern: string | string[]): Record<string, () => Promise<unknown>>;
+}

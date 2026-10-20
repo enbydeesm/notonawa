@@ -1113,3 +1113,33 @@ Built for release 2026.10.20.002 (migration 0016).
   the account's words), "based in …", "aka …" (scene names first, others
   with their platform), and a cap, in the accent outline, for educators.
   The workshops that will use the educator flag aren't built yet.
+
+## Running only the checks a change needs (October 2026)
+
+`npm run check` had grown to about 20 seconds and `npm run test:ui` to
+about 6 minutes, too slow to run after every change.
+
+- **An explicit map of areas** (`scripts/areas.mjs`), not Vitest's own
+  `related` / `--changed`. Those follow imports, and the API tests don't
+  import the code they test: they send requests to the Worker. Tried on
+  `src/tags/parse.js`, `related` found ten test files but not
+  `test/api/tags.test.js`. The map is written by hand, so a unit test
+  checks it covers every source file, script and test, and names only
+  files that exist. A file in no area, or a shared one (the shell, the
+  API helper, the vault, migrations, config), runs everything: a missed
+  check costs more than a slow one.
+- **Lint and type check always run in full**: together about a second.
+- **The walkthrough is split into chunks that each start from a new
+  account**, rather than letting a chunk run the ones before it to make
+  its data. The sections had grown to depend on each other's leftovers
+  (Deleting removed what People made; Signing in expected "24 of 24
+  ties"), so running a late one alone meant running nearly all of it.
+  Chunks that need a journal get it from `scripts/ui/seed.mjs`, through
+  the API with notes sealed on the page, matching what the People,
+  Locations, Plans and Ties chunks make by clicking. The cost is a sign-up
+  per chunk (a few seconds each): a full run went from about 6 to about 7
+  minutes, while one area's change now takes well under a minute. A chunk
+  that throws counts as a failure and the next one still runs.
+- **Not done yet: running chunks in parallel** (two or three wrangler and
+  Chrome pairs on their own ports) to shorten a full run. Now that chunks
+  are independent, it's mostly a change to the harness and runner.

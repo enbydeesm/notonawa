@@ -13,10 +13,12 @@ building live in [roadmap.md](roadmap.md).
 - **Keep modules small and easily testable.** Keep pure logic (parsing,
   validation, shaping data) separate from I/O (HTTP, D1, the DOM) so it can be
   tested on its own.
-- **Lint, type check and test with every change**: run `npm run check` after
-  each change, plus `npm run test:ui` when pages change, and report the results
-  faithfully, failures included. New behavior gets new tests; a bug fix gets a
-  test that would have caught it.
+- **Lint, type check and test with every change**: run `npm run
+  check:changed` after each change (add `-- --ui` when pages change), and
+  the full `npm run check` plus `npm run test:ui` before a release. Report
+  the results faithfully, failures included. New behavior gets new tests; a
+  bug fix gets a test that would have caught it. A new file goes in an area
+  in `scripts/areas.mjs` (a unit test fails until it is).
 - **Don't commit, deploy, or apply remote migrations unless asked.** The user
   does those. Local database work is fine. Back up `.wrangler/state` first if
   it could lose data. Database backups/exports go in `backups/` (git-ignored:
@@ -279,13 +281,27 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   database); `test/fake-passkey.js` is a software passkey for the sign-in
   tests. `test/db/`: rules the database enforces itself.
   `scripts/ui-smoke.mjs`: headless-Chrome walkthrough of every page, signing
-  up with Chrome's virtual passkey.
+  up with Chrome's virtual passkey. It runs the chunks in
+  `scripts/ui/chunks/` (`UI_CHUNKS` in `scripts/areas.mjs`), each from a new
+  account of its own (`freshAccount()`), seeded where it needs one with
+  `scripts/ui/seed.mjs` (what the People, Locations, Plans and Ties chunks
+  make, through the API), so any chunk runs alone. `scripts/ui/harness.mjs`
+  starts wrangler and Chrome and has the helpers (`run`, `go`, `check`,
+  `sql`). A check that relies on another chunk's data seeds it instead.
+- `scripts/areas.mjs` (pure; `test/unit/areas.test.js`): the app as feature
+  areas, each with its files, tests and walkthrough chunks, and the shared
+  files that run everything. `scripts/check-changed.mjs` uses it.
 
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
   matches PRIVACY.md, the release files match RELEASES.md and the welcome
-  matches WELCOME.md. Run after every change.
+  matches WELCOME.md. Run before a release.
+- `npm run check:changed [-- <area>…] [-- --ui] [-- --list]`: lint and type
+  check, then only the tests (and with `--ui`, the walkthrough chunks) of
+  the areas changed since the last commit, or of the areas named. A shared
+  file, or one in no area, runs everything. `--list` shows what it would
+  run. Run after every change.
 - `node scripts/releases.mjs`: rebuild `public/js/releases.js` and
   `src/app-version.js` after editing RELEASES.md. Each release is a
   `## YYYY.MM.DD.NNN` heading (the date, and 001, 002… that day; newest
@@ -316,9 +332,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   computer, in `backups/`; deletes ones older than 30 days when it runs.
   `node scripts/restore-backup.mjs <file>` decrypts one, or one of the
   daily backups (`.json.gz.enc`, with the backup private key).
-- `npm run test:ui`: UI walkthrough in headless Chrome on a throwaway database
-  (with a generated copy of `wrangler.jsonc` whose sign-in rate limit is
-  higher, as every page load there locks and unlocks).
+- `npm run test:ui [-- --only people,plans] [-- --list]`: UI walkthrough
+  in headless Chrome on a throwaway database (with a generated copy of
+  `wrangler.jsonc` whose sign-in rate limit is higher, as every page load
+  there locks and unlocks): every chunk (about 7 minutes), or the ones
+  named.
 - `npm run dev`: local app. `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
 

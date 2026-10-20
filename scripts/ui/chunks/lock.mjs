@@ -1,0 +1,68 @@
+// The walkthrough's lock chunk. Locking and unlocking: the passkey, the recovery code, setting up a key, and after the operator's reset.
+
+import { HELP_LINE, account, check, freshAccount, go, run, script, sql } from "../harness.mjs";
+
+export default async function () {
+  const recoveryCode = await freshAccount();
+  console.log("Locking and unlocking");
+  const keysNow = () => run(`const k = await (await fetch("/api/keys")).json();
+    return [k.has_key, k.passkey !== null, k.recovery?.current ?? null];`);
+  check("signing up made a key, wrapped for the passkey and the recovery code", await keysNow(), [true, true, true]);
+  // What the visible view is: its heading, and the Unlock card showing (if any).
+  const shown = `return [document.title, $("#view h1").textContent || $("#view h1 img")?.alt, getComputedStyle($("nav")).display === "none",
+    [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id ?? null, $("#tie-count") !== null];`;
+  await go("/plans", { unlock: false });
+  check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
+    return [location.pathname, ...(() => { ${shown} })()];`),
+    ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
+  check("Unlock shows the logo", await run(`return logo("#view h1 img");`), [true, "NotoNawa"]);
+  check("Unlock says who to email for help", await run(HELP_LINE),
+    ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
+  check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
+    const sent = []; const realFetch = window.fetch;
+    window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
+    $("#unlock-passkey").click(); await wait(2500); window.fetch = realFetch;
+    const login = JSON.parse(sent.find(([url]) => url.endsWith("/api/auth/login/verify"))[1]);
+    return [location.pathname, document.title, $("#view h1").textContent, login.prf, JSON.stringify(login.response.clientExtensionResults),
+      sent.some(([, body]) => body.includes("results"))];`),
+    ["/plans", "Plans · NotoNawa", "Plans", true, JSON.stringify({ prf: {} }), false]);
+  await go("/", { unlock: false });
+  check("the recovery code unlocks too; a wrong one says so", await run(`
+    [...document.querySelectorAll("[data-unlock-show=code]")][0].click(); await wait(100);
+    $("#unlock-code-input").value = "0000-0000-0000-0000-0000-0000-0000-0000"; $("#unlock-code-form button[type=submit]").click(); await wait(1200);
+    const wrong = $("#unlock-code-message").textContent;
+    $("#unlock-code-input").value = ${JSON.stringify(account.currentCode)}; $("#unlock-code-form button[type=submit]").click(); await wait(1500);
+    return [wrong, $("#tie-count") !== null, leakyFields()];`),
+    ["That recovery code doesn't unlock your journal.", true, []]);
+  check("nothing is kept in the browser's storage but the theme", await run(`
+    return [Object.keys(localStorage).filter((k) => k !== "theme"), sessionStorage.length, (await indexedDB.databases()).length];`),
+    [[], 0, 0]);
+
+  // An account from before encryption: no key yet.
+  const userId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
+  sql(`DELETE FROM key_wraps WHERE user_id = '${userId}'`);
+  await go("/", { unlock: false });
+  check("an account without a key is asked to set one up after the passkey", await run(`
+    $("#unlock-passkey").click(); await wait(2500); return [...(() => { ${shown} })()].slice(3);`), ["unlock-setup", false]);
+  const setupCode = await run(`
+    $("#unlock-setup-go").click(); await wait(2000); const code = $("#recovery-code")?.textContent;
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1500); return code;`);
+  check("setting up shows a new recovery code, then the journal", [setupCode !== recoveryCode, await run(`return $("#tie-count") !== null;`)], [true, true]);
+  check("…and the key is wrapped for both again", await keysNow(), [true, true, true]);
+  account.currentCode = setupCode ?? "";
+
+  // The operator gives the account a new recovery code (someone locked out).
+  const operatorCode = script("recovery-code.mjs", userId, "--quiet");
+  check("after the operator's reset, the recovery wrap no longer matches the code", await keysNow(), [true, true, false]);
+  await go("/", { unlock: false });
+  const afterReset = await run(`
+    $("#unlock-passkey").click(); await wait(3000);
+    const shownCode = $("#recovery-code")?.textContent; const intro = $("dialog[open] p")?.textContent;
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200);
+    return [shownCode, intro, $("#tie-count") !== null];`);
+  check("unlocking with the passkey then makes a new code, as the old one shouldn't keep working",
+    [afterReset[0] !== operatorCode && /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(afterReset[0] ?? ""), afterReset[1], afterReset[2]],
+    [true, "Your recovery code was replaced, so here's a new one that also unlocks your journal.", true]);
+  check("…and the recovery wrap matches again", await keysNow(), [true, true, true]);
+  account.currentCode = afterReset[0] ?? "";
+}

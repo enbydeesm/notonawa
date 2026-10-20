@@ -76,35 +76,51 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 ## Ideas, not yet committed
 
->- Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.
-> - Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
-> - Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.
-> - Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens.
+<!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.
+- Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
+- Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.
+- Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens. -->
 
 
->- Welcome on new accounts: add an 'intro' dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account. the message should be what is saved on WELCOME.md. I also want to force the welcome dialog to prompt all currently existing accounts so they will see it at their next login after release.
->- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details. add it above 'what's new' with an icon that looks like a message bubble with a little bug badge overlaying the bottom left corner
->- at the top of the plans view, replace the current 'add a plan' form with a button that opens a dialog with a form to add a new plan (similar to how the tie form works now) There should be a small card with the label "Add a Plan" and a yellow + button just like the add a tie button in the top nav. 
->- below that, add a search form that filters the plans list below it. The search form should look exactly like the Ties one, except it should have a Plan Type drop down instead of People, a Tie Type drop down instead of Locations, and no date filter, keeping the Tags filter.
+<!-- - Welcome on new accounts: add an 'intro' dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account. the message should be what is saved on WELCOME.md. I also want to force the welcome dialog to prompt all currently existing accounts so they will see it at their next login after release.
+- Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details. add it above 'what's new' with an icon that looks like a message bubble with a little bug badge overlaying the bottom left corner
+- at the top of the plans view, replace the current 'add a plan' form with a button that opens a dialog with a form to add a new plan (similar to how the tie form works now) There should be a small card with the label "Add a Plan" and a yellow + button just like the add a tie button in the top nav. 
+- below that, add a search form that filters the plans list below it. The search form should look exactly like the Ties one, except it should have a Plan Type drop down instead of People, a Tie Type drop down instead of Locations, and no date filter, keeping the Tags filter. -->
 
->- Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
->- on the plans table and form, add 'Tie Type', using the same values as the tie type used for Ties,
->- rename the 'type' column in the plans table to 'Plan Type'
->- Photo album link: an optional link to a Google or Apple Photos album on ties and plans.
->>- add tags to plans, same functionality as on Ties
->- add an app version number, track release notes that can be displayed to users. put version number on the app at the bottom of sign in screen and the bottom of menu sidebar
+<!-- - Tie type required: the blank type shows “–”, existing ties without one get filled in with 'hashira', and new ties must have a type selected.
+- on the plans table and form, add 'Tie Type', using the same values as the tie type used for Ties,
+- rename the 'type' column in the plans table to 'Plan Type'
+- Photo album link: an optional link to a Google or Apple Photos album on ties and plans.
+- add tags to plans, same functionality as on Ties
+- add an app version number, track release notes that can be displayed to users. put version number on the app at the bottom of sign in screen and the bottom of menu sidebar -->
 
 
 - **Thumbnails on tie cards.** The Ties list shows a photo count only, because thumbnails would mean up to 100 decrypts a page.
 - **Searching captions** with the keyword search (they're sealed bound to their photo, so the search index would need to fetch and open them).
 - Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
 
-- Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list.
-- People’s socials and city: on form add optional + button next to a label "Social & Scene Names". clicking the button adds a row with 2 drop downs (similar to people & roles on ties): one drop down for 'platform' with values: scene name, fetlife, instagram, x/twitter, bluesky, other. another drop down for alias, as an open text box
-- on people form, add an optional field for “Based in” with an example muted value on null that says 'e.g. Seattle, WA'.
-- when searching for People in the Ties or People view, also search the alias field and display the Person's name + (alias) in the search result drop down (e.g. "J (therawkitty)")
+<!-- - Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list. -->
+<!-- - People’s socials and city: on form add optional + button next to a label "Social & Scene Names". clicking the button adds a row with 2 drop downs (similar to people & roles on ties): one drop down for 'platform' with values: scene name, fetlife, instagram, x/twitter, bluesky, other. another drop down for alias, as an open text box -->
+<!-- - on people form, add an optional field for “Based in” with an example muted value on null that says 'e.g. Seattle, WA'. -->
+<!-- - when searching for People in the Ties or People view, also search the alias field and display the Person's name + (alias) in the search result drop down (e.g. "J (therawkitty)") -->
+<!-- - if a person is marked an educator, add a little yellow outlined graduation cap icon in the top right of their card -->
+<!-- - remove the edit, archive, and delete buttons from the card -->
+<!-- - make the person's name be clickable and open the edit person details dialog -->
+<!-- - at the bottom of the dialog have close, archive, and delete buttons -->
+<!-- - on the card in the list, next to the persons name, show their pronouns if entered -->
+<!-- - to the right of their pronouns, show the default role if entered. give it a similar look to selected tie tags where its outlined with yellow -->
+<!-- - on the card in the list, beneath the persons name, have the second row display 'based in ' + the value entered, if it is present. have the next row display 'aka ' followed by any entered socials, starting with scene name.  -->
 
-- Education tracker: log the workshops you take (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
+- on people add/edit form: make pronouns and alias text fields not capitalize the first letter
+- on people add/edit form: move the educator checkbox to the top right corner, in line with the Name label but right-aligned. move the 'this is me' checkbox on the default Me record to the top right of the form in line with the title "Add/Edit Person'
+- on people add/edit form, make the text in the platform drop down (scene name, instragram, etc) smaller so 'scene name' fits in the box better after selection
+- on people view, move the + button that brings up the new person dialog be the first thing on its card, left aligned, with the 'Add a Person' label just after it.
+- on locations view, make it similar to the People view, where there's a small card at the top for 'Add a Location' with a + button on the left side that opens the new location form in a new dialog. Remove the add location form from the view and replace it with a 'search locations' box that filters the results in the list below.
+- on locations add/edit form, above the coordinates and below the google maps link, can you add a text box for City and a text box for State/Province. then add a text box on the left side of row with Lat & Long for Country. Make the lat and long fields smaller, so they show the first 5 digits or so (but still hold the minimum needed for coordinates). 
+- add a function that extracts the city, state/province, and country (as well as the coordinates) from the maps link 
+- can you make it so that users can paste a full address instead of a maps link and also have those fields extracted? 
+
+- Education tracker: log the workshops you take or teach (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
 
 - Map of ties: a map with a marker for each location that has coordinates, drawn without sending your locations to an outside map service.
 

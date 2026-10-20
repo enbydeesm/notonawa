@@ -95,7 +95,8 @@ different users' rows.
   built from the migrations. It signs in through `helpers.js`, and
   `fake-passkey.js` is a software passkey for the sign-in tests.
 - **`test/db/`** tests the rules the database enforces itself.
-- **`scripts/ui-smoke.mjs`** walks through every page in headless Chrome.
+- **`scripts/ui-smoke.mjs`** walks through every page in headless Chrome,
+  in chunks (`scripts/ui/chunks/`) that each start from a new account.
   It also fails on any CSP violation or any input missing its privacy
   attributes.
 - **Admin scripts in `scripts/`:** `invite.mjs` (invite codes),
@@ -103,7 +104,9 @@ different users' rows.
   `privacy-html.mjs` (builds `privacy.html` and `src/policy-version.js` from
   PRIVACY.md).
 - **Commands:** `npm run check` runs lint, type check and tests.
-  `npm run test:ui` runs the walkthrough.
+  `npm run test:ui` runs the walkthrough (`-- --only <chunks>` for some of
+  it). `npm run check:changed` runs only what the changed files need
+  (`scripts/areas.mjs`), with `-- --ui` for their walkthrough chunks.
 
 ### Summary
 
