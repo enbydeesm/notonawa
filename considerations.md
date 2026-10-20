@@ -959,3 +959,21 @@ start failing as the journal grows (Cloudflare's Cron Events show it),
 Workers Paid gives 30 seconds. `scripts/backup.mjs` still makes an extra
 copy on the Mac when wanted.
 
+## Quick polish (October 2026)
+
+Built from the roadmap's first group, with no database changes:
+
+- **The default location is pinned** at the top of Locations, the way "Me"
+  is on People (`pinned` in `searchable`): first whatever the sort, but
+  still hidden by a search it doesn't match.
+- **Plan difficulty is picked with rope hanks**, like a tie's rating
+  (`ratingField`, which also returns a setter, since the Plans form is
+  reset and filled again rather than drawn afresh). Tapping the filled-in
+  last hank clears it, so "not set" is still possible; the Plans list shows
+  hanks too. The label for a plan's type is "Plan type".
+- **The tie form's blanks**: "–" for no tie type, "Choose Role" for a
+  person's role.
+- **Deleting the account** says "THIS CAN'T BE UNDONE." on its own line,
+  in bold.
+- **Sign-in and Unlock** end with "Trouble signing in? Email
+  contact@notonawa.app for assistance.", the address as a `mailto:` link.

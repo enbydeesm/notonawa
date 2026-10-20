@@ -237,7 +237,8 @@ export function mount(root) {
       const dialog = h("dialog", { onclose: () => { dialog.remove(); resolve(confirmed); } },
         h("h2", {}, "Delete your account?"),
         h("p", {}, "Your journal (every tie, plan, person, location and tag), your passkeys and your recovery code " +
-          "will be deleted straight away. This can't be undone."),
+          "will be deleted straight away."),
+        h("p", { className: "warning-line" }, "THIS CAN'T BE UNDONE."),
         form);
       document.body.append(dialog);
       dialog.showModal();

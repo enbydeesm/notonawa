@@ -90,7 +90,7 @@ function showTieForm(tie) {
         h("div", {},
           h("label", { htmlFor: "tie-tie_type" }, "Type"),
           h("select", { id: "tie-tie_type", name: "tie_type" },
-            h("option", { value: "" }, "Not set"),
+            h("option", { value: "" }, "–"),
             TIE_TYPES.map((t) => h("option", { value: t }, capitalise(t))))),
         h("div", { className: "minutes-field" },
           h("label", { htmlFor: "tie-duration_minutes" }, "Mins"),
@@ -190,7 +190,7 @@ function showTieForm(tie) {
       }
       const row = h("div", { className: "picker-row person-row" });
       const role = h("select", { className: "role", "aria-label": "Role" },
-        h("option", { value: "" }, "Role"),
+        h("option", { value: "" }, "Choose Role"),
         roleOptions().map((r) => h("option", { value: r.value }, r.label)));
       const person = searchPicker({
         kind: "people", id: `tie-person-${++rowCount}`, label: { text: "Person" },

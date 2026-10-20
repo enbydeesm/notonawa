@@ -108,15 +108,12 @@ From building encrypted photos; each would need a decision first.
 - Education tracker: log the workshops you take (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
 - Educators on People: an “educator” checkbox on the People form decides who shows up in a workshop’s educators list.
 - People’s socials and city: optional platform and username rows, added with a + button and maybe found by the People search, plus a “based in” city.
-- Tie type required: the blank type shows “–”, existing ties without one get filled in, and new ties must have a type (open question: “self tie” is a role, not a tie type).
-- Plans: “Type” becomes “Plan type”, plans get a tie type, and difficulty is picked with the rope-hank icons.
+- Tie type required: existing ties without one get filled in, and new ties must have a type (open question: “self tie” is a role, not a tie type).
+- Plans get a tie type.
 - Optional time on ties: an “Add a time” checkbox on the tie form, stored as a separate time field rather than turning the date into a timestamp.
 - Map of ties: a map with a marker for each location that has coordinates, drawn without sending your locations to an outside map service.
-- Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
 - Welcome on new accounts: an intro dialog after sign-up with a “Don’t show this again” checkbox that’s remembered on your account.
 - Bug and feedback button: a menu item that opens a short form for sending a bug report or idea, with a warning not to include journal details.
-- Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.
-Contact info when signed out: a “Trouble signing in? Email …” line at the bottom of the sign-in and Unlock screens.
 - Drag photos into order: rearrange photos on ties and plans by dragging, by finger or mouse, keeping the Move earlier/later buttons.
 - Photo album link: an optional, encrypted link to a Google or Apple Photos album on ties and plans.
 - + button asks what to add: the + button first asks whether to add a tie, person, location or plan.
@@ -126,11 +123,6 @@ Contact info when signed out: a “Trouble signing in? Email …” line at the 
 ## dev order: 
 1. Quick polish (no database changes). These are small, low-risk and visible straight away.
 
-Default location first in Locations
-“THIS CAN’T BE UNDONE.” on its own line
-Contact info on the sign-in and Unlock screens
-Rope-hank icons for plan difficulty, and “Plan type” as the label
-“–” for a blank tie type
 Final logo and icons, whenever the files are ready
 
 2. Ties and plans data (one migration). All of these change the ties and plans tables, so doing them together means rebuilding ties once instead of three times. It also means updating export, import and the CSV template once.

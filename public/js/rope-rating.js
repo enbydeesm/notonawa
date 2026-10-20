@@ -39,7 +39,17 @@ export function hankIcon() {
  * @param {{ name: string, labelledBy: string, value?: number | null }} config
  *   value: the rating to start with (editing a tie)
  */
-export function ratingPicker({ name, labelledBy, value = null }) {
+export function ratingPicker(config) {
+  return ratingField(config).element;
+}
+
+/**
+ * The same picker, with a way to change its rating from code (the Plans
+ * form, which is reset and filled again rather than drawn afresh).
+ * @param {{ name: string, labelledBy: string, value?: number | null }} config
+ * @returns {{ element: HTMLElement, set: (value: number | null) => void }}
+ */
+export function ratingField({ name, labelledBy, value = null }) {
   /** @type {number | null} */
   let rating = null;
   const input = privateField(h("input", { type: "hidden", name, value: "" }));
@@ -61,7 +71,8 @@ export function ratingPicker({ name, labelledBy, value = null }) {
   }
   set(value);
 
-  return h("div", { className: "hank-picker", role: "group", "aria-labelledby": labelledBy }, buttons, input);
+  const element = h("div", { className: "hank-picker", role: "group", "aria-labelledby": labelledBy }, buttons, input);
+  return { element, set };
 }
 
 /**

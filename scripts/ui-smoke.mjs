@@ -333,6 +333,9 @@ try {
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
     ["/signin", "choose", "none", "center", [true, "NotoNawa"]]);
+  const helpLine = `const p = $("#view .help-line"); return [p?.textContent, p?.querySelector("a")?.getAttribute("href"), p?.offsetParent !== null];`;
+  check("sign-in says who to email for help", await run(helpLine),
+    ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
   check("the sign-up form's fields are kept out of form history and spellcheck", await run(`
     [...document.querySelectorAll("[data-show=signup]")][0].click(); return [visibleCard(), leakyFields()];`), ["signup", []]);
   check("sign-up needs 18+ and consent", await run(`
@@ -372,6 +375,8 @@ try {
     return [location.pathname, ...(() => { ${shown} })()];`),
     ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
   check("Unlock shows the logo", await run(`return logo("#view h1 img");`), [true, "NotoNawa"]);
+  check("Unlock says who to email for help", await run(helpLine),
+    ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
@@ -497,7 +502,7 @@ try {
     $(".dialog-cancel").click(); await wait(300);
     return [saved, tieRoles];`),
     [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light" }],
-      ["Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
+      ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
   await go("/analytics");
   check("…the Analytics role filter and numbers", await run(`
     return [[...$("#role").options].map((o) => o.text), [...document.querySelectorAll("#insights-stats dt")].map((d) => d.textContent).filter((t) => t.startsWith("As"))];`),
@@ -619,17 +624,18 @@ try {
     set("#is_default", true); set("[name=archive_now]", true); const archiving = [flag.hidden, $("#is_default").checked];
     set("[name=archive_now]", false); const back = flag.hidden;
     return [placed, archiving, back];`), [[true, true], [true, false], false]);
-  check("one location is the default: ticking another asks to replace it, and Cancel unticks it", await run(`
+  check("one location is the default, kept at the top; ticking another asks to replace it, and Cancel unticks it", await run(`
     const dialogButton = (text) => [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === text);
     await clickIn("Studio", "Edit"); $("#is_default").click(); await wait(400); const noPrompt = $("dialog[open]") === null; await submit();
+    const pinned = titles();
     await clickIn("Old flat", "Edit"); $("#is_default").click(); await wait(400);
     const prompt = $("dialog[open] h2")?.textContent; dialogButton("Cancel").click(); await wait(200);
     const cancelled = $("#is_default").checked;
     $("#is_default").click(); await wait(400); dialogButton("Replace").click(); await wait(200);
     const kept = $("#is_default").checked; await submit();
     const stored = (await (await fetch("/api/locations?archived=false")).json()).filter((l) => l.is_default).map((l) => l.name);
-    return [noPrompt, prompt, cancelled, kept, titles(), stored];`),
-    [true, "Replace Studio as your default location?", false, true, ["Old flatDefault", "Studio"], ["Old flat"]]);
+    return [noPrompt, pinned, prompt, cancelled, kept, titles(), stored];`),
+    [true, ["StudioDefault", "Old flat"], "Replace Studio as your default location?", false, true, ["Old flatDefault", "Studio"], ["Old flat"]]);
   check("locations: search and sort too", await run(`
     const box = $(".list-search"); box.value = "stu"; box.dispatchEvent(new Event("input")); await wait(50); const found = titles();
     box.value = ""; box.dispatchEvent(new Event("input")); $(".sort-button[data-sort=name]").click(); await wait(50);
@@ -645,11 +651,19 @@ try {
   await go("/plans");
   check("add plans with a variation", await run(`
     const types = [...$("#plan_type").options].map((o) => o.text);
-    set("#title", "Hip harness"); set("#plan_type", "harness"); set("#est_difficulty", "3"); await submit();
+    set("#title", "Hip harness"); set("#plan_type", "harness"); $("#est_difficulty-picker .hank-button:nth-child(3)").click(); await submit();
     set("#title", "Hip harness, one-sided"); set("#variation_of", optionValue($("#variation_of"), "Hip harness")); await submit();
     return [types, $("#stage"), items().find((i) => i.startsWith("Hip harness |")), items().find((i) => i.startsWith("Hip harness, one-sided"))];`),
     [["Idea", "Harness", "Sequence"], null, "Hip harness | Harness · difficulty 3/5 · v1 | Edit | Archive | Delete",
       "Hip harness, one-sided | Idea · v1 · variation of Hip harness | Edit | Archive | Delete"]);
+  check("difficulty is rope hanks: the list shows them, editing fills them in, and Cancel clears them", await run(`
+    const filled = () => document.querySelectorAll("#est_difficulty-picker .hank-button.filled").length;
+    const listed = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Hip harness")
+      .querySelectorAll(".hank-rating .hank.filled").length;
+    await clickIn("Hip harness", "Edit"); const editing = [filled(), $("[name=est_difficulty]").value];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [$("label[for=plan_type]").textContent, listed, editing, filled(), $("[name=est_difficulty]").value];`),
+    ["Plan type", 3, [3, "3"], 0, ""]);
   check("the photo note says what photos are for, and when a new plan's are uploaded", await run(`
     const fresh = $("[data-photos] .hint").textContent;
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
@@ -674,7 +688,7 @@ try {
     return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
       document.querySelectorAll(".hank-button.filled").length + "/" + document.querySelectorAll(".hank-button").length,
       leakyFields()];`),
-    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["Not set", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
+    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["–", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
   // Sorted: these were all added within the same second, so "newest" ties.
   check("people and plans pickers list the active ones", await run(`
     const person = lastBox("#tie-participants"), plan = lastBox("#tie-plans");
@@ -1396,13 +1410,14 @@ try {
 
   console.log("Deleting the account");
   await go("/account");
-  check("delete needs typing 'delete'", await run(`
+  check("delete warns it can't be undone, on its own line in bold, and needs typing 'delete'", await run(`
     $("#delete-account").click(); await wait(300);
     const before = $("dialog[open] button.danger.solid").disabled; const leaky = leakyFields();
+    const warning = $("dialog[open] .warning-line"); const warned = [warning?.textContent, getComputedStyle(warning).fontWeight];
     $("#delete-confirm").value = "delet"; $("#delete-confirm").dispatchEvent(new Event("input"));
     const almost = $("dialog[open] button.danger.solid").disabled;
     $("#delete-confirm").value = "Delete"; $("#delete-confirm").dispatchEvent(new Event("input"));
-    return [before, almost, $("dialog[open] button.danger.solid").disabled, leaky];`), [true, true, false, []]);
+    return [before, almost, $("dialog[open] button.danger.solid").disabled, leaky, warned];`), [true, true, false, [], ["THIS CAN'T BE UNDONE.", "700"]]);
   check("deleting the account empties it and signs out", await run(`
     $("dialog[open] button.danger.solid").click(); await wait(1500);
     return [$("h1").textContent, (await fetch("/api/tags")).status];`), ["Account deleted", 401]);

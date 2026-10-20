@@ -3,6 +3,7 @@
 import { h, $ } from "../dom.js";
 import { choose } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
+import { ratingField, ratingHanks } from "../rope-rating.js";
 
 /** A plan's type, as the list shows it (src/resources/config.js has the list). @type {Record<string, string>} */
 const TYPES = { idea: "Idea", harness: "Harness", sequence: "Sequence" };
@@ -16,6 +17,9 @@ export function mount(_root, { signal }) {
   const variationSelect = $("#variation_of");
   /** @type {Record<string, any>[]} */
   let activePlans = [];
+  // Difficulty as rope hanks; its hidden input is the form's est_difficulty.
+  const difficulty = ratingField({ name: "est_difficulty", labelledBy: "est_difficulty-label" });
+  $("#est_difficulty-picker").replaceChildren(difficulty.element);
 
   /**
    * The "Variation of" picker lists active plans, except the one being edited.
@@ -45,17 +49,22 @@ export function mount(_root, { signal }) {
       fillVariationOptions();
     },
     beforeFill: (plan) => fillVariationOptions(plan.id, plan.variation_of),
+    // The form's reset empties the hidden input but not the hanks.
+    onEdit: (plan) => difficulty.set(plan?.est_difficulty ?? null),
 
     renderItem: (plan, plans) => {
       const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
+      /** @type {(string | HTMLElement)[]} */
       const meta = [TYPES[plan.plan_type] || plan.plan_type];
-      if (plan.est_difficulty != null) meta.push(`difficulty ${plan.est_difficulty}/5`);
+      if (plan.est_difficulty != null) {
+        meta.push(h("span", {}, "difficulty ", ratingHanks(plan.est_difficulty, `${plan.est_difficulty}/5`)));
+      }
       meta.push(`v${plan.version}`);
       if (plan.variation_of) meta.push(`variation of ${parent ? parent.title : "another plan"}`);
       if (plan.photo_count) meta.push(plan.photo_count === 1 ? "1 photo" : `${plan.photo_count} photos`);
       return [
         h("div", { className: "item-title" }, plan.title),
-        h("div", { className: "item-meta" }, meta.join(" · ")),
+        h("div", { className: "item-meta" }, meta.flatMap((part, i) => (i ? [" · ", part] : [part]))),
         plan.description ? h("div", { className: "item-notes" }, plan.description) : null,
         plan.notes ? h("div", { className: "item-notes item-meta" }, plan.notes) : null,
       ];

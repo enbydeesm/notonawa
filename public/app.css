@@ -111,6 +111,10 @@ label { display: block; font-size: 0.9rem; color: var(--muted); margin: 10px 0 4
 label.inline { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 0.95rem; }
 label.inline input { width: auto; margin: 0; }
 .hint { color: var(--muted); font-size: 0.85rem; margin: 2px 0 0; }
+/* Sign-in and Unlock: who to ask for help, below everything else. */
+.hint.help-line { margin-top: 24px; text-align: center; }
+/* A dialog's warning that matters most (deleting the account). */
+.warning-line { font-weight: 700; }
 input, textarea, select {
   width: 100%; padding: 10px; font: inherit; color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px;

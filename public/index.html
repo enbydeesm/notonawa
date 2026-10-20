@@ -96,7 +96,7 @@
         <div class="row">
           <div>
             <!-- Type replaced Stage on the form (stage stays in the database). -->
-            <label for="plan_type">Type</label>
+            <label for="plan_type">Plan type</label>
             <select id="plan_type" name="plan_type">
               <option value="idea">Idea</option>
               <option value="harness">Harness</option>
@@ -104,15 +104,9 @@
             </select>
           </div>
           <div>
-            <label for="est_difficulty">Difficulty</label>
-            <select id="est_difficulty" name="est_difficulty">
-              <option value="">Not set</option>
-              <option value="1">1 – Easy</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5 – Hard</option>
-            </select>
+            <!-- Rope hanks, like a tie's rating (views/plans.js draws them). -->
+            <label id="est_difficulty-label">Difficulty</label>
+            <div id="est_difficulty-picker"></div>
           </div>
         </div>
 
@@ -485,6 +479,7 @@
         <p class="message" id="add-passkey-message"></p>
       </form>
     </section>
+    <p class="hint help-line">Trouble signing in? Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
   </template>
 
   <!-- In place of any view that needs the key, while the journal is locked -->
@@ -534,6 +529,7 @@
     </section>
 
     <button type="button" class="link" id="unlock-sign-out">Sign out</button>
+    <p class="hint help-line">Trouble signing in? Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
   </template>
 
   <!-- Any other address -->

@@ -47,7 +47,8 @@ export function mount(_root, { signal }) {
     form: $("#form"),
     list: $("#list"),
     archivedToggle: $("#show-archived"),
-    searchable: { noun: "locations" },
+    // The default location stays at the top, whatever the order.
+    searchable: { noun: "locations", pinned: (loc) => !!loc.is_default },
     onEdit: (loc) => { editingId = loc?.id ?? null; showDefaultFlag(); },
 
     renderItem: (loc) => [
