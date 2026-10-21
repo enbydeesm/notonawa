@@ -98,6 +98,15 @@ export const WELCOME = [
       ],
       [
         {
+          "text": "Install the app",
+          "bold": true
+        },
+        {
+          "text": " via the settings in your browser to have it appear on your phone homescreen with other apps."
+        }
+      ],
+      [
+        {
           "text": "We are constantly iterating",
           "bold": true
         },

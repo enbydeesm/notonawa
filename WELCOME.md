@@ -8,6 +8,7 @@ Here's your quick and dirty guide:
 * **Tags** help you organize and find ties and plans, and filter the nerdy charts and stuff. Use those to track what harnesses you used (e.g. 'hug harness') or find ties where something happened (e.g. 'vasovagal') or whatever you want.
 * **Notes and photos are encrypted.** Your device encrypts them before sending them to our server, and decrypts them when you view them. We can't see them, and neither can anyone who gets hold of our servers without your passkeys or recovery code. Read our Privacy Policy for more information.
 * **Speaking of your recovery code,** don't lose that shit. If you lose all your passkeys and your recovery code, your encrypted notes and photos are *gone forever*. Save your recovery code somewhere safe, add a second passkey (like on another device) as a backup, and consider setting a recovery email so we can at least help you get the rest of your data back.
+* **Install the app** via the settings in your browser to have it appear on your phone homescreen with other apps.
 * **We are constantly iterating** and adding new features. If you have questions, ideas, or run into trouble, we'd love to hear from you. Use the "Bug and feedback" button in the menu or use our contact email below to send us your thoughts, hopes, and dreams.
 
 **Need help?** Email us at contact@notonawa.app
