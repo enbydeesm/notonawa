@@ -11,7 +11,8 @@ import { capitalise } from "./format.js";
  * @typedef {{
  *   id: string, tie_date: string, tie_type: string | null, duration_minutes: number | null,
  *   success_rating: number | null, location_id: string | null, location_deleted: number,
- *   location_name: string | null, participants: StatsParticipant[],
+ *   location_name: string | null, latitude?: number | null, longitude?: number | null,
+ *   participants: StatsParticipant[],
  * }} StatsTie
  * @typedef {{ key: string, label: string, count: number, tieIds: string[] }} Slice
  */

@@ -385,7 +385,8 @@
     <h1>Analytics</h1>
 
     <div id="insights-panel">
-      <section class="card">
+      <!-- Stays at the top while the cards below scroll under it. -->
+      <section class="card insights-filters">
         <div class="insight-controls">
           <select id="period" aria-label="Time period"></select>
           <select id="role" aria-label="My role"></select>
@@ -413,9 +414,10 @@
             <svg viewBox="0 0 24 24" class="step-icon" aria-hidden="true" focusable="false"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         </div>
-        <dl class="stat-pairs" id="insights-stats"></dl>
         <p class="message error" id="insights-message" role="alert"></p>
       </section>
+
+      <dl class="stat-cards" id="insights-stats"></dl>
 
       <section class="card">
         <h2>Tie count</h2>
@@ -435,16 +437,22 @@
         <div id="type-chart"></div>
       </section>
 
-      <div class="pie-pair">
-        <section class="card">
-          <h2>Days of the week</h2>
-          <div id="weekday-chart"></div>
-        </section>
-        <section class="card">
-          <h2>Locations</h2>
-          <div id="location-chart"></div>
-        </section>
-      </div>
+      <section class="card">
+        <h2>Locations</h2>
+        <div id="location-chart"></div>
+      </section>
+
+      <section class="card" id="map-card">
+        <h2>Map</h2>
+        <p class="hint map-note">Ties show on the map when their location has coordinates.</p>
+        <div id="map-chart"></div>
+        <p class="item-meta map-count" id="map-count" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2>Days of the week</h2>
+        <div id="weekday-chart"></div>
+      </section>
     </div>
   </template>
 

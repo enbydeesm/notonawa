@@ -3,8 +3,10 @@
 // (The month calendar is its own view: views/calendar.js.)
 //
 // The server sends just the ties (POST /api/stats/ties); stats.js and
-// stats-period.js do the counting here. Tapping a bar, partner or slice
-// lists the ties behind it (tie-list-dialog.js).
+// stats-period.js do the counting here. Tapping a bar, partner, slice or
+// map pin lists the ties behind it (tie-list-dialog.js). The map's code and
+// country outlines (world-map.js) load only when its card is about to
+// scroll into view, so they cost nothing to anyone who doesn't scroll down.
 
 import { roleName, roleOptions } from "../roles.js";
 import { api, errorMessage } from "../api.js";
@@ -13,7 +15,9 @@ import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { hankIcon } from "../rope-rating.js";
 import { barChart, partnerBars, pieChart, rankBars, roleKey, stat, TYPE_COLORS } from "../charts.js";
+import { tiesWord } from "../chart-parts.js";
 import { openTieList } from "../tie-list-dialog.js";
+import { mapPlaces } from "../map-geo.js";
 import {
   summarize, topPartners, typeShares, weekdayShares, locationShares, percent, formatTotalTime, tieListHeading,
   roleChartTies, withSegments, SEGMENTS,
@@ -25,6 +29,7 @@ import {
 /**
  * @typedef {import("../stats.js").StatsTie} StatsTie
  * @typedef {import("../stats-period.js").PeriodState} PeriodState
+ * @typedef {typeof import("../world-map.js")} WorldMapModule
  * @typedef {{ person_ids: string[], location_ids: string[], tag_ids: string[] }} MoreFilters
  */
 
@@ -53,12 +58,36 @@ async function fetchTies(body) {
 
 /**
  * @param {HTMLElement} _root the view's element
- * @param {{ signal: AbortSignal }} _context
+ * @param {{ signal: AbortSignal }} context
  */
-export function mount(_root, _context) {
+export function mount(_root, { signal }) {
   const today = todayIn();
   // Only the newest answer is shown, if the filters change quickly.
   let insightsRequest = 0;
+
+  // --- The map, loaded when its card comes near ---
+  /** @type {WorldMapModule | null} */
+  let mapModule = null;
+  let mapFailed = false;
+  /** @type {StatsTie[] | null} the ties last drawn, for when the map loads */
+  let shownTies = null;
+  /** Ends the map on screen (its size watcher) when it's replaced. */
+  let mapDrawn = new AbortController();
+  signal.addEventListener("abort", () => mapDrawn.abort());
+  const nearMap = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    nearMap.disconnect();
+    import("../world-map.js").then((module) => {
+      if (signal.aborted) return;
+      mapModule = module;
+      if (shownTies) drawMap(shownTies);
+    }, () => {
+      mapFailed = true;
+      if (shownTies) drawMap(shownTies);
+    });
+  }, { rootMargin: "400px 0px" });
+  nearMap.observe($("#map-card"));
+  signal.addEventListener("abort", () => nearMap.disconnect());
 
   // --- Insights ---
   /** @type {PeriodState} */
@@ -146,14 +175,14 @@ export function mount(_root, _context) {
   function drawInsights(ties) {
     const s = summarize(ties);
     $("#insights-stats").replaceChildren(
-      // Down the left column, then the right (.stat-pairs fills columns).
+      // A card each, in rows of two (four when there's room).
       stat("Ties", String(s.ties)),
       stat("Partners", String(s.partners)),
       stat("Locations", String(s.locations)),
-      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
+      ratingStat(s.avgRating),
       stat("Time (total)", formatTotalTime(s.minutes)),
       stat("Time (avg)", s.avgMinutes === null ? "–" : `${s.avgMinutes}m`),
-      ratingStat(s.avgRating),
+      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
       stat(`As ${roleName("bottom")}`, String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
 
     const empty = () => h("p", { className: "empty" }, "No ties in this period.");
@@ -183,6 +212,37 @@ export function mount(_root, _context) {
     $("#weekday-chart").replaceChildren(ties.length
       ? barChart(weekdayShares(ties).map((day) => ({ ...day, title: day.label })), "Ties by day of the week", pick) : empty());
     $("#location-chart").replaceChildren(ties.length ? rankBars(locationShares(ties, TOP_LOCATIONS), "Ties by location", pick) : empty());
+    shownTies = ties;
+    drawMap(ties);
+  }
+
+  /**
+   * The map's pins for these ties, and how many of them it leaves out
+   * (without a location with coordinates). Waits for the map to load.
+   * @param {StatsTie[]} ties
+   */
+  function drawMap(ties) {
+    const { places, shown, total } = mapPlaces(ties);
+    const count = $("#map-count");
+    count.textContent = `Showing ${shown} of ${tiesWord(total)}.`;
+    count.hidden = shown === total || !places.length;
+    const chart = $("#map-chart");
+    if (!places.length) {
+      chart.replaceChildren(h("p", { className: "empty" }, ties.length
+        ? "No ties at a location with coordinates in this period." : "No ties in this period."));
+      return;
+    }
+    if (!mapModule) {
+      chart.replaceChildren(mapFailed
+        ? h("p", { className: "message error" }, "Couldn't load the map. Check your connection and open Analytics again.")
+        : h("p", { className: "empty" }, "Loading the map…"));
+      return;
+    }
+    mapDrawn.abort();
+    mapDrawn = new AbortController();
+    chart.replaceChildren(mapModule.worldMap({
+      places, signal: mapDrawn.signal, onPick: (pin) => showTies(pin.label, pin.tieIds),
+    }));
   }
 
   /** @param {number | null} rating */

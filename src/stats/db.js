@@ -7,7 +7,7 @@ import { tieFilterSql } from "../ties/search.js";
 /**
  * The ties the analytics count, oldest first, each with just what the
  * counting needs (no title, notes, plans or tags): its date, type, length,
- * rating, location, and who took part in which role, with my own profile
+ * rating, location (with its coordinates, for the map), and who took part in which role, with my own profile
  * marked (is_self). The counting happens on the device (public/js/stats.js),
  * so a chart can later list the ties behind a bar.
  * @param {D1Database} db
@@ -31,7 +31,8 @@ export async function statsTies(db, ownerId, filters) {
   const [ties, participants] = await db.batch([
     db.prepare(
       `SELECT t.id, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating,
-              t.location_id, t.location_deleted, l.name AS location_name
+              t.location_id, t.location_deleted, l.name AS location_name,
+              l.latitude, l.longitude
          FROM ties t
          LEFT JOIN locations l ON l.id = t.location_id
         WHERE ${clause}

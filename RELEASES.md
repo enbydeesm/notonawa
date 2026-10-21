@@ -6,6 +6,12 @@ Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
+## 2026.10.20.004
+
+- Analytics: the period, role and filters stay at the top of the screen as you scroll, and each number has a card of its own.
+- Analytics has a map: a pin for each location your ties were at, if it has coordinates. Zoom with + and −, drag to move around, and tap a pin to see its ties. Pins close together join up until you zoom in.
+- Analytics: Locations now comes before Days of the week.
+
 ## 2026.10.20.003
 
 - Locations: tap + on "Add a Location" to add one in a pop-up form. Tap a name to edit it; Archive and Delete are there too.

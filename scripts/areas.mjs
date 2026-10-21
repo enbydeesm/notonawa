@@ -233,9 +233,10 @@ export const AREAS = [
     name: "insights",
     files: ["src/stats/", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
       "public/js/chart-parts.js", "public/js/tie-list-dialog.js", "public/js/views/calendar.js",
-      "public/js/views/analytics.js"],
+      "public/js/views/analytics.js", "public/js/map-geo.js", "public/js/world-map.js", "public/js/world-shapes.js",
+      "scripts/world-map.mjs", "scripts/world-map-lib.mjs"],
     tests: ["test/api/stats.test.js", "test/unit/stats.test.js", "test/unit/stats-parse.test.js",
-      "test/unit/stats-period.test.js", "test/unit/chart-parts.test.js"],
+      "test/unit/stats-period.test.js", "test/unit/chart-parts.test.js", "test/unit/map-geo.test.js"],
     ui: ["insights"],
   },
   {

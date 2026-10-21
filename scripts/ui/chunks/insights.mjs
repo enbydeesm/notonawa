@@ -3,9 +3,25 @@
 import { check, freshAccount, go, run } from "../harness.mjs";
 import { seedJournal, seedTie } from "../seed.mjs";
 
+/**
+ * Ties today at three places with coordinates, for the map: two in London
+ * about 25 km apart (one pin until zoomed in) and one in Sydney. With the
+ * seeded tie at Studio (no coordinates), the map shows 3 of 4 ties.
+ */
+function seedMapTies() {
+  return run(`
+    const d = new Date();
+    const today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    for (const [name, latitude, longitude] of [["Soho dungeon", 51.5136, -0.1365], ["Watford loft", 51.6565, -0.3903], ["Sydney studio", -33.8688, 151.2093]]) {
+      const location_id = await post("/api/locations", { name, latitude, longitude });
+      if (!location_id || !await post("/api/ties", { tie_type: "floor", tie_date: today, location_id })) throw new Error("Seeding " + name + " failed");
+    }`);
+}
+
 export default async function () {
   await freshAccount();
   await seedTie(await seedJournal());
+  await seedMapTies();
   console.log("Calendar and Analytics");
   await go("/calendar");
   check("Calendar and Analytics are the tabs after Locations, marked when shown", await run(`
@@ -68,4 +84,33 @@ export default async function () {
     const partner = $("#partner-chart .partner-row") ? await opens("#partner-chart .partner-row")
       : $("#partner-chart .empty")?.textContent === "No partners in this period.";
     return [partner, await opens("#type-chart .legend-row"), await opens("#location-chart .rank-row")];`), [true, true, true]);
+  check("the numbers are cards of their own, under the filters, and Locations, Map and Days of the week come in that order", await run(`
+    const cards = [...document.querySelectorAll("#insights-panel > .card h2, #insights-panel > .card .period-title")].map((h) => h.id === "period-title" ? "filters" : h.textContent);
+    return [$("#insights-stats").previousElementSibling.classList.contains("insights-filters"), $("#insights-stats").closest(".card"),
+      [...document.querySelectorAll("#insights-stats .stat dt")].map((dt) => dt.textContent).slice(0, 4),
+      cards.slice(cards.indexOf("Locations"), cards.indexOf("Locations") + 3)];`),
+    [true, null, ["Ties", "Partners", "Locations", "Avg rating"], ["Locations", "Map", "Days of the week"]]);
+  check("the filters stay at the top while the page scrolls", await run(`
+    window.scrollTo(0, document.body.scrollHeight); await wait(300);
+    const top = $(".insights-filters").getBoundingClientRect().top; const scrolled = window.scrollY > 300;
+    window.scrollTo(0, 0); await wait(100);
+    return [scrolled, Math.round(top)];`), [true, 0]);
+  check("the map loads once scrolled to: a pin for London's two places and one for Sydney, and 3 of the 4 ties", await run(`
+    $("#map-card").scrollIntoView();
+    for (let i = 0; i < 100 && !document.querySelector(".world-map .map-pin"); i++) await wait(100);
+    const pins = [...document.querySelectorAll(".map-pin")].map((p) => p.getAttribute("aria-label"));
+    return [$(".map-note").textContent, pins, $("#map-count").hidden, $("#map-count").textContent, $("#map-zoom-in").disabled];`),
+    ["Ties show on the map when their location has coordinates.", ["2 locations: 2 ties", "Sydney studio: 1 tie"], false, "Showing 3 of 4 ties.", false]);
+  check("tapping a pin lists its ties", await run(`
+    document.querySelector(".map-pin.grouped").dispatchEvent(new MouseEvent("click", { bubbles: true })); await wait(1000);
+    const shown = [$("#tl-heading").textContent, document.querySelectorAll("#tl-list .tie-card").length];
+    $("#tl-close").click(); await wait(200);
+    return shown;`), ["2 locations · 2 ties", 2]);
+  check("+ zooms in, the pins come apart close up, and Show all fits them again", await run(`
+    const width = () => Number(document.querySelector(".map-land").getAttribute("viewBox").split(" ")[2]);
+    const before = width(); $("#map-zoom-in").click(); await wait(200); const closer = width();
+    let steps = 0; while (!$("#map-zoom-in").disabled && steps++ < 20) { $("#map-zoom-in").click(); await wait(50); }
+    await wait(200); const apart = document.querySelectorAll(".map-pin").length;
+    $("#map-fit").click(); await wait(200);
+    return [Math.round(before / closer), apart, width() === before, document.querySelectorAll(".map-pin").length];`), [2, 3, true, 2]);
 }

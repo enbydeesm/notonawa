@@ -27,12 +27,13 @@ export { TYPE_COLORS } from "./chart-parts.js";
 const SVG = "http://www.w3.org/2000/svg";
 
 /**
+ * An SVG element (h() makes HTML ones). Also used by world-map.js.
  * @param {string} tag
  * @param {Record<string, string | number>} attrs
  * @param {...(Node | string)} children
  * @returns {SVGElement}
  */
-function svg(tag, attrs, ...children) {
+export function svg(tag, attrs, ...children) {
   const el = /** @type {SVGElement} */ (document.createElementNS(SVG, tag));
   for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
   el.append(...children);

@@ -884,6 +884,41 @@ leaving Analytics resets it (Back lands on this month's calendar, not the
 Insights period and filters you'd set up), and the Ties list can't say why
 it's showing those ties.
 
+## The Analytics map: our own outlines, no map tiles
+
+**Status:** built (2026-10-20)
+
+Analytics has a Map card (after Locations): a pin for each location with
+coordinates that has ties in the filters, grouped when pins would overlap,
+tapping one listing its ties. Ties without a location, at one without
+coordinates, or whose location was deleted aren't on it; the card says so,
+and says "Showing 3 of 4 ties" when some are left out. Decided:
+
+- **No map tiles or map library.** A normal web map (OpenStreetMap, Google,
+  Mapbox tiles, usually through Leaflet or MapLibre) loads its pictures from
+  another site, a few at a time for the part shown, which tells that site
+  roughly where the ties were and when someone looked; the CSP refuses
+  other sites anyway. Instead the map is Natural Earth's 1:110m country
+  outlines (public domain), turned into one SVG path by
+  `scripts/world-map.mjs` (`public/js/world-shapes.js`, 51 KB, 22 KB
+  compressed) and drawn on the device (`world-map.js`, with the sums in
+  `map-geo.js`). The cost: no cities, roads or labels, so close up the pins
+  stand on plain land. Weighed: the 1:50m outlines (about 10 times bigger,
+  for coastlines that only matter zoomed in), and land without borders
+  (lighter, but harder to tell where you are).
+- **It's a card in Analytics, not its own view**, so it follows the same
+  filters and reuses the ties Analytics already has (the stats query
+  sends the location's coordinates too; they were already plain text on
+  the server). Its code and outlines load only when the card is about to
+  scroll into view.
+- **Mercator, Antarctica cut off**, like most web maps. It opens fitted to
+  the pins (zoomed in no closer than about 160 km across); +, − and "Show
+  all" zoom by two, and dragging moves it. No zooming with the mouse wheel
+  or pinching: the wheel should scroll the page. On a touch screen a finger
+  on the map moves the map, not the page.
+- **Pins closer than 30 pixels are one pin** with its tie count, grouped
+  around the busiest place; zooming in pulls them apart.
+
 ## "This is me" can't be moved, archived or deleted
 
 **Status:** built (2026-10-16)

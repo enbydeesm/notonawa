@@ -461,7 +461,7 @@ dialog.form-dialog {
   stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* The numbers: label above value, in tiles (Calendar) or pairs (Insights). */
+/* The numbers: label above value, in tiles (Calendar) or cards (Analytics). */
 .stat-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
 .stat-grid .stat { grid-column: span 2; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; text-align: center; }
 /* The top/bottom tiles share the second row. */
@@ -469,21 +469,16 @@ dialog.form-dialog {
 .stat-grid dt { color: var(--muted); font-size: 0.8rem; }
 .stat-grid dd { margin: 0; font-size: 1.4rem; font-weight: 600; }
 .stat-extra { margin-left: 8px; font-size: 0.9rem; color: var(--accent-ink); }
-/* Insights: two columns, filled top to bottom (left, then right), each
-   row a label on the left and its number on the right. */
-.stat-pairs {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto);
-  grid-auto-flow: column; gap: 8px 20px; margin: 0;
-}
-.stat-pairs .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-.stat-pairs dt { color: var(--muted); min-width: 0; line-height: 1.25; white-space: pre-line; }
-/* The number, with its percentage or average in small type under it, so
-   long labels keep their room. */
-.stat-pairs dd { flex: none; margin: 0; font-weight: 600; text-align: right; white-space: nowrap; }
-.stat-pairs .stat-extra { display: block; margin: 0; font-weight: 400; font-size: 0.78rem; line-height: 1.2; color: var(--muted); }
-.stat-pairs .stat-hank { display: inline-block; vertical-align: -2px; }
+/* Analytics: each number its own small card, two to a row (four when
+   there's room), the label above the number. */
+.stat-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+@media (min-width: 560px) { .stat-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stat-cards .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.stat-cards dt { color: var(--muted); font-size: 0.85rem; line-height: 1.25; }
+.stat-cards dd { margin: 2px 0 0; font-size: 1.4rem; font-weight: 600; white-space: nowrap; }
+.stat-cards .stat-extra { margin-left: 6px; font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+.stat-cards .stat-hank { display: inline-block; width: 20px; height: 20px; vertical-align: -2px; }
 .stat-hank { width: 16px; height: 16px; margin-left: 4px; }
-@media (max-width: 400px) { .stat-pairs { gap: 8px 14px; font-size: 0.95rem; } }
 
 /* The month: seven columns, a hank on each day with ties (and the count
    on it when there's more than one). */
@@ -501,6 +496,11 @@ dialog.form-dialog {
   border-radius: 8px; background: var(--text); color: var(--card);
   font-size: 0.65rem; font-weight: 700; line-height: 16px; text-align: center;
 }
+
+/* Analytics' filters stay at the top of the screen while the cards scroll
+   under them (above the charts' tap targets and the map's buttons). */
+.insights-filters { position: sticky; top: 0; z-index: 2; box-shadow: 0 6px 12px -8px rgb(0 0 0 / 0.25); }
+.insights-filters .period-nav { margin-bottom: 0; }
 
 /* Insights' controls: the period and role drop-downs share the row with
    the funnel button. */
@@ -556,8 +556,33 @@ dialog.form-dialog {
 .rank-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .rank-bar { flex: none; display: block; height: 18px; }
 .rank-count { flex: none; color: var(--muted); font-size: 0.85rem; }
-/* Days of the week and locations side by side when there's room. */
-.pie-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 16px; }
+/* The map (world-map.js): countries over the sea, pins in the accent
+   yellow, + − and "Show all" over its top right corner. Dragging moves it,
+   so the page doesn't scroll from a finger on it. */
+.map-note { margin: -6px 0 10px; }
+.world-map { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.world-map .map { display: block; width: 100%; aspect-ratio: 3 / 2; touch-action: none; cursor: grab; user-select: none; }
+.world-map.dragging .map { cursor: grabbing; }
+.map-sea { fill: var(--bg); }
+.map-countries {
+  fill: color-mix(in srgb, var(--chart-grey) 40%, var(--card)); stroke: var(--card);
+  stroke-width: 0.75; stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+.map-pin { cursor: pointer; outline: none; }
+.map-pin-head { fill: var(--chart-yellow); stroke: var(--accent-text); stroke-width: 1.25; }
+.map-pin:hover .map-pin-head { stroke-width: 2; }
+.map-pin:focus-visible .map-pin-head { stroke: var(--accent-ink); stroke-width: 3; }
+.map-pin-dot { fill: var(--accent-text); }
+.map-pin-count { fill: var(--accent-text); font-size: 11px; font-weight: 700; text-anchor: middle; }
+.map-zoom { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px; }
+.map-button {
+  width: 36px; height: 36px; justify-content: center; align-items: center;
+  background: var(--card); color: var(--accent-ink); border: 1px solid var(--line); border-radius: 8px;
+  font-size: 1.3rem; line-height: 1;
+}
+.map-button:disabled { color: var(--muted); opacity: 0.6; }
+.map-count { margin: 8px 0 0; }
+.map-count[hidden] { display: none; }
 
 /* The "More filters" dialog: a label above each box. */
 .more-filters > label { margin: 12px 0 4px; }

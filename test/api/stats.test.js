@@ -25,7 +25,7 @@ async function dates(filters) {
 describe("POST /api/stats/ties", () => {
   it("returns the ties in the range, oldest first, with only what the counting needs", async () => {
     const sam = await create("/api/people", { name: "Sam" });
-    const place = await create("/api/locations", { name: "Studio" });
+    const place = await create("/api/locations", { name: "Studio", latitude: 51.5, longitude: -0.12 });
     await create("/api/ties", {
       title: "Secret title", tie_date: "2025-03-02", tie_type: "floor", duration_minutes: 60, success_rating: 4,
       location_id: place, tags: ["statstest-a"],
@@ -39,7 +39,7 @@ describe("POST /api/stats/ties", () => {
     const tie = ties[1];
     expect(tie).toEqual({
       id: expect.any(String), tie_date: "2025-03-02", tie_type: "floor", duration_minutes: 60, success_rating: 4,
-      location_id: place, location_deleted: 0, location_name: "Studio",
+      location_id: place, location_deleted: 0, location_name: "Studio", latitude: 51.5, longitude: -0.12,
       participants: expect.arrayContaining([
         { person_id: me, person_name: "Me", is_self: true, role: "top" },
         { person_id: sam, person_name: "Sam", is_self: false, role: "bottom" },
