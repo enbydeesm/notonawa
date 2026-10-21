@@ -8,7 +8,7 @@ export const RELEASES = [
   {
     "version": "2026.10.20.004",
     "notes": [
-      "Analytics: the period, role and filters stay at the top of the screen as you scroll, and each number has a card of its own.",
+      "Analytics: the period, role and filters stay at the top of the screen as you scroll, and the numbers have a card of their own.",
       "Analytics has a map: a pin for each location your ties were at, if it has coordinates. Zoom with + and −, drag to move around, and tap a pin to see its ties. Pins close together join up until you zoom in.",
       "Analytics: Locations now comes before Days of the week."
     ]

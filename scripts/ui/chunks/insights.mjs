@@ -84,12 +84,13 @@ export default async function () {
     const partner = $("#partner-chart .partner-row") ? await opens("#partner-chart .partner-row")
       : $("#partner-chart .empty")?.textContent === "No partners in this period.";
     return [partner, await opens("#type-chart .legend-row"), await opens("#location-chart .rank-row")];`), [true, true, true]);
-  check("the numbers are cards of their own, under the filters, and Locations, Map and Days of the week come in that order", await run(`
-    const cards = [...document.querySelectorAll("#insights-panel > .card h2, #insights-panel > .card .period-title")].map((h) => h.id === "period-title" ? "filters" : h.textContent);
-    return [$("#insights-stats").previousElementSibling.classList.contains("insights-filters"), $("#insights-stats").closest(".card"),
-      [...document.querySelectorAll("#insights-stats .stat dt")].map((dt) => dt.textContent).slice(0, 4),
+  check("the numbers have a card of their own, under the filters, and Locations, Map and Days of the week come in that order", await run(`
+    const statsCard = $("#insights-stats").closest(".card");
+    const cards = [...document.querySelectorAll("#insights-panel > .card h2")].map((h) => h.textContent);
+    return [statsCard.previousElementSibling.classList.contains("insights-filters"), statsCard.children.length,
+      [...document.querySelectorAll("#insights-stats .stat dt")].map((dt) => dt.textContent),
       cards.slice(cards.indexOf("Locations"), cards.indexOf("Locations") + 3)];`),
-    [true, null, ["Ties", "Partners", "Locations", "Avg rating"], ["Locations", "Map", "Days of the week"]]);
+    [true, 1, ["Ties", "Partners", "Locations", "As top", "Time (total)", "Time (avg)", "Avg rating", "As bottom"], ["Locations", "Map", "Days of the week"]]);
   check("the filters stay at the top while the page scrolls", await run(`
     window.scrollTo(0, document.body.scrollHeight); await wait(300);
     const top = $(".insights-filters").getBoundingClientRect().top; const scrolled = window.scrollY > 300;

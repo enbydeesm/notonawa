@@ -175,14 +175,14 @@ export function mount(_root, { signal }) {
   function drawInsights(ties) {
     const s = summarize(ties);
     $("#insights-stats").replaceChildren(
-      // A card each, in rows of two (four when there's room).
+      // Down the left column, then the right (.stat-pairs fills columns).
       stat("Ties", String(s.ties)),
       stat("Partners", String(s.partners)),
       stat("Locations", String(s.locations)),
-      ratingStat(s.avgRating),
+      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
       stat("Time (total)", formatTotalTime(s.minutes)),
       stat("Time (avg)", s.avgMinutes === null ? "–" : `${s.avgMinutes}m`),
-      stat(`As ${roleName("top")}`, String(s.asTop), `${percent(s.asTop, s.ties)}%`),
+      ratingStat(s.avgRating),
       stat(`As ${roleName("bottom")}`, String(s.asBottom), `${percent(s.asBottom, s.ties)}%`));
 
     const empty = () => h("p", { className: "empty" }, "No ties in this period.");
