@@ -100,15 +100,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
   `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
-  `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`
-  and `/api/data/import/ties` (both take `preview`). See considerations.md,
+  `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`,
+  `/api/data/import/ties` and `/api/data/import/workshops` (all take
+  `preview`; workshops are found duplicates as ties are, comparing their
+  description and notes on the device). See considerations.md,
   "Export, import and deletion as built".
-- `src/media/`: photos and videos on ties and plans (migration 0010; files
-  in the R2 bucket `PHOTOS`). `parse.js` (pure: limits, including 5
+- `src/media/`: photos and videos on ties, plans and workshops (migration
+  0010, workshops since 0018; files in the R2 bucket `PHOTOS`). `parse.js` (pure: limits, including 5
   videos of the 30 an item and 40 MB a video, upload parameters, sealed
   captions, order), `db.js`, `storage.js` (R2: keys, deleting, the daily
   sweep of files without a row), `routes.js` (`GET /api/media?tie_id=|
-  plan_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
+  plan_id=|workshop_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
   full`, `PATCH /api/media/:id` (caption), `PUT /api/media/order`, `DELETE
   /api/media/:id`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
@@ -169,16 +171,26 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   migration 0013), and required (`TYPE_NEEDED`; since migration 0014 the
   API, imports and two triggers refuse a tie without one). `GET /api/ties/recent/locations|people|plans`: ids of the 5 active
   ones most recently on a tie (by tie date), for the tie form's pickers.
+- `src/workshops/`: workshops, the Education view's (migration 0018).
+  `parse.js` (pure: a title and start date required, an end date not
+  before it, `attendee_count`, educators and participants each with a
+  role, sent as two lists and stored as one, `workshop_people`, with a
+  `kind`; a person is on a workshop once), `db.js` (tags through
+  `tags/db.js`, as `"workshop"`), `routes.js` (`GET /api/workshops`: all
+  of mine at once, newest first, as the page searches them itself; `POST
+  /api/workshops`; `GET`/`PUT`/`DELETE /api/workshops/:id`, with
+  `keep_deleted` as on ties). Whether I taught one is whether my "this is
+  me" profile is one of its educators: nothing stores it.
 - `src/stats/`: the analytics' data (`parse.js`: pure, the filters and
   `ROLE_GROUPS`; `db.js`; `routes.js`: `POST /api/stats/ties`, the ties in a
   date range with only what the counting needs, filtered by my role and by
   any of the chosen people, locations and tags). See considerations.md,
   "Analytics".
-- `src/tags/`: tags, shared by ties and plans (`parse.js` parses and
+- `src/tags/`: tags, shared by ties, plans and workshops (`parse.js` parses and
   matches names, ignoring capitals; `db.js`: `tagStatements` and
   `clearTagsStatement` save a tie's or plan's tags; `routes.js`: `GET
-  /api/tags` most recently used on a tie first, with `tie_count` and
-  `plan_count`, `DELETE /api/tags/:id`).
+  /api/tags` most recently used on a tie first, with `tie_count`,
+  `plan_count` and `workshop_count`, `DELETE /api/tags/:id`).
 - `src/app-version.js`: generated from RELEASES.md by
   `scripts/releases.mjs` (never edit it): `APP_VERSION`, whose release
   notes new accounts start as having seen.
@@ -233,12 +245,20 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   kept only in memory, and a plan's tie count and average rating),
   `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
-  Analytics; the + button and the ☰ menu panel: Settings, Account, Your
+  Analytics, Education (`CAP_PATHS`, the cap, also on People's educators),
+  sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
   data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
-  `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `tag-picker.js`
+  `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `person-rows.js` (a form's
+  person-and-role rows, with "(person deleted)" rows: the tie form's
+  People, a workshop's Educators and Participants), `workshop-form.js`
+  (the "Add a workshop" dialog; educators are only people marked
+  Educator, the rest are the picker source's `elsewhere`, and one added
+  there is saved as an educator), `workshop-card.js`, `workshops-view.js`
+  (pure: the Education search, attended or taught, the Summary's
+  numbers), `tag-picker.js`
   (its "Edit tags" dialog; the Ties and Plans searches' "Has Tags" open it
   with `forSearch`, for picking existing tags only, on ties or, with
-  `noun: "plan"`, on plans) and `tags.js` (pure), `search-picker.js` (its
+  `noun: "plan"` or `"workshop"`, on plans or workshops) and `tags.js` (pure), `search-picker.js` (its
   search boxes for the location, people and plans, which can also add one),
   `search-choices.js` (pure: what those boxes list and offer to add),
   `rope-rating.js` (ratings drawn as rope hanks; `hankIcon`),
@@ -379,7 +399,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Always check whether a code path should set `updated_at`.** Nothing updates
   it automatically (we chose not to use triggers, to avoid a second write per
   UPDATE; see considerations.md). Any UPDATE to a table with an `updated_at`
-  column (people, profile_notes, locations, plans, ties) should normally include
+  column (people, profile_notes, locations, plans, ties, workshops) should normally include
   `updated_at = ${NOW}`.
 - **Timestamps are ISO text**, e.g. `2026-10-11T21:51:00Z`. In SQL, use the
   `NOW` constant from `src/lib.js` (`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
@@ -394,11 +414,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   history. A one-off location is just one archived when it's added.
   `GET /api/plans|people|locations` requires `?archived=false|true|all`
   (no default, so a forgotten filter is a 400, not a silent mistake).
-- **Show deleted links on ties instead of hiding them:**
-  - `tie_participants.person_id` NULL → "(person deleted)"
+- **Show deleted links on ties and workshops instead of hiding them:**
+  - `tie_participants.person_id` or `workshop_people.person_id` NULL →
+    "(person deleted)"
   - `tie_plans.plan_id` NULL → "(plan deleted)"
-  - `ties.location_deleted = 1` → "(location deleted)". Any code that sets a
-    tie's `location_id` must also set `location_deleted = 0` (a CHECK enforces it).
+  - `ties.location_deleted = 1` or `workshops.location_deleted = 1` →
+    "(location deleted)". Any code that sets a tie's or workshop's
+    `location_id` must also set `location_deleted = 0` (a CHECK enforces it).
 - **Deleting a plan needs the user's choice** of `linked_ties=remove` (also drop
   it from ties) or `linked_ties=keep` (ties show "(plan deleted)"). The UI asks
   with a confirmation dialog: remove from linked ties / just delete the plan /
@@ -406,7 +428,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Every journal has a "this is me" profile**, named "Me" when the account
   is made (`newUserStatements`; migration 0005 added one to older accounts).
   It can be renamed, but not archived or deleted (the API refuses: the tie
-  form, Calendar and Analytics rely on it), and edits can't change who it
+  form, Calendar, Analytics and Education rely on it), and edits can't change who it
   is (`is_self` is `createOnly` in `src/resources/config.js`; only adding a
   person, or an import into a journal without one, sets it). A unique index
   allows at most one. The People form shows "This is me" only on it, ticked
@@ -436,7 +458,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `ties.album_url`, `tie_participants.notes`, `people.notes`,
   `people.based_in`, `people.aliases` (migration 0016),
   `profile_notes.description`, `locations.notes`, `plans.description`,
-  `plans.notes`, `plans.album_url`): parse them with
+  `plans.notes`, `plans.album_url`, `workshops.description`,
+  `workshops.notes`, `workshops.album_url` (migration 0018)): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,
   searches or sorts by them. The page seals before sending (`vault.seal`,
   `sealOne`) and opens what it shows (`vault.open`). A new encrypted field

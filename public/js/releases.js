@@ -1,10 +1,20 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.20.005";
+export const APP_VERSION = "2026.10.20.006";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.20.006",
+    "notes": [
+      "Education: a new tab (the graduation cap) for the workshops you attend and teach. Tap + on \"Add a Workshop\" to log one: its title, dates, location, educators, participants, how many attended, a rating, a description, notes, photos and videos, an album link and tags.",
+      "Educators are picked from the people marked Educator in People. Mark your own profile as an educator to log the workshops you teach: they show under Taught, and the rest under Attended.",
+      "Summary adds up what you've attended and taught: workshops, days, educators, locations, partners, attendees and ratings, with your most frequent educators and tags.",
+      "The search on Education finds workshops by keyword, people, educators, locations, dates and tags, and narrows all three tabs.",
+      "Workshop descriptions, notes and album links are encrypted like your other notes, and workshops are included when you export and import your data."
+    ]
+  },
   {
     "version": "2026.10.20.005",
     "notes": [

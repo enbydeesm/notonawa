@@ -1,4 +1,5 @@
-// A search box for choosing a location, person or plan in the tie form.
+// A search box for choosing a location, person or plan in the tie and
+// workshop forms.
 // Tapped, it lists the ones most recently on a tie; typing searches them
 // all. A name that isn't one of mine can be added from the bottom of the
 // list ("Add to list", or "Add & archive" for a one-off); one I've archived
@@ -32,6 +33,9 @@ const KINDS = {
  *   exclude?: () => Set<string>,
  *   onPick?: (item: PickerItem) => void,
  *   onError: (text: string) => void,
+ *   newFields?: Record<string, unknown>,
+ *   onAdd?: (item: PickerItem, archived: boolean) => void,
+ *   elsewhereNote?: (name: string) => string,
  * }} config
  *   id: the text box's id (list and option ids start with it); label: a
  *   visible label's id, or words for screen readers when there's none;
@@ -39,9 +43,12 @@ const KINDS = {
  *   for the hidden input (its name or class); exclude: ids chosen
  *   elsewhere, to leave out of the list; onPick: runs when a different
  *   item is picked (or added); onError: shows a problem in the form's
- *   message.
+ *   message; newFields: also saved on one added here (e.g. is_educator);
+ *   onAdd: runs once one is added, e.g. to offer it in other pickers;
+ *   elsewhereNote: what to say when the name typed is one of the source's
+ *   `elsewhere`.
  */
-export function searchPicker({ kind, id, label, source, input, exclude, onPick, onError }) {
+export function searchPicker({ kind, id, label, source, input, exclude, onPick, onError, newFields, onAdd, elsewhereNote }) {
   const words = KINDS[kind];
   /** @type {PickerItem | null} */
   let chosen = null;
@@ -68,7 +75,7 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
   function open(query) {
     const skip = exclude?.() ?? new Set();
     const shown = searchChoices(source.active.filter((item) => !skip.has(item.id)), source.recent, query);
-    const offer = addOffer(source.active, source.archived, query);
+    const offer = addOffer(source.active, source.archived, query, source.elsewhere);
     /** @param {PickerItem} item */
     const pickItem = (item) => () => { pick(item); close(); };
 
@@ -85,6 +92,9 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
     if (!shown.length && !query.trim()) rows.push(note(`No ${words.plural} yet. Type ${words.what} to add one.`));
     if (offer && "archived" in offer) {
       rows.push(note(`"${offer.archived}" is archived. Restore it from the ${words.page} page to use it again.`));
+    }
+    if (offer && "elsewhere" in offer) {
+      rows.push(note(elsewhereNote?.(offer.elsewhere) ?? `"${offer.elsewhere}" can't be chosen here.`));
     }
     if (offer && "add" in offer) {
       const actions = [["Add to list", false], ["Add & archive", true]].map(([text, archive], i) => {
@@ -166,10 +176,11 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
   async function add(name, archive) {
     close();
     try {
-      const body = { [words.field]: name, archive_now: archive };
+      const body = { ...newFields, [words.field]: name, archive_now: archive };
       const { id: newId } = await api(`/api/${kind}`, { method: "POST", body });
       const item = { id: newId, name, created_at: new Date().toISOString() };
       (archive ? source.archived : source.active).push(item);
+      onAdd?.(item, archive);
       pick(item);
     } catch (err) {
       onError(`Couldn't add "${name}": ${errorMessage(err)}`);

@@ -458,6 +458,66 @@
     </div>
   </template>
 
+  <!-- Education (/education): workshops attended and taught. -->
+  <template id="view-education">
+    <h1 class="visually-hidden">Education</h1>
+
+    <!-- Opens the workshop form in its dialog (workshop-form.js). -->
+    <section class="card add-card plus-first">
+      <button type="button" class="nav-add" id="add-workshop" aria-labelledby="add-workshop-label" title="Add a workshop">+</button>
+      <h2 id="add-workshop-label">Add a Workshop</h2>
+    </section>
+
+    <!-- Over the workshops already loaded, for all three tabs: nothing typed
+         leaves the device (public/js/workshops-view.js). -->
+    <section class="card" role="search" aria-label="Search workshops">
+      <label for="search-q">Search</label>
+      <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
+
+      <label id="search-people-label">People</label>
+      <div id="search-people"></div>
+
+      <label id="search-educators-label">Educator(s)</label>
+      <div id="search-educators"></div>
+      <p class="hint">Workshops with all of the people and educators you choose.</p>
+
+      <label id="search-locations-label">Locations</label>
+      <div id="search-locations"></div>
+
+      <div class="row">
+        <div>
+          <label for="search-from">From</label>
+          <input id="search-from" type="date" autocomplete="off" spellcheck="false">
+        </div>
+        <div>
+          <label for="search-to">To</label>
+          <input id="search-to" type="date" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="label-row">
+        <label id="search-tags-label">Has Tags</label>
+        <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+        <div class="match-toggle" role="group" aria-label="Match tags">
+          <button type="button" id="search-tags-any" aria-pressed="true" title="Workshops with any of the tags">OR</button>
+          <button type="button" id="search-tags-all" aria-pressed="false" title="Workshops with all of the tags">AND</button>
+        </div>
+      </div>
+      <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+
+      <button type="button" class="link" id="search-clear" hidden>Clear search</button>
+    </section>
+
+    <div class="subtabs" role="tablist" aria-label="Workshops">
+      <button type="button" role="tab" id="tab-attended" aria-controls="education-panel" aria-selected="true">Attended</button>
+      <button type="button" role="tab" id="tab-taught" aria-controls="education-panel" aria-selected="false" tabindex="-1">Taught</button>
+      <button type="button" role="tab" id="tab-summary" aria-controls="education-panel" aria-selected="false" tabindex="-1">Summary</button>
+    </div>
+
+    <!-- The chosen tab's list, or the Summary's two cards (views/education.js). -->
+    <div id="education-panel" role="tabpanel" aria-labelledby="tab-attended"><p class="empty">Loading…</p></div>
+  </template>
+
   <!-- Account (/account) -->
   <template id="view-account">
     <h1>Account</h1>

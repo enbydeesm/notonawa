@@ -46,9 +46,11 @@ nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom
 nav[hidden] { display: none; }
 nav .nav-tab { display: inline-flex; flex: none; width: 32px; height: 34px; padding: 4px 3px; }
 nav .nav-tab svg { display: block; width: 100%; height: 100%; }
-/* Narrow phones: closer together, so the row still fits. */
-@media (max-width: 380px) { nav { gap: 4px 8px; } }
-@media (max-width: 340px) { nav { gap: 4px 3px; } nav .nav-tab { width: 30px; } }
+/* Phones: closer together, and on narrow ones smaller, so the seven tabs,
+   the + and the ☰ still fit on one row (down to 320px wide). */
+@media (max-width: 420px) { nav { gap: 4px 6px; } }
+@media (max-width: 374px) { nav .nav-tab { width: 28px; padding: 4px 2px; } }
+@media (max-width: 340px) { nav { gap: 4px 3px; } }
 
 /* The app's logo on Sign in and Unlock, which have no nav. */
 .app-title { text-align: center; }
@@ -728,3 +730,16 @@ dialog.form-dialog {
 /* Bug and feedback: the warning first, and the message's length under it. */
 .warning-note { padding: 8px 12px; border-left: 4px solid var(--error); background: var(--bg); border-radius: 6px; }
 .feedback-count { text-align: right; }
+
+/* Education: the Attended, Taught and Summary tabs, as words with the
+   chosen one underlined in the accent (like the nav's current tab). */
+.subtabs { display: flex; gap: 24px; margin: 4px 4px 12px; }
+.subtabs button {
+  padding: 4px 0; border: none; border-bottom: 2px solid transparent; border-radius: 0;
+  background: transparent; color: var(--muted); font-weight: 600;
+}
+.subtabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+/* A workshop's dates can be a range: let it wrap rather than push the title. */
+.workshop-card .tie-date { white-space: normal; text-align: right; }
+.summary-card .stat-pairs { margin-bottom: 12px; }
+.summary-card .item-meta { margin: 4px 0 0; }

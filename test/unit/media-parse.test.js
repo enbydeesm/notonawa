@@ -27,10 +27,12 @@ describe("parseItem", () => {
   it("takes a tie or a plan", () => {
     expect(parseItem({ tie_id: "t1" })).toEqual({ column: "tie_id", table: "ties", id: "t1" });
     expect(parseItem({ plan_id: "p1" })).toEqual({ column: "plan_id", table: "plans", id: "p1" });
+    expect(parseItem({ workshop_id: "w1" })).toEqual({ column: "workshop_id", table: "workshops", id: "w1" });
   });
   it("needs exactly one, with an id-shaped value", () => {
-    expect(() => parseItem({})).toThrow("tie_id or plan_id");
-    expect(() => parseItem({ tie_id: "t1", plan_id: "p1" })).toThrow("tie_id or plan_id");
+    expect(() => parseItem({})).toThrow("tie_id, plan_id or workshop_id");
+    expect(() => parseItem({ tie_id: "t1", plan_id: "p1" })).toThrow("tie_id, plan_id or workshop_id");
+    expect(() => parseItem({ plan_id: "p1", workshop_id: "w1" })).toThrow("tie_id, plan_id or workshop_id");
     expect(() => parseItem({ tie_id: "a b" })).toThrow(BadInput);
     expect(() => parseItem({ plan_id: 7 })).toThrow(BadInput);
   });

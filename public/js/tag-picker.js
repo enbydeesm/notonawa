@@ -16,8 +16,8 @@ import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from 
  * tag names on OK, or null if it's closed with Esc (nothing changes). Deleting
  * a tag is saved straight away, whichever way it closes.
  * @param {string[]} chosen
- * @param {{ forSearch?: boolean, noun?: "tie" | "plan" }} [options]
- *   forSearch: pick tags on ties (or plans) only (no adding or deleting)
+ * @param {{ forSearch?: boolean, noun?: "tie" | "plan" | "workshop" }} [options]
+ *   forSearch: pick tags on ties (or plans, or workshops) only (no adding or deleting)
  *   noun: what the tags are for: which ones a search lists, and the limit's message
  * @returns {Promise<string[] | null>}
  */
@@ -149,7 +149,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       let tag = findTag(tags, name);
       if (!tag && forSearch) return;
       if (!tag) {
-        tag = { id: null, name, tie_count: 0, plan_count: 0 };
+        tag = { id: null, name, tie_count: 0, plan_count: 0, workshop_count: 0 };
         tags.unshift(tag);
       }
       select(tag.name);
@@ -162,7 +162,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
     async function confirmDelete(tag) {
       const choice = await choose({
         title: `Delete tag '${tag.name}'?`,
-        message: deleteTagWarning(tag.tie_count, tag.plan_count),
+        message: deleteTagWarning(tag.tie_count, tag.plan_count, tag.workshop_count),
         choices: [{ label: "Confirm", value: "delete", style: "solid-danger" }],
       });
       if (choice !== "delete") return;
@@ -180,7 +180,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       try {
         /** @type {Tag[]} */
         const mine = await api("/api/tags");
-        tags = forSearch ? mine.filter((t) => (noun === "plan" ? t.plan_count : t.tie_count) > 0) : mine;
+        tags = forSearch ? mine.filter((t) => t[`${noun}_count`] > 0) : mine;
       } catch (err) {
         showMessage(message, "Couldn't load tags: " + errorMessage(err), true);
       }
@@ -188,7 +188,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       // A search only ever holds saved tags.
       if (!forSearch) {
         for (const name of [...selected].reverse()) {
-          if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0, plan_count: 0 });
+          if (!findTag(tags, name)) tags.unshift({ id: null, name, tie_count: 0, plan_count: 0, workshop_count: 0 });
         }
       }
       renderList();

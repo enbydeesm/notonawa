@@ -31,14 +31,21 @@ export const MIMES = /** @type {const} */ ({ photo: ["image/jpeg", "image/webp"]
 
 // Made by the browser with crypto.randomUUID(): the encryption is bound to it.
 const MEDIA_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-// A tie's or plan's id (checked against the database afterwards).
+// A tie's, plan's or workshop's id (checked against the database afterwards).
 const ITEM_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
- * What a photo belongs to. column is only ever one of these two names, so
- * it can go into SQL.
- * @typedef {{ column: "tie_id" | "plan_id", table: "ties" | "plans", id: string }} Item
+ * What a photo belongs to. column and table are only ever these fixed
+ * names, so they can go into SQL.
+ * @typedef {{
+ *   column: "tie_id" | "plan_id" | "workshop_id",
+ *   table: "ties" | "plans" | "workshops",
+ *   id: string,
+ * }} Item
  */
+
+/** The parameter naming each kind of item, and its table. */
+export const ITEM_COLUMNS = /** @type {const} */ ({ tie_id: "ties", plan_id: "plans", workshop_id: "workshops" });
 
 /**
  * @param {unknown} value
@@ -50,17 +57,29 @@ export function parseMediaId(value) {
 }
 
 /**
- * The tie or plan, from { tie_id } or { plan_id } (exactly one).
- * @param {{ tie_id?: unknown, plan_id?: unknown }} source query parameters or a JSON body
+ * The tie, plan or workshop, from { tie_id }, { plan_id } or { workshop_id }
+ * (exactly one).
+ * @param {{ tie_id?: unknown, plan_id?: unknown, workshop_id?: unknown }} source query parameters or a JSON body
  * @returns {Item}
  */
 export function parseItem(source) {
-  const tie = source.tie_id ?? null;
-  const plan = source.plan_id ?? null;
-  if ((tie === null) === (plan === null)) throw new BadInput("Say which tie or plan: tie_id or plan_id.");
-  const id = tie ?? plan;
-  if (typeof id !== "string" || !ITEM_ID.test(id)) throw new BadInput("That isn't a tie or plan id.");
-  return tie !== null ? { column: "tie_id", table: "ties", id } : { column: "plan_id", table: "plans", id };
+  const given = /** @type {(keyof typeof ITEM_COLUMNS)[]} */ (Object.keys(ITEM_COLUMNS))
+    .filter((column) => (source[column] ?? null) !== null);
+  if (given.length !== 1) throw new BadInput("Say which tie, plan or workshop: tie_id, plan_id or workshop_id.");
+  const column = given[0];
+  const id = source[column];
+  if (typeof id !== "string" || !ITEM_ID.test(id)) throw new BadInput("That isn't a tie, plan or workshop id.");
+  return { column, table: ITEM_COLUMNS[column], id };
+}
+
+/**
+ * The item from a request's query parameters.
+ * @param {URLSearchParams} params
+ * @returns {Item}
+ */
+export function itemFromParams(params) {
+  return parseItem(Object.fromEntries(
+    Object.keys(ITEM_COLUMNS).map((column) => [column, params.get(column) ?? undefined])));
 }
 
 /**
@@ -71,7 +90,7 @@ export function parseItem(source) {
  */
 
 /**
- * An upload: PUT /api/media/:id?tie_id=…|plan_id=…&kind=…&mime=…&thumb_bytes=…
+ * An upload: PUT /api/media/:id?tie_id=…|plan_id=…|workshop_id=…&kind=…&mime=…&thumb_bytes=…
  * with the object as the body.
  * @param {string} id from the path
  * @param {URLSearchParams} params
@@ -79,7 +98,7 @@ export function parseItem(source) {
  * @returns {Upload}
  */
 export function parseUpload(id, params, contentLength) {
-  const item = parseItem({ tie_id: params.get("tie_id") ?? undefined, plan_id: params.get("plan_id") ?? undefined });
+  const item = itemFromParams(params);
   const kind = params.get("kind");
   const mime = params.get("mime");
   if (!KINDS.includes(/** @type {any} */ (kind))) throw new BadInput("Only photos and videos can be added.");

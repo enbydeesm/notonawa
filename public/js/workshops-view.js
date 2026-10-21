@@ -1,0 +1,219 @@
+// What the Education view shows and works out: the search over workshops,
+// which ones I attended and which I taught, their dates in words, and the
+// Summary's numbers. Pure (no DOM), so it's easy to test.
+//
+// All my workshops are loaded at once (GET /api/workshops) with their
+// description and notes opened, so the search runs here and nothing typed
+// goes to the server. It isn't kept in the address either: it starts empty
+// each time Education is shown.
+
+import { normaliseKeyword } from "./search-match.js";
+import { formatDate } from "./format.js";
+
+/**
+ * @typedef {{ id: string, person_id: string | null, person_name: string | null, role: string }} WorkshopPerson
+ * @typedef {Record<string, any> & {
+ *   id: string, title: string, start_date: string, end_date: string | null,
+ *   location_id: string | null, location_name: string | null,
+ *   attendee_count: number | null, rating: number | null,
+ *   educators: WorkshopPerson[], participants: WorkshopPerson[], tags: string[],
+ * }} Workshop
+ * @typedef {{
+ *   q: string,
+ *   person_ids: string[],
+ *   educator_ids: string[],
+ *   location_ids: string[],
+ *   from: string,
+ *   to: string,
+ *   tags: string[],
+ *   tag_match: "any" | "all",
+ * }} WorkshopSearch
+ *   person_ids: workshops with all of them (as an educator or a
+ *   participant); educator_ids: with all of them as educators;
+ *   location_ids: at any of them; from / to: YYYY-MM-DD or "" (a workshop
+ *   counts if any of its days is in the range); tags: names
+ */
+
+/** @type {WorkshopSearch} */
+export const EMPTY_SEARCH = {
+  q: "", person_ids: [], educator_ids: [], location_ids: [], from: "", to: "", tags: [], tag_match: "any",
+};
+
+/** The Education view's tabs, in order. */
+export const TABS = /** @type {const} */ (["attended", "taught", "summary"]);
+
+/**
+ * Whether anything narrows the list.
+ * @param {WorkshopSearch} search
+ */
+export function hasWorkshopFilters(search) {
+  return normaliseKeyword(search.q) !== null || search.person_ids.length > 0 || search.educator_ids.length > 0 ||
+    search.location_ids.length > 0 || search.from !== "" || search.to !== "" || search.tags.length > 0;
+}
+
+/**
+ * The workshops the search finds, in the order given. The keyword is
+ * looked for in the title, description and notes, ignoring capitals.
+ * @template {Workshop} W
+ * @param {W[]} workshops
+ * @param {WorkshopSearch} search
+ * @returns {W[]}
+ */
+export function filterWorkshops(workshops, search) {
+  const keyword = normaliseKeyword(search.q);
+  const has = (/** @type {unknown} */ text) => typeof text === "string" && text.toLocaleLowerCase().includes(/** @type {string} */ (keyword));
+  const wanted = search.tags.map((name) => name.toLocaleLowerCase());
+  return workshops.filter((w) => {
+    if (keyword !== null && !has(w.title) && !has(w.description) && !has(w.notes)) return false;
+    const everyone = new Set([...w.educators, ...w.participants].map((p) => p.person_id));
+    if (!search.person_ids.every((id) => everyone.has(id))) return false;
+    const educators = new Set(w.educators.map((p) => p.person_id));
+    if (!search.educator_ids.every((id) => educators.has(id))) return false;
+    if (search.location_ids.length && !(w.location_id && search.location_ids.includes(w.location_id))) return false;
+    if (search.to && w.start_date > search.to) return false;
+    if (search.from && (w.end_date ?? w.start_date) < search.from) return false;
+    if (wanted.length) {
+      const mine = w.tags.map((name) => name.toLocaleLowerCase());
+      const found = wanted.filter((name) => mine.includes(name)).length;
+      if (search.tag_match === "all" ? found < wanted.length : found === 0) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Whether I taught it: my "this is me" profile is one of its educators.
+ * @param {Workshop} workshop
+ * @param {string | null} selfId
+ */
+export function isTaught(workshop, selfId) {
+  return selfId !== null && workshop.educators.some((p) => p.person_id === selfId);
+}
+
+/**
+ * The workshops I attended (I'm not one of the educators) and the ones I taught.
+ * @template {Workshop} W
+ * @param {W[]} workshops
+ * @param {string | null} selfId
+ * @returns {{ attended: W[], taught: W[] }}
+ */
+export function splitByMe(workshops, selfId) {
+  const attended = [], taught = [];
+  for (const w of workshops) (isTaught(w, selfId) ? taught : attended).push(w);
+  return { attended, taught };
+}
+
+/**
+ * How many days a workshop ran (1 with no end date).
+ * @param {{ start_date: string, end_date: string | null }} workshop
+ */
+export function workshopDays({ start_date, end_date }) {
+  if (!end_date) return 1;
+  const day = (/** @type {string} */ date) => Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10));
+  return Math.round((day(end_date) - day(start_date)) / 86_400_000) + 1;
+}
+
+/**
+ * "Oct 3, 2026", or "Oct 3, 2026 – Oct 5, 2026".
+ * @param {{ start_date: string, end_date: string | null }} workshop
+ * @param {string} [locale]
+ */
+export function dateRangeText({ start_date, end_date }, locale) {
+  const start = formatDate(start_date, locale);
+  return end_date ? `${start} – ${formatDate(end_date, locale)}` : start;
+}
+
+/**
+ * "1 workshop", "3 workshops".
+ * @param {number} count
+ */
+export function workshopCountText(count) {
+  return count === 1 ? "1 workshop" : `${count} workshops`;
+}
+
+/** How many names the Summary's "most often" lines list. */
+export const TOP_COUNT = 3;
+
+/**
+ * @typedef {{ name: string, count: number }} Ranked
+ * @typedef {{ title: string, date: string }} Dated
+ * @typedef {{
+ *   workshops: number,
+ *   days: number,
+ *   locations: number,
+ *   partners: number,
+ *   educators: number,
+ *   attendees: number,
+ *   averageRating: number | null,
+ *   topEducators: Ranked[],
+ *   topTags: Ranked[],
+ *   first: Dated | null,
+ *   latest: Dated | null,
+ * }} Summary
+ *   educators: everyone who taught them, not counting me (for the ones I
+ *   taught: my co-teachers); partners: participants, not counting me;
+ *   attendees: the attendee counts added up; locations: the different
+ *   locations (deleted ones not counted)
+ */
+
+/**
+ * The Summary card's numbers for some workshops.
+ * @param {Workshop[]} workshops
+ * @param {string | null} selfId
+ * @returns {Summary}
+ */
+export function summarise(workshops, selfId) {
+  /** @param {WorkshopPerson[]} people */
+  const others = (people) => people.filter((p) => p.person_id !== null && p.person_id !== selfId);
+  const educators = new Map(), partners = new Set(), locations = new Set();
+  /** @type {Map<string, Ranked>} */
+  const tags = new Map();
+  let days = 0, attendees = 0, ratingTotal = 0, rated = 0;
+
+  for (const w of workshops) {
+    days += workshopDays(w);
+    attendees += w.attendee_count ?? 0;
+    if (typeof w.rating === "number") {
+      ratingTotal += w.rating;
+      rated++;
+    }
+    if (w.location_id) locations.add(w.location_id);
+    for (const p of others(w.participants)) partners.add(p.person_id);
+    for (const p of others(w.educators)) {
+      const seen = educators.get(p.person_id) ?? { name: p.person_name ?? "", count: 0 };
+      seen.count++;
+      educators.set(p.person_id, seen);
+    }
+    for (const name of w.tags) {
+      const key = name.toLocaleLowerCase();
+      const seen = tags.get(key) ?? { name, count: 0 };
+      seen.count++;
+      tags.set(key, seen);
+    }
+  }
+
+  const byDate = [...workshops].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  /** @param {Workshop | undefined} w @returns {Dated | null} */
+  const dated = (w) => (w ? { title: w.title, date: w.start_date } : null);
+  return {
+    workshops: workshops.length,
+    days,
+    locations: locations.size,
+    partners: partners.size,
+    educators: educators.size,
+    attendees,
+    averageRating: rated ? Math.round((ratingTotal / rated) * 10) / 10 : null,
+    topEducators: ranked([...educators.values()]),
+    topTags: ranked([...tags.values()]),
+    first: dated(byDate[0]),
+    latest: dated(byDate[byDate.length - 1]),
+  };
+}
+
+/**
+ * The most frequent first (then A–Z), up to TOP_COUNT.
+ * @param {Ranked[]} list
+ */
+function ranked(list) {
+  return [...list].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, TOP_COUNT);
+}

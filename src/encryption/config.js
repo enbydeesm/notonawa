@@ -10,6 +10,7 @@ export const ENCRYPTED_COLUMNS = {
   profile_notes: ["description"],
   locations: ["notes"],
   plans: ["description", "notes", "album_url"],
+  workshops: ["description", "notes", "album_url"],
 };
 
 /**
@@ -24,6 +25,7 @@ export const OWNER_SCOPE = {
   profile_notes: "person_id IN (SELECT id FROM people WHERE owner_id = ?1)",
   locations: "owner_id = ?1",
   plans: "owner_id = ?1",
+  workshops: "owner_id = ?1",
 };
 
 // A value that's still plain text: not empty, and not sealed. (LIKE ignores

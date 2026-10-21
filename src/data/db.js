@@ -42,8 +42,16 @@ export async function readAccount(db, userId) {
         WHERE t.owner_id = ? ORDER BY tp.rowid`),
     q(`SELECT tt.tie_id, tg.name FROM tie_tags tt JOIN tags tg ON tg.id = tt.tag_id
         WHERE tg.owner_id = ? ORDER BY tg.name COLLATE NOCASE`),
+    q(`SELECT id, title, start_date, end_date, location_id, location_deleted, attendee_count, rating,
+              description, notes, album_url, created_at, updated_at
+         FROM workshops WHERE owner_id = ? ORDER BY start_date, created_at, id`),
+    q(`SELECT wp.workshop_id, wp.person_id, wp.kind, wp.role
+         FROM workshop_people wp JOIN workshops w ON w.id = wp.workshop_id
+        WHERE w.owner_id = ? ORDER BY wp.rowid`),
+    q(`SELECT wt.workshop_id, tg.name FROM workshop_tags wt JOIN tags tg ON tg.id = wt.tag_id
+        WHERE tg.owner_id = ? ORDER BY tg.name COLLATE NOCASE`),
     // Photos' rows; the page fetches the files and decrypts them.
-    q(`SELECT id, tie_id, plan_id, kind, mime, caption, position, created_at
+    q(`SELECT id, tie_id, plan_id, workshop_id, kind, mime, caption, position, created_at
          FROM media WHERE owner_id = ? ORDER BY position, created_at`),
     // Notices just for me, and others I've dismissed.
     q(`SELECT n.message, n.created_at, n.user_id IS NOT NULL AS just_for_me, d.dismissed_at
@@ -52,10 +60,11 @@ export async function readAccount(db, userId) {
     // Bug reports and ideas I've sent.
     q("SELECT kind, message, app_version, created_at FROM feedback WHERE user_id = ? ORDER BY created_at, id"),
   ]);
-  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags, media, notices, feedback] =
+  const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags,
+    workshops, workshopPeople, workshopTags, media, notices, feedback] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
-    ties, participants, tiePlans, tieTags, media, notices, feedback,
+    ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, notices, feedback,
   };
 }

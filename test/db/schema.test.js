@@ -144,6 +144,84 @@ describe("constraints", () => {
   });
 });
 
+describe("workshops (migration 0018)", () => {
+  /** @param {string} owner @param {string} [extra] */
+  async function workshop(owner, extra = "") {
+    const id = newId("w");
+    await sql(`INSERT INTO workshops (id, owner_id, title, start_date${extra ? ", " + extra.split("=")[0] : ""})
+               VALUES (?, ?, 'Intro', '2026-02-01'${extra ? ", ?" : ""})`, id, owner, ...(extra ? [extra.split("=")[1]] : [])).run();
+    return id;
+  }
+
+  it("stop links to another user's location, people, tags and photos", async () => {
+    const loc = newId("loc"), person = newId("p"), tag = newId("tag");
+    await sql("INSERT INTO locations (id, owner_id, name) VALUES (?, ?, 'Theirs')", loc, them).run();
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Theirs')", person, them).run();
+    await sql("INSERT INTO tags (id, owner_id, name) VALUES (?, ?, 'theirs')", tag, them).run();
+    await expect(workshop(me, `location_id=${loc}`)).rejects.toThrow("ownership mismatch: location");
+    const mine = await workshop(me);
+    await expect(sql("UPDATE workshops SET location_id = ? WHERE id = ?", loc, mine).run()).rejects.toThrow("ownership mismatch: location");
+    await expect(sql("INSERT INTO workshop_people (id, workshop_id, person_id, kind, role) VALUES (?, ?, ?, 'educator', 'top')", newId("wp"), mine, person).run())
+      .rejects.toThrow("ownership mismatch: workshop person");
+    await expect(sql("INSERT INTO workshop_tags (workshop_id, tag_id) VALUES (?, ?)", mine, tag).run())
+      .rejects.toThrow("ownership mismatch: workshop tag");
+    await expect(sql(`INSERT INTO media (id, owner_id, workshop_id, kind, mime, position, thumb_bytes, bytes)
+                      VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, newId("m"), them, mine).run())
+      .rejects.toThrow("ownership mismatch: media workshop");
+    await expect(sql("UPDATE workshops SET owner_id = ? WHERE id = ?", them, mine).run()).rejects.toThrow("owner_id cannot change");
+  });
+
+  it("need a title and start date, and an end date not before it", async () => {
+    await expect(sql("INSERT INTO workshops (id, owner_id, start_date) VALUES (?, ?, '2026-02-01')", newId("w"), me).run())
+      .rejects.toThrow("NOT NULL constraint failed: workshops.title");
+    await expect(sql("INSERT INTO workshops (id, owner_id, title) VALUES (?, ?, 'x')", newId("w"), me).run())
+      .rejects.toThrow("NOT NULL constraint failed: workshops.start_date");
+    await expect(workshop(me, "end_date=2026-01-31")).rejects.toThrow("CHECK constraint failed");
+    await workshop(me, "end_date=2026-02-03");
+    await expect(workshop(me, "rating=6")).rejects.toThrow("CHECK constraint failed");
+    await expect(workshop(me, "attendee_count=-1")).rejects.toThrow("CHECK constraint failed");
+  });
+
+  it("have each person on a workshop once, as an educator or a participant, in a known role", async () => {
+    const w = await workshop(me), person = newId("p");
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Kit')", person, me).run();
+    const add = (/** @type {string} */ kind, /** @type {string} */ role) =>
+      sql("INSERT INTO workshop_people (id, workshop_id, person_id, kind, role) VALUES (?, ?, ?, ?, ?)", newId("wp"), w, person, kind, role).run();
+    await expect(add("teacher", "top")).rejects.toThrow("CHECK constraint failed");
+    await expect(add("educator", "rigger")).rejects.toThrow("CHECK constraint failed");
+    await add("educator", "top");
+    await expect(add("participant", "bottom")).rejects.toThrow("UNIQUE constraint failed");
+  });
+
+  it("mark a deleted location, and keep deleted people as null", async () => {
+    const loc = newId("loc"), person = newId("p");
+    await sql("INSERT INTO locations (id, owner_id, name) VALUES (?, ?, 'Studio')", loc, me).run();
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Kit')", person, me).run();
+    const w = await workshop(me, `location_id=${loc}`);
+    await sql("INSERT INTO workshop_people (id, workshop_id, person_id, kind, role) VALUES (?, ?, ?, 'educator', 'top')", newId("wp"), w, person).run();
+    await sql("DELETE FROM locations WHERE id = ?", loc).run();
+    await sql("DELETE FROM people WHERE id = ?", person).run();
+    expect(await sql("SELECT location_id, location_deleted FROM workshops WHERE id = ?", w).first())
+      .toEqual({ location_id: null, location_deleted: 1 });
+    expect(await sql("SELECT person_id FROM workshop_people WHERE workshop_id = ?", w).first()).toEqual({ person_id: null });
+  });
+
+  it("put each photo on exactly one tie, plan or workshop, for good", async () => {
+    const w = await workshop(me), plan = newId("plan");
+    await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, me).run();
+    const photo = (/** @type {string} */ id, /** @type {string | null} */ planId, /** @type {string | null} */ workshopId) =>
+      sql(`INSERT INTO media (id, owner_id, plan_id, workshop_id, kind, mime, position, thumb_bytes, bytes)
+           VALUES (?, ?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, id, me, planId, workshopId).run();
+    await expect(photo(newId("m"), plan, w)).rejects.toThrow("CHECK constraint failed");
+    await expect(photo(newId("m"), null, null)).rejects.toThrow("CHECK constraint failed");
+    const m = newId("m");
+    await photo(m, null, w);
+    await expect(sql("UPDATE media SET workshop_id = NULL, plan_id = ? WHERE id = ?", plan, m).run()).rejects.toThrow("media cannot move");
+    await sql("DELETE FROM workshops WHERE id = ?", w).run();
+    expect(await sql("SELECT id FROM media WHERE id = ?", m).first()).toBeNull();
+  });
+});
+
 describe("key wraps", () => {
   /** @param {string} userId */
   const addPasskey = async (userId) => {

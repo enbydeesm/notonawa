@@ -7,14 +7,15 @@
 //      mine by name or adds, answering with each one's id in my journal;
 //   2. the ties, in batches of TIE_BATCH, with the file's ids swapped for
 //      those. Each batch saves all or nothing, and ties that are already in
-//      the journal are skipped, so running a failed import again finishes it.
+//      the journal are skipped, so running a failed import again finishes it;
+//   3. the workshops, the same way.
 
 export const EXPORT_FORMAT = "notonawa-export";
 export const EXPORT_VERSION = 1;
 export const TIE_BATCH = 200;
 
 /**
- * @typedef {{ people: any[], locations: any[], plans: any[], tags: string[], ties: any[] }} ImportDoc
+ * @typedef {{ people: any[], locations: any[], plans: any[], tags: string[], ties: any[], workshops: any[] }} ImportDoc
  * @typedef {{ file_id: string, name: string, id: string | null, matched: boolean }} ItemResult
  * @typedef {{ people: ItemResult[], locations: ItemResult[], plans: ItemResult[], new_tags: string[] }} ItemsResponse
  */
@@ -36,7 +37,7 @@ export function readExport(data) {
   const list = (v) => (Array.isArray(v) ? v : []);
   return {
     people: list(doc.people), locations: list(doc.locations), plans: list(doc.plans),
-    tags: list(doc.tags), ties: list(doc.ties),
+    tags: list(doc.tags), ties: list(doc.ties), workshops: list(doc.workshops),
   };
 }
 
@@ -101,6 +102,36 @@ export function remapTies(ties, items) {
 }
 
 /**
+ * Swaps the file's ids on each workshop for my journal's, as remapTies does.
+ * @param {any[]} workshops
+ * @param {ItemsResponse} items
+ * @returns {any[]}
+ */
+export function remapWorkshops(workshops, items) {
+  const people = idMap(items.people);
+  const locations = idMap(items.locations);
+  return workshops.map((workshop, i) => {
+    const name = workshop?.title ? `Workshop ${i + 1} ("${workshop.title}")` : `Workshop ${i + 1}`;
+    /** @param {Map<string, string>} map @param {unknown} id @param {string} what */
+    const swap = (map, id, what) => {
+      if (id === null || id === undefined || id === "") return null;
+      const mine = map.get(String(id));
+      if (!mine) throw new Error(`${name} links to ${what} that isn't in the file.`);
+      return mine;
+    };
+    /** @param {unknown} list */
+    const swapPeople = (list) => (Array.isArray(list) ? list : [])
+      .map((/** @type {any} */ p) => ({ ...p, person_id: swap(people, p?.person_id, "a person") }));
+    return {
+      ...workshop,
+      location_id: swap(locations, workshop?.location_id, "a location"),
+      educators: swapPeople(workshop?.educators),
+      participants: swapPeople(workshop?.participants),
+    };
+  });
+}
+
+/**
  * For a preview, before anything exists: every link is checked against the
  * file the same way, using placeholder ids.
  * @param {ImportDoc} doc
@@ -108,7 +139,9 @@ export function remapTies(ties, items) {
 export function checkLinks(doc) {
   /** @param {any[]} list @param {string} [label] */
   const fake = (list, label = "name") => list.map((x) => ({ file_id: String(x?.id), name: x?.[label], id: "x", matched: false }));
-  remapTies(doc.ties, { people: fake(doc.people), locations: fake(doc.locations), plans: fake(doc.plans, "title"), new_tags: [] });
+  const items = { people: fake(doc.people), locations: fake(doc.locations), plans: fake(doc.plans, "title"), new_tags: [] };
+  remapTies(doc.ties, items);
+  remapWorkshops(doc.workshops, items);
 }
 
 /**

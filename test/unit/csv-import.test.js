@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
 import template from "../../public/import-template.csv?raw";
-import { readExport, exportRoleNames, remapTies, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
+import { readExport, exportRoleNames, remapTies, remapWorkshops, checkLinks, batches, describeItems } from "../../public/js/import-steps.js";
 import { setRoleNames } from "../../public/js/roles.js";
 
 describe("parseCsv", () => {
@@ -201,7 +201,7 @@ describe("import steps", () => {
 
   it("reads only NotoNawa exports of a version it knows", () => {
     expect(readExport({ format: "notonawa-export", version: 1, ties: [{ title: "x" }] }))
-      .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }] });
+      .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }], workshops: [] });
     expect(() => readExport({ hello: 1 })).toThrow("isn't a NotoNawa export");
     expect(() => readExport(null)).toThrow("isn't a NotoNawa export");
     expect(() => readExport({ format: "notonawa-export", version: 2 })).toThrow("newer version");
@@ -223,6 +223,21 @@ describe("import steps", () => {
       participants: [{ person_id: "P", role: "bottom" }, { person_id: null, role: "spotter" }],
       plans: [{ plan_id: "X", plan_version: 2 }],
     }]);
+  });
+
+  it("swaps a workshop's ids too, educators and participants alike", () => {
+    const items = {
+      people: [{ file_id: "p", name: "Sam", id: "P", matched: true }],
+      locations: [{ file_id: "l", name: "Studio", id: "L", matched: false }],
+      plans: [], new_tags: [],
+    };
+    expect(remapWorkshops([{
+      title: "w", location_id: "l", educators: [{ person_id: "p", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
+    }], items)).toEqual([{
+      title: "w", location_id: "L", educators: [{ person_id: "P", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
+    }]);
+    const doc = readExport({ format: "notonawa-export", version: 1, workshops: [{ title: "Intro", educators: [{ person_id: "x", role: "top" }] }] });
+    expect(() => checkLinks(doc)).toThrow('Workshop 1 ("Intro") links to a person that isn\'t in the file.');
   });
 
   it("names a tie that links to something not in the file", () => {

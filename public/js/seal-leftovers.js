@@ -11,7 +11,7 @@ import { batches } from "./import-steps.js";
 /** Each table's kind of record (as in crypto/fields.js). @type {Record<string, import("./crypto/fields.js").RecordKind>} */
 const KIND_OF = {
   ties: "tie", tie_participants: "participant", people: "person",
-  profile_notes: "profileNote", locations: "location", plans: "plan",
+  profile_notes: "profileNote", locations: "location", plans: "plan", workshops: "workshop",
 };
 const ROWS_PER_REQUEST = 500;
 

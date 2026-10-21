@@ -5,12 +5,14 @@ import { toFlag } from "../parse.js";
 import { isoAt } from "../auth/session.js";
 import { readAccount } from "./db.js";
 import { exportDocument, exportFileName } from "./shape.js";
-import { parseImportItems, parseImportTies } from "./import-parse.js";
-import { planItems, planTies } from "./import-plan.js";
-import { existingItems, insertItems, insertTies, duplicateCandidates } from "./import-db.js";
+import { parseImportItems, parseImportTies, parseImportWorkshops } from "./import-parse.js";
+import { planItems, planTies, planWorkshops } from "./import-plan.js";
+import {
+  existingItems, insertItems, insertTies, duplicateCandidates, insertWorkshops, workshopDuplicateCandidates,
+} from "./import-db.js";
 import { tagNames } from "../tags/db.js";
 
-// An import request's largest body. The page sends ties in batches of 200.
+// An import request's largest body. The page sends ties and workshops in batches of 200.
 const MAX_IMPORT_BYTES = 4 * 1024 * 1024;
 
 /** @typedef {import("../auth/user.js").User} User */
@@ -82,6 +84,29 @@ export async function handleData(request, env, user, url) {
     return json({ added, skipped: skip.size, ids: ties.map((_, i) => (skip.has(i) ? null : newIds.shift())) });
   }
 
+  // POST /api/data/import/workshops  body { preview, workshops, skip }
+  //   As for ties: preview: true -> { candidates: [{ i, id, description,
+  //   notes }], new_tags }, my workshops the same in everything but the
+  //   encrypted fields; otherwise -> { added, skipped, ids }, adding up to
+  //   500 workshops, leaving out the positions in skip.
+  if (url.pathname === "/api/data/import/workshops" && request.method === "POST") {
+    const body = await readImport(request);
+    const workshops = parseImportWorkshops(body);
+    const existingTags = await tagNames(env.DB, user.id);
+    if (toFlag(body.preview) === 1) {
+      const plan = planWorkshops(workshops, existingTags, () => "");
+      return json({
+        candidates: await workshopDuplicateCandidates(env.DB, user.id, plan.rows.workshops),
+        new_tags: plan.newTags,
+      });
+    }
+    const skip = parseSkip(body.skip, workshops.length);
+    const plan = planWorkshops(workshops.filter((_, i) => !skip.has(i)), existingTags, () => crypto.randomUUID());
+    const added = await insertWorkshops(env.DB, user.id, plan.rows);
+    const newIds = plan.rows.workshops.map((w) => w.id);
+    return json({ added, skipped: skip.size, ids: workshops.map((_, i) => (skip.has(i) ? null : newIds.shift())) });
+  }
+
   return null;
 }
 
@@ -96,9 +121,9 @@ async function readImport(request) {
 }
 
 /**
- * Positions of ties to leave out (duplicates the page found).
+ * Positions of ties or workshops to leave out (duplicates the page found).
  * @param {unknown} value
- * @param {number} count how many ties there are
+ * @param {number} count how many there are
  * @returns {Set<number>}
  */
 function parseSkip(value, count) {

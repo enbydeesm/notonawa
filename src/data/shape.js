@@ -5,7 +5,7 @@
 // plans) can be followed in the file and rebuilt by import. Deleted links stay
 // as they are in the app: a participant or plan link with a null id, and
 // location_deleted on a tie. Tags are listed by name, as the app sends them.
-// Each tie and plan lists its photos, with `file`: where the page puts the
+// Each tie, plan and workshop lists its photos, with `file`: where the page puts the
 // photo in the .zip it saves (the server can't decrypt photos, so the page
 // fetches and decrypts each one; captions are still sealed here).
 
@@ -27,6 +27,9 @@ export const EXPORT_VERSION = 1;
  *   participants: Row[],
  *   tiePlans: Row[],
  *   tieTags: Row[],
+ *   workshops: Row[],
+ *   workshopPeople: Row[],
+ *   workshopTags: Row[],
  *   media: Row[],
  *   notices: Row[],
  *   feedback: Row[],
@@ -45,6 +48,9 @@ export function exportDocument(rows, exportedAt) {
   const tagsByTie = groupBy(rows.tieTags, "tie_id");
   const photosByTie = groupBy(rows.media.filter((m) => m.tie_id), "tie_id");
   const photosByPlan = groupBy(rows.media.filter((m) => m.plan_id), "plan_id");
+  const peopleByWorkshop = groupBy(rows.workshopPeople, "workshop_id");
+  const tagsByWorkshop = groupBy(rows.workshopTags, "workshop_id");
+  const photosByWorkshop = groupBy(rows.media.filter((m) => m.workshop_id), "workshop_id");
 
   return {
     format: EXPORT_FORMAT,
@@ -112,6 +118,22 @@ export function exportDocument(rows, exportedAt) {
       tags: (tagsByTie.get(t.id) ?? []).map((x) => x.name),
       photos: (photosByTie.get(t.id) ?? []).map(photoEntry),
     })),
+    // Educators and participants as two lists; a deleted person has a null id.
+    workshops: rows.workshops.map((w) => {
+      const people = peopleByWorkshop.get(w.id) ?? [];
+      const of = (/** @type {string} */ kind) => people.filter((p) => p.kind === kind)
+        .map((p) => ({ person_id: p.person_id, role: p.role }));
+      return {
+        id: w.id, title: w.title, start_date: w.start_date, end_date: w.end_date,
+        location_id: w.location_id, location_deleted: !!w.location_deleted,
+        attendee_count: w.attendee_count, rating: w.rating,
+        description: w.description, notes: w.notes, album_url: w.album_url,
+        created_at: w.created_at, updated_at: w.updated_at,
+        educators: of("educator"), participants: of("participant"),
+        tags: (tagsByWorkshop.get(w.id) ?? []).map((x) => x.name),
+        photos: (photosByWorkshop.get(w.id) ?? []).map(photoEntry),
+      };
+    }),
   };
 }
 

@@ -16,6 +16,7 @@ import { handleAccount } from "./account/routes.js";
 import { handleKeys } from "./keys/routes.js";
 import { handleEncryption } from "./encryption/routes.js";
 import { handleTies } from "./ties/routes.js";
+import { handleWorkshops } from "./workshops/routes.js";
 import { handleLocations } from "./locations/routes.js";
 import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
@@ -119,6 +120,7 @@ async function respond(request, env) {
     (await handleKeys(request, env, user, url)) ??
     (await handleEncryption(request, env, user, url)) ??
     (await handleTies(request, env, user, url)) ??
+    (await handleWorkshops(request, env, user, url)) ??
     // Before resources: /api/locations/coords would look like an item there.
     (await handleLocations(request, env, user, url)) ??
     (await handleResources(request, env, user, url)) ??

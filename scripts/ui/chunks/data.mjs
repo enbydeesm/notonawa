@@ -104,7 +104,7 @@ export default async function () {
     $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(2000);
     return [[...document.querySelectorAll("#import-preview .item")].map(flat).filter((t) => t.startsWith("Photos")), $("#import-go").hidden ? null : $("#import-go").textContent];`);
   check("importing the zip previews its photos", await chooseZip(),
-    [["Photos | 2 in the file (added to ties and plans that don't already have photos)"], "Import"]);
+    [["Photos | 2 in the file (added to ties, plans and workshops that don't already have photos)"], "Import"]);
   check("…and puts the photo and video back on their tie, with their captions", await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     const listed = await (await fetch("/api/media?tie_id=${photoTie}")).json();
@@ -114,5 +114,5 @@ export default async function () {
   check("importing it again doesn't add the photo twice", (await chooseZip(), await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
-    ["Imported 0 ties. Skipped 4 ties already in your journal. Skipped 2 photos on ties or plans that already have photos.", 2]);
+    ["Imported 0 ties. Skipped 4 ties already in your journal. Skipped 2 photos on ties, plans or workshops that already have photos.", 2]);
 }

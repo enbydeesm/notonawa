@@ -1,9 +1,9 @@
-// The photos and videos in an import: taken off the file's ties and plans before
+// The photos and videos in an import: taken off the file's ties, plans and workshops before
 // anything is sent (their captions are plain text in the file, and the
 // server never sees a caption unsealed), then uploaded one by one once the
 // journal's part is saved. Pure, so it's easy to test.
 //
-// A tie skipped as a duplicate, or a plan matched by name, gets the file's
+// A tie or workshop skipped as a duplicate, or a plan matched by name, gets the file's
 // photos only if it has none yet: a failed import can be run again to
 // finish, without making copies.
 
@@ -13,11 +13,14 @@
  */
 
 /**
- * The file without its photo lists, and those lists: ties' by position,
- * plans' by the file's plan id.
- * @template {{ ties: any[], plans: any[] }} T
+ * The file without its photo lists, and those lists: ties' and workshops'
+ * by position, plans' by the file's plan id.
+ * @template {{ ties: any[], plans: any[], workshops?: any[] }} T
  * @param {T} doc as readExport gives it
- * @returns {{ doc: T, ties: Map<number, PhotoEntry[]>, plans: Map<string, PhotoEntry[]>, count: number }}
+ * @returns {{
+ *   doc: T, ties: Map<number, PhotoEntry[]>, plans: Map<string, PhotoEntry[]>,
+ *   workshops: Map<number, PhotoEntry[]>, count: number,
+ * }}
  */
 export function takePhotos(doc) {
   /** @type {Map<number, PhotoEntry[]>} */
@@ -36,12 +39,21 @@ export function takePhotos(doc) {
     if (entries.length) ties.set(i, entries);
     count += entries.length;
   });
+  /** @type {Map<number, PhotoEntry[]>} */
+  const workshops = new Map();
+  (doc.workshops ?? []).forEach((workshop, i) => {
+    const entries = readEntries(workshop?.photos);
+    if (entries.length) workshops.set(i, entries);
+    count += entries.length;
+  });
   for (const plan of doc.plans) {
     const entries = readEntries(plan?.photos);
     if (entries.length && plan?.id != null) plans.set(String(plan.id), entries);
     count += entries.length;
   }
-  return { doc: { ...doc, ties: doc.ties.map(without), plans: doc.plans.map(without) }, ties, plans, count };
+  const rest = { ...doc, ties: doc.ties.map(without), plans: doc.plans.map(without) };
+  if (doc.workshops) rest.workshops = doc.workshops.map(without);
+  return { doc: rest, ties, plans, workshops, count };
 }
 
 /**

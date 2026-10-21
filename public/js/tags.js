@@ -8,9 +8,9 @@ export const MAX_TAGS = 30;
 export const MAX_TAG_LENGTH = 40;
 
 /**
- * @typedef {{ id: string | null, name: string, tie_count: number, plan_count: number }} Tag
- * id is null for a tag typed in the dialog that's only created once the tie
- * or plan is saved.
+ * @typedef {{ id: string | null, name: string, tie_count: number, plan_count: number, workshop_count: number }} Tag
+ * id is null for a tag typed in the dialog that's only created once the tie,
+ * plan or workshop is saved.
  */
 
 /**
@@ -48,16 +48,20 @@ export function filterTags(tags, text, limit = SHOWN_TAGS) {
 }
 
 /**
- * The confirmation's extra line when deleting a tag that ties or plans use.
+ * The confirmation's extra line when deleting a tag that ties, plans or
+ * workshops use.
  * @param {number} tieCount
  * @param {number} [planCount]
+ * @param {number} [workshopCount]
  * @returns {string | undefined}
  */
-export function deleteTagWarning(tieCount, planCount = 0) {
-  const uses = [count(tieCount, "tie", "ties"), count(planCount, "plan", "plans")].filter(Boolean);
+export function deleteTagWarning(tieCount, planCount = 0, workshopCount = 0) {
+  const uses = [count(tieCount, "tie", "ties"), count(planCount, "plan", "plans"), count(workshopCount, "workshop", "workshops")]
+    .filter(Boolean);
   if (!uses.length) return undefined;
-  const one = tieCount + planCount === 1;
-  return `Used on ${uses.join(" and ")}; it'll be removed from ${one ? "it" : "them"}.`;
+  const one = tieCount + planCount + workshopCount === 1;
+  const list = uses.length > 1 ? `${uses.slice(0, -1).join(", ")} and ${uses[uses.length - 1]}` : uses[0];
+  return `Used on ${list}; it'll be removed from ${one ? "it" : "them"}.`;
 }
 
 /**

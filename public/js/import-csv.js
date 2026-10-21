@@ -66,7 +66,7 @@ export function csvToImport(rows) {
   // thing to say. (Every tie needs a date.)
   if (!fields.includes("date")) {
     errors.push("The first row needs the column names, with a date column.");
-    return { doc: { people: [], locations: [], plans: [], tags: [], ties: [] }, errors };
+    return { doc: { people: [], locations: [], plans: [], tags: [], ties: [], workshops: [] }, errors };
   }
   const unknown = header.filter((h, i) => h.trim() && !fields[i]);
   if (unknown.length) errors.push(`Unknown column${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}. Use ${KNOWN}.`);
@@ -92,7 +92,8 @@ export function csvToImport(rows) {
   if (!ties.length && !errors.length) errors.push("There are no ties in the file.");
 
   return {
-    doc: { people: people.list("name"), locations: locations.list("name"), plans: plans.list("title"), tags: [], ties },
+    // A CSV holds ties only.
+    doc: { people: people.list("name"), locations: locations.list("name"), plans: plans.list("title"), tags: [], ties, workshops: [] },
     errors,
   };
 }

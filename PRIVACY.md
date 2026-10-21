@@ -82,8 +82,8 @@ email address unless you add a recovery email.
 
 ### Your journal
 
-What you choose to write in the app: ties, plans, people, locations, tags
-and photos and videos. Some of this is encrypted so only you can read it, and some
+What you choose to write in the app: ties, plans, workshops, people,
+locations, tags and photos and videos. Some of this is encrypted so only you can read it, and some
 isn't (see the next section).
 
 ### Technical information
@@ -97,18 +97,20 @@ analytics, advertising or tracking tools of any kind.
 ## What we can and can't read
 
 **Encrypted on your device, so only you can read them:** every notes field
-(on ties, people, locations and plans, including plan descriptions), the
-photo album links on ties and plans, where people are based and their
+(on ties, people, locations, plans and workshops, including plan and
+workshop descriptions), the photo album links on ties, plans and
+workshops, where people are based and their
 social and scene names, and your photos and videos, their thumbnails and
 captions.
 
 **Everything else in your journal is readable by our server**, so the app
-can list, sort and filter it: the details of your ties, plans, people and
-locations (such as names, pronouns, titles, dates, types, ratings, who took
-part, whether someone is an educator, and a location's city, state or
-province and country),
+can list, sort and filter it: the details of your ties, plans, workshops,
+people and locations (such as names, pronouns, titles, dates, types,
+ratings, who took part, a workshop's educators and how many attended,
+whether someone is an educator, and a location's city, state or province
+and country),
 your tags, when things were created, changed or archived and how they link
-together, and for each photo or video which tie or plan it's on, its size,
+together, and for each photo or video which tie, plan or workshop it's on, its size,
 whether it's a photo or a video, its file type and when it was added (not
 what it shows).
 
@@ -196,7 +198,7 @@ allow on this site, protects you further.
   from the internet. They're only ever handed back to your own signed-in
   account, and only your device can decrypt them.
 - Each account can store up to 1 GB of photos and videos together, and up
-  to 30 on each tie or plan, of which up to 5 can be videos.
+  to 30 on each tie, plan or workshop, of which up to 5 can be videos.
 - We never scan, analyse, tag or share your photos or videos, and no other
   company processes them.
 - **Only store photos and videos of people who have agreed to it.** You are
@@ -244,7 +246,7 @@ leaves your device. Your mode itself is saved with your account (see
   it.
 - **When you delete something**, it's removed from our live database straight
   away. Deleted photos and videos are removed from storage straight away
-  (deleting a tie or plan deletes its photos and videos too). If that's ever interrupted, a daily
+  (deleting a tie, plan or workshop deletes its photos and videos too). If that's ever interrupted, a daily
   clean-up removes what was left within a day or two.
 - **When you delete your account**, everything in it (journal, photos, videos,
   passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device

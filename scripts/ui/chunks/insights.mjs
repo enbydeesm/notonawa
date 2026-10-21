@@ -26,7 +26,7 @@ export default async function () {
   await go("/calendar");
   check("Calendar and Analytics are the tabs after Locations, marked when shown", await run(`
     const links = [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("href"));
-    return [links.slice(-3), $("nav a[aria-current=page]").getAttribute("aria-label")];`),
+    return [links.slice(3, 6), $("nav a[aria-current=page]").getAttribute("aria-label")];`),
     [["/locations", "/calendar", "/analytics"], "Calendar"]);
   check("Calendar shows this month: its name, five numbers and every day", await run(`
     await wait(800); const days = document.querySelectorAll(".cal-day").length;

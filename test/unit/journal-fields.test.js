@@ -31,7 +31,7 @@ describe("convertJournal", () => {
       calls.push([kind, records.length]);
       return records;
     });
-    expect(calls).toEqual([["person", 0], ["profileNote", 0], ["tie", 2], ["participant", 3], ["location", 0], ["plan", 0]]);
+    expect(calls).toEqual([["person", 0], ["profileNote", 0], ["tie", 2], ["participant", 3], ["location", 0], ["plan", 0], ["workshop", 0]]);
   });
 });
 
@@ -41,8 +41,9 @@ describe("withoutUnreadableMarks", () => {
       people: [{ id: "p", notes: null, unreadable: ["notes"], profile_notes: [{ description: null, unreadable: ["description"] }] }],
       plans: [{ id: "x", description: null, notes: null, unreadable: ["description", "notes"] }],
       ties: [{ id: "t", notes: "ok", participants: [] }],
+      workshops: [{ id: "w", description: null, unreadable: ["description"] }],
     });
-    expect(unreadable).toBe(4);
+    expect(unreadable).toBe(5);
     expect(JSON.stringify(doc)).not.toContain("unreadable");
     expect(doc.ties[0].notes).toBe("ok");
   });

@@ -65,8 +65,8 @@ export async function uploadCheck(db, ownerId, upload) {
 export async function insertMedia(db, ownerId, upload) {
   const { item } = upload;
   const row = await db.prepare(
-    `INSERT INTO media (id, owner_id, tie_id, plan_id, kind, mime, position, thumb_bytes, bytes)
-     SELECT ?1, ?2, ?3, ?4, ?5, ?6,
+    `INSERT INTO media (id, owner_id, tie_id, plan_id, workshop_id, kind, mime, position, thumb_bytes, bytes)
+     SELECT ?1, ?2, ?3, ?4, ?13, ?5, ?6,
             COALESCE((SELECT MAX(position) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7), -1) + 1,
             ?8, ?9
       WHERE (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7) < ?10
@@ -78,7 +78,7 @@ export async function insertMedia(db, ownerId, upload) {
     upload.id, ownerId,
     item.column === "tie_id" ? item.id : null, item.column === "plan_id" ? item.id : null,
     upload.kind, upload.mime, item.id, upload.thumbBytes, upload.bytes, MAX_PER_ITEM, MAX_ACCOUNT_BYTES,
-    MAX_VIDEOS_PER_ITEM,
+    MAX_VIDEOS_PER_ITEM, item.column === "workshop_id" ? item.id : null,
   ).first();
   return row ? /** @type {number} */ (row.position) : null;
 }
@@ -147,12 +147,12 @@ export async function deleteMedia(db, ownerId, id) {
 }
 
 /**
- * A statement listing the photos a tie or plan has, to run in the same
+ * A statement listing the photos a tie, plan or workshop has, to run in the same
  * batch as deleting it (the rows go with it; the caller then deletes the
  * files).
  * @param {D1Database} db
  * @param {string} ownerId
- * @param {"tie_id" | "plan_id"} column
+ * @param {Item["column"]} column
  * @param {string} itemId
  */
 export function mediaOfStatement(db, ownerId, column, itemId) {

@@ -9,7 +9,7 @@
 // is scripts/ui/chunks/<name>.mjs and starts from a new account of its own.
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
-  "notes", "photos", "deleting", "account", "data", "insights",
+  "notes", "photos", "deleting", "account", "data", "insights", "education",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -18,7 +18,7 @@ export const UI_CHUNKS = [
 // as 30.
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
-  notes: 19, photos: 55, deleting: 26, account: 67, data: 20, insights: 20,
+  notes: 19, photos: 55, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
 };
 
 /**
@@ -188,16 +188,24 @@ export const AREAS = [
     name: "tags",
     files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js"],
     tests: ["test/api/tags.test.js", "test/unit/tags.test.js", "test/unit/tags-parse.test.js"],
-    ui: ["plans", "ties", "search"],
+    ui: ["plans", "ties", "search", "education"],
   },
   {
     name: "ties",
     files: ["src/ties/", "public/js/tie-form.js", "public/js/search-picker.js", "public/js/search-choices.js",
       "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/ties-view.js", "public/js/views/ties.js",
-      "public/js/links.js"],
+      "public/js/links.js", "public/js/person-rows.js"],
     tests: ["test/api/ties.test.js", "test/unit/ties-parse.test.js", "test/unit/search-choices.test.js",
       "test/unit/links.test.js", "test/unit/pages.test.js"],
-    ui: ["ties", "plans", "search", "notes", "deleting"],
+    ui: ["ties", "plans", "search", "notes", "deleting", "education"],
+  },
+  {
+    // Workshops: the Education view, its form and its cards.
+    name: "education",
+    files: ["src/workshops/", "public/js/views/education.js", "public/js/workshop-form.js", "public/js/workshop-card.js",
+      "public/js/workshops-view.js", "public/js/person-rows.js"],
+    tests: ["test/api/workshops.test.js", "test/unit/workshops-parse.test.js", "test/unit/workshops-view.test.js"],
+    ui: ["education"],
   },
   {
     name: "search",
@@ -220,7 +228,7 @@ export const AREAS = [
       "scripts/vendor.mjs"],
     tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js",
       "test/unit/drag-order.test.js", "test/unit/video-fit.test.js"],
-    ui: ["photos", "data"],
+    ui: ["photos", "data", "education"],
     generated: ["vendor"],
   },
   {

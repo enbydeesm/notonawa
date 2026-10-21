@@ -66,7 +66,7 @@ export default async function () {
     const d = $("dialog.welcome[open]");
     return [open, d.querySelector("h2").textContent, d.querySelectorAll("li").length, d.querySelectorAll("li strong").length > 0,
       d.querySelector("a[href^=mailto]")?.getAttribute("href"), $("#welcome-hide").checked, $("#welcome-ok").textContent];`),
-    [true, "Welcome to NōtoNawa, your secure tie planning and tracking journal.", 8, true, "mailto:contact@notonawa.app", false, "OK"]);
+    [true, "Welcome to NōtoNawa, your secure tie planning and tracking journal.", 10, true, "mailto:contact@notonawa.app", false, "OK"]);
   check("OK without the box ticked closes it, and it stays on", await run(`
     $("#welcome-ok").click(); await wait(500); return [$("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
     [true, false]);

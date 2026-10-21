@@ -20,6 +20,9 @@ const OWNED_ROWS = {
   tie_participants: "SELECT count(*) AS n FROM tie_participants tp JOIN ties t ON t.id = tp.tie_id WHERE t.owner_id = ?",
   tie_plans: "SELECT count(*) AS n FROM tie_plans tp JOIN ties t ON t.id = tp.tie_id WHERE t.owner_id = ?",
   tie_tags: "SELECT count(*) AS n FROM tie_tags tt JOIN ties t ON t.id = tt.tie_id WHERE t.owner_id = ?",
+  workshops: "SELECT count(*) AS n FROM workshops WHERE owner_id = ?",
+  workshop_people: "SELECT count(*) AS n FROM workshop_people wp JOIN workshops w ON w.id = wp.workshop_id WHERE w.owner_id = ?",
+  workshop_tags: "SELECT count(*) AS n FROM workshop_tags wt JOIN workshops w ON w.id = wt.workshop_id WHERE w.owner_id = ?",
   invites: "SELECT count(*) AS n FROM invites WHERE used_by = ?",
   key_wraps: "SELECT count(*) AS n FROM key_wraps WHERE user_id = ?",
   media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
@@ -35,6 +38,9 @@ const ORPHANS = [
   "SELECT count(*) AS n FROM tie_participants WHERE tie_id NOT IN (SELECT id FROM ties)",
   "SELECT count(*) AS n FROM tie_plans WHERE tie_id NOT IN (SELECT id FROM ties)",
   "SELECT count(*) AS n FROM tie_tags WHERE tie_id NOT IN (SELECT id FROM ties) OR tag_id NOT IN (SELECT id FROM tags)",
+  "SELECT count(*) AS n FROM workshop_people WHERE workshop_id NOT IN (SELECT id FROM workshops)",
+  "SELECT count(*) AS n FROM workshop_tags WHERE workshop_id NOT IN (SELECT id FROM workshops) OR tag_id NOT IN (SELECT id FROM tags)",
+  "SELECT count(*) AS n FROM media WHERE workshop_id NOT IN (SELECT id FROM workshops)",
   "SELECT count(*) AS n FROM media WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)",
 ];
 
@@ -75,9 +81,14 @@ async function userWithEverything() {
   const tie = await post("/api/ties", { tie_type: "floor", tie_date: "2026-01-01",
     title: "Session", location_id: loc, participants: [{ person_id: sam, role: "bottom" }], plan_ids: [plan], tags: ["box", "floor"],
   });
-  // A photo's row (its file is tested in media.test.js).
+  const workshop = await post("/api/workshops", { title: "Intro", start_date: "2026-02-01", location_id: loc,
+    educators: [{ person_id: sam, role: "top" }], tags: ["box"],
+  });
+  // Photos' rows (their files are tested in media.test.js).
   await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
              VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, crypto.randomUUID(), id, tie).run();
+  await sql(`INSERT INTO media (id, owner_id, workshop_id, kind, mime, position, thumb_bytes, bytes)
+             VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, 2)`, crypto.randomUUID(), id, workshop).run();
   // A notice just for them, dismissed.
   const notice = crypto.randomUUID();
   await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();

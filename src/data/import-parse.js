@@ -1,5 +1,5 @@
 // Parsing an import: the people, locations, plans and tags in it (one
-// request), then its ties (in batches; see import-plan.js). Pure, so it's
+// request), then its ties and its workshops (in batches; see import-plan.js). Pure, so it's
 // easy to test.
 //
 // The shape is the export's (shape.js); a CSV is turned into it by the page.
@@ -13,9 +13,12 @@ import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimesta
 import { RESOURCES, parseFields } from "../resources/config.js";
 import { TIE_TYPES, TYPE_NEEDED, toRoleOrNull } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
+import { PEOPLE_KINDS, MAX_ATTENDEES } from "../workshops/parse.js";
 
 export const MAX_ITEMS = 5000; // of each kind, in one items request
 export const MAX_TIES = 500; // in one ties request (the page sends 200)
+export const MAX_WORKSHOPS = 500; // in one workshops request (the page sends 200)
+const MAX_WORKSHOP_PEOPLE = 40; // as in the workshop form
 export const PROFILE_NOTE_TYPES = ["injury", "modification", "like", "dislike", "limit"];
 const MAX_LINKS = 20; // participants or plans on one tie, as in the tie form
 const MAX_ID_LENGTH = 100;
@@ -55,6 +58,15 @@ const MAX_ID_LENGTH = 100;
  *   location_id: string | null, location_deleted: 0 | 1,
  *   participants: ImportParticipant[], plans: ImportTiePlan[], tags: string[],
  * }} TieImport
+ *
+ * @typedef {{ person_id: string | null, kind: string, role: string }} ImportWorkshopPerson
+ * @typedef {Times & {
+ *   title: string, start_date: string, end_date: string | null,
+ *   location_id: string | null, location_deleted: 0 | 1,
+ *   attendee_count: number | null, rating: number | null,
+ *   description: string | null, notes: string | null, album_url: string | null,
+ *   people: ImportWorkshopPerson[], tags: string[],
+ * }} WorkshopImport
  */
 
 /**
@@ -125,6 +137,68 @@ function parseTie(t) {
   // Refused rather than guessed (migration 0014 filled in older ties).
   if (!type) throw new BadInput(TYPE_NEEDED);
   return { ...tie, tie_date: date, tie_type: type };
+}
+
+/**
+ * Body: { workshops: [...] } as in the export, with ids that are already
+ * mine (swapped by the page, as for ties).
+ * @param {Record<string, unknown>} body
+ * @returns {WorkshopImport[]}
+ */
+export function parseImportWorkshops(body) {
+  const list = body.workshops;
+  if (!Array.isArray(list) || list.length > MAX_WORKSHOPS) {
+    throw new BadInput(`Send workshops as a list of up to ${MAX_WORKSHOPS}.`);
+  }
+  return list.map((item, i) => withContext(`Workshop ${i + 1}`, item?.title, () => parseWorkshop(asObject(item))));
+}
+
+/** @param {Record<string, unknown>} w @returns {WorkshopImport} */
+function parseWorkshop(w) {
+  const title = cleanText(w.title);
+  if (!title) throw new BadInput("Add a title.");
+  const start = toDateOrNull(w.start_date);
+  if (!start) throw new BadInput("Add a start date.");
+  let end = toDateOrNull(w.end_date);
+  if (end !== null && end < start) throw new BadInput("The end date is before the start date.");
+  if (end === start) end = null;
+  const locationId = parseId(w.location_id, true);
+  /** @type {ImportWorkshopPerson[]} */
+  const people = [];
+  const seen = new Set();
+  for (const kind of PEOPLE_KINDS) {
+    for (const item of list(w[`${kind}s`], kind === "educator" ? "Educators" : "Participants", MAX_WORKSHOP_PEOPLE)) {
+      const p = asObject(item);
+      const personId = parseId(p.person_id, true);
+      const role = toRoleOrNull(p.role);
+      if (!role) throw new BadInput(`Each ${kind} needs a role.`);
+      // The same person twice (a file edited by hand): kept once, as
+      // whichever comes first. Deleted people (null) never clash.
+      if (personId !== null) {
+        if (seen.has(personId)) continue;
+        seen.add(personId);
+      }
+      people.push({ person_id: personId, kind, role });
+    }
+  }
+  if (people.length > MAX_WORKSHOP_PEOPLE) throw new BadInput(`A workshop can have up to ${MAX_WORKSHOP_PEOPLE} people.`);
+  return {
+    title,
+    start_date: start,
+    end_date: end,
+    location_id: locationId,
+    // As on ties: only a workshop without a location can show "(location deleted)".
+    location_deleted: locationId === null ? toFlag(w.location_deleted) : /** @type {0} */ (0),
+    attendee_count: toIntOrNull(w.attendee_count, 0, MAX_ATTENDEES),
+    rating: toIntOrNull(w.rating, 1, 5),
+    description: encryptedText(w.description),
+    notes: encryptedText(w.notes),
+    album_url: encryptedText(w.album_url),
+    created_at: toTimestampOrNull(w.created_at),
+    updated_at: toTimestampOrNull(w.updated_at),
+    people,
+    tags: parseTagNames(w.tags),
+  };
 }
 
 /**

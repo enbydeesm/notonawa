@@ -6,7 +6,7 @@
 import { api } from "./api.js";
 import { sealPhoto, sealVideo, sealCaption } from "./vault.js";
 
-/** @typedef {{ tie_id: string } | { plan_id: string }} Item */
+/** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./photo-prep.js").PreparedPhoto} PreparedPhoto */
 /** @typedef {import("./video-prep.js").PreparedVideo} PreparedVideo */
 

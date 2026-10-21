@@ -29,7 +29,7 @@ import { photoUrl, revoke } from "./photo-urls.js";
 import { MAX_CAPTION } from "./crypto/media.js";
 import { HOLD_MS, movedFar, slotAt, moveItem } from "./drag-order.js";
 
-/** @typedef {{ tie_id: string } | { plan_id: string }} Item */
+/** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./photo-prep.js").PreparedPhoto} PreparedPhoto */
 /** @typedef {import("./video-prep.js").PreparedVideo} PreparedVideo */
 

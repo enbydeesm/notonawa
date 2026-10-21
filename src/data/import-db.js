@@ -46,6 +46,25 @@ const SAME_BUT_NOTES = `
    AND x.duration_minutes IS ${j("duration_minutes")} AND x.success_rating IS ${j("success_rating")}
    AND (${LINKS_KEY}) = ${j("links")}`;
 
+// The same for workshops (workshopLinksKey in import-plan.js): people with
+// kind and role, then tags.
+const WORKSHOP_LINKS_KEY = `
+  COALESCE((SELECT group_concat(k, ',' ORDER BY k) FROM
+             (SELECT COALESCE(person_id, '') || '|' || kind || '|' || role AS k FROM workshop_people WHERE workshop_id = x.id)), '')
+  || ';' || COALESCE((SELECT group_concat(tag_id, ',' ORDER BY tag_id) FROM workshop_tags WHERE workshop_id = x.id), '')`;
+
+// My workshop x is the same as the file's j in everything but what's
+// encrypted (description, notes, album link: the page compares the first
+// two itself).
+const SAME_WORKSHOP = `
+       x.owner_id = ?1 AND x.start_date = ${j("start_date")} AND x.title = ${j("title")}
+   AND x.end_date IS ${j("end_date")} AND x.location_id IS ${j("location_id")}
+   AND x.location_deleted = ${j("location_deleted")}
+   AND x.attendee_count IS ${j("attendee_count")} AND x.rating IS ${j("rating")}
+   AND (${WORKSHOP_LINKS_KEY}) = ${j("links")}`;
+
+const WORKSHOP_INSERTED = `EXISTS (SELECT 1 FROM workshops WHERE id = ${j("workshop_id")} AND owner_id = ?1)`;
+
 const SQL = {
   tags: `INSERT INTO tags (id, owner_id, name)
          SELECT ${j("id")}, ?1, ${j("name")} FROM json_each(?2) j WHERE true
@@ -105,6 +124,21 @@ const SQL = {
               JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}
              WHERE ${TIE_INSERTED}`,
   candidates: `SELECT ${j("i")} AS i, x.id, x.notes FROM json_each(?2) j JOIN ties x ON ${SAME_BUT_NOTES}`,
+  workshops: `INSERT INTO workshops (id, owner_id, title, start_date, end_date, location_id, location_deleted, attendee_count,
+                                     rating, description, notes, album_url, created_at, updated_at)
+              SELECT ${j("id")}, ?1, ${j("title")}, ${j("start_date")}, ${j("end_date")}, ${j("location_id")},
+                     ${j("location_deleted")}, ${j("attendee_count")}, ${j("rating")}, ${j("description")}, ${j("notes")},
+                     ${j("album_url")}, ${time("created_at")}, ${time("updated_at")}
+                FROM json_each(?2) j`,
+  workshopPeople: `INSERT INTO workshop_people (id, workshop_id, person_id, kind, role)
+                   SELECT ${j("id")}, ${j("workshop_id")}, ${j("person_id")}, ${j("kind")}, ${j("role")}
+                     FROM json_each(?2) j WHERE ${WORKSHOP_INSERTED}`,
+  workshopTags: `INSERT INTO workshop_tags (workshop_id, tag_id)
+                 SELECT ${j("workshop_id")}, t.id FROM json_each(?2) j
+                   JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}
+                  WHERE ${WORKSHOP_INSERTED}`,
+  workshopCandidates: `SELECT ${j("i")} AS i, x.id, x.description, x.notes
+                         FROM json_each(?2) j JOIN workshops x ON ${SAME_WORKSHOP}`,
 };
 
 /**
@@ -197,4 +231,38 @@ function statements(db, sql, ownerId, rows) {
  */
 async function runBatch(db, list) {
   return list.length ? db.batch(list) : [];
+}
+
+/**
+ * Inserts a batch of workshops with their people and tags, in one transaction.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {ReturnType<typeof import("./import-plan.js").planWorkshops>["rows"]} rows
+ * @returns {Promise<number>} how many workshops were added
+ */
+export async function insertWorkshops(db, ownerId, rows) {
+  const tags = statements(db, SQL.tags, ownerId, rows.tags);
+  const workshops = statements(db, SQL.workshops, ownerId, rows.workshops);
+  const results = await runBatch(db, [
+    ...tags,
+    ...workshops,
+    ...statements(db, SQL.workshopPeople, ownerId, rows.workshopPeople),
+    ...statements(db, SQL.workshopTags, ownerId, rows.workshopTags),
+  ]);
+  return results.slice(tags.length, tags.length + workshops.length).reduce((sum, r) => sum + r.meta.changes, 0);
+}
+
+/**
+ * Which of my workshops each of these (by position) might duplicate: the
+ * same in everything but what's encrypted, with their description and
+ * notes (sealed) for the page to compare, and their ids.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {ReturnType<typeof import("./import-plan.js").planWorkshops>["rows"]["workshops"]} workshops
+ * @returns {Promise<{ i: number, id: string, description: string | null, notes: string | null }[]>}
+ */
+export async function workshopDuplicateCandidates(db, ownerId, workshops) {
+  const rows = workshops.map((w, i) => ({ ...w, i }));
+  const results = await runBatch(db, statements(db, SQL.workshopCandidates, ownerId, rows));
+  return results.flatMap((r) => /** @type {any[]} */ (r.results));
 }

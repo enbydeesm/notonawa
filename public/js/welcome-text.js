@@ -64,6 +64,15 @@ export const WELCOME = [
       ],
       [
         {
+          "text": "Education",
+          "bold": true
+        },
+        {
+          "text": " is for the workshops you take and teach. Log who taught it, who you tied with, how many came, and what you learned. Workshops where you're one of the educators show under Taught (tick Educator on your own profile in People first), and Summary adds it all up."
+        }
+      ],
+      [
+        {
           "text": "Tags",
           "bold": true
         },

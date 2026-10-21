@@ -1316,3 +1316,50 @@ about 6 minutes, too slow to run after every change.
 - **People's form**: "This is me" moved to the dialog heading's row, and
   Educator to the Name row, both at the right. Pronouns and social names
   aren't capitalized as they're typed (`autocapitalize="none"`).
+
+## Education: workshops attended and taught (October 2026)
+
+**Status:** built (2026-10-20)
+
+- **A seventh tab**, the graduation cap, between Analytics and +. To fit
+  seven tabs, the + and ☰ on one row, the gaps shrink on phones and the
+  tabs narrow below 375px (checked down to 320px in the walkthrough).
+- **Attended or taught isn't stored**: a workshop is taught when my "this
+  is me" profile is one of its educators, attended otherwise. One fact,
+  so the two can't disagree, and moving myself between educators and
+  participants moves the workshop between the tabs.
+- **Educators are picked only from people marked Educator**, my own
+  profile included: I tick Educator on myself to log what I teach (the
+  form and the empty Taught tab say so). Typing someone who isn't an
+  educator points to People instead of offering to add them again;
+  someone added from the educators box is saved as an educator.
+- **Everyone has a role**, educators too (the tie roles: an educator
+  demonstrating as top, say). A person is on a workshop once, as an
+  educator or a participant, never both (a unique index; the form leaves
+  out whoever is chosen in either list). One `workshop_people` table with
+  a `kind`, rather than two tables, so that rule is one index.
+- **Attendee count is typed in**, not counted from the participants: a
+  workshop's participants are the people I tied with, not everyone who
+  came. The Taught summary adds the counts up as "Attendees".
+- **Search on the device, over all of them**, as on Plans: there are far
+  fewer workshops than ties, and their description and notes are
+  encrypted, so `GET /api/workshops` sends them all and nothing typed
+  goes to the server. It isn't kept in the address. One search narrows
+  all three tabs, Summary included, so a date range or a tag gives a
+  "résumé" for a year or a subject (the roadmap's tag-filtered résumé).
+  A workshop is in a date range if any of its days is.
+- **The Summary's numbers**: workshops, days (a two-day workshop counts
+  2), educators (co-teachers, for what I taught), locations, partners
+  (participants other than me), attendees (taught), the average rating,
+  the three most frequent educators and tags, and the first and latest.
+  Deleted people and locations aren't counted.
+- **Photos on workshops** needed `media.workshop_id`, and the CHECK that a
+  photo is on exactly one item changed, so `media` was rebuilt (nothing
+  links to it, so it's copied, dropped and renamed).
+- **Export and import** carry workshops, with educators and participants
+  as two lists. Duplicates are found as for ties: the server lists
+  workshops the same in everything it can read, and the page compares the
+  description and notes. A CSV still holds ties only.
+- **Left out for now**: workshops in Calendar and Analytics, linking ties
+  to the workshop they were tied at, and + asking what to add. Each would
+  build on what's here without changing it.

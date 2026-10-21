@@ -70,6 +70,13 @@ describe("addOffer", () => {
     expect(addOffer(items, archived, "Studio 2")).toEqual({ add: "Studio 2" });
   });
 
+  it("points to one this list leaves out (a person who isn't an educator) instead of adding a second", () => {
+    const elsewhere = [item("e", "Sam Smith", "2026-01-01T00:00:00Z")];
+    expect(addOffer(items, archived, "sam  smith", elsewhere)).toEqual({ elsewhere: "Sam Smith" });
+    expect(addOffer(items, archived, "Sam", elsewhere)).toEqual({ add: "Sam" });
+    expect(addOffer(items, archived, "studio", elsewhere)).toBeNull();
+  });
+
   it("points to an archived one with that name instead of adding a second", () => {
     expect(addOffer(items, archived, "old  FLAT")).toEqual({ archived: "Old flat" });
     expect(addOffer(items, archived, "Old")).toEqual({ add: "Old" });

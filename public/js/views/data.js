@@ -1,6 +1,7 @@
-// "Your data" view: export everything to a file, or import ties from an
-// export or a CSV. Files are read here in the browser; only the entries in
-// them are sent, in the same way as typing them in (see import-steps.js).
+// "Your data" view: export everything to a file, or import ties (and
+// workshops) from an export or a CSV. Files are read here in the browser;
+// only the entries in them are sent, in the same way as typing them in
+// (see import-steps.js).
 // Notes are encrypted: an export opens them on the device before the file
 // is saved, and an import seals them before anything is sent.
 //
@@ -14,7 +15,9 @@ import { h, $, showMessage } from "../dom.js";
 import { saveFile } from "../download.js";
 import { parseCsv } from "../csv.js";
 import { csvToImport } from "../import-csv.js";
-import { readExport, exportRoleNames, itemsBody, remapTies, checkLinks, batches, describeItems, TIE_BATCH } from "../import-steps.js";
+import {
+  readExport, exportRoleNames, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
+} from "../import-steps.js";
 import { adoptRoleNames } from "../settings.js";
 import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
@@ -38,9 +41,13 @@ import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
  * }} PendingImport
  */
 /**
- * Where an imported tie's or plan's photos go. onlyIfEmpty: it was already
- * in the journal (a duplicate tie, a plan matched by name).
- * @typedef {{ item: { tie_id: string } | { plan_id: string }, entries: PhotoEntry[], onlyIfEmpty: boolean }} PhotoTarget
+ * Where an imported tie's, plan's or workshop's photos go. onlyIfEmpty: it
+ * was already in the journal (a duplicate tie or workshop, a plan matched
+ * by name).
+ * @typedef {{
+ *   item: { tie_id: string } | { plan_id: string } | { workshop_id: string },
+ *   entries: PhotoEntry[], onlyIfEmpty: boolean,
+ * }} PhotoTarget
  */
 
 /**
@@ -59,6 +66,20 @@ async function findDuplicates(sealedBatch, plainBatch) {
 }
 
 /**
+ * Which workshops of a batch duplicate mine, as findDuplicates does for
+ * ties, comparing their description and notes.
+ * @param {any[]} sealedBatch as sent
+ * @param {any[]} plainBatch the same workshops, in plain text
+ * @returns {Promise<{ skip: number[], matches: Map<number, string>, newTags: string[] }>}
+ */
+async function findWorkshopDuplicates(sealedBatch, plainBatch) {
+  const result = await api("/api/data/import/workshops", { method: "POST", body: { preview: true, workshops: sealedBatch } });
+  const candidates = /** @type {any[]} */ (await open("workshop", result.candidates));
+  const matches = duplicateMatches(plainBatch, candidates, ["description", "notes"]);
+  return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
+}
+
+/**
  * The export file: the journal as JSON, or, with photos, a zip of it and
  * the photos, each decrypted here.
  * @param {(text: string) => void} progress
@@ -70,7 +91,7 @@ async function buildExport(progress) {
   const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
   const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
   /** @type {any[]} */
-  const entries = [...doc.ties, ...doc.plans].flatMap((x) => x.photos ?? []);
+  const entries = [...doc.ties, ...doc.plans, ...doc.workshops].flatMap((x) => x.photos ?? []);
   if (entries.length === 0) {
     return { name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json", unreadable, missing: 0 };
   }
@@ -158,6 +179,8 @@ export function mount() {
     fileInput.disabled = true;
     let added = 0;
     let skipped = 0;
+    let workshopsAdded = 0;
+    let workshopsSkipped = 0;
     try {
       showMessage(importMessage, "Importing…");
       const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) });
@@ -182,6 +205,19 @@ export function mount() {
           if (entries && mine) targets.push({ item: { tie_id: mine }, entries, onlyIfEmpty: !result.ids[i] });
         });
       }
+      const plainWorkshops = batches(plain.workshops);
+      for (const [n, batch] of batches(remapWorkshops(sealed.workshops, items)).entries()) {
+        showMessage(importMessage, `Importing workshops… ${(workshopsAdded + workshopsSkipped).toLocaleString()} of ${workshops(plain.workshops.length)}`);
+        const { skip, matches } = await findWorkshopDuplicates(batch, plainWorkshops[n]);
+        const result = await api("/api/data/import/workshops", { method: "POST", body: { workshops: batch, skip } });
+        workshopsAdded += result.added;
+        workshopsSkipped += result.skipped;
+        batch.forEach((_, i) => {
+          const entries = photos.workshops.get(n * TIE_BATCH + i);
+          const mine = result.ids[i] ?? matches.get(i);
+          if (entries && mine) targets.push({ item: { workshop_id: mine }, entries, onlyIfEmpty: !result.ids[i] });
+        });
+      }
       forgetSearch();
       const photoResult = files && targets.length ? await importPhotos(targets, files) : null;
       // The file's role names, if mine are still the defaults.
@@ -192,12 +228,16 @@ export function mount() {
       pending = null;
       showMessage(importMessage, `Imported ${ties(added)}.` +
         (skipped ? ` Skipped ${ties(skipped)} already in your journal.` : "") +
+        (workshopsAdded ? ` Imported ${workshops(workshopsAdded)}.` : "") +
+        (workshopsSkipped ? ` Skipped ${workshops(workshopsSkipped)} already in your journal.` : "") +
         (photoResult ? ` ${photoResult}` : "") +
         (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!photoResult && /couldn't/.test(photoResult));
     } catch (err) {
       // Batches already saved stay saved; running it again skips them.
       showMessage(importMessage, `Couldn't finish: ${errorMessage(err)} ` +
-        (added ? `Saved ${ties(added)} so far. Import the same file again to add the rest: ties already saved are skipped.` : "Nothing was saved."), true);
+        (added || workshopsAdded
+          ? `Saved ${ties(added)}${workshopsAdded ? ` and ${workshops(workshopsAdded)}` : ""} so far. Import the same file again to add the rest: what's already saved is skipped.`
+          : "Nothing was saved."), true);
     } finally {
       go.disabled = false;
       fileInput.disabled = false;
@@ -256,7 +296,7 @@ export function mount() {
     const photosText = (/** @type {number} */ n) => `${n.toLocaleString()} ${n === 1 ? "photo" : "photos"}`;
     return [
       added ? `Added ${photosText(added)}.` : "",
-      kept ? `Skipped ${photosText(kept)} on ties or plans that already have photos.` : "",
+      kept ? `Skipped ${photosText(kept)} on ties, plans or workshops that already have photos.` : "",
       problems.length ? `${photosText(problems.length)} couldn't be added: ${problems.slice(0, 3).join(" ")}` : "",
     ].filter(Boolean).join(" ");
   }
@@ -315,6 +355,14 @@ export function mount() {
       for (const tag of found.newTags) newTags.add(tag);
     }
     const toAdd = plain.ties.length - duplicates;
+    let workshopDuplicates = 0;
+    const plainWorkshops = batches(plain.workshops);
+    for (const [n, batch] of batches(sealed.workshops).entries()) {
+      const found = await findWorkshopDuplicates(batch, plainWorkshops[n]);
+      workshopDuplicates += found.skip.length;
+      for (const tag of found.newTags) newTags.add(tag);
+    }
+    const workshopsToAdd = plain.workshops.length - workshopDuplicates;
 
     /** @param {string} label @param {(string | null)[]} lines */
     const section = (label, lines) => {
@@ -334,12 +382,16 @@ export function mount() {
         `${toAdd.toLocaleString()} to add`,
         duplicates ? `${duplicates.toLocaleString()} already in your journal (skipped)` : null,
       ]),
+      plain.workshops.length ? section("Workshops", [
+        `${workshopsToAdd.toLocaleString()} to add`,
+        workshopDuplicates ? `${workshopDuplicates.toLocaleString()} already in your journal (skipped)` : null,
+      ]) : null,
       itemSection("People", items.people),
       itemSection("Locations", items.locations),
       itemSection("Plans", items.plans),
       newTags.size ? section("Tags", [`${newTags.size} new: ${[...newTags].join(", ")}`]) : null,
       photos.count ? section("Photos", [
-        files ? `${photos.count.toLocaleString()} in the file (added to ties and plans that don't already have photos)`
+        files ? `${photos.count.toLocaleString()} in the file (added to ties, plans and workshops that don't already have photos)`
           : `${photos.count.toLocaleString()} listed, but not in this file: import the .zip export to add them`,
       ]) : null,
     ].filter((el) => el !== null));
@@ -348,17 +400,23 @@ export function mount() {
     showMessage(importMessage, "");
     const newItems = [items.people, items.locations, items.plans].some((list) => list.some((/** @type {any} */ r) => !r.matched));
     // Photos may still need adding (an import run again to finish).
-    if (toAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files)) {
+    if (toAdd === 0 && workshopsToAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files)) {
       showMessage(importMessage, "Everything in this file is already in your journal.");
       return;
     }
     pending = file;
-    go.textContent = toAdd ? `Import ${ties(toAdd)}` : "Import";
+    go.textContent = toAdd && workshopsToAdd ? `Import ${ties(toAdd)} and ${workshops(workshopsToAdd)}`
+      : toAdd ? `Import ${ties(toAdd)}` : workshopsToAdd ? `Import ${workshops(workshopsToAdd)}` : "Import";
     go.hidden = false;
   }
 
   /** "1 tie", "1,200 ties". @param {number} n */
   function ties(n) {
     return `${n.toLocaleString()} ${n === 1 ? "tie" : "ties"}`;
+  }
+
+  /** "1 workshop", "12 workshops". @param {number} n */
+  function workshops(n) {
+    return `${n.toLocaleString()} ${n === 1 ? "workshop" : "workshops"}`;
   }
 }

@@ -37,6 +37,7 @@ const VIEWS = {
   locations: () => import("./views/locations.js"),
   calendar: () => import("./views/calendar.js"),
   analytics: () => import("./views/analytics.js"),
+  education: () => import("./views/education.js"),
   account: () => import("./views/account.js"),
   data: () => import("./views/data.js"),
   signin: () => import("./views/signin.js"),

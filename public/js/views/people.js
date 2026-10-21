@@ -8,6 +8,7 @@ import { setupResourcePage } from "../resource-page.js";
 import { roleName, roleOptions } from "../roles.js";
 import { capitalise } from "../format.js";
 import { PLATFORMS, readAliases, aliasesText, akaText } from "../aliases.js";
+import { CAP_PATHS } from "../nav.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -32,9 +33,7 @@ function educatorIcon() {
     fill: "none", "stroke-width": 1.8, "stroke-linecap": "round", "stroke-linejoin": "round",
   },
   title,
-  svg("path", { d: "M2 9.5 12 5l10 4.5L12 14z" }),
-  svg("path", { d: "M6 11.5v4.2c0 1.6 2.7 2.8 6 2.8s6-1.2 6-2.8v-4.2" }),
-  svg("path", { d: "M22 9.5v5" }));
+  ...CAP_PATHS.map((d) => svg("path", { d })));
 }
 
 /**

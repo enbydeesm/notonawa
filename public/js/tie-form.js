@@ -7,9 +7,9 @@ import { h, $, showMessage, privateField } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
-import { TIE_TYPES, participantLabel, planLabel } from "./ties-view.js";
-import { roleName, roleOptions } from "./roles.js";
+import { TIE_TYPES, planLabel } from "./ties-view.js";
 import { searchPicker } from "./search-picker.js";
+import { personRows } from "./person-rows.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
@@ -50,18 +50,19 @@ function showTieForm(tie) {
       plans: pickerSource([], []),
     };
     let rowCount = 0;
-    // The first person row added to a new tie starts with me in it.
-    let addedPerson = !!tie;
     /** @type {string[]} tag names; new ones are created when the tie is saved */
     let tags = [...(tie?.tags ?? [])];
 
     // Ids start with "tie-" because this dialog opens on top of pages whose own
     // forms use ids like #title and #notes.
     const message = h("p", { className: "message", id: "tie-message" });
-    const participantRows = h("div", { id: "tie-participants" });
-    const planRows = h("div", { id: "tie-plans" });
     /** @param {string} text */
     const onError = (text) => showMessage(message, text, true);
+    // The first person row added to a new tie starts with me in it.
+    const participants = personRows({
+      id: "tie-participants", idPrefix: "tie-person", source: sources.people, onError, startWithMe: !tie,
+    });
+    const planRows = h("div", { id: "tie-plans" });
     // The location box is hidden until the + after its label is tapped.
     const location = searchPicker({
       kind: "locations", id: "tie-location", label: { labelledBy: "tie-location-label" },
@@ -75,7 +76,7 @@ function showTieForm(tie) {
     const deletedLocationRow = h("div", { className: "picker-row kept-deleted", id: "tie-location-deleted", hidden: true },
       h("span", { className: "deleted" }, "(location deleted)"),
       h("button", { type: "button", "aria-label": "Remove location", onclick: removeDeletedLocation }, "✕"));
-    const addParticipantButton = addButton("tie-add-participant", "Add person", () => addParticipantRow());
+    const addParticipantButton = addButton("tie-add-participant", "Add person", () => participants.add());
     const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
@@ -107,7 +108,7 @@ function showTieForm(tie) {
           h("div", { className: "label-row" }, h("label", {}, "Plans"), addPlanButton),
           planRows)),
       h("div", { className: "label-row" }, h("label", {}, "People"), addParticipantButton),
-      participantRows,
+      participants.element,
       h("div", { className: "label-row" },
         h("label", { id: "tie-rating-label" }, "How did it go?"),
         ratingPicker({ name: "success_rating", labelledBy: "tie-rating-label", value: tie?.success_rating ?? null })),
@@ -186,45 +187,9 @@ function showTieForm(tie) {
       rows.append(row);
     }
 
-    // People and plan rows: a search box whose hidden input has the class
-    // .person or .plan, which collectTie reads. Editing a tie, they start
-    // with its people and plans in them.
-    /** @param {any} [existing] one of the tie's participants */
-    function addParticipantRow(existing) {
-      if (existing && !existing.person_id) {
-        const { name, role } = participantLabel(existing);
-        addDeletedRow(participantRows, existing.id, h("span", { className: "deleted" }, name.text), ` (${roleName(role)})`);
-        return;
-      }
-      const row = h("div", { className: "picker-row person-row" });
-      const role = h("select", { className: "role", "aria-label": "Role" },
-        h("option", { value: "" }, "Choose Role"),
-        roleOptions().map((r) => h("option", { value: r.value }, r.label)));
-      const person = searchPicker({
-        kind: "people", id: `tie-person-${++rowCount}`, label: { text: "Person" },
-        source: sources.people, input: { className: "person" }, onError,
-        // Picking someone sets their usual role (or none), replacing any
-        // role chosen for whoever was there before. It can still be changed.
-        onPick: (item) => { role.value = item.defaultRole ?? ""; },
-      });
-      row.append(person.element, role, removeButton(row));
-      participantRows.append(row);
-
-      if (existing) {
-        person.pick(linked(existing.person_id, existing.person_name));
-        role.value = existing.role; // after pick, which sets their usual role
-        return;
-      }
-      const me = sources.people.active.find((item) => item.isSelf);
-      if (!addedPerson && me) {
-        person.pick(me);
-        role.focus();
-      } else {
-        person.focus();
-      }
-      addedPerson = true;
-    }
-
+    // Plan rows: a search box whose hidden input has the class .plan,
+    // which collectTie reads. Editing a tie, they start with its plans in
+    // them. (People rows are person-rows.js.)
     /** @param {any} [existing] one of the tie's plans */
     function addPlanRow(existing) {
       if (existing && !existing.plan_id) {
@@ -293,14 +258,7 @@ function showTieForm(tie) {
       /** @type {Record<string, any>} */
       const data = Object.fromEntries(new FormData(form));
 
-      data.participants = [];
-      for (const row of participantRows.querySelectorAll(".person-row")) {
-        const personId = /** @type {HTMLInputElement} */ ($(".person", row)).value;
-        const role = /** @type {HTMLSelectElement} */ ($(".role", row)).value;
-        if (!personId && !role) continue; // empty row
-        if (!personId || !role) throw new Error("Choose a person and a role for each row, or remove it.");
-        data.participants.push({ person_id: personId, role });
-      }
+      data.participants = participants.collect();
 
       data.plan_ids = chosenPlans();
       data.tags = tags;
@@ -309,7 +267,7 @@ function showTieForm(tie) {
       if (savedId) {
         /** @param {HTMLElement} rows */
         const kept = (rows) => [...rows.querySelectorAll(".kept-deleted")].map((row) => /** @type {HTMLElement} */ (row).dataset.linkId);
-        data.keep_deleted = { participants: kept(participantRows), plans: kept(planRows), location: !deletedLocationRow.hidden };
+        data.keep_deleted = { participants: participants.kept(), plans: kept(planRows), location: !deletedLocationRow.hidden };
       }
       return data;
     }
@@ -363,7 +321,7 @@ function showTieForm(tie) {
         deletedLocationRow.hidden = false;
         showLocationButton.hidden = true;
       }
-      for (const p of t.participants) addParticipantRow(p);
+      for (const p of t.participants) participants.add(p);
       for (const p of t.plans) addPlanRow(p);
       showTags();
     }

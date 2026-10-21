@@ -5,7 +5,8 @@ import { exportDocument, exportFileName } from "../../src/data/shape.js";
 const EMPTY = {
   user: { created_at: "2026-01-01T00:00:00Z", accepted_at: "2026-01-01T00:00:00Z", terms_version: "1" },
   passkeys: [], people: [], profileNotes: [], locations: [], plans: [], planTags: [], tags: [],
-  ties: [], participants: [], tiePlans: [], tieTags: [], media: [], notices: [], feedback: [],
+  ties: [], participants: [], tiePlans: [], tieTags: [], workshops: [], workshopPeople: [], workshopTags: [],
+  media: [], notices: [], feedback: [],
 };
 
 describe("exportDocument", () => {
@@ -25,6 +26,31 @@ describe("exportDocument", () => {
       { id: "m1", kind: "photo", mime: "image/webp", file: "photos/m1.webp", caption: "e1.x.y", position: 1, created_at: "2026-10-01T00:00:00Z" },
     ]);
     expect(doc.plans[0].photos.map((/** @type {any} */ p) => p.file)).toEqual(["photos/m3.webp"]);
+  });
+
+  it("lists workshops with their educators, participants, tags and photos", () => {
+    const doc = exportDocument({
+      ...EMPTY,
+      workshops: [{
+        id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: 1,
+        attendee_count: 9, rating: 4, description: "e1.d", notes: null, album_url: null,
+        created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
+      }],
+      workshopPeople: [
+        { workshop_id: "w1", person_id: "kit", kind: "educator", role: "top" },
+        { workshop_id: "w1", person_id: null, kind: "participant", role: "bottom" },
+      ],
+      workshopTags: [{ workshop_id: "w1", name: "floor" }],
+      media: [{ id: "m1", tie_id: null, plan_id: null, workshop_id: "w1", kind: "photo", mime: "image/webp", caption: null, position: 0, created_at: "2026-03-01T00:00:00Z" }],
+    }, "2026-10-13T10:00:00Z");
+    expect(doc.workshops).toEqual([{
+      id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: true,
+      attendee_count: 9, rating: 4, description: "e1.d", notes: null, album_url: null,
+      created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
+      educators: [{ person_id: "kit", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
+      tags: ["floor"],
+      photos: [{ id: "m1", kind: "photo", mime: "image/webp", file: "photos/m1.webp", caption: null, position: 0, created_at: "2026-03-01T00:00:00Z" }],
+    }]);
   });
 
   it("labels the file with its format, version and time", () => {

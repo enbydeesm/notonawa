@@ -74,14 +74,18 @@ export function choiceLabel(item, query) {
  * - { add: name }: it isn't one of mine, so offer to add it (tidied);
  * - { archived: name }: it's one I've archived, so point to restoring it
  *   instead of adding a second one;
+ * - { elsewhere: name }: it's one of mine this list leaves out (a person
+ *   who isn't an educator, in a workshop's educators), so point to
+ *   changing that instead of adding a second one;
  * - null: nothing typed, or it's already in the list to pick.
  * Names match ignoring capitals and extra spaces.
  * @param {PickerItem[]} active
  * @param {PickerItem[]} archived
  * @param {string} query
- * @returns {{ add: string } | { archived: string } | null}
+ * @param {PickerItem[]} [elsewhere]
+ * @returns {{ add: string } | { archived: string } | { elsewhere: string } | null}
  */
-export function addOffer(active, archived, query) {
+export function addOffer(active, archived, query, elsewhere = []) {
   const name = tidy(query);
   if (!name) return null;
   const key = name.toLocaleLowerCase();
@@ -89,7 +93,9 @@ export function addOffer(active, archived, query) {
   const same = (item) => tidy(item.name).toLocaleLowerCase() === key;
   if (active.some(same)) return null;
   const match = archived.find(same);
-  return match ? { archived: match.name } : { add: name };
+  if (match) return { archived: match.name };
+  const other = elsewhere.find(same);
+  return other ? { elsewhere: other.name } : { add: name };
 }
 
 /** @param {string} text */
@@ -99,8 +105,9 @@ function tidy(text) {
 
 /**
  * A picker's items, shared by every row of that kind in the form (so one
- * added in one row is offered in the others).
- * @typedef {{ active: PickerItem[], archived: PickerItem[], recent: string[] }} PickerSource
+ * added in one row is offered in the others). elsewhere: mine that this
+ * picker leaves out on purpose (see addOffer).
+ * @typedef {{ active: PickerItem[], archived: PickerItem[], recent: string[], elsewhere?: PickerItem[] }} PickerSource
  */
 
 /**

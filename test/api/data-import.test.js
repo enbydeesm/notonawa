@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { call, create, createOtherUser, sessionCookieFor, signedInUser, sql, sealed } from "../helpers.js";
-import { duplicatePositions } from "../../public/js/import-dedupe.js";
+import { duplicatePositions, duplicateMatches } from "../../public/js/import-dedupe.js";
 import { convertJournal } from "../../public/js/journal-fields.js";
 import { ENCRYPTED } from "../../public/js/crypto/fields.js";
-import { readExport, itemsBody, remapTies, batches } from "../../public/js/import-steps.js";
+import { readExport, itemsBody, remapTies, remapWorkshops, batches } from "../../public/js/import-steps.js";
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
 import template from "../../public/import-template.csv?raw";
@@ -31,7 +31,7 @@ function sealFile(doc) {
 /**
  * Imports a file the way the page does: items, then ties in batches, each
  * checked for duplicates first (candidates from the server, notes compared
- * here), sending which to skip.
+ * here), sending which to skip; then workshops the same way.
  * @param {any} file
  * @param {string} cookie
  * @param {number} [batchSize]
@@ -50,7 +50,18 @@ async function importFile(file, cookie, batchSize) {
     added += res.body.added;
     skipped += res.body.skipped;
   }
-  return { items: items.body, added, skipped };
+  let workshopsAdded = 0;
+  let workshopsSkipped = 0;
+  for (const workshops of batches(remapWorkshops(doc.workshops, items.body), batchSize)) {
+    const preview = await call("/api/data/import/workshops", { method: "POST", body: { preview: true, workshops }, cookie });
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200);
+    const skip = [...duplicateMatches(workshops, preview.body.candidates, ["description", "notes"]).keys()];
+    const res = await call("/api/data/import/workshops", { method: "POST", body: { workshops, skip }, cookie });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    workshopsAdded += res.body.added;
+    workshopsSkipped += res.body.skipped;
+  }
+  return { items: items.body, added, skipped, workshopsAdded, workshopsSkipped };
 }
 
 /** @param {string} cookie */
@@ -80,6 +91,12 @@ function comparable(doc) {
       location_id: name(t.location_id),
       participants: byText(t.participants.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
       plans: byText(t.plans.map((/** @type {any} */ p) => ({ ...p, plan_id: name(p.plan_id) }))),
+    }))),
+    workshops: byText(doc.workshops.map(({ id: _id, ...w }) => ({
+      ...w,
+      location_id: name(w.location_id),
+      educators: byText(w.educators.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
+      participants: byText(w.participants.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
     }))),
   };
 }
@@ -114,6 +131,15 @@ async function fillJournal() {
   await create("/api/ties", { title: "At the old flat", tie_type: "floor", tie_date: "2026-09-01", location_id: old });
   await create("/api/ties", { tie_type: "floor", tie_date: "2026-01-01", title: "No date" });
   for (let i = 0; i < 5; i++) await create("/api/ties", { title: `Practice ${i}`, tie_type: "floor", tie_date: `2026-08-0${i + 1}` });
+  await create("/api/workshops", {
+    title: "Intensive", start_date: "2026-04-01", end_date: "2026-04-03", location_id: studio, attendee_count: 14, rating: 5,
+    description: sealed("Uplines"), notes: sealed("Practise the TK"), album_url: sealed("https://photos.app.goo.gl/ws"),
+    educators: [{ person_id: sam, role: "top" }, { person_id: gone, role: "bottom" }],
+    participants: [{ person_id: me, role: "top" }], tags: ["suspension", "floor"],
+  });
+  await create("/api/workshops", {
+    title: "Teaching floor", start_date: "2026-05-01", location_id: old, educators: [{ person_id: me, role: "top" }],
+  });
   await call(`/api/people/${gone}`, { method: "DELETE" });
   await call(`/api/locations/${old}`, { method: "DELETE" });
   await call(`/api/plans/${dropped}?linked_ties=keep`, { method: "DELETE" });
@@ -128,14 +154,14 @@ describe("importing an export", () => {
 
     // Small batches, to cover a file sent in several.
     const first = await importFile(original, other.cookie, 3);
-    expect([first.added, first.skipped]).toEqual([8, 0]);
+    expect([first.added, first.skipped, first.workshopsAdded, first.workshopsSkipped]).toEqual([8, 0, 2, 0]);
     const copy = await exportOf(other.cookie);
     expect(comparable(copy)).toEqual(comparable(original));
     // Fresh ids: nothing in the copy shares an id with the original.
     expect(copy.ties.map((/** @type {any} */ t) => t.id)).not.toContain(original.ties[0].id);
 
     const again = await importFile(original, other.cookie);
-    expect([again.added, again.skipped]).toEqual([0, 8]);
+    expect([again.added, again.skipped, again.workshopsAdded, again.workshopsSkipped]).toEqual([0, 8, 0, 2]);
     expect(again.items.people.every((/** @type {any} */ p) => p.matched)).toBe(true);
     expect(comparable(await exportOf(other.cookie))).toEqual(comparable(original));
   });
@@ -220,6 +246,52 @@ describe("importing an export", () => {
     for (const id of newIds) expect(await sql("SELECT 1 AS ok FROM ties WHERE id = ? AND owner_id = ?", id, user.id).first()).toEqual({ ok: 1 });
     const bad = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: { ties: variants, skip: [99] } });
     expect(bad.status).toBe(400);
+  });
+
+  it("finds workshop candidates the same in everything but what's encrypted", async () => {
+    const user = await newUser();
+    /** @param {string} path @param {Record<string, unknown>} body */
+    const add = async (path, body) => (await call(path, { method: "POST", body, cookie: user.cookie })).body.id;
+    const kit = await add("/api/people", { name: "Kit" });
+    const studio = await add("/api/locations", { name: "Studio" });
+    const saved = {
+      title: "Intro", start_date: "2026-03-01", end_date: null, location_id: studio, attendee_count: 10, rating: 4,
+      description: sealed("Basics"), notes: null, tags: ["Floor"],
+    };
+    const id = await add("/api/workshops", { ...saved, educators: [{ person_id: kit, role: "top" }] });
+    const same = { ...saved, educators: [{ person_id: kit, role: "top" }], tags: ["floor"] };
+    /** @type {Record<string, any>[]} */
+    const variants = [
+      same,
+      { ...same, educators: [], participants: [{ person_id: kit, role: "top" }] },
+      { ...same, educators: [{ person_id: kit, role: "bottom" }] },
+      { ...same, title: "Intro 2" },
+      { ...same, end_date: "2026-03-02" },
+      { ...same, attendee_count: null },
+      { ...same, tags: [] },
+      // Encrypted fields don't make it a candidate or not: the page compares them.
+      { ...same, description: sealed("Other") },
+    ];
+    const preview = await call("/api/data/import/workshops", { method: "POST", cookie: user.cookie, body: { preview: true, workshops: variants } });
+    expect(preview.body.candidates).toEqual([
+      { i: 0, id, description: sealed("Basics"), notes: null },
+      { i: 7, id, description: sealed("Basics"), notes: null },
+    ]);
+    expect([...duplicateMatches(variants, preview.body.candidates, ["description", "notes"]).keys()]).toEqual([0]);
+    const res = await call("/api/data/import/workshops", { method: "POST", cookie: user.cookie, body: { workshops: variants, skip: [0] } });
+    expect(res.body).toMatchObject({ added: 7, skipped: 1 });
+    expect(res.body.ids[0]).toBeNull();
+    // Someone listed twice (a file edited by hand) is kept once.
+    const twice = await call("/api/data/import/workshops", { method: "POST", cookie: user.cookie, body: {
+      workshops: [{ title: "Twice", start_date: "2026-01-01", educators: [{ person_id: kit, role: "top" }], participants: [{ person_id: kit, role: "bottom" }] }],
+    } });
+    expect(twice.status).toBe(200);
+    expect(await sql("SELECT kind FROM workshop_people WHERE workshop_id = ?", twice.body.ids[0]).all())
+      .toMatchObject({ results: [{ kind: "educator" }] });
+    for (const workshops of [[{ start_date: "2026-01-01" }], [{ title: "x" }], [{ title: "x", start_date: "2026-01-01", notes: "plain" }], "x"]) {
+      const bad = await call("/api/data/import/workshops", { method: "POST", cookie: user.cookie, body: { workshops } });
+      expect(bad.status, JSON.stringify(workshops)).toBe(400);
+    }
   });
 
   it("imports the CSV template, matching names to the journal's", async () => {

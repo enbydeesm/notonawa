@@ -7,9 +7,9 @@
 /** @typedef {(kind: RecordKind, records: any[]) => Promise<any[]>} Convert */
 
 /**
- * The file with every person, profile note, location, plan, tie and
- * participant converted. Other parts are kept as they are.
- * @template {{ people?: any[], locations?: any[], plans?: any[], ties?: any[] }} T
+ * The file with every person, profile note, location, plan, tie,
+ * participant and workshop converted. Other parts are kept as they are.
+ * @template {{ people?: any[], locations?: any[], plans?: any[], ties?: any[], workshops?: any[] }} T
  * @param {T} doc
  * @param {Convert} convert
  * @returns {Promise<T>}
@@ -23,6 +23,7 @@ export async function convertJournal(doc, convert) {
     locations: await convert("location", doc.locations ?? []),
     plans: await convert("plan", doc.plans ?? []),
     ties,
+    workshops: await convert("workshop", doc.workshops ?? []),
   };
 }
 
@@ -51,7 +52,7 @@ async function convertNested(parents, parentKind, childKey, childKind, convert) 
 /**
  * Takes the "unreadable" marks off opened records (for an export file), and
  * counts the fields that couldn't be opened.
- * @template {{ people?: any[], locations?: any[], plans?: any[], ties?: any[] }} T
+ * @template {{ people?: any[], locations?: any[], plans?: any[], ties?: any[], workshops?: any[] }} T
  * @param {T} doc opened by convertJournal
  * @returns {{ doc: T, unreadable: number }}
  */
@@ -71,6 +72,7 @@ export function withoutUnreadableMarks(doc) {
       locations: (doc.locations ?? []).map(clean),
       plans: (doc.plans ?? []).map(clean),
       ties: (doc.ties ?? []).map((t) => clean({ ...t, participants: (t.participants ?? []).map(clean) })),
+      workshops: (doc.workshops ?? []).map(clean),
     },
     unreadable,
   };

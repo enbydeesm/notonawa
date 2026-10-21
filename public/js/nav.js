@@ -24,6 +24,7 @@ export const PAGES = /** @type {const} */ ([
   ["/locations", "Locations", pinIcon],
   ["/calendar", "Calendar", calendarIcon],
   ["/analytics", "Analytics", chartIcon],
+  ["/education", "Education", capIcon],
 ]);
 
 // Fired on document when a tie is saved from the + button on the Ties view,
@@ -157,6 +158,20 @@ function svg(tag, attrs) {
   const el = document.createElementNS(SVG, tag);
   for (const [name, value] of Object.entries(attrs)) el.setAttribute(name, String(value));
   return el;
+}
+
+/** A graduation cap's lines: the Education tab, and an educator's card on People. */
+export const CAP_PATHS = [
+  "M2 9.5 12 5l10 4.5L12 14z",
+  "M6 11.5v4.2c0 1.6 2.7 2.8 6 2.8s6-1.2 6-2.8v-4.2",
+  "M22 9.5v5",
+];
+
+/** Education: a graduation cap. */
+function capIcon() {
+  const icon = lineIcon();
+  icon.append(...CAP_PATHS.map((d) => svg("path", { d })));
+  return icon;
 }
 
 /** A blank line-drawn icon to draw in. */

@@ -23,6 +23,15 @@ describe("takePhotos", () => {
     expect(result.plans.has("p2")).toBe(false);
   });
 
+  it("takes workshops' photo lists off too, by position", () => {
+    const result = takePhotos({ plans: [], ties: [], workshops: [
+      { title: "None" }, { title: "Intro", photos: [{ file: "photos/w.webp", caption: "Room", position: 0 }] },
+    ] });
+    expect(result.doc.workshops).toEqual([{ title: "None" }, { title: "Intro" }]);
+    expect([...result.workshops]).toEqual([[1, [{ file: "photos/w.webp", kind: "photo", caption: "Room", position: 0 }]]]);
+    expect(result.count).toBe(1);
+  });
+
   it("takes videos too, in order with the photos", () => {
     const result = takePhotos({ plans: [], ties: [{ photos: [
       { file: "photos/v.mp4", kind: "video", caption: "Wrap", position: 1 }, { file: "photos/p.webp", kind: "photo", position: 0 },

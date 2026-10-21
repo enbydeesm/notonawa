@@ -15,6 +15,7 @@ import { tagKey, matchTags } from "../tags/parse.js";
 
 /** @typedef {import("./import-parse.js").ItemsInput} ItemsInput */
 /** @typedef {import("./import-parse.js").TieImport} TieImport */
+/** @typedef {import("./import-parse.js").WorkshopImport} WorkshopImport */
 
 /**
  * @typedef {{ id: string, name: string, archived_at: string | null, is_self?: number, is_default?: number }} ExistingItem
@@ -119,6 +120,46 @@ export function planTies(ties, existingTags, newId) {
       tieTags: ties.flatMap((t, i) => t.tags.map((name) => ({ tie_id: ids[i], name: tags.resolve(name) }))),
     },
   };
+}
+
+/**
+ * Rows for a batch of workshops, each with a new id. Links must already be
+ * my ids, as for ties.
+ * @param {WorkshopImport[]} workshops
+ * @param {{ id: string, name: string }[]} existingTags
+ * @param {() => string} newId
+ */
+export function planWorkshops(workshops, existingTags, newId) {
+  const tags = planTags(existingTags, workshops.flatMap((w) => w.tags), newId);
+  const ids = workshops.map(() => newId());
+  const tagIds = new Map([...existingTags, ...tags.rows].map((t) => [t.name, t.id]));
+  return {
+    newTags: tags.rows.map((t) => t.name),
+    rows: {
+      tags: tags.rows,
+      workshops: workshops.map((w, i) => {
+        const { people: _people, tags: wTags, ...fields } = w;
+        return {
+          ...fields, id: ids[i],
+          links: workshopLinksKey(w.people, wTags.map((name) => /** @type {string} */ (tagIds.get(tags.resolve(name))))),
+        };
+      }),
+      workshopPeople: workshops.flatMap((w, i) => w.people.map((p) => ({ id: newId(), workshop_id: ids[i], ...p }))),
+      workshopTags: workshops.flatMap((w, i) => w.tags.map((name) => ({ workshop_id: ids[i], name: tags.resolve(name) }))),
+    },
+  };
+}
+
+/**
+ * A workshop's people (kind and role) and tags as one text, for telling a
+ * duplicate from a different workshop, as linksKey does for ties.
+ * import-db.js builds the same for saved workshops (WORKSHOP_LINKS_KEY).
+ * @param {{ person_id: string | null, kind: string, role: string }[]} people
+ * @param {string[]} tagIds
+ */
+export function workshopLinksKey(people, tagIds) {
+  const list = (/** @type {string[]} */ items) => [...items].sort().join(",");
+  return [list(people.map((p) => `${p.person_id ?? ""}|${p.kind}|${p.role}`)), list(tagIds)].join(";");
 }
 
 /**
