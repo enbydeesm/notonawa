@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseMediaId, parseItem, parseUpload, limitProblem, parseCaption, parseOrder, sameIds,
-  MAX_OBJECT_BYTES, MAX_PER_ITEM, MAX_ACCOUNT_BYTES,
+  MAX_OBJECT_BYTES, MAX_VIDEO_BYTES, MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, MAX_ACCOUNT_BYTES,
 } from "../../src/media/parse.js";
 import { BadInput } from "../../src/http.js";
 import { sealed } from "../sealed.js";
@@ -43,15 +43,24 @@ describe("parseUpload", () => {
       kind: "photo", mime: "image/jpeg", thumbBytes: 100, bytes: 5000,
     });
   });
-  it("only takes photos as JPEG or WebP, for now", () => {
-    expect(() => parseUpload(ID, query({ ...GOOD, kind: "video" }), "5000")).toThrow("Only photos");
+  it("takes photos as JPEG or WebP, and videos as MP4", () => {
+    expect(parseUpload(ID, query({ ...GOOD, kind: "video", mime: "video/mp4" }), "5000")).toMatchObject({ kind: "video", mime: "video/mp4" });
+    expect(() => parseUpload(ID, query({ ...GOOD, kind: "audio" }), "5000")).toThrow("Only photos and videos");
     expect(() => parseUpload(ID, query({ ...GOOD, mime: "image/png" }), "5000")).toThrow("JPEG and WebP");
+    expect(() => parseUpload(ID, query({ ...GOOD, mime: "video/mp4" }), "5000")).toThrow("JPEG and WebP");
+    expect(() => parseUpload(ID, query({ ...GOOD, kind: "video" }), "5000")).toThrow("Only MP4");
+    expect(() => parseUpload(ID, query({ ...GOOD, kind: "video", mime: "video/quicktime" }), "5000")).toThrow("Only MP4");
   });
   it("needs a size, no bigger than 10 MB", () => {
     expect(() => parseUpload(ID, query(GOOD), null)).toThrow("size wasn't sent");
     expect(() => parseUpload(ID, query(GOOD), "0")).toThrow(BadInput);
     expect(parseUpload(ID, query(GOOD), String(MAX_OBJECT_BYTES)).bytes).toBe(MAX_OBJECT_BYTES);
-    expect(() => parseUpload(ID, query(GOOD), String(MAX_OBJECT_BYTES + 1))).toThrow("too big");
+    expect(() => parseUpload(ID, query(GOOD), String(MAX_OBJECT_BYTES + 1))).toThrow("That photo is too big");
+  });
+  it("lets a video be up to 40 MB", () => {
+    const video = query({ ...GOOD, kind: "video", mime: "video/mp4" });
+    expect(parseUpload(ID, video, String(MAX_VIDEO_BYTES)).bytes).toBe(MAX_VIDEO_BYTES);
+    expect(() => parseUpload(ID, video, String(MAX_VIDEO_BYTES + 1))).toThrow("That video is too big");
   });
   it("needs the thumbnail to end inside the object", () => {
     for (const thumb of ["0", "5000", "6000", "1.5", ""]) {
@@ -61,10 +70,18 @@ describe("parseUpload", () => {
 });
 
 describe("limitProblem", () => {
-  it("allows up to 30 photos an item and 1 GB an account", () => {
-    expect(limitProblem({ count: MAX_PER_ITEM - 1, accountBytes: MAX_ACCOUNT_BYTES - 10 }, 10)).toBeNull();
-    expect(limitProblem({ count: MAX_PER_ITEM, accountBytes: 0 }, 10)).toMatch("at most 30");
-    expect(limitProblem({ count: 0, accountBytes: MAX_ACCOUNT_BYTES - 10 }, 11)).toMatch("1 GB");
+  const photo = { kind: /** @type {const} */ ("photo"), bytes: 10 };
+  const video = { kind: /** @type {const} */ ("video"), bytes: 10 };
+  it("allows up to 30 photos and videos an item and 1 GB an account", () => {
+    expect(limitProblem({ count: MAX_PER_ITEM - 1, videoCount: 0, accountBytes: MAX_ACCOUNT_BYTES - 10 }, photo)).toBeNull();
+    expect(limitProblem({ count: MAX_PER_ITEM, videoCount: 0, accountBytes: 0 }, photo)).toMatch("at most 30");
+    expect(limitProblem({ count: MAX_PER_ITEM, videoCount: 0, accountBytes: 0 }, video)).toMatch("at most 30");
+    expect(limitProblem({ count: 0, videoCount: 0, accountBytes: MAX_ACCOUNT_BYTES - 10 }, { ...video, bytes: 11 })).toMatch("1 GB");
+  });
+  it("allows 5 of them to be videos, still taking photos after that", () => {
+    expect(limitProblem({ count: 4, videoCount: MAX_VIDEOS_PER_ITEM - 1, accountBytes: 0 }, video)).toBeNull();
+    expect(limitProblem({ count: 5, videoCount: MAX_VIDEOS_PER_ITEM, accountBytes: 0 }, video)).toMatch("at most 5 videos");
+    expect(limitProblem({ count: 5, videoCount: MAX_VIDEOS_PER_ITEM, accountBytes: 0 }, photo)).toBeNull();
   });
 });
 

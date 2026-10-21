@@ -92,7 +92,7 @@ describe("planFor", () => {
     expect(plan.tests).toBe("all");
     expect(plan.ui).toEqual(UI_CHUNKS);
     expect(plan.everything).toEqual(["public/js/api.js"]);
-    expect(plan.generated).toEqual(["privacy", "releases", "welcome"]);
+    expect(plan.generated).toEqual(["privacy", "releases", "vendor", "welcome"]);
   });
 
   it("runs everything for a file in no area, and says which", () => {

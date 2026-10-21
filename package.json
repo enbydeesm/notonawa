@@ -10,20 +10,22 @@
     "test": "vitest run",
     "test:ui": "node scripts/ui-smoke.mjs",
     "check:changed": "node scripts/check-changed.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && node scripts/privacy-html.mjs --check && node scripts/releases.mjs --check && node scripts/welcome.mjs --check"
+    "check": "npm run lint && npm run typecheck && npm run test && node scripts/privacy-html.mjs --check && node scripts/releases.mjs --check && node scripts/welcome.mjs --check && node scripts/vendor.mjs --check"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.0",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.12.0",
     "globals": "^17.13.0",
+    "mediabunny": "1.61.3",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",
     "wrangler": "^4.149.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
-    "workerd@1.20261006.1": true
+    "workerd@1.20261006.1": true,
+    "fsevents@2.3.3": true
   },
   "dependencies": {
     "@simplewebauthn/server": "14.0.3"

@@ -103,8 +103,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`
   and `/api/data/import/ties` (both take `preview`). See considerations.md,
   "Export, import and deletion as built".
-- `src/media/`: photos on ties and plans (migration 0010; files in the R2
-  bucket `PHOTOS`). `parse.js` (pure: limits, upload parameters, sealed
+- `src/media/`: photos and videos on ties and plans (migration 0010; files
+  in the R2 bucket `PHOTOS`). `parse.js` (pure: limits, including 5
+  videos of the 30 an item and 40 MB a video, upload parameters, sealed
   captions, order), `db.js`, `storage.js` (R2: keys, deleting, the daily
   sweep of files without a row), `routes.js` (`GET /api/media?tie_id=|
   plan_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
@@ -194,8 +195,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   the mode) and `settings-dialog.js` (the Settings dialog),
   `crypto/keys.js` (pure: the data key, wrapping, the PRF salt),
   `crypto/fields.js` (pure: sealing and opening notes fields),
-  `crypto/media.js` (pure: sealing and opening photos and their captions,
-  bound to the photo's id),
+  `crypto/media.js` (pure: sealing and opening photos, videos (their full
+  size in 1 MB pieces, format v2) and captions, bound to the photo's id),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -215,9 +216,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `photo-fit.js` (pure:
   photo sizes, limits, choosing a quality) and `photo-prep.js` (redrawing a
   photo on a canvas: strips its metadata, shrinks it, makes the thumbnail),
+  `video-fit.js` (pure: which videos, up to 3 minutes, 480p and bitrates)
+  and `video-prep.js` (re-encoding a video with `vendor/mediabunny.js`:
+  nothing of the original copied, no tags or track names; loaded only once
+  a video is chosen), `drag-order.js` (pure: dragging photos into order),
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
-  lock), `photo-upload.js` (sealing and uploading one prepared photo and
-  its caption; used by the Photos section and import), `photos-ui.js` (a form's Photos section and the photo viewer), `lock-rules.js` (pure) and `lock.js`
+  lock), `photo-upload.js` (sealing and uploading one prepared photo or
+  video and its caption; used by the Photos section and import),
+  `photos-ui.js` (a form's Photos section: dragging into order, and the
+  viewer, which plays videos with speed buttons),
+  `vendor/` (libraries copied from node_modules by
+  `scripts/vendor.mjs`, never edited; their `.d.ts` beside them), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
   (pure: the Plans search, done on the device over the loaded plans and
@@ -307,8 +316,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
-  matches PRIVACY.md, the release files match RELEASES.md and the welcome
-  matches WELCOME.md. Run before a release.
+  matches PRIVACY.md, the release files match RELEASES.md, the welcome
+  matches WELCOME.md and `public/js/vendor/` matches node_modules. Run before a release.
 - `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint and type
   check, then only the tests (and with `--ui`, the walkthrough chunks) of
   the areas changed since the last commit, or of the areas named. A shared
@@ -325,6 +334,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `node scripts/world-map.mjs <ne_110m_admin_0_countries.geojson>`:
   rebuild `public/js/world-shapes.js`, the Analytics map's country
   outlines, from Natural Earth's 1:110m countries (downloaded; not kept).
+- `node scripts/vendor.mjs`: copy `public/js/vendor/` again from
+  node_modules after updating a vendored package (mediabunny); `--check`
+  (in `npm run check`) fails if a copy differs.
 - `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]
   [--remote]`: the bug reports and ideas sent from the app, newest first.
   Answer one with `notice.mjs --user <id>`.
@@ -438,10 +450,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   a new key) must then delete their files (`media/storage.js`); read the
   photo ids in the same batch as the delete. The daily sweep only catches
   what a crash left behind.
-- **Photos are prepared and sealed before they leave the device**
-  (`preparePhoto`, then `vault.sealPhoto`) and shown only from
-  `photoUrl()` (`photo-urls.js`), whose URLs are all revoked on every lock
-  (`onWipe`). The crypto Worker fetches photos itself (`openPhoto` takes an
+- **Photos and videos are prepared and sealed before they leave the
+  device** (`preparePhoto`/`prepareVideo`, then `vault.sealPhoto`/
+  `sealVideo`) and shown only from `photoUrl()` (`photo-urls.js`), whose
+  URLs are all revoked on every lock (`onWipe`), emptying the images and
+  videos showing them. The crypto Worker fetches photos itself (`openPhoto` takes an
   id), as it does the search index. Captions are sealed bound to their
   photo (`sealCaption`), not through `seal`, so they aren't in the
   encrypted-columns lists.

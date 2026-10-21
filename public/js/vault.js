@@ -198,14 +198,28 @@ export function sealPhoto(mediaId, thumb, full) {
 }
 
 /**
- * One of my photos' thumbnail or full size, decrypted. The Worker fetches
- * it itself. Throws CantOpen if it won't decrypt.
+ * A prepared video (re-encoded without its metadata) sealed for upload,
+ * bound to its id. The two buffers are handed to the Worker, so they're
+ * emptied here.
+ * @param {string} mediaId made with crypto.randomUUID()
+ * @param {ArrayBuffer} thumb
+ * @param {ArrayBuffer} full
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function sealVideo(mediaId, thumb, full) {
+  return call("sealVideo", { mediaId, thumb, full }, [thumb, full]);
+}
+
+/**
+ * One of my photos' or videos' thumbnail or full size, decrypted. The
+ * Worker fetches it itself. Throws CantOpen if it won't decrypt.
  * @param {string} mediaId
  * @param {"thumb" | "full"} part
+ * @param {"photo" | "video"} [kind] a video's full size is sealed in pieces
  * @returns {Promise<ArrayBuffer>}
  */
-export function openPhoto(mediaId, part) {
-  return call("openPhoto", { mediaId, part });
+export function openPhoto(mediaId, part, kind = "photo") {
+  return call("openPhoto", { mediaId, part, kind });
 }
 
 /**

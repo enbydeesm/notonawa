@@ -6,8 +6,8 @@ we can revisit them later.
 ## Privacy and accounts
 
 **Status:** built and deployed (all 13 migrations applied to the remote
-database, checked 2026-10-19). Videos aren't built: they're in
-[roadmap.md](roadmap.md).
+database, checked 2026-10-19). Videos were built 2026-10-20 (no
+migration): see "Videos as built".
 
 Goal: open the app to other users, with notes and photos end-to-end encrypted
 so that even we (and Cloudflare) can't read them. [PRIVACY.md](PRIVACY.md)
@@ -92,9 +92,10 @@ Each one left the app working and shippable on its own.
   account deletes its R2 objects; export includes decrypted photos.
   *Built 2026-10-14; see "Encrypted photos: decisions" and "Encrypted
   photos as built".*
-- **Videos** come after photos and aren't started: see
-  [roadmap.md](roadmap.md), which also has what we weighed. Photos were
-  built so videos need no new migration or export format.
+- **Videos.** Re-encoded on the device (which strips everything and
+  shrinks them), sealed in pieces, stored and exported like photos. Photos
+  were built so videos needed no new migration or export format. *Built
+  2026-10-20; see "Videos as built".*
 
 ### Decided along the way
 
@@ -531,8 +532,8 @@ Agreed 2026-10-14, before building:
 - **Captions** up to 200 characters, sealed; shown under each thumbnail.
   **Reordering** with "Move earlier" / "Move later" in the photo viewer
   (simpler on touch screens and with screen readers than dragging). New
-  photos go last. Captions aren't searched. Dragging and searching
-  captions are in [roadmap.md](roadmap.md) as ideas.
+  photos go last. Captions aren't searched. Dragging came later
+  (2026-10-20, "Dragging photos into order"), with these buttons kept.
 - **Ties list** shows a photo count only, not thumbnails (up to 100
   decrypts a page). **Revisit** if thumbnails are wanted there (also in
   roadmap.md as an idea).
@@ -549,9 +550,9 @@ Agreed 2026-10-14, before building:
 - **Sealed format:** each part (thumbnail, full size) is a 12-byte IV and
   its AES-GCM ciphertext, with additional data
   `notonawa|media|v1|<user>|<photo id>|thumb|full|caption`
-  (`crypto/media.js`). One piece per part: photos are small. Videos will
-  need a format in pieces with its own version (not built now, despite the
-  earlier idea of using it for photos too: it bought nothing yet).
+  (`crypto/media.js`). One piece per part: photos are small. Videos got a
+  format in pieces with its own version (v2; "Videos as built"); photos
+  kept v1, as it bought them nothing.
 - **The crypto Worker** gained `sealPhoto`, `openPhoto` (fetches the part by
   id itself, like the search index), `sealCaption` and `openMedia`; results
   that are buffers are transferred, not copied. Captions are sealed bound
@@ -591,6 +592,99 @@ Agreed 2026-10-14, before building:
 - **The UI walkthrough sometimes hung** on a step ("took over a minute")
   or met an Internal Server Error while unlocking, before any photo UI
   existed. Finding the cause is in [roadmap.md](roadmap.md).
+
+### Dragging photos into order
+
+Built 2026-10-20 (no server change: a drop saves with `PUT
+/api/media/order`, as the buttons do).
+
+- **Pointer events, not HTML drag and drop**, which doesn't work with a
+  finger on phones. `drag-order.js` (pure) has the threshold, which tile a
+  pointer is over (or the nearest, in a gap) and the new order;
+  `photos-ui.js` the listeners, put on `document` for the length of a drag
+  and taken off with an `AbortController`.
+- **A mouse drags once it moves 8 px; a finger after holding still for
+  350 ms.** A finger that moves sooner is scrolling, so a long grid still
+  scrolls. Once a finger drags, `touchmove` is cancelled so the page
+  stays put. Pointer capture isn't used (it isn't needed with listeners
+  on `document`, and it throws for the walkthrough's made-up pointers).
+- **No live reshuffling while dragging**: the tile fades and the one it
+  would land on is outlined; the order changes on the drop. Simpler, and
+  plain enough on a three-column grid.
+- **What a drag mustn't do:** the click that ends it doesn't open the
+  viewer (clicks for 400 ms after are swallowed); a held finger doesn't
+  open the browser's menu (`contextmenu`, `-webkit-touch-callout`); a
+  mouse doesn't drag the image out of the page (`dragstart`).
+- **Move earlier/later stay** in the viewer, for keyboards and screen
+  readers.
+
+### Videos as built
+
+Built 2026-10-20, from what was weighed on 2026-10-14 (roadmap.md). No
+migration: `media.kind` already allowed `video`.
+
+- **Re-encoded, not box-rewritten.** Rewriting MP4/MOV boxes by hand would
+  keep full quality but miss whatever we didn't know to strip;
+  re-encoding writes a new file from the frames and sound alone. It uses
+  **mediabunny** (MPL-2.0, pinned 1.61.3, a dev dependency copied into
+  `public/js/vendor/` by `scripts/vendor.mjs`, with `--check` in `npm run
+  check`; there's no build step). It runs on the page, over WebCodecs, and
+  is only loaded once a video is chosen (dynamic `import()`).
+- **What's stripped, and how:** `copy: false` (every frame and sample is
+  encoded again: no packet, SEI data or box is copied), `tags: {}` (the
+  default copies the input's tags: GPS, dates, make and model), and track
+  names dropped (the conversion copies them, and cameras such as GoPros
+  put their model there; `forgetName` hides each track's name from the
+  conversion through the options callback, which gets the same track
+  object). Rotation is drawn into the frames
+  (`allowTransformationMetadata: false`). The MP4's own creation time is
+  the time it was made on the device, not the recording's. The walkthrough
+  makes a clip with a secret title, comment, date and track names, and
+  checks none survive.
+- **Size: 480p** (the shorter side 480, `video-fit.js`), H.264 at 1.2
+  Mbps and AAC at 96 kbps, frame rate capped at 30 (only when it's
+  higher: slow-motion clips): about 10 MB a minute. Chosen by the user
+  over 720p (about 23 MB a minute) and 1080p (about 38 MB, which would
+  have needed R2 multipart uploads).
+- **Limits:** clips up to 3:00 (refused before encoding, saying how
+  long: no trimming in the app); 40 MB stored a video (a full-length clip
+  is about 30 MB, so one `PUT` well under a Worker's 100 MB request
+  limit; no multipart); 5 videos a tie or plan within the 30 items,
+  checked again inside the INSERT; the 1 GB account limit is shared with
+  photos (the user chose to keep it at 1 GB for now).
+- **No picture encoder, no video; no sound encoder, ask.** A browser that
+  can't encode H.264 gets "This browser can't prepare videos". One that
+  can't encode AAC for the clip's sound (checked for its own channels and
+  sample rate, and again if the conversion still leaves the sound out)
+  asks "Upload without sound?": yes uploads it silent, Cancel leaves it
+  out with a message (`SilentRefused`). An import asks once for all its
+  videos. (First built as a refusal; the user preferred being asked.)
+  Firefox and older Safari may hit this.
+- **Sealed in 1 MB pieces** (format v2, `sealPieces`/`openPieces` in
+  `crypto/media.js`): each piece has its own IV, and its additional data
+  holds the piece's number and whether it's the last
+  (`notonawa|media|v2|<user>|<id>|full|<n>|last|more`), so pieces can't be
+  reordered, swapped with another video's, or the video cut short, even at
+  a piece's edge. The thumbnail (always JPEG, a frame from 1 s in) is
+  sealed as a photo's (v1). The kind (from the row) says which format the
+  full size is in.
+- **Playback:** the whole clip is fetched, opened in the crypto Worker and
+  played from a `blob:` URL (`media-src blob:` in the CSP), its thumbnail
+  as the poster. Fine at these sizes; no streaming (MediaSource is patchy
+  on iPhones, and a service worker holding the key would break "the key
+  lives only in the crypto Worker"). Speed buttons 0.25×–2× are our own,
+  as iPhones' controls don't offer speeds. Locking pauses and empties
+  every video showing a `blob:` URL.
+- **The library's own Workers** (for transparent video and live
+  recording, which we don't use) are made from `blob:` URLs; the CSP's
+  `worker-src 'self'` and Trusted Types refuse them, and we left it so
+  rather than loosening the CSP. Checked by reading the bundle: no
+  `eval`, network requests or storage.
+- **Export and import:** videos go in the zip's `photos/` folder as
+  `<id>.mp4` with `kind: "video"`; import prepares each again like a
+  chosen file, so nothing but a re-encoded clip is ever stored. Exports
+  are built in memory, so a journal with a lot of video is heavy on a
+  phone; **revisit** (streaming the zip) if that bites.
 
 ### Weighed and not adopted
 

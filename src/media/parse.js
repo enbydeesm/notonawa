@@ -1,25 +1,33 @@
-// Photos: limits and request parsing. Pure, so it's easy to test.
+// Photos and videos: limits and request parsing. Pure, so it's easy to test.
 //
-// The browser prepares each photo (strips metadata, makes a thumbnail),
-// seals both, and uploads them as one object: the thumbnail's bytes, then
-// the full size's. Only sizes, ids and the kind of file travel in the URL;
-// nothing the user typed.
+// The browser prepares each photo or video (strips metadata, shrinks it,
+// makes a thumbnail), seals both, and uploads them as one object: the
+// thumbnail's bytes, then the full size's. Only sizes, ids and the kind of
+// file travel in the URL; nothing the user typed.
 
 import { BadInput } from "../http.js";
 import { encryptedText } from "../parse.js";
 
-/** The largest object stored (thumbnail and full size, sealed). */
+/** The largest photo stored (thumbnail and full size, sealed). */
 export const MAX_OBJECT_BYTES = 10 * 1024 * 1024;
-/** Photos per tie or plan. */
+/**
+ * The largest video stored. A 3-minute clip at 480p comes to about 30 MB;
+ * this leaves room for encoders that overshoot, and keeps every upload one
+ * request well under a Worker's 100 MB.
+ */
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+/** Photos and videos per tie or plan. */
 export const MAX_PER_ITEM = 30;
+/** Of those, videos. */
+export const MAX_VIDEOS_PER_ITEM = 5;
 /** All of an account's photos together. */
 export const MAX_ACCOUNT_BYTES = 1024 * 1024 * 1024;
 /** A sealed caption (a caption is up to 200 characters; sealing adds a third and more). */
 export const MAX_SEALED_CAPTION = 2000;
 
-/** What can be uploaded so far; videos come later (see roadmap.md). */
-export const KINDS = /** @type {const} */ (["photo"]);
-export const MIMES = /** @type {const} */ (["image/jpeg", "image/webp"]);
+export const KINDS = /** @type {const} */ (["photo", "video"]);
+/** The types each kind is stored as (the browser re-encodes to these). */
+export const MIMES = /** @type {const} */ ({ photo: ["image/jpeg", "image/webp"], video: ["video/mp4"] });
 
 // Made by the browser with crypto.randomUUID(): the encryption is bound to it.
 const MEDIA_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -57,7 +65,7 @@ export function parseItem(source) {
 
 /**
  * @typedef {{
- *   id: string, item: Item, kind: typeof KINDS[number], mime: typeof MIMES[number],
+ *   id: string, item: Item, kind: typeof KINDS[number], mime: string,
  *   thumbBytes: number, bytes: number,
  * }} Upload
  */
@@ -74,33 +82,42 @@ export function parseUpload(id, params, contentLength) {
   const item = parseItem({ tie_id: params.get("tie_id") ?? undefined, plan_id: params.get("plan_id") ?? undefined });
   const kind = params.get("kind");
   const mime = params.get("mime");
-  if (!KINDS.includes(/** @type {any} */ (kind))) throw new BadInput("Only photos can be added.");
-  if (!MIMES.includes(/** @type {any} */ (mime))) throw new BadInput("Only JPEG and WebP photos can be stored.");
+  if (!KINDS.includes(/** @type {any} */ (kind))) throw new BadInput("Only photos and videos can be added.");
+  const video = kind === "video";
+  if (!(/** @type {readonly string[]} */ (MIMES[/** @type {Upload["kind"]} */ (kind)])).includes(mime ?? "")) {
+    throw new BadInput(video ? "Only MP4 videos can be stored." : "Only JPEG and WebP photos can be stored.");
+  }
   const bytes = Number(contentLength);
   if (contentLength === null || !Number.isInteger(bytes) || bytes <= 0) {
-    throw new BadInput("Couldn't upload: the photo's size wasn't sent.");
+    throw new BadInput(`Couldn't upload: the ${kind}'s size wasn't sent.`);
   }
-  if (bytes > MAX_OBJECT_BYTES) throw new BadInput("That photo is too big to store, even after shrinking it.");
+  if (bytes > (video ? MAX_VIDEO_BYTES : MAX_OBJECT_BYTES)) {
+    throw new BadInput(`That ${kind} is too big to store, even after shrinking it.`);
+  }
   const thumbBytes = Number(params.get("thumb_bytes"));
   if (!Number.isInteger(thumbBytes) || thumbBytes <= 0 || thumbBytes >= bytes) {
     throw new BadInput("Couldn't upload: the thumbnail's size is wrong.");
   }
   return {
     id: parseMediaId(id), item,
-    kind: /** @type {Upload["kind"]} */ (kind), mime: /** @type {Upload["mime"]} */ (mime),
+    kind: /** @type {Upload["kind"]} */ (kind), mime: /** @type {string} */ (mime),
     thumbBytes, bytes,
   };
 }
 
 /**
  * Why an upload can't be stored, or null if it can.
- * @param {{ count: number, accountBytes: number }} used the item's photos, and the account's bytes
- * @param {number} bytes the new photo's
+ * @param {{ count: number, videoCount: number, accountBytes: number }} used the item's photos and
+ *   videos, its videos, and the account's bytes
+ * @param {{ kind: Upload["kind"], bytes: number }} upload
  * @returns {string | null}
  */
-export function limitProblem({ count, accountBytes }, bytes) {
-  if (count >= MAX_PER_ITEM) return `There can be at most ${MAX_PER_ITEM} photos on a tie or plan.`;
-  if (accountBytes + bytes > MAX_ACCOUNT_BYTES) return "Your photos have filled your 1 GB. Delete some to make room.";
+export function limitProblem({ count, videoCount, accountBytes }, { kind, bytes }) {
+  if (count >= MAX_PER_ITEM) return `There can be at most ${MAX_PER_ITEM} photos and videos on a tie or plan.`;
+  if (kind === "video" && videoCount >= MAX_VIDEOS_PER_ITEM) {
+    return `There can be at most ${MAX_VIDEOS_PER_ITEM} videos on a tie or plan.`;
+  }
+  if (accountBytes + bytes > MAX_ACCOUNT_BYTES) return "Your photos and videos have filled your 1 GB. Delete some to make room.";
   return null;
 }
 

@@ -1,5 +1,5 @@
-// Routes for photos on ties and plans. The browser strips each photo's
-// metadata, makes a thumbnail and seals both before uploading; we store the
+// Routes for photos and videos on ties and plans. The browser strips each
+// one's metadata, makes a thumbnail and seals both before uploading; we store the
 // sealed object in R2 and its row in D1, and hand it back only to its owner.
 
 import { BadInput, json, notFound, noContent, readJson } from "../http.js";
@@ -72,17 +72,18 @@ export async function handleMedia(request, env, user, url) {
   const one = url.pathname.match(ONE_PATH);
   if (!one) return null;
 
-  // PUT /api/media/:id?tie_id=…|plan_id=…&kind=photo&mime=…&thumb_bytes=…
+  // PUT /api/media/:id?tie_id=…|plan_id=…&kind=photo|video&mime=…&thumb_bytes=…
   //   body: the sealed thumbnail then the sealed full size -> { id,
-  //   position } (201): a new photo, last on its tie or plan. The browser
-  //   chose the id. Up to 30 a tie or plan and 1 GB an account.
+  //   position } (201): a new photo or video, last on its tie or plan. The
+  //   browser chose the id. Up to 30 a tie or plan (5 of them videos) and
+  //   1 GB an account.
   if (method === "PUT") {
     const upload = parseUpload(one[1], url.searchParams, request.headers.get("content-length"));
-    if (!request.body) throw new BadInput("Couldn't upload: the photo was empty.");
+    if (!request.body) throw new BadInput(`Couldn't upload: the ${upload.kind} was empty.`);
     const check = await uploadCheck(db, user.id, upload);
     if (!check.item) return notFound();
-    if (check.taken) return json({ error: "That photo is already saved." }, 409);
-    const problem = limitProblem(check, upload.bytes);
+    if (check.taken) return json({ error: `That ${upload.kind} is already saved.` }, 409);
+    const problem = limitProblem(check, upload);
     if (problem) throw new BadInput(problem);
 
     // Streamed straight into R2 (no copy held here), checked to be exactly
@@ -93,7 +94,7 @@ export async function handleMedia(request, env, user, url) {
         httpMetadata: { contentType: "application/octet-stream" },
       });
     } catch {
-      throw new BadInput("Couldn't upload: the photo didn't arrive whole. Try again.");
+      throw new BadInput(`Couldn't upload: the ${upload.kind} didn't arrive whole. Try again.`);
     }
     // The file can't be saved in the same transaction as its row: if the
     // row fails, delete the file again (the daily clean-up catches any
@@ -107,7 +108,7 @@ export async function handleMedia(request, env, user, url) {
     }
     if (position === null) {
       await env.PHOTOS.delete(key);
-      throw new BadInput(limitProblem(await uploadCheck(db, user.id, upload), upload.bytes) ?? "Couldn't save the photo.");
+      throw new BadInput(limitProblem(await uploadCheck(db, user.id, upload), upload) ?? `Couldn't save the ${upload.kind}.`);
     }
     return json({ id: upload.id, position }, 201);
   }
@@ -120,7 +121,7 @@ export async function handleMedia(request, env, user, url) {
     return (await setCaption(db, user.id, id, caption)) ? noContent() : notFound();
   }
 
-  // DELETE /api/media/:id -> deletes the photo and its file
+  // DELETE /api/media/:id -> deletes the photo or video and its file
   if (method === "DELETE") {
     const id = parseMediaId(one[1]);
     if (!(await deleteMedia(db, user.id, id))) return notFound();

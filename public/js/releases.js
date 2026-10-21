@@ -1,10 +1,18 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.20.004";
+export const APP_VERSION = "2026.10.20.005";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.20.005",
+    "notes": [
+      "Photos: drag a photo to put it in order, with a mouse or with your finger (hold it still for a moment first, so swiping still scrolls). Move earlier and later are still in the photo viewer.",
+      "Videos: add clips of up to 3 minutes to ties and plans, with the same + as photos (up to 5 a tie or plan). Each one is made smaller (480p) on your device, with its location and device details removed, and encrypted before it's uploaded, like your photos.",
+      "Videos play in the viewer, with buttons to slow them down to as little as a quarter speed, or speed them up to double."
+    ]
+  },
   {
     "version": "2026.10.20.004",
     "notes": [

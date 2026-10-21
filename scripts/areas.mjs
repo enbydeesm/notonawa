@@ -18,7 +18,7 @@ export const UI_CHUNKS = [
 // as 30.
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
-  notes: 19, photos: 33, deleting: 26, account: 67, data: 20, insights: 20,
+  notes: 19, photos: 55, deleting: 26, account: 67, data: 20, insights: 20,
 };
 
 /**
@@ -77,7 +77,7 @@ export const IGNORED = [
  *   files: string[],
  *   tests: string[],
  *   ui: string[],
- *   generated?: ("privacy" | "releases" | "welcome")[],
+ *   generated?: ("privacy" | "releases" | "welcome" | "vendor")[],
  * }} Area
  *
  * generated: the generated-file checks (`--check`) its files feed.
@@ -215,9 +215,13 @@ export const AREAS = [
   {
     name: "photos",
     files: ["src/media/", "public/js/crypto/media.js", "public/js/photo-fit.js", "public/js/photo-prep.js",
-      "public/js/photo-upload.js", "public/js/photo-urls.js", "public/js/photos-ui.js"],
-    tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js"],
+      "public/js/photo-upload.js", "public/js/photo-urls.js", "public/js/photos-ui.js",
+      "public/js/drag-order.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
+      "scripts/vendor.mjs"],
+    tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js",
+      "test/unit/drag-order.test.js", "test/unit/video-fit.test.js"],
     ui: ["photos", "data"],
+    generated: ["vendor"],
   },
   {
     name: "data",
@@ -268,7 +272,7 @@ export function matches(file, entries) {
  *   areas: string[],
  *   tests: "all" | string[],
  *   ui: string[],
- *   generated: ("privacy" | "releases" | "welcome")[],
+ *   generated: ("privacy" | "releases" | "welcome" | "vendor")[],
  *   unmapped: string[],
  *   everything: string[],
  * }} CheckPlan
@@ -287,7 +291,7 @@ export function planFor(files) {
   /** @type {Set<string>} */ const areas = new Set();
   /** @type {Set<string>} */ const tests = new Set();
   /** @type {Set<string>} */ const ui = new Set();
-  /** @type {Set<"privacy" | "releases" | "welcome">} */ const generated = new Set();
+  /** @type {Set<"privacy" | "releases" | "welcome" | "vendor">} */ const generated = new Set();
   const unmapped = [], everything = [];
   let allTests = false, allUi = false;
 

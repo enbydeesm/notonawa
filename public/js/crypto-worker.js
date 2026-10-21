@@ -45,13 +45,14 @@ const OPERATIONS = {
   searchTies: (args) => vault.searchTies(args),
   forgetSearch: async () => { vault.forgetSearch(); return null; },
   sealPhoto: (args) => vault.sealPhoto(args),
+  sealVideo: (args) => vault.sealVideo(args),
   openPhoto: (args) => vault.openPhoto(args),
   sealCaption: (args) => vault.sealCaption(args),
   openMedia: (args) => vault.openMedia(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied
-// (photos can be megabytes).
+// (photos can be megabytes, videos tens of them).
 /** @param {unknown} result @returns {Transferable[]} */
 function buffersOut(result) {
   if (result instanceof ArrayBuffer) return [result];

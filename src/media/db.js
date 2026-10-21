@@ -1,7 +1,7 @@
 // Database queries for photos (the media table). The files are in R2
 // (storage.js); every query here is kept to one owner's rows.
 
-import { MAX_PER_ITEM, MAX_ACCOUNT_BYTES } from "./parse.js";
+import { MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, MAX_ACCOUNT_BYTES } from "./parse.js";
 
 /** @typedef {import("./parse.js").Item} Item */
 /** @typedef {import("./parse.js").Upload} Upload */
@@ -40,16 +40,17 @@ export async function listMedia(db, ownerId, item) {
  * @param {D1Database} db
  * @param {string} ownerId
  * @param {Upload} upload
- * @returns {Promise<{ item: boolean, taken: boolean, count: number, accountBytes: number }>}
+ * @returns {Promise<{ item: boolean, taken: boolean, count: number, videoCount: number, accountBytes: number }>}
  */
 export async function uploadCheck(db, ownerId, upload) {
   const row = /** @type {any} */ (await db.prepare(
     `SELECT EXISTS(SELECT 1 FROM ${upload.item.table} WHERE id = ?2 AND owner_id = ?1) AS item,
             EXISTS(SELECT 1 FROM media WHERE id = ?3) AS taken,
             (SELECT COUNT(*) FROM media WHERE owner_id = ?1 AND ${upload.item.column} = ?2) AS count,
+            (SELECT COUNT(*) FROM media WHERE owner_id = ?1 AND ${upload.item.column} = ?2 AND kind = 'video') AS video_count,
             (SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ?1) AS account_bytes`
   ).bind(ownerId, upload.item.id, upload.id).first());
-  return { item: !!row.item, taken: !!row.taken, count: row.count, accountBytes: row.account_bytes };
+  return { item: !!row.item, taken: !!row.taken, count: row.count, videoCount: row.video_count, accountBytes: row.account_bytes };
 }
 
 /**
@@ -70,11 +71,14 @@ export async function insertMedia(db, ownerId, upload) {
             ?8, ?9
       WHERE (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7) < ?10
         AND (SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ?2) + ?9 <= ?11
+        AND (?5 <> 'video'
+             OR (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7 AND kind = 'video') < ?12)
      RETURNING position`
   ).bind(
     upload.id, ownerId,
     item.column === "tie_id" ? item.id : null, item.column === "plan_id" ? item.id : null,
     upload.kind, upload.mime, item.id, upload.thumbBytes, upload.bytes, MAX_PER_ITEM, MAX_ACCOUNT_BYTES,
+    MAX_VIDEOS_PER_ITEM,
   ).first();
   return row ? /** @type {number} */ (row.position) : null;
 }

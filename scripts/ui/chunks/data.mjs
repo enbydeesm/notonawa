@@ -57,7 +57,7 @@ export default async function () {
   check("a file that isn't an export is refused", (await chooseFile("notes.json", "application/json", '{"hello":1}'))[2],
     "This isn't a NotoNawa export.");
 
-  // With photos, the export is a zip that imports back.
+  // With photos (and a video), the export is a zip that imports back.
   const photoTie = await run(`
     const id = await post("/api/ties", { title: "Zip test", tie_type: "floor", tie_date: "2026-11-05" });
     const canvas = document.createElement("canvas"); canvas.width = 300; canvas.height = 200;
@@ -65,6 +65,17 @@ export default async function () {
     const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
     const prepared = await (await import("/js/photo-prep.js")).preparePhoto(new File([blob], "x.jpg", { type: "image/jpeg" }));
     await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
+    // A one-second clip, made here with the app's video library.
+    const mb = await import("/js/vendor/mediabunny.js");
+    const frames = new OffscreenCanvas(64, 48);
+    const output = new mb.Output({ format: new mb.Mp4OutputFormat(), target: new mb.BufferTarget() });
+    const source = new mb.CanvasSource(frames, { codec: "avc", bitrate: 2e5 });
+    output.addVideoTrack(source, { frameRate: 10 });
+    await output.start();
+    for (let i = 0; i < 10; i++) { frames.getContext("2d").fillRect(i * 4, 0, 8, 8); await source.add(i / 10, 0.1); }
+    await output.finalize();
+    const clip = await (await import("/js/video-prep.js")).prepareVideo(new File([output.target.buffer], "c.mp4", { type: "video/mp4" }));
+    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared: clip, caption: "Zip clip" });
     return id;`);
   const zipDownloads = path.join(workDir, "downloads-zip");
   await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: zipDownloads });
@@ -76,29 +87,32 @@ export default async function () {
   const zipBytes = zipped.length ? readFileSync(path.join(zipDownloads, zipped[0])) : Buffer.alloc(0);
   const zipFiles = zipped.length ? await readZip(zipBytes.buffer.slice(zipBytes.byteOffset, zipBytes.byteOffset + zipBytes.length)) : new Map();
   const zipDoc = JSON.parse(new TextDecoder().decode(zipFiles.get("notonawa.json") ?? new TextEncoder().encode("{}")));
-  const zipPhoto = zipDoc.ties?.find((t) => t.title === "Zip test")?.photos?.[0];
+  const [zipPhoto, zipVideo] = zipDoc.ties?.find((t) => t.title === "Zip test")?.photos ?? [];
   const photoBytes = zipPhoto ? zipFiles.get(zipPhoto.file) : null;
-  check("…holding the journal and the photo, decrypted, with its caption", [
+  const videoBytes = zipVideo ? zipFiles.get(zipVideo.file) : null;
+  check("…holding the journal and the photo and video, decrypted, with their captions", [
     /^notonawa-\d{4}-\d\d-\d\d\.zip$/.test(zipped[0] ?? ""), zipPhoto?.caption, zipPhoto?.file?.startsWith("photos/"),
     photoBytes ? new TextDecoder("latin1").decode(photoBytes.subarray(0, 12)).replace(/^RIFF.{4}/s, "RIFF") : null,
-  ], [true, "Zip caption", true, "RIFFWEBP"]);
-  // The photo is deleted, then the zip imported: it comes back on the tie.
-  await run(`const [m] = await (await fetch("/api/media?tie_id=${photoTie}")).json(); await fetch("/api/media/" + m.id, { method: "DELETE" });`);
+    zipVideo?.caption, zipVideo?.kind, /^photos\/.+\.mp4$/.test(zipVideo?.file ?? ""),
+    videoBytes ? new TextDecoder("latin1").decode(videoBytes.subarray(4, 8)) : null,
+  ], [true, "Zip caption", true, "RIFFWEBP", "Zip clip", "video", true, "ftyp"]);
+  // The photo and video are deleted, then the zip imported: they come back on the tie.
+  await run(`for (const m of await (await fetch("/api/media?tie_id=${photoTie}")).json()) await fetch("/api/media/" + m.id, { method: "DELETE" });`);
   const chooseZip = () => run(`
     const bytes = Uint8Array.from(atob(${JSON.stringify(zipBytes.toString("base64"))}), (c) => c.charCodeAt(0));
     const dt = new DataTransfer(); dt.items.add(new File([bytes], ${JSON.stringify(zipped[0] ?? "x.zip")}, { type: "application/zip" }));
     $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(2000);
     return [[...document.querySelectorAll("#import-preview .item")].map(flat).filter((t) => t.startsWith("Photos")), $("#import-go").hidden ? null : $("#import-go").textContent];`);
   check("importing the zip previews its photos", await chooseZip(),
-    [["Photos | 1 in the file (added to ties and plans that don't already have photos)"], "Import"]);
-  check("…and puts the photo back on its tie, with its caption", await run(`
+    [["Photos | 2 in the file (added to ties and plans that don't already have photos)"], "Import"]);
+  check("…and puts the photo and video back on their tie, with their captions", await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     const listed = await (await fetch("/api/media?tie_id=${photoTie}")).json();
     const opened = await (await import("/js/vault.js")).openMedia(listed);
-    return [$("#import-message").textContent, opened.map((p) => p.caption)];`),
-    ["Imported 0 ties. Skipped 4 ties already in your journal. Added 1 photo.", ["Zip caption"]]);
+    return [$("#import-message").textContent, opened.map((p) => [p.kind, p.caption])];`),
+    ["Imported 0 ties. Skipped 4 ties already in your journal. Added 2 photos.", [["photo", "Zip caption"], ["video", "Zip clip"]]]);
   check("importing it again doesn't add the photo twice", (await chooseZip(), await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
-    ["Imported 0 ties. Skipped 4 ties already in your journal. Skipped 1 photo on ties or plans that already have photos.", 1]);
+    ["Imported 0 ties. Skipped 4 ties already in your journal. Skipped 2 photos on ties or plans that already have photos.", 2]);
 }

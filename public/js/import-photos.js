@@ -1,4 +1,4 @@
-// The photos in an import: taken off the file's ties and plans before
+// The photos and videos in an import: taken off the file's ties and plans before
 // anything is sent (their captions are plain text in the file, and the
 // server never sees a caption unsealed), then uploaded one by one once the
 // journal's part is saved. Pure, so it's easy to test.
@@ -8,8 +8,8 @@
 // finish, without making copies.
 
 /**
- * A photo listed in an export: `file` is its path inside the zip.
- * @typedef {{ file: string, caption: string | null, position: number }} PhotoEntry
+ * A photo or video listed in an export: `file` is its path inside the zip.
+ * @typedef {{ file: string, kind: "photo" | "video", caption: string | null, position: number }} PhotoEntry
  */
 
 /**
@@ -45,16 +45,18 @@ export function takePhotos(doc) {
 }
 
 /**
- * A photo list's usable entries (photos with a file), first to last.
+ * A photo list's usable entries (photos and videos with a file; older
+ * exports don't say the kind of a photo), first to last.
  * @param {unknown} list
  * @returns {PhotoEntry[]}
  */
 function readEntries(list) {
   if (!Array.isArray(list)) return [];
   return list
-    .filter((p) => p && typeof p.file === "string" && p.file !== "" && (p.kind === undefined || p.kind === "photo"))
+    .filter((p) => p && typeof p.file === "string" && p.file !== "" && [undefined, "photo", "video"].includes(p.kind))
     .map((p, i) => ({
       file: p.file,
+      kind: p.kind === "video" ? /** @type {const} */ ("video") : /** @type {const} */ ("photo"),
       caption: typeof p.caption === "string" && p.caption.trim() !== "" ? p.caption : null,
       position: Number.isFinite(p.position) ? p.position : i,
     }))
@@ -62,10 +64,13 @@ function readEntries(list) {
 }
 
 /**
- * A photo's type from its name in the zip (what the file picker would say).
+ * A photo's or video's type from its name in the zip (what the file
+ * picker would say).
  * @param {string} name
  */
 export function typeFromName(name) {
+  if (/\.mp4$/i.test(name)) return "video/mp4";
+  if (/\.mov$/i.test(name)) return "video/quicktime";
   if (/\.webp$/i.test(name)) return "image/webp";
   if (/\.jpe?g$/i.test(name)) return "image/jpeg";
   if (/\.png$/i.test(name)) return "image/png";

@@ -73,6 +73,29 @@ export default async function () {
       .ties.find((t) => t.title === "Photo test");
     const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
     return [shown, listed.map((p) => p.caption === null)];`), [["", "Front view"], [true, false]]);
+  // A drag from one tile to another, as pointer events: by mouse, or by
+  // finger after holding (holdMs) or not (a swipe, which should scroll).
+  const drag = (pointerType, holdMs) => run(`
+    const tiles = () => [...document.querySelectorAll("#tie-photos .photo-tile")];
+    const centre = (t) => { const r = t.getBoundingClientRect(); return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }; };
+    const [a, b] = tiles().map(centre);
+    const at = (p, dx = 0) => ({ bubbles: true, cancelable: true, pointerId: 7, pointerType: "${pointerType}", button: 0, clientX: p.clientX + dx, clientY: p.clientY });
+    tiles()[0].querySelector(".photo-thumb").dispatchEvent(new PointerEvent("pointerdown", at(a)));
+    await wait(${holdMs});
+    document.dispatchEvent(new PointerEvent("pointermove", at(a, 20)));
+    document.dispatchEvent(new PointerEvent("pointermove", at(b)));
+    const marked = tiles()[1].classList.contains("drop-target");
+    document.dispatchEvent(new PointerEvent("pointerup", at(b)));
+    await wait(800);
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    return [marked, tiles().map((t) => t.querySelector("figcaption")?.textContent ?? ""), listed.map((p) => p.caption === null),
+      document.querySelectorAll("#tie-photos .dragging, #tie-photos .drop-target").length];`);
+  check("dragging a photo with the mouse moves it, and the order is saved",
+    await drag("mouse", 0), [true, ["Front view", ""], [false, true], 0]);
+  check("…with a finger after holding it still, too", await drag("touch", 500), [true, ["", "Front view"], [true, false], 0]);
+  check("…but a finger moving straight away scrolls instead", await drag("touch", 0), [false, ["", "Front view"], [true, false], 0]);
   check("locking revokes the photos shown", await run(`
     const src = $("#tie-photos .photo-thumb img").src;
     const loads = (url) => new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(true); i.onerror = () => resolve(false); i.src = url; });
@@ -111,4 +134,133 @@ export default async function () {
     $("[data-cancel-edit]").click(); await wait(200);
     return [shown, photo.mime, res.status, (await fetch("/api/media/" + photo.id + "/thumb")).status];`),
     [1, "image/webp", 204, 404]);
+
+  // Videos. A clip made here as a camera would: an MP4 with sound, its
+  // metadata tags and track names holding made-up secrets (made with the
+  // app's own copy of mediabunny, as there's no camera here).
+  const makeClip = ({ seconds, width, height, fps, sound, rotation = 0, sampleRate = 48000 }) => run(`
+    const mb = await import("/js/vendor/mediabunny.js");
+    const canvas = new OffscreenCanvas(${width}, ${height}); const ctx = canvas.getContext("2d");
+    const output = new mb.Output({ format: new mb.Mp4OutputFormat(), target: new mb.BufferTarget() });
+    const video = new mb.CanvasSource(canvas, { codec: "avc", bitrate: 1e6 });
+    output.addVideoTrack(video, { name: "SECRET-DEVICE", frameRate: ${fps}, rotation: ${rotation} });
+    const audio = ${sound} ? new mb.AudioBufferSource({ codec: "aac", bitrate: 128000 }) : null;
+    if (audio) output.addAudioTrack(audio, { name: "SECRET-MIC" });
+    output.setMetadataTags({ title: "SECRET-TITLE", comment: "SECRET-GPS-48.8584N", date: new Date("2020-01-02T03:04:05Z") });
+    await output.start();
+    for (let i = 0; i < ${seconds * fps}; i++) {
+      ctx.fillStyle = i % 2 ? "#c33" : "#33c"; ctx.fillRect(0, 0, ${width}, ${height});
+      ctx.fillStyle = "#fff"; ctx.fillRect((i * 10) % ${width}, 0, 8, 8);
+      await video.add(i / ${fps}, 1 / ${fps});
+    }
+    if (audio) {
+      const buffer = new AudioBuffer({ length: ${sampleRate} * ${seconds}, numberOfChannels: 2, sampleRate: ${sampleRate} });
+      const data = buffer.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = Math.sin(i / 20) * 0.2;
+      await audio.add(buffer);
+    }
+    await output.finalize();
+    window.__clip = new File([output.target.buffer], "clip.mp4", { type: "video/mp4" });
+    const text = new TextDecoder("latin1").decode(output.target.buffer);
+    return ["SECRET-DEVICE", "SECRET-TITLE", "SECRET-GPS"].every((secret) => text.includes(secret));`);
+  // Picks the clip in the open tie's Photos section, as the file dialog
+  // would, and waits for it to be prepared and uploaded (up to 50 seconds).
+  const pickClip = () => run(`
+    const dt = new DataTransfer(); dt.items.add(window.__clip);
+    $("#tie-photo-input").files = dt.files; $("#tie-photo-input").dispatchEvent(new Event("change"));
+    await wait(300);
+    for (let i = 0; i < 500 && /Preparing|Uploading/.test($("#tie-photos-message").textContent); i++) await wait(100);
+    await wait(500);
+    return [document.querySelectorAll("#tie-photos .video-badge").length, $("#tie-photos-message").textContent];`);
+  const openVideoTie = `
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Video test").click(); await wait(1500);`;
+  const listedVideo = `
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Video test");
+    const [video] = await (await fetch("/api/media?tie_id=" + tie.id)).json();`;
+
+  await go("/");
+  check("a camera-like clip holds its secrets before it's added",
+    await makeClip({ seconds: 2, width: 1280, height: 720, fps: 30, sound: true }), true);
+  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Video test"); set("#tie-tie_type", "floor");
+    $("#tie-save").click(); await wait(2000); await settle(); ${openVideoTie}`);
+  check("the + takes videos, and one added to a saved tie is prepared and uploaded, marked ▶",
+    await pickClip(), [1, ""]);
+  check("the server only has it encrypted, as an MP4 video", await run(`${listedVideo}
+    const sealed = new TextDecoder("latin1").decode(await (await fetch("/api/media/" + video.id + "/full")).arrayBuffer());
+    return [video.kind, video.mime, sealed.includes("ftyp"), sealed.includes("SECRET")];`), ["video", "video/mp4", false, false]);
+  check("opened on the device: 480p with its sound, and none of the clip's metadata", await run(`${listedVideo}
+    const bytes = await (await import("/js/vault.js")).openPhoto(video.id, "full", "video");
+    const text = new TextDecoder("latin1").decode(bytes);
+    const mb = await import("/js/vendor/mediabunny.js");
+    const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) });
+    const track = await input.getPrimaryVideoTrack();
+    const sound = await input.getPrimaryAudioTrack();
+    const tags = await input.getMetadataTags();
+    return [text.slice(4, 8), await track.getDisplayWidth(), await track.getDisplayHeight(), Math.round(await input.computeDuration()),
+      await track.getCodec(), await sound?.getCodec(), await track.getName(), await sound?.getName(),
+      [tags.title, tags.comment, tags.date].filter(Boolean).length, /SECRET|48\\.8584/.test(text)];`),
+    ["ftyp", 854, 480, 2, "avc", "aac", null, null, 0, false]);
+  check("the viewer plays it from a blob: URL, with its speeds; 1.5× sets the speed", await run(`
+    $("#tie-photos .photo-thumb").click();
+    const video = $("#tie-video");
+    for (let i = 0; i < 50 && !(video.src.startsWith("blob:") && video.readyState >= 1); i++) await wait(100);
+    const speeds = [...document.querySelectorAll("#tie-video-speeds .speed")];
+    speeds.find((b) => b.textContent === "1.5×").click();
+    return [video.src.startsWith("blob:"), video.poster.startsWith("blob:"), Math.round(video.duration), speeds.map((b) => b.textContent),
+      video.playbackRate, speeds.filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent),
+      $("#tie-photo-delete").textContent, leakyFields()];`),
+    [true, true, 2, ["0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×"], 1.5, ["1.5×"], "Delete video", []]);
+  check("a phone's upright clip (stored on its side, with a rotation) comes out upright, the rotation drawn in", await run(`
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    return true;`) && await makeClip({ seconds: 1, width: 1280, height: 720, fps: 30, sound: false, rotation: 90 }) && await pickClip()
+    && await run(`
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Video test");
+    const [, video] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const mb = await import("/js/vendor/mediabunny.js");
+    const bytes = await (await import("/js/vault.js")).openPhoto(video.id, "full", "video");
+    const track = await new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) }).getPrimaryVideoTrack();
+    return [await track.getDisplayWidth(), await track.getDisplayHeight(), await track.getRotation()];`), [480, 854, 0]);
+  // A browser that can't encode the sound (as if AudioEncoder refused AAC;
+  // a sample rate not checked yet, as the answers are remembered) asks.
+  const pickSilent = (answer) => run(`
+    window.__realAudioCheck ??= AudioEncoder.isConfigSupported;
+    AudioEncoder.isConfigSupported = async (config) => ({ supported: false, config });
+    const before = document.querySelectorAll("#tie-photos .video-badge").length;
+    const dt = new DataTransfer(); dt.items.add(window.__clip);
+    $("#tie-photo-input").files = dt.files; $("#tie-photo-input").dispatchEvent(new Event("change"));
+    const asked = () => [...document.querySelectorAll("dialog[open]")].find((d) => d.querySelector("h2")?.textContent === "Upload without sound?");
+    for (let i = 0; i < 100 && !asked(); i++) await wait(100);
+    const dialog = asked();
+    const text = dialog ? [dialog.querySelector("p").textContent, [...dialog.querySelectorAll("button")].map((b) => b.textContent)] : null;
+    [...(dialog?.querySelectorAll("button") ?? [])].find((b) => b.textContent === ${JSON.stringify(answer)})?.click();
+    await wait(300);
+    for (let i = 0; i < 400 && /Preparing|Uploading/.test($("#tie-photos-message").textContent); i++) await wait(100);
+    await wait(500);
+    AudioEncoder.isConfigSupported = window.__realAudioCheck;
+    return [text, document.querySelectorAll("#tie-photos .video-badge").length - before, $("#tie-photos-message").textContent];`);
+  check("when the sound can't be encoded, it asks first; Cancel leaves the clip out",
+    await makeClip({ seconds: 1, width: 640, height: 360, fps: 30, sound: true, sampleRate: 44100 }) && await pickSilent("Cancel"),
+    [["This browser can't encode the sound in clip.mp4, so it can only be uploaded silent. To keep its sound, add it from the latest Chrome or Safari instead.",
+      ["Upload without sound", "Cancel"]], 0, "clip.mp4: Not added, as this browser could only upload it without its sound."]);
+  check("…and \"Upload without sound\" uploads it silent", await pickSilent("Upload without sound") && await run(`
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Video test");
+    const videos = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const mb = await import("/js/vendor/mediabunny.js");
+    const bytes = await (await import("/js/vault.js")).openPhoto(videos[videos.length - 1].id, "full", "video");
+    const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) });
+    return [videos.length, !!(await input.getPrimaryVideoTrack()), await input.getPrimaryAudioTrack()];`), [3, true, null]);
+  check("locking empties the video too", await run(`
+    $("#tie-photos .photo-thumb").click(); await wait(1500);
+    (await import("/js/vault.js")).lock(); await wait(500);
+    return [...document.querySelectorAll("video")].some((v) => v.src.startsWith("blob:") || v.poster.startsWith("blob:"));`), false);
+  await go("/");
+  check("a clip over 3 minutes is refused, saying how long it is", await run(`${openVideoTie}
+    return true;`) && await makeClip({ seconds: 181, width: 32, height: 32, fps: 1, sound: false }) && await pickClip(),
+  [3, "clip.mp4: That video is 3:01 long. Trim it to under 3 minutes and try again."]);
+  check("deleting the tie deletes its video", await run(`${listedVideo}
+    $("#tie-delete").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await wait(1000);
+    return (await fetch("/api/media/" + video.id + "/thumb")).status;`), 404);
 }

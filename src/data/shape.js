@@ -116,7 +116,7 @@ export function exportDocument(rows, exportedAt) {
 }
 
 /**
- * A photo as the export lists it.
+ * A photo or video as the export lists it.
  * @param {Row} m
  */
 function photoEntry(m) {
@@ -127,12 +127,13 @@ function photoEntry(m) {
 }
 
 /**
- * Where a photo goes inside the export's zip, e.g. photos/<id>.webp.
+ * Where a photo or video goes inside the export's zip, e.g.
+ * photos/<id>.webp or photos/<id>.mp4.
  * @param {string} id
  * @param {string} mime
  */
 export function photoFile(id, mime) {
-  return `photos/${id}.${mime === "image/webp" ? "webp" : "jpg"}`;
+  return `photos/${id}.${mime === "image/webp" ? "webp" : mime === "video/mp4" ? "mp4" : "jpg"}`;
 }
 
 /**

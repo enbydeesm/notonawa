@@ -5,8 +5,9 @@
 // is saved, and an import seals them before anything is sent.
 //
 // With photos, an export is a .zip: notonawa.json and a photos/
-// folder, each photo decrypted here. Importing one saves the journal first,
-// then prepares, seals and uploads each photo (import-photos.js).
+// folder, each photo and video decrypted here. Importing one saves the
+// journal first, then prepares, seals and uploads each photo and video
+// (import-photos.js). (Counts in messages call them all photos.)
 
 import { api, errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
@@ -21,6 +22,7 @@ import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import { uploadPhoto } from "../photo-upload.js";
+import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
 
 /** @typedef {import("../import-steps.js").ImportDoc} ImportDoc */
@@ -83,9 +85,9 @@ async function buildExport(progress) {
   const files = [];
   let missing = 0;
   for (const [i, entry] of entries.entries()) {
-    progress(`Decrypting photos… ${i + 1} of ${entries.length}`);
+    progress(`Decrypting photos and videos… ${i + 1} of ${entries.length}`);
     try {
-      files.push({ name: entry.file, data: new Uint8Array(await openPhoto(entry.id, "full")) });
+      files.push({ name: entry.file, data: new Uint8Array(await openPhoto(entry.id, "full", entry.kind === "video" ? "video" : "photo")) });
     } catch {
       // Can't be decrypted (or fetched): listed without a file.
       entry.file = null;
@@ -212,6 +214,8 @@ export function mount() {
    */
   async function importPhotos(targets, files) {
     const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
+    /** Whether videos can go up without their sound, once asked. @type {boolean | null} */
+    let silentOk = null;
     let done = 0;
     let added = 0;
     let kept = 0;
@@ -224,14 +228,24 @@ export function mount() {
         continue;
       }
       for (const entry of target.entries) {
-        showMessage(importMessage, `Adding photos… ${(++done).toLocaleString()} of ${total.toLocaleString()}`);
+        const counted = `${(++done).toLocaleString()} of ${total.toLocaleString()}`;
+        showMessage(importMessage, `Adding photos and videos… ${counted}`);
         const data = files.get(entry.file);
         if (!data) {
           problems.push(`${entry.file} isn't in the zip.`);
           continue;
         }
         try {
-          const prepared = await preparePhoto(new File([data], entry.file, { type: typeFromName(entry.file) }));
+          const file = new File([data], entry.file, { type: typeFromName(entry.file) });
+          // A video is prepared again like one just chosen: whatever made
+          // the zip, nothing but the re-encoded clip is stored.
+          const prepared = entry.kind === "video"
+            ? await (await import("../video-prep.js")).prepareVideo(file, {
+              onProgress: (fraction) => showMessage(importMessage, `Adding photos and videos… ${counted} (${Math.round(fraction * 100)}%)`),
+              // Asked once an import, not for every video.
+              withoutSound: async () => (silentOk ??= await askWithoutSound(entry.file)),
+            })
+            : await preparePhoto(file);
           await uploadPhoto({ item: target.item, prepared, caption: entry.caption });
           added++;
         } catch (err) {

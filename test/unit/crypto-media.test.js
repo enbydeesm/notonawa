@@ -1,8 +1,9 @@
-// Sealed photos and captions (public/js/crypto/media.js), and the crypto
-// Worker's photo operations (vault-core.js).
+// Sealed photos, videos and captions (public/js/crypto/media.js), and the
+// crypto Worker's photo and video operations (vault-core.js).
 import { describe, it, expect } from "vitest";
 import {
-  sealPart, openPart, sealPhoto, sealCaption, openCaption, CaptionTooLong, MAX_CAPTION,
+  sealPart, openPart, sealPhoto, sealVideo, sealPieces, openPieces, sealCaption, openCaption, CaptionTooLong,
+  MAX_CAPTION, PIECE_BYTES,
 } from "../../public/js/crypto/media.js";
 import { CantOpen, isSealed } from "../../public/js/crypto/fields.js";
 import { newDataKey } from "../../public/js/crypto/keys.js";
@@ -45,6 +46,63 @@ describe("sealed photo parts", () => {
     const full = await openPart(key, { userId: USER, mediaId: PHOTO, part: "full" }, body.slice(thumbBytes));
     expect([...new Uint8Array(thumb)]).toEqual([1, 1]);
     expect([...new Uint8Array(full)]).toEqual([2, 2, 2]);
+  });
+});
+
+describe("a video's full size, sealed in pieces", () => {
+  const where = { userId: USER, mediaId: PHOTO };
+  // Small pieces, so a few bytes make several: 3 of 4 bytes, the last of 2.
+  const PIECE = 4;
+  const SEALED_PIECE = 12 + PIECE + 16;
+  const video = () => bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+
+  it("opens to the same bytes, piece by piece", async () => {
+    const key = await newDataKey();
+    const sealed = await sealPieces(key, where, video(), PIECE);
+    expect(sealed.length).toBe(3 * SEALED_PIECE + 12 + 2 + 16);
+    expect([...new Uint8Array(await openPieces(key, where, sealed.buffer, PIECE))]).toEqual([...new Uint8Array(video())]);
+  });
+
+  it("works with a size that fills its last piece, and with 1 MB pieces", async () => {
+    const key = await newDataKey();
+    const even = bytes([1, 2, 3, 4, 5, 6, 7, 8]);
+    const sealed = await sealPieces(key, where, even, PIECE);
+    expect(sealed.length).toBe(2 * SEALED_PIECE);
+    expect([...new Uint8Array(await openPieces(key, where, sealed.buffer, PIECE))]).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    const big = new Uint8Array(PIECE_BYTES * 2 + 5).map((_, i) => (i * 7) % 251);
+    const opened = new Uint8Array(await openPieces(key, where, (await sealPieces(key, where, big.buffer)).buffer));
+    expect(opened.length).toBe(big.length);
+    expect(opened.every((b, i) => b === big[i])).toBe(true);
+  });
+
+  it("won't open cut short, even at a piece's end, or with pieces swapped", async () => {
+    const key = await newDataKey();
+    const sealed = (await sealPieces(key, where, video(), PIECE)).buffer;
+    for (const cut of [sealed.slice(0, 2 * SEALED_PIECE), sealed.slice(0, sealed.byteLength - 1), sealed.slice(0, 20), new ArrayBuffer(0)]) {
+      await expect(openPieces(key, where, cut, PIECE)).rejects.toThrow(CantOpen);
+    }
+    const swapped = new Uint8Array(sealed.byteLength);
+    swapped.set(new Uint8Array(sealed.slice(SEALED_PIECE, 2 * SEALED_PIECE)), 0);
+    swapped.set(new Uint8Array(sealed.slice(0, SEALED_PIECE)), SEALED_PIECE);
+    swapped.set(new Uint8Array(sealed.slice(2 * SEALED_PIECE)), 2 * SEALED_PIECE);
+    await expect(openPieces(key, where, swapped.buffer, PIECE)).rejects.toThrow(CantOpen);
+  });
+
+  it("won't open as another video's or user's, with another key, or as a photo", async () => {
+    const key = await newDataKey();
+    const sealed = (await sealPieces(key, where, video(), PIECE)).buffer;
+    await expect(openPieces(key, { ...where, mediaId: OTHER_PHOTO }, sealed, PIECE)).rejects.toThrow(CantOpen);
+    await expect(openPieces(key, { ...where, userId: "user-2" }, sealed, PIECE)).rejects.toThrow(CantOpen);
+    await expect(openPieces(await newDataKey(), where, sealed, PIECE)).rejects.toThrow(CantOpen);
+    const one = (await sealPieces(key, where, bytes([1, 2]), PIECE)).buffer;
+    await expect(openPart(key, { ...where, part: "full" }, one)).rejects.toThrow(CantOpen);
+  });
+
+  it("makes one object with the thumbnail first, sealed as a photo's is", async () => {
+    const key = await newDataKey();
+    const { body, thumbBytes } = await sealVideo(key, where, { thumb: bytes([9, 9]), full: video() });
+    expect([...new Uint8Array(await openPart(key, { ...where, part: "thumb" }, body.slice(0, thumbBytes)))]).toEqual([9, 9]);
+    expect(new Uint8Array(await openPieces(key, where, body.slice(thumbBytes))).length).toBe(14);
   });
 });
 
@@ -95,6 +153,14 @@ describe("the crypto Worker's photo operations", () => {
     expect([...new Uint8Array(await vault.openPhoto({ mediaId: PHOTO, part: "full" }))]).toEqual([2, 3]);
   });
 
+  it("seal a video, then open its full size from its pieces", async () => {
+    const { vault, store } = await unlocked();
+    store(PHOTO, await vault.sealVideo({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2, 3, 4]) }));
+    expect([...new Uint8Array(await vault.openPhoto({ mediaId: PHOTO, part: "thumb", kind: "video" }))]).toEqual([1]);
+    expect([...new Uint8Array(await vault.openPhoto({ mediaId: PHOTO, part: "full", kind: "video" }))]).toEqual([2, 3, 4]);
+    await expect(vault.openPhoto({ mediaId: PHOTO, part: "full" })).rejects.toThrow(CantOpen);
+  });
+
   it("won't open one photo's file as another's", async () => {
     const { vault, store } = await unlocked();
     store(OTHER_PHOTO, await vault.sealPhoto({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2]) }));
@@ -118,5 +184,6 @@ describe("the crypto Worker's photo operations", () => {
     const vault = new VaultCore();
     await expect(vault.sealPhoto({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2]) })).rejects.toThrow("locked");
     await expect(vault.openPhoto({ mediaId: PHOTO, part: "thumb" })).rejects.toThrow("locked");
+    await expect(vault.sealVideo({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2]) })).rejects.toThrow("locked");
   });
 });

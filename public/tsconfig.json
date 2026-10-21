@@ -14,5 +14,7 @@
     "types": [],
     "skipLibCheck": true
   },
-  "include": ["**/*.js"]
+  "include": ["**/*.js"],
+  // Copied libraries (scripts/vendor.mjs): their .d.ts files are used instead.
+  "exclude": ["js/vendor/**"]
 }

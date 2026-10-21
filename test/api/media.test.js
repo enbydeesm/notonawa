@@ -135,7 +135,7 @@ describe("uploading a photo", () => {
                  VALUES (?, ?, ?, 'photo', 'image/jpeg', ?, 1, 2)`, crypto.randomUUID(), me.id, tie, i).run();
     }
     const res = await upload({ tie_id: tie });
-    expect(res).toMatchObject({ status: 400, body: { error: "There can be at most 30 photos on a tie or plan." } });
+    expect(res).toMatchObject({ status: 400, body: { error: "There can be at most 30 photos and videos on a tie or plan." } });
     expect(await stored(me.id, res.id)).toBeNull();
   });
 
@@ -146,9 +146,40 @@ describe("uploading a photo", () => {
     await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
                VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, ?)`, crypto.randomUUID(), id, tie, MAX_ACCOUNT_BYTES - 30).run();
     const res = await upload({ tie_id: tie }, { cookie, thumb: 10, full: 30 });
-    expect(res).toMatchObject({ status: 400, body: { error: "Your photos have filled your 1 GB. Delete some to make room." } });
+    expect(res).toMatchObject({ status: 400, body: { error: "Your photos and videos have filled your 1 GB. Delete some to make room." } });
     expect(await stored(id, res.id)).toBeNull();
     expect((await upload({ tie_id: tie }, { cookie, thumb: 10, full: 20 })).status).toBe(201);
+  });
+
+  it("stores a video too, up to 5 a tie (with photos still allowed after)", async () => {
+    const tie = await newTie();
+    const me = await signedInUser();
+    const video = { params: { kind: "video", mime: "video/mp4" } };
+    for (let i = 0; i < 5; i++) expect((await upload({ tie_id: tie }, video)).status, `video ${i + 1}`).toBe(201);
+    const listed = await call(`/api/media?tie_id=${tie}`);
+    expect(listed.body.map((/** @type {any} */ m) => [m.kind, m.mime])).toEqual(Array(5).fill(["video", "video/mp4"]));
+    const sixth = await upload({ tie_id: tie }, video);
+    expect(sixth).toMatchObject({ status: 400, body: { error: "There can be at most 5 videos on a tie or plan." } });
+    expect(await stored(me.id, sixth.id)).toBeNull();
+    expect((await upload({ tie_id: tie })).status).toBe(201);
+  });
+
+  it("checks the video limit again as it saves the row", async () => {
+    // As if four uploads had passed the first check at once, and two
+    // finished first: the row's own check stops the rest.
+    const tie = await newTie();
+    const me = await signedInUser();
+    for (let i = 0; i < 5; i++) {
+      await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
+                 VALUES (?, ?, ?, 'video', 'video/mp4', ?, 1, 2)`, crypto.randomUUID(), me.id, tie, i).run();
+    }
+    const { insertMedia } = await import("../../src/media/db.js");
+    const upload = {
+      id: crypto.randomUUID(), item: /** @type {const} */ ({ column: "tie_id", table: "ties", id: tie }),
+      kind: /** @type {const} */ ("video"), mime: "video/mp4", thumbBytes: 1, bytes: 2,
+    };
+    expect(await insertMedia(env.DB, me.id, upload)).toBeNull();
+    expect(await insertMedia(env.DB, me.id, { ...upload, kind: "photo", mime: "image/jpeg" })).toBe(5);
   });
 
   it("is refused from another site, and in a recovery session", async () => {

@@ -15,16 +15,26 @@ describe("takePhotos", () => {
     expect(JSON.stringify(result.doc)).not.toMatch(/photos|Front|Back/);
     expect(result.doc.ties).toEqual([{ title: "One" }, { title: "Two" }]);
     expect(result.count).toBe(3);
-    expect([...result.ties]).toEqual([[1, [{ file: "photos/c.jpg", caption: "Front", position: 0 }]]]);
+    expect([...result.ties]).toEqual([[1, [{ file: "photos/c.jpg", kind: "photo", caption: "Front", position: 0 }]]]);
     expect(result.plans.get("p1")).toEqual([
-      { file: "photos/a.webp", caption: null, position: 0 },
-      { file: "photos/b.webp", caption: "Back", position: 1 },
+      { file: "photos/a.webp", kind: "photo", caption: null, position: 0 },
+      { file: "photos/b.webp", kind: "photo", caption: "Back", position: 1 },
     ]);
     expect(result.plans.has("p2")).toBe(false);
   });
 
-  it("leaves out entries without a file (couldn't be decrypted when exported) and videos, for now", () => {
-    const result = takePhotos({ plans: [], ties: [{ photos: [{ file: null, caption: "x" }, { file: "v.mp4", kind: "video" }, "junk"] }] });
+  it("takes videos too, in order with the photos", () => {
+    const result = takePhotos({ plans: [], ties: [{ photos: [
+      { file: "photos/v.mp4", kind: "video", caption: "Wrap", position: 1 }, { file: "photos/p.webp", kind: "photo", position: 0 },
+    ] }] });
+    expect(result.ties.get(0)).toEqual([
+      { file: "photos/p.webp", kind: "photo", caption: null, position: 0 },
+      { file: "photos/v.mp4", kind: "video", caption: "Wrap", position: 1 },
+    ]);
+  });
+
+  it("leaves out entries without a file (couldn't be decrypted when exported) or of another kind", () => {
+    const result = takePhotos({ plans: [], ties: [{ photos: [{ file: null, caption: "x" }, { file: "a.wav", kind: "audio" }, "junk"] }] });
     expect(result.count).toBe(0);
     expect(result.ties.size).toBe(0);
   });
@@ -32,8 +42,8 @@ describe("takePhotos", () => {
 
 describe("typeFromName and journalEntry", () => {
   it("tell a photo's type by its extension", () => {
-    expect(["a.webp", "a.JPG", "a.jpeg", "a.png", "a.gif"].map(typeFromName))
-      .toEqual(["image/webp", "image/jpeg", "image/jpeg", "image/png", ""]);
+    expect(["a.webp", "a.JPG", "a.jpeg", "a.png", "a.gif", "a.mp4", "a.MOV"].map(typeFromName))
+      .toEqual(["image/webp", "image/jpeg", "image/jpeg", "image/png", "", "video/mp4", "video/quicktime"]);
   });
   it("find the journal in the zip", () => {
     expect(journalEntry(["photos/a.webp", "notonawa.json"])).toBe("notonawa.json");

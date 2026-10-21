@@ -14,7 +14,7 @@
 import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./keys.js";
 import { sealRecord, openRecord } from "./fields.js";
 import { matchingTies } from "../search-match.js";
-import { sealPhoto, openPart, sealCaption, openCaption } from "./media.js";
+import { sealPhoto, sealVideo, openPart, openPieces, sealCaption, openCaption } from "./media.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
 /** @typedef {import("./fields.js").RecordKind} RecordKind */
@@ -175,14 +175,27 @@ export class VaultCore {
   }
 
   /**
-   * One of my photos' thumbnail or full size, fetched and opened. Throws
-   * CantOpen if it won't open.
-   * @param {{ mediaId: string, part: "thumb" | "full" }} args
+   * A prepared video (re-encoded without its metadata) sealed into the
+   * object to upload, bound to its id: its full size in pieces.
+   * @param {{ mediaId: string, thumb: ArrayBuffer, full: ArrayBuffer }} args
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async sealVideo({ mediaId, thumb, full }) {
+    const [key, userId] = this.#unlocked();
+    return sealVideo(key, { userId, mediaId }, { thumb, full });
+  }
+
+  /**
+   * One of my photos' or videos' thumbnail or full size, fetched and
+   * opened. Throws CantOpen if it won't open.
+   * @param {{ mediaId: string, part: "thumb" | "full", kind?: "photo" | "video" }} args
    * @returns {Promise<ArrayBuffer>}
    */
-  async openPhoto({ mediaId, part }) {
+  async openPhoto({ mediaId, part, kind = "photo" }) {
     const [key, userId] = this.#unlocked();
-    return openPart(key, { userId, mediaId, part }, await this.#loadPart(mediaId, part));
+    const sealed = await this.#loadPart(mediaId, part);
+    if (kind === "video" && part === "full") return openPieces(key, { userId, mediaId }, sealed);
+    return openPart(key, { userId, mediaId, part }, sealed);
   }
 
   /**

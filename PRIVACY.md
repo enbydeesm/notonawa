@@ -5,16 +5,16 @@
 ## The short version
 
 - NōtoNawa is a private journal for rope practice. It is built so that
-  **the most sensitive parts, your notes and your photos, are encrypted on
-  your device before they leave it.** We can't read them, and neither can
+  **the most sensitive parts, your notes, photos and videos, are encrypted
+  on your device before they leave it.** We can't read them, and neither can
   anyone who gets hold of our servers.
 - **You sign in with a passkey.** There are no passwords, and we don't ask for
   your legal name or a sign-in through Google, Apple or anyone else. An email
   address is optional, only for account recovery, and we keep only a
   scrambled copy that we can't read.
 - **Keep a second passkey and your recovery code.** If you lose them all, we
-  can't guarantee to get you back in, and your encrypted notes and photos
-  can't be recovered by anyone.
+  can't guarantee to get you back in, and your encrypted notes, photos and
+  videos can't be recovered by anyone.
 - **No ads, no analytics, no tracking, no selling or sharing your data.** The
   app loads no scripts or fonts from other companies.
 - Some information has to stay readable by our server so the app can sort and
@@ -71,7 +71,7 @@ Contact us about privacy, give feedback, or tell us how frickin cool we are at c
   journal details in it. It's included in your export and deleted with
   your account. To attach a screenshot or get an answer by email, email us
   instead.
-- **Your encryption keys, locked.** Your notes and photos are encrypted with a
+- **Your encryption keys, locked.** Your notes, photos and videos are encrypted with a
   key that only exists unlocked on your own device. We store copies of it that
   are themselves locked by your passkeys and by your recovery code, so we
   can't use them, and which of your passkeys can unlock it. See
@@ -83,7 +83,7 @@ email address unless you add a recovery email.
 ### Your journal
 
 What you choose to write in the app: ties, plans, people, locations, tags
-and photos. Some of this is encrypted so only you can read it, and some
+and photos and videos. Some of this is encrypted so only you can read it, and some
 isn't (see the next section).
 
 ### Technical information
@@ -99,7 +99,8 @@ analytics, advertising or tracking tools of any kind.
 **Encrypted on your device, so only you can read them:** every notes field
 (on ties, people, locations and plans, including plan descriptions), the
 photo album links on ties and plans, where people are based and their
-social and scene names, and your photos, their thumbnails and captions.
+social and scene names, and your photos and videos, their thumbnails and
+captions.
 
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, people and
@@ -107,8 +108,9 @@ locations (such as names, pronouns, titles, dates, types, ratings, who took
 part, whether someone is an educator, and a location's city, state or
 province and country),
 your tags, when things were created, changed or archived and how they link
-together, and for each photo which tie or plan it's on, its size, its file
-type and when it was added (not what it shows).
+together, and for each photo or video which tie or plan it's on, its size,
+whether it's a photo or a video, its file type and when it was added (not
+what it shows).
 
 This readable information is still private to your account: the app never shows it to
 anyone else, and we don't look at it (see [Our own access](#our-own-access)).
@@ -121,7 +123,7 @@ encrypt more of these fields over time.
 ## How encryption works
 
 - When you create your account, your device makes a random encryption key.
-  Your notes and photos are encrypted with it (AES-256-GCM) on your device,
+  Your notes, photos and videos are encrypted with it (AES-256-GCM) on your device,
   before anything is sent to us.
 - That key is locked using a secret your passkey produces (the WebAuthn "PRF"
   feature), which never leaves your device: it's never sent to us. On its
@@ -134,18 +136,19 @@ encrypt more of these fields over time.
   unlocked once with your recovery code.
 - You get a **recovery code** when you create your account. It can also unlock
   your key. We show it once and don't keep a copy.
-- **If you lose every passkey and your recovery code, your encrypted notes and
-  photos can't be recovered, by you or by us.** That is the cost of us not
+- **If you lose every passkey and your recovery code, your encrypted notes,
+  photos and videos can't be recovered, by you or by us.** That is the cost of us not
   being able to read them. **We strongly recommend keeping a second passkey
   (on another device, or a hardware security key) and keeping your recovery
   code somewhere safe**, such as a password manager or on paper.
 
 ## How the app protects your data on your device
 
-- **Nothing decrypted is saved on your device.** Your notes and photos are
-  decrypted in your browser's memory only while the app is open and
-  unlocked, and are never written to the browser's storage, its cache or its
-  form history. Photos on screen are let go of when the app locks. Our pages
+- **Nothing decrypted is saved on your device.** Your notes, photos and
+  videos are decrypted in your browser's memory only while the app is open
+  and unlocked, and are never written to the browser's storage, its cache or
+  its form history. Photos and videos on screen are let go of when the app
+  locks. Our pages
   and data are sent with instructions not to be cached. The browser's
   spellcheck is turned off in the app, because some browsers can send the
   text being checked to their maker. The one exception is an export, which
@@ -176,23 +179,28 @@ and browser extensions you install can see what's on the page. Using
 full-disk encryption on your devices, and being careful which extensions you
 allow on this site, protects you further.
 
-## Photos
+## Photos and videos
 
 - Before a photo leaves your device, the app removes its hidden metadata,
   including GPS location, camera details and timestamps, by redrawing it as
   a new image. It's also made smaller (at most 2048 pixels on its longest
   side) to save space, and a small thumbnail is made from it. Your original
   file is never uploaded.
-- The photo, its thumbnail and its caption are then encrypted on your
-  device and stored in a private storage area that isn't reachable from the
-  internet. Photos are only ever handed back to your own signed-in account,
-  and only your device can decrypt them.
-- Each account can store up to 1 GB of photos, and up to 30 on each tie
-  or plan.
-- We never scan, analyse, tag or share your photos, and no other company
-  processes them.
-- **Only store photos of people who have agreed to it.** You are responsible
-  for having their consent.
+- A video (up to 3 minutes) is re-encoded on your device in the same way:
+  every frame and its sound are written into a new, smaller file (480p),
+  and none of the original's metadata (GPS location, dates, the phone or
+  camera it was made with, track names) is copied over. A frame from it is
+  made into a small thumbnail. Your original file is never uploaded.
+- The photo or video, its thumbnail and its caption are then encrypted on
+  your device and stored in a private storage area that isn't reachable
+  from the internet. They're only ever handed back to your own signed-in
+  account, and only your device can decrypt them.
+- Each account can store up to 1 GB of photos and videos together, and up
+  to 30 on each tie or plan, of which up to 5 can be videos.
+- We never scan, analyse, tag or share your photos or videos, and no other
+  company processes them.
+- **Only store photos and videos of people who have agreed to it.** You are
+  responsible for having their consent.
 
 ## Information about other people
 
@@ -206,11 +214,11 @@ about them.
 
 NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is
 our only service provider with access to stored data. We ask Cloudflare to
-store photos in North America [and the database in enam]; Cloudflare
+store photos and videos in North America [and the database in enam]; Cloudflare
 doesn't guarantee where data is kept, and its network may handle it in
 other countries. Everything is
 encrypted at rest by Cloudflare, in addition to our own encryption of your
-notes and photos.
+notes, photos and videos.
 
 When you paste a short Google Maps link (maps.app.goo.gl) into a location, our
 server asks Google where the link points, to fill in its coordinates. Google
@@ -235,10 +243,10 @@ leaves your device. Your mode itself is saved with your account (see
 - **While you have an account**, we keep what you've stored until you delete
   it.
 - **When you delete something**, it's removed from our live database straight
-  away. Deleted photos are removed from storage straight away (deleting a tie
-  or plan deletes its photos too). If that's ever interrupted, a daily
+  away. Deleted photos and videos are removed from storage straight away
+  (deleting a tie or plan deletes its photos and videos too). If that's ever interrupted, a daily
   clean-up removes what was left within a day or two.
-- **When you delete your account**, everything in it (journal, photos,
+- **When you delete your account**, everything in it (journal, photos, videos,
   passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
   or password manager may still list your passkey for NōtoNawa; where the
   browser supports it, the app tells it the passkey no longer works.
@@ -248,7 +256,7 @@ leaves your device. Your mode itself is saved with your account (see
   backup is encrypted with a key that only Mx_Piggie holds, kept away from
   our servers, so not even our own systems can read it, and stored with
   Cloudflare in North America. Each one is deleted after 30 days. Photos
-  aren't in either: once deleted, they're gone. We would only restore from
+  and videos aren't in either: once deleted, they're gone. We would only restore from
   these to recover from a failure, never to bring back something you
   deleted unless you ask us to.
 - **Signed-out sessions** are deleted when you sign out, and expired sessions
@@ -258,9 +266,9 @@ leaves your device. Your mode itself is saved with your account (see
 
 Wherever you live, you can:
 
-- **Export** all your data from the app at any time, including your notes and
-  photos, decrypted on your device into a file only you hold (a .zip when
-  you have photos). It contains your
+- **Export** all your data from the app at any time, including your notes,
+  photos and videos, decrypted on your device into a file only you hold (a
+  .zip when you have photos or videos). It contains your
   whole journal, plus when you created your account and agreed to this
   policy, your passkeys' names and dates, whether you've set a recovery
   email (not the address, which we don't have), and any bug reports and
@@ -268,8 +276,8 @@ Wherever you live, you can:
   safe.
 - **Import** entries from an export, or ties from a spreadsheet (a CSV file).
   The file is read in your browser, and only the entries in it are sent to
-  us, just as if you'd typed them in. Photos in an export are prepared and
-  encrypted on your device first, as when you add one.
+  us, just as if you'd typed them in. Photos and videos in an export are
+  prepared and encrypted on your device first, as when you add one.
 - **Correct** anything by editing it in the app.
 - **Delete** individual entries, or your whole account, from the app.
 - **End sessions** on any device, or remove passkeys, from your account
@@ -293,7 +301,7 @@ The only person who can access NōtoNawa's systems is Mx_Piggie,
 using an account protected by a hardware security key. We don't browse users'
 data. We would look at the readable parts of an account only when you ask us
 to (for example to help with a problem), or when the law requires it.
-Encrypted notes and photos can't be read by us under any circumstances.
+Encrypted notes, photos and videos can't be read by us under any circumstances.
 
 **Keep a second passkey and your recovery code: we can't guarantee that we
 can restore your account or your data if you lose them all.** We may be able
@@ -308,7 +316,7 @@ to help you sign in again, but only if you added a recovery email:
   so we can't help.
 
 A new recovery code restores signing in and the parts of your journal we can
-read. It never brings back your encrypted notes and photos, which still need
+read. It never brings back your encrypted notes, photos and videos, which still need
 one of your own passkeys or your own earlier recovery code. (If you do unlock
 with one of those, the app gives you a new recovery code straight away, so
 the old one stops working.) If you have neither, you can start a new
@@ -318,7 +326,7 @@ encryption key, but what the old key encrypted can't be read again.
 
 If we receive a legally valid demand for data, we can only provide what we
 can read (see [What we can and can't read](#what-we-can-and-cant-read)). We
-cannot decrypt your notes or photos. Unless the law forbids it, we will tell
+cannot decrypt your notes, photos or videos. Unless the law forbids it, we will tell
 you about the request, with a message in the app, before handing anything
 over.
 

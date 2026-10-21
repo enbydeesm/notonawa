@@ -72,8 +72,8 @@ export default async function () {
     ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     return [fresh, editing];`),
-    ["Photos can be arranged and captioned to describe a sequence. They are uploaded when you save this form.",
-      "Photos can be arranged and captioned to describe a sequence."]);
+    ["Drag photos into order and caption them to describe a sequence. They are uploaded when you save this form.",
+      "Drag photos into order and caption them to describe a sequence."]);
   check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#plan-variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
     ["N/A", "Hip harness, one-sided"]);
 

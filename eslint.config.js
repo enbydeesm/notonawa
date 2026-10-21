@@ -5,7 +5,7 @@ import globals from "globals";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-  { ignores: ["node_modules/", ".wrangler/", "backups/", "worker-configuration.d.ts"] },
+  { ignores: ["node_modules/", ".wrangler/", "backups/", "worker-configuration.d.ts", "public/js/vendor/"] },
   js.configs.recommended,
   {
     rules: {
