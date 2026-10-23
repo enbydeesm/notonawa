@@ -27,6 +27,7 @@ export const ENCRYPTED = /** @type {const} */ ({
   location: { table: "locations", fields: ["notes"] },
   plan: { table: "plans", fields: ["description", "notes", "album_url"] },
   workshop: { table: "workshops", fields: ["description", "notes", "album_url"] },
+  drawing: { table: "drawings", fields: ["caption"] },
 });
 
 /** @typedef {keyof typeof ENCRYPTED} RecordKind */

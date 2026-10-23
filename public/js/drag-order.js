@@ -1,6 +1,7 @@
-// Dragging photos into order: the pure parts (where a drag starts, which
-// slot the pointer is over, the new order), kept apart from the pointer
-// handling in photos-ui.js so they can be tested without a browser.
+// Dragging photos and drawings into order: the pure parts (where a drag
+// starts, which slot the pointer is over, the new order), kept apart from
+// the pointer handling in tile-drag.js so they can be tested without a
+// browser.
 
 /** How far (in CSS pixels) a pointer moves before it counts as a drag, not a tap. */
 export const DRAG_PX = 8;

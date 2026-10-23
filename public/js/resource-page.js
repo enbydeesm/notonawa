@@ -6,6 +6,7 @@ import { api, errorMessage } from "./api.js";
 import { h, $, showMessage } from "./dom.js";
 import { open, sealOne, forgetSearch } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
+import { drawingSection } from "./drawings-ui.js";
 import { listTools } from "./list-tools.js";
 import { orderList } from "./list-order.js";
 
@@ -39,7 +40,8 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * form: its named fields match the API's fields. Elements with data-add-only
  *   are hidden while editing. Needs a .message, a submit button and a
  *   [data-cancel-edit] button. A [data-photos] element (plans only) gets the
- *   Photos section; a new item's photos are uploaded once it's saved.
+ *   Photos and Drawings sections; a new item's photos and drawings are
+ *   saved once it is.
  * signal: aborts when the view is left (its photos are revoked then).
  * onEdit: runs whenever the form switches to editing an item, or back to
  *   adding one (null), after it's reset.
@@ -83,6 +85,8 @@ export function setupResourcePage(config) {
   const photoSlot = /** @type {HTMLElement | null} */ (form.querySelector("[data-photos]"));
   /** @type {ReturnType<typeof photoSection> | null} */
   let photos = null;
+  /** @type {ReturnType<typeof drawingSection> | null} */
+  let drawings = null;
   const tools = config.searchable ? listTools({ noun: config.searchable.noun, onChange: draw }) : null;
   if (tools) {
     if (config.searchable?.slot) config.searchable.slot.append(tools.element);
@@ -91,14 +95,16 @@ export function setupResourcePage(config) {
   const itemActions = config.actionsInDialog ? $("[data-item-actions]", form) : null;
 
   /**
-   * A fresh Photos section for the item being edited (or a new one).
+   * Fresh Photos and Drawings sections for the item being edited (or a new one).
    * @param {string | null} id
    */
   function showPhotos(id) {
     if (!photoSlot) return;
     photos?.close();
+    drawings?.close();
     photos = photoSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
-    photoSlot.replaceChildren(photos.element);
+    drawings = drawingSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
+    photoSlot.replaceChildren(photos.element, drawings.element);
   }
 
   /**
@@ -273,8 +279,8 @@ export function setupResourcePage(config) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (photos?.busy) {
-      showMessage(message, "Wait for the photos to finish, then save.", true);
+    if (photos?.busy || drawings?.busy) {
+      showMessage(message, `Wait for the ${photos?.busy ? "photos" : "drawings"} to finish, then save.`, true);
       return;
     }
     submit.disabled = true;
@@ -299,6 +305,15 @@ export function setupResourcePage(config) {
           return;
         }
       }
+      if (drawings?.waiting) {
+        const problem = await drawings.savePending({ plan_id: id });
+        if (problem) {
+          markEditing(id);
+          showMessage(message, `Saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
+          await load();
+          return;
+        }
+      }
       if (dialog) {
         dialog.close();
       } else {
@@ -318,9 +333,14 @@ export function setupResourcePage(config) {
   dialog?.addEventListener("close", () => {
     photos?.close();
     photos = null;
+    drawings?.close();
+    drawings = null;
     editingId = null;
   });
-  config.signal?.addEventListener("abort", () => photos?.close());
+  config.signal?.addEventListener("abort", () => {
+    photos?.close();
+    drawings?.close();
+  });
   archivedToggle.addEventListener("change", load);
 
   setEditing(null);

@@ -27,7 +27,8 @@ import { openPhoto, sealCaption, openMedia, CantOpen } from "./vault.js";
 import { uploadPhoto } from "./photo-upload.js";
 import { photoUrl, revoke } from "./photo-urls.js";
 import { MAX_CAPTION } from "./crypto/media.js";
-import { HOLD_MS, movedFar, slotAt, moveItem } from "./drag-order.js";
+import { moveItem } from "./drag-order.js";
+import { tileDrag } from "./tile-drag.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./photo-prep.js").PreparedPhoto} PreparedPhoto */
@@ -78,25 +79,20 @@ export function photoSection({ item, idPrefix }) {
   /** @type {Photo[]} */
   let photos = [];
   let busy = 0;
-  /** Stops the drag under way, if any (its listeners are on document). */
-  let dragStop = new AbortController();
-  /** When the last drag ended: the click that follows it isn't a tap. */
-  let draggedAt = 0;
 
   const status = h("p", { className: "message", id: `${idPrefix}-photos-message`, "aria-live": "polite" });
   const grid = h("div", { className: "photo-grid", id: `${idPrefix}-photos` });
-  grid.addEventListener("pointerdown", startDrag);
-  // A drag ends with a click on the tile it started on: that's not a tap.
-  grid.addEventListener("click", (event) => {
-    if (performance.now() - draggedAt < 400) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, true);
-  // Holding a finger on a photo would otherwise open the browser's menu.
-  grid.addEventListener("contextmenu", (event) => event.preventDefault());
-  // A mouse would otherwise drag the image itself out of the page.
-  grid.addEventListener("dragstart", (event) => event.preventDefault());
+  const drag = tileDrag(grid, {
+    count: () => photos.length,
+    onDrop: async (from, to) => {
+      try {
+        await saveOrder(moveItem(photos, from, to));
+        say("");
+      } catch (err) {
+        say("Couldn't move it: " + errorMessage(err), true);
+      }
+    },
+  });
   const input = privateField(h("input", {
     type: "file", accept: `${ACCEPT},${VIDEO_ACCEPT}`, multiple: true, hidden: true, id: `${idPrefix}-photo-input`, onchange: addChosen,
   }));
@@ -181,64 +177,6 @@ export function photoSection({ item, idPrefix }) {
     }
     photos = order;
     draw();
-  }
-
-  /**
-   * A pointer down on a tile: a mouse drags once it moves DRAG_PX; a finger
-   * once it has held still for HOLD_MS (moving sooner is a scroll). Dropped
-   * on another tile, the photo moves there.
-   * @param {PointerEvent} event
-   */
-  function startDrag(event) {
-    if (event.button !== 0 || photos.length < 2) return;
-    const tile = /** @type {Element} */ (event.target).closest(".photo-tile");
-    const tiles = [...grid.children];
-    const from = tile ? tiles.indexOf(tile) : -1;
-    if (from < 0) return;
-    dragStop.abort();
-    dragStop = new AbortController();
-    const { signal } = dragStop;
-    const start = { x: event.clientX, y: event.clientY };
-    const byMouse = event.pointerType === "mouse";
-    let dragging = false;
-    let to = from;
-    const hold = byMouse ? undefined : setTimeout(begin, HOLD_MS);
-    signal.addEventListener("abort", () => {
-      clearTimeout(hold);
-      for (const t of tiles) t.classList.remove("dragging", "drop-target");
-    });
-
-    function begin() {
-      dragging = true;
-      tile?.classList.add("dragging");
-    }
-
-    document.addEventListener("pointermove", (move) => {
-      const now = { x: move.clientX, y: move.clientY };
-      if (!dragging) {
-        if (!movedFar(start, now)) return;
-        if (!byMouse) return dragStop.abort();
-        begin();
-      }
-      move.preventDefault();
-      to = slotAt(tiles.map((t) => t.getBoundingClientRect()), now);
-      for (const [i, t] of tiles.entries()) t.classList.toggle("drop-target", i === to && i !== from);
-    }, { signal });
-    // Once a finger is dragging, the page mustn't scroll under it.
-    document.addEventListener("touchmove", (move) => { if (dragging) move.preventDefault(); }, { passive: false, signal });
-    document.addEventListener("pointerup", async () => {
-      dragStop.abort();
-      if (!dragging) return;
-      draggedAt = performance.now();
-      if (to === from || to < 0) return;
-      try {
-        await saveOrder(moveItem(photos, from, to));
-        say("");
-      } catch (err) {
-        say("Couldn't move it: " + errorMessage(err), true);
-      }
-    }, { signal });
-    document.addEventListener("pointercancel", () => dragStop.abort(), { signal });
   }
 
   async function addChosen() {
@@ -460,7 +398,7 @@ export function photoSection({ item, idPrefix }) {
 
   /** Revokes everything this section showed (when its form closes). */
   function close() {
-    dragStop.abort();
+    drag.stop();
     for (const photo of photos) if (photo.thumbUrl) revoke(photo.thumbUrl);
     photos = [];
   }

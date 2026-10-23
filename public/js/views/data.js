@@ -9,6 +9,10 @@
 // folder, each photo and video decrypted here. Importing one saves the
 // journal first, then prepares, seals and uploads each photo and video
 // (import-photos.js). (Counts in messages call them all photos.)
+// Drawings are in notonawa.json as their lines, so a .json export has them
+// too; with drawings, the export is a .zip with a picture of each in a
+// drawings/ folder (SVG), for looking at outside the app. Importing reads
+// the lines, and saves them once the journal is saved (import-drawings.js).
 
 import { api, errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
@@ -22,6 +26,9 @@ import { adoptRoleNames } from "../settings.js";
 import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
+import { takeDrawings } from "../import-drawings.js";
+import { saveDrawing } from "../drawings-ui.js";
+import { COLORS, svgFile } from "../drawing-format.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import { uploadPhoto } from "../photo-upload.js";
@@ -30,14 +37,16 @@ import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
 
 /** @typedef {import("../import-steps.js").ImportDoc} ImportDoc */
 /** @typedef {import("../import-photos.js").PhotoEntry} PhotoEntry */
+/** @typedef {import("../import-drawings.js").DrawingEntry} DrawingEntry */
 /**
  * A file to import: as read (notes in plain text, to compare for
- * duplicates) and sealed (as sent), both without their photos; the photos
- * listed (ties' by position, plans' by file id); and the zip's files (null
- * for a .json or a CSV).
+ * duplicates) and sealed (as sent), both without their photos and
+ * drawings; the photos and drawings listed (ties' by position, plans' by
+ * file id); and the zip's files (null for a .json or a CSV).
  * @typedef {{
  *   plain: ImportDoc, sealed: ImportDoc,
- *   photos: ReturnType<typeof takePhotos>, files: Map<string, Uint8Array<ArrayBuffer>> | null,
+ *   photos: ReturnType<typeof takePhotos>, drawings: ReturnType<typeof takeDrawings>,
+ *   files: Map<string, Uint8Array<ArrayBuffer>> | null,
  * }} PendingImport
  */
 /**
@@ -48,6 +57,10 @@ import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
  *   item: { tie_id: string } | { plan_id: string } | { workshop_id: string },
  *   entries: PhotoEntry[], onlyIfEmpty: boolean,
  * }} PhotoTarget
+ */
+/**
+ * Where an imported tie's, plan's or workshop's drawings go, as for photos.
+ * @typedef {{ item: PhotoTarget["item"], entries: DrawingEntry[], onlyIfEmpty: boolean }} DrawingTarget
  */
 
 /**
@@ -80,8 +93,21 @@ async function findWorkshopDuplicates(sealedBatch, plainBatch) {
 }
 
 /**
- * The export file: the journal as JSON, or, with photos, a zip of it and
- * the photos, each decrypted here.
+ * The colors drawings are drawn in on the page (app.css), for their
+ * pictures in an export.
+ * @returns {Record<import("../drawing-format.js").Color, string> & { paper: string }}
+ */
+function drawingColors() {
+  const style = getComputedStyle(document.documentElement);
+  const read = (/** @type {string} */ name) => style.getPropertyValue(name).trim();
+  return /** @type {any} */ (Object.fromEntries([
+    ["paper", read("--paper")], ...COLORS.map((c) => [c, read(`--ink-${c}`)]),
+  ]));
+}
+
+/**
+ * The export file: the journal as JSON, or, with photos or drawings, a zip
+ * of it, the photos (each decrypted here) and a picture of each drawing.
  * @param {(text: string) => void} progress
  * @returns {Promise<{ name: string, content: string | Blob, type: string, unreadable: number, missing: number }>}
  */
@@ -90,13 +116,23 @@ async function buildExport(progress) {
   // Opened here, on the device: the file has the notes in plain text.
   const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
   const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
+  const items = [...doc.ties, ...doc.plans, ...doc.workshops];
   /** @type {any[]} */
-  const entries = [...doc.ties, ...doc.plans, ...doc.workshops].flatMap((x) => x.photos ?? []);
-  if (entries.length === 0) {
+  const entries = items.flatMap((x) => x.photos ?? []);
+  /** @type {any[]} */
+  const drawings = items.flatMap((x) => x.drawings ?? []);
+
+  let unreadableCaptions = 0;
+  // Drawings' captions are sealed like notes; a caption that won't open is left out.
+  const drawingCaptions = await open("drawing", drawings.map((d) => ({ caption: d.caption })));
+  drawingCaptions.forEach((c, i) => {
+    drawings[i].caption = c.caption;
+    if (c.unreadable?.length) unreadableCaptions++;
+  });
+  if (entries.length === 0 && drawings.length === 0) {
     return { name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json", unreadable, missing: 0 };
   }
 
-  let unreadableCaptions = 0;
   const captions = await openMedia(entries.map((e) => ({ id: e.id, caption: e.caption })));
   captions.forEach((c, i) => {
     entries[i].caption = c.caption;
@@ -114,6 +150,10 @@ async function buildExport(progress) {
       entry.file = null;
       missing++;
     }
+  }
+  const colors = drawingColors();
+  for (const drawing of drawings) {
+    files.push({ name: drawing.file, data: /** @type {Uint8Array<ArrayBuffer>} */ (new TextEncoder().encode(svgFile(drawing.data, colors))) });
   }
   const json = /** @type {Uint8Array<ArrayBuffer>} */ (new TextEncoder().encode(JSON.stringify(doc, null, 2)));
   const zip = new Blob(makeZip([{ name: "notonawa.json", data: json }, ...files], new Date(doc.exported_at)), { type: "application/zip" });
@@ -159,14 +199,15 @@ export function mount() {
     showMessage(importMessage, "Reading the file…");
     try {
       const { doc: read, files } = await readImportFile(file);
-      // Photos come off first: their captions are plain text in the file.
+      // Photos and drawings come off first: their captions are plain text in the file.
       const photos = takePhotos(read);
-      const doc = photos.doc;
+      const drawings = takeDrawings(photos.doc);
+      const doc = drawings.doc;
       checkLinks(doc);
       // Sealed once, on the device; only the sealed copy is sent.
       const sealed = await convertJournal(doc, seal);
       // Sets the message itself (e.g. when there's nothing new).
-      await showPreview({ plain: doc, sealed, photos, files });
+      await showPreview({ plain: doc, sealed, photos, drawings, files });
     } catch (err) {
       showMessage(importMessage, errorMessage(err), true);
     }
@@ -174,7 +215,7 @@ export function mount() {
 
   go.addEventListener("click", async () => {
     if (!pending) return;
-    const { plain, sealed, photos, files } = pending;
+    const { plain, sealed, photos, drawings, files } = pending;
     go.disabled = true;
     fileInput.disabled = true;
     let added = 0;
@@ -186,9 +227,13 @@ export function mount() {
       const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) });
       /** @type {PhotoTarget[]} */
       const targets = [];
+      /** @type {DrawingTarget[]} */
+      const drawingTargets = [];
       for (const plan of items.plans) {
         const entries = photos.plans.get(String(plan.file_id));
         if (entries && plan.id) targets.push({ item: { plan_id: plan.id }, entries, onlyIfEmpty: plan.matched });
+        const drawn = drawings.plans.get(String(plan.file_id));
+        if (drawn && plan.id) drawingTargets.push({ item: { plan_id: plan.id }, entries: drawn, onlyIfEmpty: plan.matched });
       }
       const plainBatches = batches(plain.ties);
       for (const [n, batch] of batches(remapTies(sealed.ties, items)).entries()) {
@@ -201,8 +246,10 @@ export function mount() {
         skipped += result.skipped;
         batch.forEach((_, i) => {
           const entries = photos.ties.get(n * TIE_BATCH + i);
+          const drawn = drawings.ties.get(n * TIE_BATCH + i);
           const mine = result.ids[i] ?? matches.get(i);
           if (entries && mine) targets.push({ item: { tie_id: mine }, entries, onlyIfEmpty: !result.ids[i] });
+          if (drawn && mine) drawingTargets.push({ item: { tie_id: mine }, entries: drawn, onlyIfEmpty: !result.ids[i] });
         });
       }
       const plainWorkshops = batches(plain.workshops);
@@ -214,12 +261,16 @@ export function mount() {
         workshopsSkipped += result.skipped;
         batch.forEach((_, i) => {
           const entries = photos.workshops.get(n * TIE_BATCH + i);
+          const drawn = drawings.workshops.get(n * TIE_BATCH + i);
           const mine = result.ids[i] ?? matches.get(i);
           if (entries && mine) targets.push({ item: { workshop_id: mine }, entries, onlyIfEmpty: !result.ids[i] });
+          if (drawn && mine) drawingTargets.push({ item: { workshop_id: mine }, entries: drawn, onlyIfEmpty: !result.ids[i] });
         });
       }
       forgetSearch();
+      const drawingResult = drawingTargets.length ? await importDrawings(drawingTargets) : null;
       const photoResult = files && targets.length ? await importPhotos(targets, files) : null;
+      const extras = [drawingResult, photoResult].filter(Boolean).join(" ") || null;
       // The file's role names, if mine are still the defaults.
       const tookNames = await adoptRoleNames(fileRoleNames).catch(() => false);
       preview.hidden = true;
@@ -230,8 +281,8 @@ export function mount() {
         (skipped ? ` Skipped ${ties(skipped)} already in your journal.` : "") +
         (workshopsAdded ? ` Imported ${workshops(workshopsAdded)}.` : "") +
         (workshopsSkipped ? ` Skipped ${workshops(workshopsSkipped)} already in your journal.` : "") +
-        (photoResult ? ` ${photoResult}` : "") +
-        (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!photoResult && /couldn't/.test(photoResult));
+        (extras ? ` ${extras}` : "") +
+        (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!extras && /couldn't/.test(extras));
     } catch (err) {
       // Batches already saved stay saved; running it again skips them.
       showMessage(importMessage, `Couldn't finish: ${errorMessage(err)} ` +
@@ -302,6 +353,43 @@ export function mount() {
   }
 
   /**
+   * Saves the imported ties', plans' and workshops' drawings, one by one.
+   * One that was already in the journal gets them only if it has none yet.
+   * @param {DrawingTarget[]} targets
+   * @returns {Promise<string>} what happened, in words
+   */
+  async function importDrawings(targets) {
+    const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
+    let done = 0;
+    let added = 0;
+    let kept = 0;
+    /** @type {string[]} */
+    const problems = [];
+    for (const target of targets) {
+      if (target.onlyIfEmpty && (await api(`/api/drawings?${new URLSearchParams(target.item)}`)).length > 0) {
+        done += target.entries.length;
+        kept += target.entries.length;
+        continue;
+      }
+      for (const entry of target.entries) {
+        showMessage(importMessage, `Adding drawings… ${(++done).toLocaleString()} of ${total.toLocaleString()}`);
+        try {
+          await saveDrawing(target.item, entry);
+          added++;
+        } catch (err) {
+          problems.push(errorMessage(err));
+        }
+      }
+    }
+    const drawingsText = (/** @type {number} */ n) => `${n.toLocaleString()} ${n === 1 ? "drawing" : "drawings"}`;
+    return [
+      added ? `Added ${drawingsText(added)}.` : "",
+      kept ? `Skipped ${drawingsText(kept)} on ties, plans or workshops that already have drawings.` : "",
+      problems.length ? `${drawingsText(problems.length)} couldn't be added: ${problems.slice(0, 3).join(" ")}` : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  /**
    * Reads an export (.json or, with photos, .zip) or a CSV of ties into an
    * import.
    * @param {File} file
@@ -344,7 +432,7 @@ export function mount() {
    * @param {PendingImport} file
    */
   async function showPreview(file) {
-    const { plain, sealed, photos, files } = file;
+    const { plain, sealed, photos, drawings, files } = file;
     const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, true) });
     let duplicates = 0;
     const newTags = new Set(items.new_tags);
@@ -394,13 +482,16 @@ export function mount() {
         files ? `${photos.count.toLocaleString()} in the file (added to ties, plans and workshops that don't already have photos)`
           : `${photos.count.toLocaleString()} listed, but not in this file: import the .zip export to add them`,
       ]) : null,
+      drawings.count ? section("Drawings", [
+        `${drawings.count.toLocaleString()} in the file (added to ties, plans and workshops that don't already have drawings)`,
+      ]) : null,
     ].filter((el) => el !== null));
     preview.hidden = false;
 
     showMessage(importMessage, "");
     const newItems = [items.people, items.locations, items.plans].some((list) => list.some((/** @type {any} */ r) => !r.matched));
-    // Photos may still need adding (an import run again to finish).
-    if (toAdd === 0 && workshopsToAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files)) {
+    // Photos and drawings may still need adding (an import run again to finish).
+    if (toAdd === 0 && workshopsToAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files) && !drawings.count) {
       showMessage(importMessage, "Everything in this file is already in your journal.");
       return;
     }

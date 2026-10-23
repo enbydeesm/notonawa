@@ -15,6 +15,7 @@ import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, forgetSearch, open } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
+import { drawingSection } from "./drawings-ui.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -81,6 +82,7 @@ function showTieForm(tie) {
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
     const photos = photoSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
+    const drawings = drawingSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
 
     const form = h("form", { id: "tie-form", onsubmit: save },
       h("label", { htmlFor: "tie-title" }, "Title"),
@@ -121,6 +123,7 @@ function showTieForm(tie) {
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
       })),
       photos.element,
+      drawings.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -136,6 +139,7 @@ function showTieForm(tie) {
       form);
     dialog.addEventListener("close", () => {
       photos.close();
+      drawings.close();
       dialog.remove();
       resolve(saved);
     });
@@ -329,8 +333,8 @@ function showTieForm(tie) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
-      if (photos.busy) {
-        showMessage(message, "Wait for the photos to finish, then save.", true);
+      if (photos.busy || drawings.busy) {
+        showMessage(message, `Wait for the ${photos.busy ? "photos" : "drawings"} to finish, then save.`, true);
         return;
       }
       saveButton.disabled = true;
@@ -347,6 +351,13 @@ function showTieForm(tie) {
           const problem = await photos.uploadPending({ tie_id: /** @type {string} */ (savedId) });
           if (problem) {
             showMessage(message, `The tie is saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
+            return;
+          }
+        }
+        if (drawings.waiting) {
+          const problem = await drawings.savePending({ tie_id: /** @type {string} */ (savedId) });
+          if (problem) {
+            showMessage(message, `The tie is saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
             return;
           }
         }

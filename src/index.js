@@ -22,6 +22,7 @@ import { handleResources } from "./resources/routes.js";
 import { handleTags } from "./tags/routes.js";
 import { handleData } from "./data/routes.js";
 import { handleMedia } from "./media/routes.js";
+import { handleDrawings } from "./drawings/routes.js";
 import { handleStats } from "./stats/routes.js";
 import { handleFeedback } from "./feedback/routes.js";
 import { sweepOrphans } from "./media/storage.js";
@@ -127,6 +128,7 @@ async function respond(request, env) {
     (await handleTags(request, env, user, url)) ??
     (await handleData(request, env, user, url)) ??
     (await handleMedia(request, env, user, url)) ??
+    (await handleDrawings(request, env, user, url)) ??
     (await handleStats(request, env, user, url)) ??
     (await handleFeedback(request, env, user, url)) ??
     notFound()

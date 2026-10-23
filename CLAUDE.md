@@ -103,7 +103,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`,
   `/api/data/import/ties` and `/api/data/import/workshops` (all take
   `preview`; workshops are found duplicates as ties are, comparing their
-  description and notes on the device). See considerations.md,
+  description and notes on the device). Drawings are in the export as
+  their lines (a zip with an SVG of each), and imported by the page
+  through `POST /api/drawings`. See considerations.md,
   "Export, import and deletion as built".
 - `src/media/`: photos and videos on ties, plans and workshops (migration
   0010, workshops since 0018; files in the R2 bucket `PHOTOS`). `parse.js` (pure: limits, including 5
@@ -113,6 +115,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   plan_id=|workshop_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
   full`, `PATCH /api/media/:id` (caption), `PUT /api/media/order`, `DELETE
   /api/media/:id`).
+- `src/drawings/`: drawings on ties, plans and workshops (migration 0019),
+  kept as their lines, plain JSON in D1 (not encrypted, by choice; the
+  caption is, as an encrypted column). `parse.js` (pure: the format
+  `{ v: 1, strokes: [{ c, w, p }] }`, `COLORS`, a 900 × 1200 canvas, 20 an
+  item; `public/js/drawing-format.js` has the same rules, kept in step by
+  a unit test), `db.js`, `routes.js` (`GET /api/drawings?tie_id=|plan_id=|
+  workshop_id=`, `POST /api/drawings` (adding, duplicating and copying
+  alike), `PUT /api/drawings/:id` (lines and/or caption), `PUT
+  /api/drawings/order`, `DELETE /api/drawings/:id`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the photo sweep and the backup, each
   carrying on if one before it fails).
@@ -236,7 +247,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   lock), `photo-upload.js` (sealing and uploading one prepared photo or
   video and its caption; used by the Photos section and import),
   `photos-ui.js` (a form's Photos section: dragging into order, and the
-  viewer, which plays videos with speed buttons),
+  viewer, which plays videos with speed buttons), `tile-drag.js`
+  (dragging Photos' and Drawings' tiles into order),
+  `drawing-format.js` (pure: the drawing format, simplifying a line, SVG
+  paths and the export's SVG file), `drawing-edit.js` (pure: undo/redo and
+  which line the eraser touches), `drawing-svg.js` (a drawing as SVG on
+  the page), `drawing-editor.js` (the drawing pad: a full-screen dialog
+  over the form, not a view, so the form isn't closed), `drawings-ui.js`
+  (a form's Drawings section, under Photos: its viewer's caption, Edit,
+  Duplicate, Copy to…; `saveDrawing`), `drawing-copy.js` (Copy to…'s
+  picker of ties, plans and workshops), `import-drawings.js` (pure: an
+  import's drawings, taken off and saved once the rest is),
   `vendor/` (libraries copied from node_modules by
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
@@ -402,7 +423,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Always check whether a code path should set `updated_at`.** Nothing updates
   it automatically (we chose not to use triggers, to avoid a second write per
   UPDATE; see considerations.md). Any UPDATE to a table with an `updated_at`
-  column (people, profile_notes, locations, plans, ties, workshops) should normally include
+  column (people, profile_notes, locations, plans, ties, workshops, drawings) should normally include
   `updated_at = ${NOW}`.
 - **Timestamps are ISO text**, e.g. `2026-10-11T21:51:00Z`. In SQL, use the
   `NOW` constant from `src/lib.js` (`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
@@ -462,7 +483,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `people.based_in`, `people.aliases` (migration 0016),
   `profile_notes.description`, `locations.notes`, `plans.description`,
   `plans.notes`, `plans.album_url`, `workshops.description`,
-  `workshops.notes`, `workshops.album_url` (migration 0018)): parse them with
+  `workshops.notes`, `workshops.album_url` (migration 0018),
+  `drawings.caption` (migration 0019; a drawing's lines aren't)): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,
   searches or sorts by them. The page seals before sending (`vault.seal`,
   `sealOne`) and opens what it shows (`vault.open`). A new encrypted field

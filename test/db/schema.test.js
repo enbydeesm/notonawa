@@ -222,6 +222,37 @@ describe("workshops (migration 0018)", () => {
   });
 });
 
+describe("drawings", () => {
+  /** @param {string} owner @param {Record<string, string | null>} item */
+  const drawing = (owner, item, id = newId("d")) =>
+    sql(`INSERT INTO drawings (id, owner_id, tie_id, plan_id, workshop_id, data, position) VALUES (?, ?, ?, ?, ?, '{}', 0)`,
+      id, owner, item.tie_id ?? null, item.plan_id ?? null, item.workshop_id ?? null).run();
+
+  it("go only on their owner's ties, plans and workshops", async () => {
+    const tie = newId("tie"), plan = newId("plan"), w = newId("w");
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'floor')", tie, them).run();
+    await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, them).run();
+    await sql("INSERT INTO workshops (id, owner_id, title, start_date) VALUES (?, ?, 'x', '2026-01-01')", w, them).run();
+    await expect(drawing(me, { tie_id: tie })).rejects.toThrow("ownership mismatch: drawing tie");
+    await expect(drawing(me, { plan_id: plan })).rejects.toThrow("ownership mismatch: drawing plan");
+    await expect(drawing(me, { workshop_id: w })).rejects.toThrow("ownership mismatch: drawing workshop");
+  });
+
+  it("are on exactly one item, for good, and go with it", async () => {
+    const tie = newId("tie"), plan = newId("plan");
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'floor')", tie, me).run();
+    await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, me).run();
+    await expect(drawing(me, { tie_id: tie, plan_id: plan })).rejects.toThrow("CHECK constraint failed");
+    await expect(drawing(me, {})).rejects.toThrow("CHECK constraint failed");
+    const d = newId("d");
+    await drawing(me, { tie_id: tie }, d);
+    await expect(sql("UPDATE drawings SET tie_id = NULL, plan_id = ? WHERE id = ?", plan, d).run()).rejects.toThrow("drawing cannot move");
+    await expect(sql("UPDATE drawings SET owner_id = ? WHERE id = ?", them, d).run()).rejects.toThrow("drawing cannot move");
+    await sql("DELETE FROM ties WHERE id = ?", tie).run();
+    expect(await sql("SELECT id FROM drawings WHERE id = ?", d).first()).toBeNull();
+  });
+});
+
 describe("key wraps", () => {
   /** @param {string} userId */
   const addPasskey = async (userId) => {

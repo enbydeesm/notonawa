@@ -7,7 +7,9 @@
 // location_deleted on a tie. Tags are listed by name, as the app sends them.
 // Each tie, plan and workshop lists its photos, with `file`: where the page puts the
 // photo in the .zip it saves (the server can't decrypt photos, so the page
-// fetches and decrypts each one; captions are still sealed here).
+// fetches and decrypts each one; captions are still sealed here). Each also
+// lists its drawings: their lines as they're stored, with `file`, where the
+// page puts a picture of each (an SVG) in the .zip (captions sealed too).
 
 export const EXPORT_FORMAT = "notonawa-export";
 export const EXPORT_VERSION = 1;
@@ -31,6 +33,7 @@ export const EXPORT_VERSION = 1;
  *   workshopPeople: Row[],
  *   workshopTags: Row[],
  *   media: Row[],
+ *   drawings: Row[],
  *   notices: Row[],
  *   feedback: Row[],
  * }} AccountRows
@@ -51,6 +54,9 @@ export function exportDocument(rows, exportedAt) {
   const peopleByWorkshop = groupBy(rows.workshopPeople, "workshop_id");
   const tagsByWorkshop = groupBy(rows.workshopTags, "workshop_id");
   const photosByWorkshop = groupBy(rows.media.filter((m) => m.workshop_id), "workshop_id");
+  const drawingsByTie = groupBy(rows.drawings.filter((d) => d.tie_id), "tie_id");
+  const drawingsByPlan = groupBy(rows.drawings.filter((d) => d.plan_id), "plan_id");
+  const drawingsByWorkshop = groupBy(rows.drawings.filter((d) => d.workshop_id), "workshop_id");
 
   return {
     format: EXPORT_FORMAT,
@@ -103,6 +109,7 @@ export function exportDocument(rows, exportedAt) {
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       tags: (tagsByPlan.get(p.id) ?? []).map((t) => t.name),
       photos: (photosByPlan.get(p.id) ?? []).map(photoEntry),
+      drawings: (drawingsByPlan.get(p.id) ?? []).map(drawingEntry),
     })),
     tags: rows.tags.map((t) => t.name),
     ties: rows.ties.map((t) => ({
@@ -117,6 +124,7 @@ export function exportDocument(rows, exportedAt) {
       plans: (plansByTie.get(t.id) ?? []).map((p) => ({ plan_id: p.plan_id, plan_version: p.plan_version })),
       tags: (tagsByTie.get(t.id) ?? []).map((x) => x.name),
       photos: (photosByTie.get(t.id) ?? []).map(photoEntry),
+      drawings: (drawingsByTie.get(t.id) ?? []).map(drawingEntry),
     })),
     // Educators and participants as two lists; a deleted person has a null id.
     workshops: rows.workshops.map((w) => {
@@ -132,6 +140,7 @@ export function exportDocument(rows, exportedAt) {
         educators: of("educator"), participants: of("participant"),
         tags: (tagsByWorkshop.get(w.id) ?? []).map((x) => x.name),
         photos: (photosByWorkshop.get(w.id) ?? []).map(photoEntry),
+        drawings: (drawingsByWorkshop.get(w.id) ?? []).map(drawingEntry),
       };
     }),
   };
@@ -145,6 +154,17 @@ function photoEntry(m) {
   return {
     id: m.id, kind: m.kind, mime: m.mime, file: photoFile(m.id, m.mime),
     caption: m.caption, position: m.position, created_at: m.created_at,
+  };
+}
+
+/**
+ * A drawing as the export lists it: its lines as they're stored.
+ * @param {Row} d
+ */
+function drawingEntry(d) {
+  return {
+    id: d.id, data: JSON.parse(d.data), file: `drawings/${d.id}.svg`,
+    caption: d.caption, position: d.position, created_at: d.created_at, updated_at: d.updated_at,
   };
 }
 

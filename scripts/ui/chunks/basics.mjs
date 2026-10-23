@@ -18,7 +18,9 @@ export default async function () {
   }
   console.log("Logo and icons");
   const manifest = await (await fetch(BASE + "/manifest.webmanifest")).json();
-  check("the manifest names the app and its icons", [manifest.name, manifest.icons.map((i) => i.sizes)], ["NotoNawa", ["192x192", "512x512"]]);
+  // Plain icons, and maskable ones (drawn to fill Android's shapes) in the same sizes.
+  check("the manifest names the app and its icons", [manifest.name, manifest.icons.map((i) => `${i.sizes}${i.purpose ? ` ${i.purpose}` : ""}`)],
+    ["NotoNawa", ["192x192", "512x512", "192x192 maskable", "512x512 maskable"]]);
   const page = await (await fetch(BASE + "/")).text();
   const linked = [...page.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="([^"]+)"/g)].map((m) => m[1]);
   check("the page links a tab icon and a home-screen icon", linked.length, 2);

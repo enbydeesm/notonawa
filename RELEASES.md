@@ -6,6 +6,13 @@ Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
+## 2026.10.22.001
+
+- Drawings: tap + on "Drawings", under Photos and videos on a tie, plan or workshop, to draw with your finger, a pen or a mouse, in eight colors and three widths. The eraser removes a whole line, and Undo and Redo go back over everything you've done. Caption a drawing like a photo, edit it again later, or drag drawings into order.
+- Duplicate a drawing to try a variation: the copy is edited on its own. Copy to… puts a copy on another tie, plan or workshop.
+- Drawings aren't encrypted (their captions are), so don't write names in one. They're in your export, with a picture of each.
+- When viewing in a browser, a banner will now appear with an install button or instructions
+
 ## 2026.10.20.006
 
 - Education: a new tab (the graduation cap) for the workshops you attend and teach. Tap + on "Add a Workshop" to log one: its title, dates, location, educators, participants, how many attended, a rating, a description, notes, photos and videos, an album link and tags.

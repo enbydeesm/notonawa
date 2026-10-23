@@ -9,7 +9,7 @@
 // is scripts/ui/chunks/<name>.mjs and starts from a new account of its own.
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
-  "notes", "photos", "deleting", "account", "data", "insights", "education",
+  "notes", "photos", "drawings", "deleting", "account", "data", "insights", "education",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -18,7 +18,7 @@ export const UI_CHUNKS = [
 // as 30.
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
-  notes: 19, photos: 55, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
+  notes: 19, photos: 55, drawings: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
 };
 
 /**
@@ -230,12 +230,20 @@ export const AREAS = [
     name: "photos",
     files: ["src/media/", "public/js/crypto/media.js", "public/js/photo-fit.js", "public/js/photo-prep.js",
       "public/js/photo-upload.js", "public/js/photo-urls.js", "public/js/photos-ui.js",
-      "public/js/drag-order.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
+      "public/js/drag-order.js", "public/js/tile-drag.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
       "scripts/vendor.mjs"],
     tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js",
       "test/unit/drag-order.test.js", "test/unit/video-fit.test.js"],
     ui: ["photos", "data", "education"],
     generated: ["vendor"],
+  },
+  {
+    name: "drawings",
+    files: ["src/drawings/", "public/js/drawing-format.js", "public/js/drawing-edit.js", "public/js/drawing-svg.js",
+      "public/js/drawing-editor.js", "public/js/drawing-copy.js", "public/js/drawings-ui.js", "public/js/import-drawings.js",
+      "public/js/tile-drag.js"],
+    tests: ["test/api/drawings.test.js", "test/unit/drawings.test.js", "test/api/data-import.test.js"],
+    ui: ["drawings", "data"],
   },
   {
     name: "data",

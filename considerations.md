@@ -1389,3 +1389,46 @@ about 6 minutes, too slow to run after every change.
 - **Known gap**: Safari can't tell the page whether the app is already
   installed, so someone who installed it but opens it in a Safari tab
   still sees the instructions until they choose Not now.
+
+## Drawings on ties, plans and workshops (October 2026)
+
+**Status:** built (2026-10-22)
+
+- **Kept as lines, not a picture** (`drawings.data`: JSON of each line's
+  points, color and width on a 900 × 1200 canvas). A picture could only be
+  painted over: once saved, the app wouldn't know which pixels were which
+  line, so erasing one line would cut gaps in the lines it crossed, and
+  undo would stop at the last save. As lines, the eraser takes out whole
+  lines, undo goes back past a save, and a duplicate edited later is
+  still a drawing, not a flattened copy. Line drawings are also smaller as
+  lines (a few KB) than as an image, and stay sharp at any size.
+- **In D1, not R2**: a drawing is small (limits: 2,000 lines, 100,000
+  numbers, a 600 KB request), so it's a row. Editing is one UPDATE in a
+  transaction, deleting a tie deletes its drawings by cascade with no
+  files to clean up, and the daily backup holds them.
+- **Not encrypted, by choice**; the caption is. The server checks the
+  format (known colors and widths, whole-number points on the canvas) and
+  stores only those fields. PRIVACY.md says drawings are readable and not
+  to put identifying details in one. Captions are sealed like notes
+  (`drawings.caption` in both encrypted-column lists), not bound to the
+  drawing's id as photo captions are, so a copy needs no re-sealing and a
+  new key empties them as it does notes.
+- **Duplicate and Copy to… add a new drawing** with the same lines and
+  caption (`POST /api/drawings`): the page already has the lines, so
+  there's no copy route. A drawing never moves (a trigger), as photos
+  don't. Copy to… lists ties (searched as on the Ties page, the keyword on
+  the device), plans (not archived) and workshops, by title.
+- **The pad is a full-screen dialog, not a view**: changing view closes
+  open dialogs, which would lose the tie form, and a new tie has no id
+  until it's saved. A new item's drawings wait in the form, as photos do.
+- **Colors are app.css's** (`--ink-*`, `--paper`), the same in both
+  modes, so a drawing looks the same in dark mode (the paper stays
+  light). The export's SVGs read the same variables.
+- **Export and import**: a drawing's lines are in the JSON, so a .json
+  export carries them; with drawings, the export is a zip with an SVG of
+  each too (`drawings/<id>.svg`), for viewing outside the app. Import
+  saves them once the journal is in, onto items that have none yet, as
+  photos. An imported drawing is new (its own id, created_at, updated_at).
+- **Dragging into order** is shared with photos (`tile-drag.js`).
+- **Left out for now**: shapes, text and straight lines; zooming the pad;
+  a count of drawings on tie cards.
