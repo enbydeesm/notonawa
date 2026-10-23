@@ -4,6 +4,7 @@
 // extra copy away from Cloudflare.
 //
 //   node scripts/backup.mjs --remote          back up the real database
+//   node scripts/backup.mjs --dev             back up the dev environment's
 //   node scripts/backup.mjs [--local]         back up the local one
 //   node scripts/backup.mjs --prune-only      just delete old backups
 //
@@ -19,7 +20,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { targetFlags } from "./d1.mjs";
+import { targetFlags, targetName } from "./d1-target.mjs";
 import { encryptBackup, backupName, expiredBackups, RETENTION_DAYS, MIN_PASSPHRASE } from "./backup-lib.mjs";
 import { askHidden } from "./ask.mjs";
 
@@ -45,16 +46,15 @@ async function passphrase() {
 try {
   mkdirSync(BACKUPS, { recursive: true });
   if (!args.includes("--prune-only")) {
-    const secret = await passphrase();
     const flags = targetFlags(args);
-    const target = flags.includes("--remote") ? "remote" : "local";
+    const secret = await passphrase();
     // mkdtemp makes the folder readable only by you.
     const work = mkdtempSync(path.join(tmpdir(), "notonawa-backup-"));
     try {
       const dump = path.join(work, "dump.sql");
-      const run = spawnSync("npx", ["wrangler", "d1", "export", "notonawa", ...flags, "--output", dump], { encoding: "utf8" });
+      const run = spawnSync("npx", ["wrangler", "d1", "export", "DB", ...flags, "--output", dump], { encoding: "utf8" });
       if (run.status !== 0) throw new Error(`wrangler d1 export failed:\n${run.stdout}${run.stderr}`);
-      const file = path.join(BACKUPS, backupName(target, Date.now()));
+      const file = path.join(BACKUPS, backupName(targetName(flags), Date.now()));
       writeFileSync(file, await encryptBackup(readFileSync(dump), secret), { mode: 0o600 });
       console.log(`Saved ${path.relative(process.cwd(), file)}`);
     } finally {

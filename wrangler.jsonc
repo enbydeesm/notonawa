@@ -101,5 +101,53 @@
 	"dev": {
 		"host": "localhost:8787",
 		"port": 8787
+	},
+	// A separate copy of the app for testing before production, at
+	// dev.notonawa.app, with its own database and photos bucket: nothing
+	// here touches the real journal. Deploy with
+	// `npx wrangler deploy --env dev`. Bindings and vars aren't inherited
+	// from the top level, so every one it needs is listed here; routes would
+	// be, so it has its own (otherwise it would claim notonawa.app).
+	// No backups (BACKUP_PUBLIC_KEY is empty, so the daily job skips them)
+	// and no feedback emails (without FEEDBACK_EMAIL, nothing is sent).
+	"env": {
+		"dev": {
+			"name": "notonawa-dev",
+			"routes": [
+				{
+					"pattern": "dev.notonawa.app",
+					"custom_domain": true
+				}
+			],
+			// Passkeys made here only work here.
+			"vars": {
+				"RP_ID": "dev.notonawa.app",
+				"ORIGIN": "https://dev.notonawa.app",
+				"BACKUP_PUBLIC_KEY": ""
+			},
+			"ratelimits": [
+				{
+					"name": "AUTH_RATE_LIMIT",
+					"namespace_id": "1002",
+					"simple": {
+						"limit": 20,
+						"period": 60
+					}
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "PHOTOS",
+					"bucket_name": "notonawa-photos-dev"
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "notonawa-dev",
+					"database_id": "da883076-6cad-4ef2-9bfe-59143e5256a6"
+				}
+			]
+		}
 	}
 }

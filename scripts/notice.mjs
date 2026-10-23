@@ -12,6 +12,7 @@
 //     --until 2026-11-30      stop showing it after that day
 //   node scripts/notice.mjs --list [--remote]       notices showing now or later
 //   node scripts/notice.mjs --end <id> [--remote]   stop showing one now
+// (--dev in place of --remote: the dev environment's.)
 
 import { d1, targetFlags } from "./d1.mjs";
 import { readNoticeArgs, sqlText } from "./notice-lib.mjs";

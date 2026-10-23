@@ -99,9 +99,10 @@ export const AREAS = [
     name: "auth",
     files: ["src/auth/", "src/keys/", "public/js/auth-flows.js", "public/js/webauthn.js", "public/js/webauthn-json.js",
       "public/js/codes.js", "public/js/recovery.js", "public/js/recovery-email.js", "public/js/views/signin.js",
-      "public/js/views/unlock.js", "scripts/invite.mjs", "scripts/recovery-code.mjs", "scripts/d1.mjs"],
+      "public/js/views/unlock.js", "scripts/invite.mjs", "scripts/recovery-code.mjs", "scripts/d1.mjs",
+      "scripts/d1-target.mjs"],
     tests: ["test/api/auth.test.js", "test/unit/auth.test.js", "test/unit/webauthn-json.test.js",
-      "test/unit/recovery-email.test.js", "test/unit/keys-parse.test.js"],
+      "test/unit/recovery-email.test.js", "test/unit/keys-parse.test.js", "test/unit/d1-target.test.js"],
     ui: ["basics", "lock", "account"],
   },
   {

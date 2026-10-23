@@ -10,7 +10,8 @@ export const RELEASES = [
     "notes": [
       "Drawings: tap + on \"Drawings\", under Photos and videos on a tie, plan or workshop, to draw with your finger, a pen or a mouse, in eight colors and three widths. The eraser removes a whole line, and Undo and Redo go back over everything you've done. Caption a drawing like a photo, edit it again later, or drag drawings into order.",
       "Duplicate a drawing to try a variation: the copy is edited on its own. Copy to… puts a copy on another tie, plan or workshop.",
-      "Drawings aren't encrypted (their captions are), so don't write names in one. They're in your export, with a picture of each."
+      "Drawings aren't encrypted (their captions are), so don't write names in one. They're in your export, with a picture of each.",
+      "When viewing in a browser, a banner will now appear with an install button or instructions"
     ]
   },
   {

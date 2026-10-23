@@ -51,6 +51,7 @@ describe("backup names and retention", () => {
 
   it("names a backup by where it's from and when", () => {
     expect(backupName("remote", now)).toBe("notonawa-remote-20261013T120000Z.sql.enc");
+    expect(backupName("dev", now)).toBe("notonawa-dev-20261013T120000Z.sql.enc");
   });
 
   it("picks out backups older than 30 days, and nothing else", () => {
@@ -58,6 +59,8 @@ describe("backup names and retention", () => {
       "notonawa-remote-20260913T115959Z.sql.enc", // 30 days and a second: expired
       "notonawa-remote-20260913T120000Z.sql.enc", // exactly 30 days: kept
       "notonawa-local-20260901T000000Z.sql.enc",
+      "notonawa-dev-20260901T000000Z.sql.enc",
+      "notonawa-dev-20261013T110000Z.sql.enc",
       "notonawa-remote-20261013T110000Z.sql.enc",
       "rope-journal-remote-20260905T000000Z.sql.enc", // from before the rename: still expires
       "rope-journal-remote-20261012T000000Z.sql.enc",
@@ -65,6 +68,7 @@ describe("backup names and retention", () => {
     ], now)).toEqual([
       "notonawa-remote-20260913T115959Z.sql.enc",
       "notonawa-local-20260901T000000Z.sql.enc",
+      "notonawa-dev-20260901T000000Z.sql.enc",
       "rope-journal-remote-20260905T000000Z.sql.enc",
     ]);
   });

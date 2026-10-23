@@ -16,7 +16,7 @@ const MAX_ITERATIONS = 10_000_000;
 const MAGIC = new TextEncoder().encode("RJB1");
 const HEADER = MAGIC.length + 4 + 16 + 12;
 // rope-journal-…: backups taken before the app was renamed.
-const NAME = /^(?:notonawa|rope-journal)-(remote|local)-(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z\.sql\.enc$/;
+const NAME = /^(?:notonawa|rope-journal)-(remote|local|dev)-(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z\.sql\.enc$/;
 
 /**
  * @param {string} passphrase
@@ -82,8 +82,8 @@ export async function decryptBackup(file, passphrase) {
 
 /**
  * The file name for a backup taken now, e.g.
- * notonawa-remote-20261013T174200Z.sql.enc
- * @param {"remote" | "local"} target
+ * notonawa-remote-20261013T174200Z.sql.enc (dev: the dev environment's)
+ * @param {"remote" | "local" | "dev"} target
  * @param {number} now
  */
 export function backupName(target, now) {

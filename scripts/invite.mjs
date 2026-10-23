@@ -3,6 +3,7 @@
 //
 //   node scripts/invite.mjs            local database
 //   node scripts/invite.mjs --remote   the real one
+//   node scripts/invite.mjs --dev      the dev environment's (dev.notonawa.app)
 //
 // Send the code to the person privately. Anyone who has it can sign up.
 

@@ -6,6 +6,8 @@ import { newBackupKeys, openBackup } from "../../src/backup/crypto.js";
 import { backupKey } from "../../src/backup/names.js";
 
 const DAY = 24 * 60 * 60 * 1000;
+// Optional in Env (the dev environment has none), but always there in tests.
+const BACKUPS = /** @type {R2Bucket} */ (env.BACKUPS);
 
 /** @param {Uint8Array} gz */
 async function gunzipJson(gz) {
@@ -16,8 +18,8 @@ describe("the daily backup", () => {
   // The bucket is shared between tests: start each one empty, so one test's
   // backup isn't counted (or deleted) by another.
   beforeEach(async () => {
-    const keys = (await env.BACKUPS.list()).objects.map((o) => o.key);
-    if (keys.length) await env.BACKUPS.delete(keys);
+    const keys = (await BACKUPS.list()).objects.map((o) => o.key);
+    if (keys.length) await BACKUPS.delete(keys);
   });
 
   it("saves the whole database, sealed so only the private key opens it", async () => {
@@ -27,9 +29,9 @@ describe("the daily backup", () => {
     const publicJwk = JSON.stringify(await crypto.subtle.exportKey("jwk", keys.publicKey));
     const now = Date.UTC(2026, 9, 17, 3, 17, 0);
 
-    const { saved } = await takeBackup(env.DB, env.BACKUPS, publicJwk, now);
+    const { saved } = await takeBackup(env.DB, BACKUPS, publicJwk, now);
     expect(saved).toBe(backupKey(now));
-    const object = await env.BACKUPS.get(saved);
+    const object = await BACKUPS.get(saved);
     const sealed = new Uint8Array(await /** @type {R2ObjectBody} */ (object).arrayBuffer());
     // Not readable as it's stored.
     expect(new TextDecoder().decode(sealed)).not.toContain("Backed up");
@@ -48,12 +50,12 @@ describe("the daily backup", () => {
     const now = Date.UTC(2026, 11, 1, 3, 17, 0);
     const old = backupKey(now - 31 * DAY);
     const recent = backupKey(now - 29 * DAY);
-    for (const key of [old, recent, "notes.txt"]) await env.BACKUPS.put(key, "x");
+    for (const key of [old, recent, "notes.txt"]) await BACKUPS.put(key, "x");
 
-    const { deleted } = await takeBackup(env.DB, env.BACKUPS, publicJwk, now);
+    const { deleted } = await takeBackup(env.DB, BACKUPS, publicJwk, now);
     expect(deleted).toBe(1);
-    expect(await env.BACKUPS.head(old)).toBeNull();
-    expect(await env.BACKUPS.head(recent)).not.toBeNull();
-    expect(await env.BACKUPS.head("notes.txt")).not.toBeNull();
+    expect(await BACKUPS.head(old)).toBeNull();
+    expect(await BACKUPS.head(recent)).not.toBeNull();
+    expect(await BACKUPS.head("notes.txt")).not.toBeNull();
   });
 });

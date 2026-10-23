@@ -56,9 +56,10 @@ export default {
    */
   async scheduled(_controller, env) {
     const jobs = [
-      ["backup", () => (env.BACKUP_PUBLIC_KEY
+      // The dev environment (wrangler.jsonc) has neither the key nor the bucket.
+      ["backup", () => (env.BACKUP_PUBLIC_KEY && env.BACKUPS
         ? takeBackup(env.DB, env.BACKUPS, env.BACKUP_PUBLIC_KEY)
-        : Promise.reject(new Error("BACKUP_PUBLIC_KEY isn't set: no backup taken.")))],
+        : Promise.reject(new Error("BACKUP_PUBLIC_KEY or BACKUPS isn't set: no backup taken.")))],
       ["clean-up", () => cleanUp(env.DB)],
       ["photo sweep", () => sweepOrphans(env.DB, env.PHOTOS)],
     ];

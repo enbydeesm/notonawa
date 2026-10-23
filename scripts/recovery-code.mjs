@@ -20,6 +20,7 @@
 //   node scripts/recovery-code.mjs [--remote]                    list accounts
 //   node scripts/recovery-code.mjs --email <address> [--remote]  find the account with that recovery email
 //   node scripts/recovery-code.mjs <user-id> [--remote]          set a new code
+// (--dev in place of --remote: the dev environment's accounts.)
 
 import { d1, targetFlags } from "./d1.mjs";
 import { newRecoveryCode, readRecoveryCode, loginSecret } from "../public/js/recovery.js";

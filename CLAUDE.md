@@ -53,6 +53,16 @@ building live in [roadmap.md](roadmap.md).
   `/api/auth/` routes per IP.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
+- **A dev environment for testing before production**: `env.dev` in
+  `wrangler.jsonc`, the Worker `notonawa-dev` at dev.notonawa.app, with its
+  own D1 (`notonawa-dev`), photos bucket (`notonawa-photos-dev`), `RP_ID`/
+  `ORIGIN` (passkeys made there only work there) and rate-limit namespace
+  (1002). No backups (`BACKUP_PUBLIC_KEY` is empty, so the daily job logs
+  that it skipped one) and no feedback emails (no `FEEDBACK_EMAIL`).
+  Bindings and vars aren't inherited from the top level, so a new one
+  needs adding to both. Deploy with `npx wrangler deploy --env dev`; apply
+  migrations with `npx wrangler d1 migrations apply DB --remote --env
+  dev`. The scripts take `--dev` in place of `--remote` (below).
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
   the Worker. The app is one page (`index.html`) that stays loaded while you
   move between views, so what it holds in memory (since the encryption
@@ -382,7 +392,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   node_modules after updating a vendored package (mediabunny); `--check`
   (in `npm run check`) fails if a copy differs.
 - `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]
-  [--remote]`: the bug reports and ideas sent from the app, newest first.
+  [--remote | --dev]`: the bug reports and ideas sent from the app, newest first.
   Answer one with `notice.mjs --user <id>`.
 - `node scripts/privacy-html.mjs`: rebuild `public/privacy.html` after
   editing PRIVACY.md. A wording change stamps today's date on the policy
@@ -394,6 +404,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `--list` and `--end <id>`.
 - `node scripts/backup-keys.mjs`: makes the daily backups' key pair once
   (the public half goes in `wrangler.jsonc` as `BACKUP_PUBLIC_KEY`).
+- **`--dev`**: the scripts that use the database (invite, recovery-code,
+  notice, feedback, backup) take `--dev` in place of `--remote` for the
+  dev environment's. `scripts/d1-target.mjs` turns it into `--remote --env
+  dev` (refusing `--dev` with `--remote` or `--persist-to`), and the
+  wrangler commands name the database by its binding, `DB`, so the same
+  command works for every target. Dev backups are named `notonawa-dev-…`.
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks, has a recovery

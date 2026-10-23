@@ -2,7 +2,7 @@
 // form, newest first. To answer one, post a notice to its account:
 // node scripts/notice.mjs "…" --user <account id>.
 //
-//   node scripts/feedback.mjs [--remote]              the last 50
+//   node scripts/feedback.mjs [--remote | --dev]      the last 50
 //     --since 2026-10-20                              only those sent since that day
 //     --kind bug | idea                               only bugs, or only ideas
 

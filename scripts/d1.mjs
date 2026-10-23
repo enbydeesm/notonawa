@@ -1,17 +1,23 @@
 // Runs SQL against the notonawa database with wrangler, for the scripts
-// in this folder. Local by default; --remote for the real one, or
-// --persist-to <dir> for a throwaway local copy (the UI smoke test uses this).
+// in this folder. Local by default; --remote for the real one, --dev for the
+// dev environment's, or --persist-to <dir> for a throwaway local copy (the UI
+// smoke test uses this). See d1-target.mjs.
 
 import { spawnSync } from "node:child_process";
+import { targetFlags as readTarget } from "./d1-target.mjs";
 
 /**
- * The target from command-line flags.
+ * The target from command-line flags (d1-target.mjs), stopping the script
+ * with the reason if they clash.
  * @param {string[]} args
  */
 export function targetFlags(args) {
-  if (args.includes("--remote")) return ["--remote"];
-  const at = args.indexOf("--persist-to");
-  return at === -1 ? ["--local"] : ["--local", "--persist-to", args[at + 1]];
+  try {
+    return readTarget(args);
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
 }
 
 /**
@@ -23,7 +29,7 @@ export function targetFlags(args) {
  * @returns {{ results: Record<string, unknown>[] }}
  */
 export function d1(sql, flags) {
-  const run = spawnSync("npx", ["wrangler", "d1", "execute", "notonawa", ...flags, "--json", "--command", sql], { encoding: "utf8" });
+  const run = spawnSync("npx", ["wrangler", "d1", "execute", "DB", ...flags, "--json", "--command", sql], { encoding: "utf8" });
   if (run.status !== 0) {
     console.error(run.stdout, run.stderr);
     process.exit(1);
