@@ -14,6 +14,7 @@
 //   node scripts/vendor.mjs --check   fail if a copy differs (npm run check)
 
 import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildSync } from "esbuild";
 
 /**
@@ -36,9 +37,10 @@ const FILES = [
 /** The parts of three.js in three-entry.mjs, as one minified module. */
 function bundleThree() {
   const result = buildSync({
-    entryPoints: [new URL("./vendor/three-entry.mjs", import.meta.url).pathname],
+    // fileURLToPath, not .pathname, which keeps spaces as %20.
+    entryPoints: [fileURLToPath(new URL("./vendor/three-entry.mjs", import.meta.url))],
     bundle: true, minify: true, format: "esm", target: "es2022", write: false, legalComments: "inline",
-    nodePaths: [new URL("../node_modules", import.meta.url).pathname],
+    nodePaths: [fileURLToPath(new URL("../node_modules", import.meta.url))],
   });
   return result.outputFiles[0].text;
 }
