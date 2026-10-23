@@ -22,6 +22,7 @@ import { watchForLock } from "./lock.js";
 import { api } from "./api.js";
 import { consentState, setConsentState, onConsentRequired } from "./consent-state.js";
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
+import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { showUnseenReleases } from "./whats-new.js";
 import { showWelcome } from "./welcome.js";
@@ -49,6 +50,7 @@ const VIEWS = {
 const root = $("#view");
 renderNav();
 noticeBox();
+installBox();
 
 /** @type {import("./router.js").ViewName | null} */
 let currentView = null;
@@ -91,6 +93,8 @@ async function show({ fresh, scroll, focus }) {
   showNav(route.nav);
   // Messages from us, over the journal (not over Unlock, Consent or sign-in).
   showNotices(route === addressed && route.needsKey);
+  // And the offer to install the app, in the same places.
+  showInstallOffer(route === addressed && route.needsKey);
   setCurrent(addressed.path);
   const template = /** @type {HTMLTemplateElement} */ ($(`#view-${route.view}`));
   root.replaceChildren(template.content.cloneNode(true));

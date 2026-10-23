@@ -1,4 +1,4 @@
-// The walkthrough's basics chunk. Signing up and the app's shell: security headers, icons, sign-up, the welcome, and moving between views.
+// The walkthrough's basics chunk. Signing up and the app's shell: security headers, icons, sign-up, the welcome, moving between views, and the offer to install the app.
 
 import { APP_VERSION } from "../../../public/js/releases.js";
 import { BASE, HELP_LINE, account, check, go, newInvite, resetBrowser, run, sleep, sql } from "../harness.mjs";
@@ -121,4 +121,35 @@ export default async function () {
     window.marker = 1; $("#view a[href='/']").click(); await wait(800);
     return [...shown, location.pathname, document.title, $("#unlock-choose")?.hidden === false, window.marker === 1];`),
     ["Page not found · NotoNawa", "Page not found", true, "/", "Unlock · NotoNawa", true, true]);
+
+  console.log("Offering to install the app");
+  // Chrome hands over its install window by itself, as the manifest makes
+  // the app installable. Clicking Install uses a stand-in for it, which
+  // records being opened, so no real install window opens here.
+  const offerInstall = `
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    window.prompted = 0;
+    event.prompt = async () => { window.prompted++; };
+    event.userChoice = Promise.resolve({ outcome: "dismissed" });
+    window.dispatchEvent(event); await wait(100);`;
+  const offerShown = `const box = $("#install-offer"); return [!box.hidden, box.querySelector("p")?.textContent ?? null,
+    [...box.querySelectorAll("button")].map((b) => b.textContent)];`;
+  await go("/");
+  check("Chrome can install the app, so the journal offers it", await run(`
+    for (let i = 0; i < 100 && $("#install-offer").hidden; i++) await wait(100); ${offerShown}`),
+    [true, "Install NōtoNawa as an app: it opens in a window of its own, with an icon on your home screen or dock.", ["Install", "Not now"]]);
+  check("Install opens the browser's install window, once", await run(`
+    ${offerInstall} $("#install-offer .install-now").click(); await wait(100);
+    return [window.prompted, $("#install-offer").hidden];`), [1, true]);
+  check("it isn't over Unlock or sign-in", await run(`
+    ${offerInstall} const shown = !$("#install-offer").hidden;
+    history.pushState(null, "", "/nope"); dispatchEvent(new PopStateEvent("popstate")); await wait(800);
+    return [shown, $("#install-offer").hidden];`), [true, true]);
+  await go("/");
+  check("Not now hides it on this device, for good", await run(`
+    ${offerInstall} $("#install-offer .install-later").click(); await wait(100);
+    return [$("#install-offer").hidden, localStorage.getItem("install-dismissed")];`), [true, "1"]);
+  await go("/");
+  check("…even after the page loads again", await run(`${offerInstall} return $("#install-offer").hidden;`), true);
+  await run(`localStorage.removeItem("install-dismissed");`);
 }

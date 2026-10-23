@@ -1363,3 +1363,29 @@ about 6 minutes, too slow to run after every change.
 - **Left out for now**: workshops in Calendar and Analytics, linking ties
   to the workshop they were tied at, and + asking what to add. Each would
   build on what's here without changing it.
+
+## Offering to install the app (October 2026)
+
+**Status:** built (2026-10-22)
+
+- **A banner under the notices**, while the journal is open (not over
+  Unlock, sign-in or Consent), offering to install the app. It isn't
+  shown once the app runs in its own window (display mode standalone and
+  the like, or Safari's `navigator.standalone`).
+- **Chrome and Edge get a real Install button**: the page keeps their
+  `beforeinstallprompt` event and opens the browser's own install window
+  with it. Using the event stops Chrome's own install bar on Android, so
+  ours is the only one.
+- **Safari and Firefox can't be asked**, so the banner says where to find
+  it: Share, then Add to Home Screen on iPhone and iPad (any browser);
+  File, then Add to Dock in Safari 17+ on a Mac; Firefox's menu on
+  Android. Firefox on a computer can't install sites, so it sees nothing.
+  User agents decide which, in `install-rules.js` (pure, tested).
+- **"Not now" is per device, for good**, in localStorage
+  (`install-dismissed`), like the light/dark mode. Not an account setting:
+  installing is per device, and it would mean a migration for little.
+  Nothing about it is sent to us, so PRIVACY.md isn't changed (it doesn't
+  mention the stored mode either).
+- **Known gap**: Safari can't tell the page whether the app is already
+  installed, so someone who installed it but opens it in a Safari tab
+  still sees the instructions until they choose Not now.

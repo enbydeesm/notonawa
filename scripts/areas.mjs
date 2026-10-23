@@ -155,6 +155,12 @@ export const AREAS = [
     generated: ["privacy"],
   },
   {
+    name: "install",
+    files: ["public/js/install-rules.js", "public/js/install-banner.js"],
+    tests: ["test/unit/install-rules.test.js"],
+    ui: ["basics"],
+  },
+  {
     name: "shell",
     files: ["public/js/views/not-found.js"],
     tests: [],

@@ -111,57 +111,21 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 <!-- - to the right of their pronouns, show the default role if entered. give it a similar look to selected tie tags where its outlined with yellow -->
 <!-- - on the card in the list, beneath the persons name, have the second row display 'based in ' + the value entered, if it is present. have the next row display 'aka ' followed by any entered socials, starting with scene name.  -->
 
-- on people add/edit form: make pronouns and alias text fields not capitalize the first letter
+<!-- - on people add/edit form: make pronouns and alias text fields not capitalize the first letter
 - on people add/edit form: move the educator checkbox to the top right corner, in line with the Name label but right-aligned. move the 'this is me' checkbox on the default Me record to the top right of the form in line with the title "Add/Edit Person'
 - on people add/edit form, make the text in the platform drop down (scene name, instragram, etc) smaller so 'scene name' fits in the box better after selection
 - on people view, move the + button that brings up the new person dialog be the first thing on its card, left aligned, with the 'Add a Person' label just after it.
 - on locations view, make it similar to the People view, where there's a small card at the top for 'Add a Location' with a + button on the left side that opens the new location form in a new dialog. Remove the add location form from the view and replace it with a 'search locations' box that filters the results in the list below.
-- on locations add/edit form, above the coordinates and below the google maps link, can you add a text box for City and a text box for State/Province. then add a text box on the left side of row with Lat & Long for Country. Make the lat and long fields smaller, so they show the first 5 digits or so (but still hold the minimum needed for coordinates). 
+- on locations add/edit form, above the coordinates and below the google maps link, can you add a text box for City and a text box for State/Province. then add a text box on the left side of row with Lat & Long for Country. Make the lat and long fields smaller, so they show the first 5 digits or so (but still hold the minimum needed for coordinates).  -->
+
 - add a function that extracts the city, state/province, and country (as well as the coordinates) from the maps link 
 - can you make it so that users can paste a full address instead of a maps link and also have those fields extracted? 
 
-- Education tracker: log the workshops you take or teach (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view.
+<!-- - Education tracker: log the workshops you take or teach (date, location, people and roles, educators, notes, ratings, tags), with a searchable list and a tag-filtered “resume” view. -->
 
-- Map of ties: a map with a marker for each location that has coordinates, drawn without sending your locations to an outside map service.
+<!-- - Map of ties: a map with a marker for each location that has coordinates, drawn without sending your locations to an outside map service. -->
 
-- Drag photos into order: rearrange photos on ties and plans by dragging, by finger or mouse, keeping the Move earlier/later buttons.
+<!-- - Drag photos into order: rearrange photos on ties and plans by dragging, by finger or mouse, keeping the Move earlier/later buttons.
+- Videos: encrypted video clips on ties and plans, with their location and device details removed. -->
 
-
-- Videos: encrypted video clips on ties and plans, with their location and device details removed.
 - Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons.
-
-## dev order: 
-1. Quick polish (no database changes). These are small, low-risk and visible straight away.
-
-Default location first in Locations
-“THIS CAN’T BE UNDONE.” on its own line
-Contact info on the sign-in and Unlock screens
-Rope-hank icons for plan difficulty, and “Plan type” as the label
-“–” for a blank tie type
-Final logo and icons, whenever the files are ready
-
-2. Ties and plans data (one migration). All of these change the ties and plans tables, so doing them together means rebuilding ties once instead of three times. It also means updating export, import and the CSV template once.
-
-Fill in the missing tie types and make the type required (decide the “self tie” question first)
-Optional time on ties
-Tie type on plans
-Photo album link on ties and plans
-
-
-3. Photos. Dragging photos into order touches only the page. It sits next to the album link but is separate from the data work, so it’s easy to test alone.
-
-4. People. Socials, “based in” city and the educator checkbox. These stand on their own, and the education tracker builds on them, so they come before it.
-
-5. Getting started and support. These matter most once other people start signing up.
-
-Welcome dialog for new accounts.
-Bug and feedback form. It needs a PRIVACY.md update, so it pairs well with the welcome, which also mentions privacy.
-add an app version number, track release notes that can be displayed to users. put version number on the app somewhere (bottom of sign in screen, bottom of menu sidebar?)
-+ button asks what to add. It turns the person and location forms into dialogs, which the education tracker will reuse.
-
-6. Education tracker. This is the biggest piece: new tables, a list view, the resume view, and export, import and Analytics support. Settle where it goes in the navigation first, since there are already six tabs.
-
-7. Bigger extras.
-
-Map: start with the simple outline map the app draws itself. Self-hosted street maps can come later if that’s too coarse.
-Videos: last, because they’re the most work (removing their location and device details, large uploads, encryption in pieces) and the least urgent.

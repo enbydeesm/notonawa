@@ -287,7 +287,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   off its ties and plans before sending and uploaded once the rest is
   saved), `zip.js` (pure apart from `DecompressionStream`: zip files for
   exports with photos), `notices.js` (the banners between the nav and the
-  view), `consent-state.js` (whether I must agree to a changed policy;
+  view), `install-rules.js` (pure: whether and how to offer
+  installing the app) and `install-banner.js` (that offer, under the
+  notices: Chrome's and Edge's own Install, or where to find it in Safari
+  and Firefox; "Not now" kept in localStorage), `consent-state.js` (whether I must agree to a changed policy;
   `api.js` marks it on a 403 `consent`, and `app.js` then shows
   `views/consent.js` in place of journal views, except Your data and
   Account (`beforeConsent` routes), so someone who won't agree can export

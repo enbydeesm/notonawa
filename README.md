@@ -118,3 +118,18 @@ encrypted data.
 For the full rules and a file-by-file layout, see [CLAUDE.md](CLAUDE.md);
 for design decisions, see [considerations.md](considerations.md); for
 planned features still to build, see [roadmap.md](roadmap.md).
+
+
+## Tech Stack
+- Frontend: Plain JavaScript ES modules, no framework; one page (`index.html`) with a `<template>` for each view. TypeScript checks the JS through JSDoc comments (`checkJs`, strict).
+- Build Tool: None for the frontend (files are served as they are). Wrangler 4.149 bundles the Cloudflare Worker (API) and serves `public/`.
+- Backend: Cloudflare Workers, D1 (SQLite), R2 (photos, videos, backups).
+- Styling: One hand-written `app.css` with CSS variables for colors, and light/dark mode as an account setting.
+- Charts: Custom SVG charts (`charts.js`, `chart-parts.js`), plus a custom world map drawn from Natural Earth outlines (`world-map.js`, `world-shapes.js`).
+- State: Plain modules. Each view's state lives inside its `mount(root, { signal })`; the encryption key lives only in a crypto Web Worker; settings are stored in D1.
+- Routing: A custom History API router (`router.js`, `navigate.js`, `app.js`).
+- Icons: Custom inline SVG built in code (the nav tabs in `nav.js`, `hankIcon` in `rope-rating.js`); no icon library.
+- Dates: Built-in `Date` and `toLocaleDateString`, in `format.js`; dates are stored as ISO text. No date library.
+- Utils: Custom DOM helpers in `dom.js` (`h`, `$`, `privateField`).
+- Libraries: `@simplewebauthn/server` 14.0.3 (passkeys; the only runtime dependency) and `mediabunny` 1.61.3 (copied into `public/js/vendor/`, re-encodes videos in the browser).
+- Tooling (dev only): ESLint 10, TypeScript 7, Vitest 4 with `@cloudflare/vitest-plugin` 1.4, and a headless-Chrome UI walkthrough (`scripts/ui-smoke.mjs`).

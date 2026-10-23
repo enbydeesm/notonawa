@@ -692,6 +692,9 @@ dialog.form-dialog {
 .notice.warning { border-left-color: var(--error); }
 .notice p { margin: 0; flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .notice-dismiss { flex: none; border: none; padding: 0 4px; color: var(--muted); font-weight: 400; }
+/* The offer to install the app (install-banner.js): its buttons under the text. */
+.notice.install-notice { flex-wrap: wrap; }
+.notice-actions { flex-basis: 100%; display: flex; align-items: center; gap: 12px; }
 
 /* The Consent view's ways out. */
 .consent-ways { margin: 8px 0; padding-left: 20px; }
