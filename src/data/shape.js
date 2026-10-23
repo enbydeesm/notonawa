@@ -9,7 +9,8 @@
 // photo in the .zip it saves (the server can't decrypt photos, so the page
 // fetches and decrypts each one; captions are still sealed here). Each also
 // lists its drawings: their lines as they're stored, with `file`, where the
-// page puts a picture of each (an SVG) in the .zip (captions sealed too).
+// page puts a picture of each (an SVG) in the .zip (captions sealed too),
+// and its poses: their figure and ropes as they're stored (captions sealed).
 
 export const EXPORT_FORMAT = "notonawa-export";
 export const EXPORT_VERSION = 1;
@@ -34,6 +35,7 @@ export const EXPORT_VERSION = 1;
  *   workshopTags: Row[],
  *   media: Row[],
  *   drawings: Row[],
+ *   poses: Row[],
  *   notices: Row[],
  *   feedback: Row[],
  * }} AccountRows
@@ -57,6 +59,9 @@ export function exportDocument(rows, exportedAt) {
   const drawingsByTie = groupBy(rows.drawings.filter((d) => d.tie_id), "tie_id");
   const drawingsByPlan = groupBy(rows.drawings.filter((d) => d.plan_id), "plan_id");
   const drawingsByWorkshop = groupBy(rows.drawings.filter((d) => d.workshop_id), "workshop_id");
+  const posesByTie = groupBy(rows.poses.filter((d) => d.tie_id), "tie_id");
+  const posesByPlan = groupBy(rows.poses.filter((d) => d.plan_id), "plan_id");
+  const posesByWorkshop = groupBy(rows.poses.filter((d) => d.workshop_id), "workshop_id");
 
   return {
     format: EXPORT_FORMAT,
@@ -110,6 +115,7 @@ export function exportDocument(rows, exportedAt) {
       tags: (tagsByPlan.get(p.id) ?? []).map((t) => t.name),
       photos: (photosByPlan.get(p.id) ?? []).map(photoEntry),
       drawings: (drawingsByPlan.get(p.id) ?? []).map(drawingEntry),
+      poses: (posesByPlan.get(p.id) ?? []).map(poseEntry),
     })),
     tags: rows.tags.map((t) => t.name),
     ties: rows.ties.map((t) => ({
@@ -125,6 +131,7 @@ export function exportDocument(rows, exportedAt) {
       tags: (tagsByTie.get(t.id) ?? []).map((x) => x.name),
       photos: (photosByTie.get(t.id) ?? []).map(photoEntry),
       drawings: (drawingsByTie.get(t.id) ?? []).map(drawingEntry),
+      poses: (posesByTie.get(t.id) ?? []).map(poseEntry),
     })),
     // Educators and participants as two lists; a deleted person has a null id.
     workshops: rows.workshops.map((w) => {
@@ -141,6 +148,7 @@ export function exportDocument(rows, exportedAt) {
         tags: (tagsByWorkshop.get(w.id) ?? []).map((x) => x.name),
         photos: (photosByWorkshop.get(w.id) ?? []).map(photoEntry),
         drawings: (drawingsByWorkshop.get(w.id) ?? []).map(drawingEntry),
+        poses: (posesByWorkshop.get(w.id) ?? []).map(poseEntry),
       };
     }),
   };
@@ -164,6 +172,19 @@ function photoEntry(m) {
 function drawingEntry(d) {
   return {
     id: d.id, data: JSON.parse(d.data), file: `drawings/${d.id}.svg`,
+    caption: d.caption, position: d.position, created_at: d.created_at, updated_at: d.updated_at,
+  };
+}
+
+/**
+ * A pose as the export lists it: its figure and ropes as they're stored.
+ * (No picture of it in the zip: drawing one takes the 3D view, which the
+ * export doesn't load. Opening the export in NotoNawa brings them back.)
+ * @param {Row} d
+ */
+function poseEntry(d) {
+  return {
+    id: d.id, data: JSON.parse(d.data),
     caption: d.caption, position: d.position, created_at: d.created_at, updated_at: d.updated_at,
   };
 }

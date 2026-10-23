@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 22, 2026
+**Last updated:** October 23, 2026
 
 ## The short version
 
@@ -18,8 +18,8 @@
 - **No ads, no analytics, no tracking, no selling or sharing your data.** The
   app loads no scripts or fonts from other companies.
 - Some information has to stay readable by our server so the app can sort and
-  filter it, such as names, titles, dates and ratings, and the drawings you
-  add to ties, plans and workshops (but not their captions). See
+  filter it, such as names, titles, dates and ratings, and the drawings and
+  poses you add to ties, plans and workshops (but not their captions). See
   [What we can and can't read](#what-we-can-and-cant-read).
 - You can export everything, import entries from a file, or delete your
   account and everything in it, at any time.
@@ -84,7 +84,7 @@ email address unless you add a recovery email.
 ### Your journal
 
 What you choose to write in the app: ties, plans, workshops, people,
-locations, tags, photos and videos, and drawings. Some of this is encrypted so only you can read it, and some
+locations, tags, photos and videos, drawings, and poses. Some of this is encrypted so only you can read it, and some
 isn't (see the next section).
 
 ### Technical information
@@ -102,7 +102,7 @@ analytics, advertising or tracking tools of any kind.
 workshop descriptions), the photo album links on ties, plans and
 workshops, where people are based and their
 social and scene names, your photos and videos, their thumbnails and
-captions, and the captions of your drawings.
+captions, and the captions of your drawings and poses.
 
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, workshops,
@@ -116,7 +116,10 @@ whether it's a photo or a video, its file type and when it was added (not
 what it shows). **Drawings are not encrypted**: the lines you draw, their
 colors, and which tie, plan or workshop each is on are readable by our
 server (only a drawing's caption is encrypted), so don't write names or
-other identifying details in a drawing itself.
+other identifying details in a drawing itself. **Poses are not encrypted
+either**: the figure's position, the view, the ropes and the ring, and
+which tie, plan or workshop each pose is on, are readable by our server
+(only a pose's caption is encrypted).
 
 This readable information is still private to your account: the app never shows it to
 anyone else, and we don't look at it (see [Our own access](#our-own-access)).
@@ -218,6 +221,22 @@ allow on this site, protects you further.
   Duplicating or copying one stores a new drawing with the same lines.
 - Deleting a drawing, or the tie, plan or workshop it's on, deletes it
   straight away.
+
+## Poses
+
+- A pose is a generic 3D figure you position, with ropes drawn on it. It's
+  stored as numbers (the angle of each joint, how the body is turned, the
+  view, and the points each rope passes through), not as a picture, so you
+  can pose it again. These numbers are **not encrypted** and are readable
+  by our server; a pose's caption is encrypted on your device, like a
+  drawing's.
+- Pictures of a pose are drawn on your device from those numbers. "Add as
+  photo" turns one into a photo, which is then encrypted and stored like any
+  other photo.
+- Up to 20 poses can be stored on each tie, plan or workshop. Duplicating or
+  copying one stores a new pose with the same numbers.
+- Deleting a pose, or the tie, plan or workshop it's on, deletes it straight
+  away. Photos made from it are kept until you delete them.
 
 ## Information about other people
 

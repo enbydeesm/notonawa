@@ -74,6 +74,20 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 `npm run test:ui` sometimes hung on a step ("took over a minute") or met an Internal Server Error while unlocking, about 1 run in 2 at the time, before any photo UI existed. First check whether it still happens; if it does, find the cause.
 
+## Poses: what's next
+
+**Status:** planned, after poses (built 2026-10-23; see considerations.md).
+
+- **Dragging a hand or foot** to place the whole limb (inverse kinematics),
+  alongside the sliders.
+- **Stepping through a sequence**: a plan's poses one after another, with
+  the one before shown faintly behind.
+- **A second figure** (the top), and **props** such as bamboo.
+- **Ropes along the body**: a rope now runs smoothly between the points
+  tapped, and can cut through the body between two far-apart points; it
+  could follow the surface instead.
+- **Animated transitions** between a sequence's poses.
+
 ## Ideas, not yet committed
 
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.

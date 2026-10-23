@@ -6,6 +6,13 @@ Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
+## 2026.10.23.001
+
+- Poses: tap + on "Poses", under Drawings on a tie, plan or workshop, to pose a 3D figure. Start from a pose such as kneeling, face down or upside down, or tap a body part and move it with the sliders. Drag to turn the view; pinch to zoom.
+- In Rope, tap the body point by point to lay a rope, and add a ring to draw uplines. Undo and Redo go back over everything you've done.
+- "Add as photo" saves a picture of a pose to the photos above it. Caption, duplicate, copy and reorder poses like drawings, and line several up on a plan to show a sequence.
+- Poses aren't encrypted (their captions are). They're in your export, and come back when you import it.
+
 ## 2026.10.22.001
 
 - Drawings: tap + on "Drawings", under Photos and videos on a tie, plan or workshop, to draw with your finger, a pen or a mouse, in eight colors and three widths. The eraser removes a whole line, and Undo and Redo go back over everything you've done. Caption a drawing like a photo, edit it again later, or drag drawings into order.

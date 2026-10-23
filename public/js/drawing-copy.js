@@ -1,4 +1,5 @@
-// "Copy to…": choosing the tie, plan or workshop to copy a drawing to. Ties
+// "Copy to…": choosing the tie, plan or workshop to copy a drawing (or a
+// pose: poses-ui.js uses it too) to. Ties
 // are searched as on the Ties page (a keyword is searched for on the
 // device, and only the matching ids are sent), newest first; plans (not
 // archived) and workshops are all loaded and searched by title here.
@@ -16,10 +17,11 @@ const KINDS = /** @type {const} */ ([["tie", "Tie"], ["plan", "Plan"], ["worksho
 const SHOWN = 20;
 
 /**
- * @param {{ exclude: Item | null }} options exclude: the item the drawing is on (not offered)
+ * @param {{ exclude: Item | null, noun?: string }} options exclude: the item
+ *   the drawing is on (not offered); noun: what's copied ("drawing", "pose")
  * @returns {Promise<Target | null>} null if cancelled
  */
-export function chooseCopyTarget({ exclude }) {
+export function chooseCopyTarget({ exclude, noun = "drawing" }) {
   return new Promise((resolve) => {
     /** @type {Kind} */
     let kind = "tie";
@@ -45,7 +47,7 @@ export function chooseCopyTarget({ exclude }) {
 
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "drawing-copy-heading" },
       h("h2", { id: "drawing-copy-heading" }, "Copy to…"),
-      h("p", { className: "hint" }, "The copy can be edited without changing this drawing."),
+      h("p", { className: "hint" }, `The copy can be edited without changing this ${noun}.`),
       h("div", { className: "tool-group", role: "group", "aria-label": "Copy to a" }, kindButtons),
       h("label", { htmlFor: "drawing-copy-search" }, "Search"),
       search,

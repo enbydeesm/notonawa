@@ -13,14 +13,14 @@
 <body>
   <main class="policy">
 <h1 id="ntonawa-privacy-policy">NōtoNawa Privacy Policy</h1>
-<p><strong>Last updated:</strong> October 22, 2026</p>
+<p><strong>Last updated:</strong> October 23, 2026</p>
 <h2 id="the-short-version">The short version</h2>
 <ul>
   <li>NōtoNawa is a private journal for rope practice. It is built so that <strong>the most sensitive parts, your notes, photos and videos, are encrypted on your device before they leave it.</strong> We can't read them, and neither can anyone who gets hold of our servers.</li>
   <li><strong>You sign in with a passkey.</strong> There are no passwords, and we don't ask for your legal name or a sign-in through Google, Apple or anyone else. An email address is optional, only for account recovery, and we keep only a scrambled copy that we can't read.</li>
   <li><strong>Keep a second passkey and your recovery code.</strong> If you lose them all, we can't guarantee to get you back in, and your encrypted notes, photos and videos can't be recovered by anyone.</li>
   <li><strong>No ads, no analytics, no tracking, no selling or sharing your data.</strong> The app loads no scripts or fonts from other companies.</li>
-  <li>Some information has to stay readable by our server so the app can sort and filter it, such as names, titles, dates and ratings, and the drawings you add to ties, plans and workshops (but not their captions). See <a href="#what-we-can-and-cant-read">What we can and can't read</a>.</li>
+  <li>Some information has to stay readable by our server so the app can sort and filter it, such as names, titles, dates and ratings, and the drawings and poses you add to ties, plans and workshops (but not their captions). See <a href="#what-we-can-and-cant-read">What we can and can't read</a>.</li>
   <li>You can export everything, import entries from a file, or delete your account and everything in it, at any time.</li>
 </ul>
 <h2 id="who-we-are">Who we are</h2>
@@ -41,12 +41,12 @@
 </ul>
 <p>We don't collect your phone number, real name, contacts or location, or your email address unless you add a recovery email.</p>
 <h3 id="your-journal">Your journal</h3>
-<p>What you choose to write in the app: ties, plans, workshops, people, locations, tags, photos and videos, and drawings. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
+<p>What you choose to write in the app: ties, plans, workshops, people, locations, tags, photos and videos, drawings, and poses. Some of this is encrypted so only you can read it, and some isn't (see the next section).</p>
 <h3 id="technical-information">Technical information</h3>
 <p>To deliver the app and protect it from attacks, our hosting provider, Cloudflare, briefly processes standard connection information such as your IP address, and counts sign-in attempts per IP address for a minute at a time to stop people guessing. We don't store it, and we don't keep request logs. We don't use analytics, advertising or tracking tools of any kind.</p>
 <h2 id="what-we-can-and-cant-read">What we can and can't read</h2>
-<p><strong>Encrypted on your device, so only you can read them:</strong> every notes field (on ties, people, locations, plans and workshops, including plan and workshop descriptions), the photo album links on ties, plans and workshops, where people are based and their social and scene names, your photos and videos, their thumbnails and captions, and the captions of your drawings.</p>
-<p><strong>Everything else in your journal is readable by our server</strong>, so the app can list, sort and filter it: the details of your ties, plans, workshops, people and locations (such as names, pronouns, titles, dates, types, ratings, who took part, a workshop's educators and how many attended, whether someone is an educator, and a location's city, state or province and country), your tags, when things were created, changed or archived and how they link together, and for each photo or video which tie, plan or workshop it's on, its size, whether it's a photo or a video, its file type and when it was added (not what it shows). <strong>Drawings are not encrypted</strong>: the lines you draw, their colors, and which tie, plan or workshop each is on are readable by our server (only a drawing's caption is encrypted), so don't write names or other identifying details in a drawing itself.</p>
+<p><strong>Encrypted on your device, so only you can read them:</strong> every notes field (on ties, people, locations, plans and workshops, including plan and workshop descriptions), the photo album links on ties, plans and workshops, where people are based and their social and scene names, your photos and videos, their thumbnails and captions, and the captions of your drawings and poses.</p>
+<p><strong>Everything else in your journal is readable by our server</strong>, so the app can list, sort and filter it: the details of your ties, plans, workshops, people and locations (such as names, pronouns, titles, dates, types, ratings, who took part, a workshop's educators and how many attended, whether someone is an educator, and a location's city, state or province and country), your tags, when things were created, changed or archived and how they link together, and for each photo or video which tie, plan or workshop it's on, its size, whether it's a photo or a video, its file type and when it was added (not what it shows). <strong>Drawings are not encrypted</strong>: the lines you draw, their colors, and which tie, plan or workshop each is on are readable by our server (only a drawing's caption is encrypted), so don't write names or other identifying details in a drawing itself. <strong>Poses are not encrypted either</strong>: the figure's position, the view, the ropes and the ring, and which tie, plan or workshop each pose is on, are readable by our server (only a pose's caption is encrypted).</p>
 <p>This readable information is still private to your account: the app never shows it to anyone else, and we don't look at it (see <a href="#our-own-access">Our own access</a>). But because it isn't encrypted on your device, it could be disclosed if our systems were breached or if we were legally required to hand it over. <strong>Keep anything you consider truly sensitive, such as full names, addresses or identifying details, in the notes fields, which are encrypted.</strong> We plan to encrypt more of these fields over time.</p>
 <h2 id="how-encryption-works">How encryption works</h2>
 <ul>
@@ -79,6 +79,13 @@
   <li>A drawing is stored as the lines you drew (their points, colors and widths), not as a picture, so you can edit it again. Its lines are <strong>not encrypted</strong> and are readable by our server; its caption is encrypted on your device, like a photo's.</li>
   <li>Up to 20 drawings can be stored on each tie, plan or workshop. Duplicating or copying one stores a new drawing with the same lines.</li>
   <li>Deleting a drawing, or the tie, plan or workshop it's on, deletes it straight away.</li>
+</ul>
+<h2 id="poses">Poses</h2>
+<ul>
+  <li>A pose is a generic 3D figure you position, with ropes drawn on it. It's stored as numbers (the angle of each joint, how the body is turned, the view, and the points each rope passes through), not as a picture, so you can pose it again. These numbers are <strong>not encrypted</strong> and are readable by our server; a pose's caption is encrypted on your device, like a drawing's.</li>
+  <li>Pictures of a pose are drawn on your device from those numbers. &quot;Add as photo&quot; turns one into a photo, which is then encrypted and stored like any other photo.</li>
+  <li>Up to 20 poses can be stored on each tie, plan or workshop. Duplicating or copying one stores a new pose with the same numbers.</li>
+  <li>Deleting a pose, or the tie, plan or workshop it's on, deletes it straight away. Photos made from it are kept until you delete them.</li>
 </ul>
 <h2 id="information-about-other-people">Information about other people</h2>
 <p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. Entries about someone stay in your account. If that person also uses NōtoNawa, they can't see your entries, and we don't tell them you've written about them.</p>

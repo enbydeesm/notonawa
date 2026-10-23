@@ -182,6 +182,17 @@ export function photoSection({ item, idPrefix }) {
   async function addChosen() {
     const files = [...(input.files ?? [])];
     input.value = "";
+    await addFiles(files);
+  }
+
+  /**
+   * Prepares and adds photos and videos (chosen, or made on the page, like
+   * a picture of a pose): uploaded now if the item is saved, otherwise
+   * waiting for it.
+   * @param {File[]} files
+   * @returns {Promise<string[]>} what went wrong with any of them
+   */
+  async function addFiles(files) {
     const room = MAX_PHOTOS - photos.length;
     if (files.length > room) say(`There can be at most ${MAX_PHOTOS} photos and videos, so only ${room} more can be added.`, true);
     const problems = [];
@@ -225,6 +236,8 @@ export function photoSection({ item, idPrefix }) {
     busy--;
     if (problems.length) say(problems.join(" "), true);
     else if (files.length <= room) say("");
+    if (files.length > room) problems.push("There's no room for more photos.");
+    return problems;
   }
 
   /**
@@ -407,6 +420,7 @@ export function photoSection({ item, idPrefix }) {
   return {
     element,
     uploadPending,
+    addFiles,
     close,
     /** Whether photos are still being prepared or uploaded. */
     get busy() { return busy > 0; },

@@ -13,6 +13,7 @@ const KIND_OF = {
   ties: "tie", tie_participants: "participant", people: "person",
   profile_notes: "profileNote", locations: "location", plans: "plan", workshops: "workshop",
   drawings: "drawing",
+  poses: "pose",
 };
 const ROWS_PER_REQUEST = 500;
 

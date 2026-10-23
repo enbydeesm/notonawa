@@ -1,10 +1,19 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.22.001";
+export const APP_VERSION = "2026.10.23.001";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.23.001",
+    "notes": [
+      "Poses: tap + on \"Poses\", under Drawings on a tie, plan or workshop, to pose a 3D figure. Start from a pose such as kneeling, face down or upside down, or tap a body part and move it with the sliders. Drag to turn the view; pinch to zoom.",
+      "In Rope, tap the body point by point to lay a rope, and add a ring to draw uplines. Undo and Redo go back over everything you've done.",
+      "\"Add as photo\" saves a picture of a pose to the photos above it. Caption, duplicate, copy and reorder poses like drawings, and line several up on a plan to show a sequence.",
+      "Poses aren't encrypted (their captions are). They're in your export, and come back when you import it."
+    ]
+  },
   {
     "version": "2026.10.22.001",
     "notes": [

@@ -7,6 +7,7 @@ import { readExport, itemsBody, remapTies, remapWorkshops, batches, TIE_BATCH } 
 import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
 import { takeDrawings } from "../../public/js/import-drawings.js";
+import { takePoses } from "../../public/js/import-poses.js";
 import template from "../../public/import-template.csv?raw";
 
 /** A new user, signed in. */
@@ -33,22 +34,32 @@ function sealFile(doc) {
  * Imports a file the way the page does: items, then ties in batches, each
  * checked for duplicates first (candidates from the server, notes compared
  * here), sending which to skip; then workshops the same way; then the
- * drawings of the ties, plans and workshops just added (the file's
- * captions are already sealed here, as the export left them).
+ * drawings and poses of the ties, plans and workshops just added (the
+ * file's captions are already sealed here, as the export left them).
  * @param {any} file
  * @param {string} cookie
  * @param {number} [batchSize]
  */
 async function importFile(file, cookie, batchSize) {
   const drawings = takeDrawings(readExport(file));
-  const doc = await sealFile(drawings.doc);
+  const poses = takePoses(drawings.doc);
+  const doc = await sealFile(poses.doc);
   const items = await call("/api/data/import/items", { method: "POST", body: itemsBody(doc, false), cookie });
   expect(items.status, JSON.stringify(items.body)).toBe(200);
-  /** @type {[Record<string, string>, import("../../public/js/import-drawings.js").DrawingEntry[]][]} */
+  /** Where each drawing and pose goes: [path, item, entries]. @type {[string, Record<string, string>, { data: any, caption: string | null }[]][]} */
   const drawingTargets = [];
+  /**
+   * @param {Record<string, string>} item
+   * @param {(lists: typeof drawings | typeof poses) => { data: any, caption: string | null }[] | undefined} entriesOf
+   */
+  const target = (item, entriesOf) => {
+    const drawn = entriesOf(drawings);
+    if (drawn) drawingTargets.push(["/api/drawings", item, drawn]);
+    const posed = entriesOf(poses);
+    if (posed) drawingTargets.push(["/api/poses", item, posed]);
+  };
   for (const plan of items.body.plans) {
-    const entries = drawings.plans.get(String(plan.file_id));
-    if (entries && !plan.matched) drawingTargets.push([{ plan_id: plan.id }, entries]);
+    if (!plan.matched) target({ plan_id: plan.id }, (lists) => lists.plans.get(String(plan.file_id)));
   }
   let added = 0;
   let skipped = 0;
@@ -60,8 +71,7 @@ async function importFile(file, cookie, batchSize) {
     added += res.body.added;
     skipped += res.body.skipped;
     res.body.ids.forEach((/** @type {string | null} */ id, /** @type {number} */ i) => {
-      const entries = drawings.ties.get(n * (batchSize ?? TIE_BATCH) + i);
-      if (id && entries) drawingTargets.push([{ tie_id: id }, entries]);
+      if (id) target({ tie_id: id }, (lists) => lists.ties.get(n * (batchSize ?? TIE_BATCH) + i));
     });
   }
   let workshopsAdded = 0;
@@ -75,13 +85,12 @@ async function importFile(file, cookie, batchSize) {
     workshopsAdded += res.body.added;
     workshopsSkipped += res.body.skipped;
     res.body.ids.forEach((/** @type {string | null} */ id, /** @type {number} */ i) => {
-      const entries = drawings.workshops.get(n * (batchSize ?? TIE_BATCH) + i);
-      if (id && entries) drawingTargets.push([{ workshop_id: id }, entries]);
+      if (id) target({ workshop_id: id }, (lists) => lists.workshops.get(n * (batchSize ?? TIE_BATCH) + i));
     });
   }
-  for (const [item, entries] of drawingTargets) {
+  for (const [path, item, entries] of drawingTargets) {
     for (const { data, caption } of entries) {
-      const res = await call("/api/drawings", { method: "POST", body: { ...item, data, caption }, cookie });
+      const res = await call(path, { method: "POST", body: { ...item, data, caption }, cookie });
       expect(res.status, JSON.stringify(res.body)).toBe(201);
     }
   }
@@ -105,12 +114,14 @@ function comparable(doc) {
   ]);
   const name = (/** @type {string | null} */ id) => (id === null ? null : names.get(id));
   const byText = (/** @type {any[]} */ list) => list.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  // A drawing gets a new id, and is new (created_at, updated_at), in the copy.
+  // A drawing or pose gets a new id, and is new (created_at, updated_at), in the copy.
   const drawings = (/** @type {any[]} */ list) => list.map(({ data, caption, position }) => ({ data, caption, position }));
   return {
     people: byText(doc.people.map(({ id: _id, ...p }) => p)),
     locations: byText(doc.locations.map(({ id: _id, ...l }) => l)),
-    plans: byText(doc.plans.map(({ id: _id, ...p }) => ({ ...p, variation_of: name(p.variation_of), drawings: drawings(p.drawings) }))),
+    plans: byText(doc.plans.map(({ id: _id, ...p }) => ({
+      ...p, variation_of: name(p.variation_of), drawings: drawings(p.drawings), poses: drawings(p.poses),
+    }))),
     tags: doc.tags,
     ties: byText(doc.ties.map(({ id: _id, ...t }) => ({
       ...t,
@@ -118,6 +129,7 @@ function comparable(doc) {
       participants: byText(t.participants.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
       plans: byText(t.plans.map((/** @type {any} */ p) => ({ ...p, plan_id: name(p.plan_id) }))),
       drawings: drawings(t.drawings),
+      poses: drawings(t.poses),
     }))),
     workshops: byText(doc.workshops.map(({ id: _id, ...w }) => ({
       ...w,
@@ -125,6 +137,7 @@ function comparable(doc) {
       educators: byText(w.educators.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
       participants: byText(w.participants.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
       drawings: drawings(w.drawings),
+      poses: drawings(w.poses),
     }))),
   };
 }
@@ -174,6 +187,15 @@ async function fillJournal() {
   await create("/api/drawings", { tie_id: floor, data: lines("blue"), caption: null });
   await create("/api/drawings", { plan_id: tk2, data: lines("green"), caption: sealed("Harness") });
   await create("/api/drawings", { workshop_id: intensive, data: lines("pink"), caption: null });
+  // Poses on a tie (two, in order), a plan and a workshop.
+  const posed = (/** @type {number} */ knee) => ({
+    v: 1, joints: { l_knee: [knee] }, body: [90, 0, 0], lift: 110, camera: [20, 10, 300, 110], ring: [0, 280, 0],
+    ropes: [{ c: "red", w: 2, p: [["chest", 0, 120, 110], ["ring", 0, 0, 0]] }],
+  });
+  await create("/api/poses", { tie_id: floor, data: posed(10), caption: sealed("Step 1") });
+  await create("/api/poses", { tie_id: floor, data: posed(90), caption: null });
+  await create("/api/poses", { plan_id: tk2, data: posed(45), caption: sealed("Sequence") });
+  await create("/api/poses", { workshop_id: intensive, data: posed(120), caption: null });
   await call(`/api/people/${gone}`, { method: "DELETE" });
   await call(`/api/locations/${old}`, { method: "DELETE" });
   await call(`/api/plans/${dropped}?linked_ties=keep`, { method: "DELETE" });

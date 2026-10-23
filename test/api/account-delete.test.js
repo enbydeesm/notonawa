@@ -27,6 +27,7 @@ const OWNED_ROWS = {
   key_wraps: "SELECT count(*) AS n FROM key_wraps WHERE user_id = ?",
   media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
   drawings: "SELECT count(*) AS n FROM drawings WHERE owner_id = ?",
+  poses: "SELECT count(*) AS n FROM poses WHERE owner_id = ?",
   notices: "SELECT count(*) AS n FROM notices WHERE user_id = ?",
   notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
   feedback: "SELECT count(*) AS n FROM feedback WHERE user_id = ?",
@@ -44,6 +45,8 @@ const ORPHANS = [
   "SELECT count(*) AS n FROM media WHERE workshop_id NOT IN (SELECT id FROM workshops)",
   "SELECT count(*) AS n FROM media WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)",
   `SELECT count(*) AS n FROM drawings WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)
+      OR workshop_id NOT IN (SELECT id FROM workshops)`,
+  `SELECT count(*) AS n FROM poses WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)
       OR workshop_id NOT IN (SELECT id FROM workshops)`,
 ];
 
@@ -95,6 +98,10 @@ async function userWithEverything() {
   await post("/api/drawings", { tie_id: tie, data: { v: 1, strokes: [{ c: "red", w: 1, p: [1, 1] }] } });
   await post("/api/drawings", { plan_id: plan, data: { v: 1, strokes: [{ c: "blue", w: 1, p: [1, 1] }] } });
   await post("/api/drawings", { workshop_id: workshop, data: { v: 1, strokes: [{ c: "green", w: 1, p: [1, 1] }] } });
+  const pose = { v: 1, joints: {}, body: [0, 0, 0], lift: 99, camera: [0, 0, 300, 100], ring: null, ropes: [] };
+  await post("/api/poses", { tie_id: tie, data: pose });
+  await post("/api/poses", { plan_id: plan, data: pose });
+  await post("/api/poses", { workshop_id: workshop, data: pose });
   // A notice just for them, dismissed.
   const notice = crypto.randomUUID();
   await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();

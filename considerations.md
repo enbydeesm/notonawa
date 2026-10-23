@@ -1456,3 +1456,52 @@ about 6 minutes, too slow to run after every change.
   since migration 0001: it was meant to count substantive edits for a plan
   history that was never built, and nothing changes it. Showing "v1" on
   every card would say nothing; it's back when something bumps it.
+
+## Poses: a 3D figure on ties, plans and workshops (October 2026)
+
+**Status:** built (2026-10-23)
+
+- **Our own figure, not Mannequin.js.** Mannequin.js does almost exactly
+  this, but it's GPL-3.0: shipping it in the page would mean releasing the
+  app's code under the GPL. The figure here is a tree of bones
+  (`figure-rig.js`) drawn as capsules and ellipsoids: genderless by
+  design, with joint limits chosen for rope (a box tie's shoulders, a
+  futomomo's hip and knee). Revisit if the app is ever open-sourced under
+  the GPL anyway.
+- **three.js, bundled to only the parts used.** The whole library is about
+  2 MB, and every static file is `no-store`, so it would be fetched every
+  time the poser opens. `scripts/vendor.mjs` bundles only what
+  `scripts/vendor/three-entry.mjs` names, minified with the esbuild that
+  comes with wrangler (555 KB, about 140 KB over the wire), and the types
+  are ours (`scripts/vendor/three.d.ts`), covering just those parts, rather
+  than another package. It's fetched only when a form has poses to show, or
+  one is added (`poses-ui.js` imports the 3D code itself).
+- **Kept as numbers, like drawings' lines**: each joint's angles, the body's
+  turn and height, the view, the ring and the ropes (`pose-format.js`;
+  `src/poses/parse.js` checks the same format). A picture couldn't be posed
+  again, and is far bigger. Rope points are kept in millimetres from a bone,
+  in the bone's own directions, so a rope stays on the arm it was laid on
+  when the arm moves. **Not encrypted, by choice**, as drawings aren't; the
+  caption is. PRIVACY.md says so.
+- **One copy of the joint limits each side**, page and server, kept in step
+  by a unit test (as drawings' format is), and the tests pose the figure
+  with three.js's math (`pose-skeleton.js` has no drawing in it) to check
+  the presets: a box tie's wrists are behind the back, kneeling shins are on
+  the floor, face down faces the floor.
+- **Sliders, not 3D handles.** Dragging gizmos in 3D is hard with a finger on
+  a phone; tapping a part and moving sliders isn't. One finger turns the
+  view, two pinch and slide it. Undo and redo cover everything but the
+  view (turning the view isn't a change to undo).
+- **"Add as photo"** draws the pose on the device and hands the picture to
+  the form's Photos section (`addFiles`), which prepares and seals it like
+  any photo. Pictures and thumbnails come from one hidden 3D view, reused:
+  browsers allow only a few at once.
+- **A sequence is a plan with several poses in order**: no new schema.
+- **Export and import**: poses are in notonawa.json as their numbers. No
+  picture of each in the zip (drawings have SVGs): that would need the 3D
+  view, which the export doesn't load. Import saves them once the journal
+  is in, onto items with none yet, as drawings (`import-poses.js`; the
+  data page's `importSaved` does both).
+- **Left out for now** (see roadmap.md): dragging a hand or foot to place
+  the limb (inverse kinematics), ropes that follow the body's surface
+  between points, a second figure, props, and animation.

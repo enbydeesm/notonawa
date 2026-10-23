@@ -56,6 +56,9 @@ export async function readAccount(db, userId) {
     // Drawings: their lines are plain JSON; their captions are sealed.
     q(`SELECT id, tie_id, plan_id, workshop_id, data, caption, position, created_at, updated_at
          FROM drawings WHERE owner_id = ? ORDER BY position, created_at`),
+    // Poses: their figure and ropes are plain JSON; their captions are sealed.
+    q(`SELECT id, tie_id, plan_id, workshop_id, data, caption, position, created_at, updated_at
+         FROM poses WHERE owner_id = ? ORDER BY position, created_at`),
     // Notices just for me, and others I've dismissed.
     q(`SELECT n.message, n.created_at, n.user_id IS NOT NULL AS just_for_me, d.dismissed_at
          FROM notices n LEFT JOIN notice_dismissals d ON d.notice_id = n.id AND d.user_id = ?1
@@ -64,10 +67,10 @@ export async function readAccount(db, userId) {
     q("SELECT kind, message, app_version, created_at FROM feedback WHERE user_id = ? ORDER BY created_at, id"),
   ]);
   const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags,
-    workshops, workshopPeople, workshopTags, media, drawings, notices, feedback] =
+    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
-    ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, drawings, notices, feedback,
+    ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback,
   };
 }

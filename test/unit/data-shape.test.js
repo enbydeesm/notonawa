@@ -6,7 +6,7 @@ const EMPTY = {
   user: { created_at: "2026-01-01T00:00:00Z", accepted_at: "2026-01-01T00:00:00Z", terms_version: "1" },
   passkeys: [], people: [], profileNotes: [], locations: [], plans: [], planTags: [], tags: [],
   ties: [], participants: [], tiePlans: [], tieTags: [], workshops: [], workshopPeople: [], workshopTags: [],
-  media: [], drawings: [], notices: [], feedback: [],
+  media: [], drawings: [], poses: [], notices: [], feedback: [],
 };
 
 describe("exportDocument", () => {
@@ -51,6 +51,7 @@ describe("exportDocument", () => {
       tags: ["floor"],
       photos: [{ id: "m1", kind: "photo", mime: "image/webp", file: "photos/m1.webp", caption: null, position: 0, created_at: "2026-03-01T00:00:00Z" }],
       drawings: [],
+      poses: [],
     }]);
   });
 
@@ -74,6 +75,28 @@ describe("exportDocument", () => {
     ]);
     expect(doc.plans[0].drawings.map((/** @type {any} */ d) => d.id)).toEqual(["d3"]);
     expect(doc.workshops[0].drawings.map((/** @type {any} */ d) => d.id)).toEqual(["d4"]);
+  });
+
+  it("lists each tie's, plan's and workshop's poses, their data as JSON", () => {
+    const data = { v: 1, joints: { l_knee: [30] }, body: [0, 0, 0], lift: 99, camera: [0, 0, 300, 100], ring: null, ropes: [] };
+    const row = (/** @type {string} */ id, /** @type {Record<string, string | null>} */ item, position = 0) => ({
+      id, tie_id: null, plan_id: null, workshop_id: null, ...item, data: JSON.stringify(data), caption: null,
+      position, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z",
+    });
+    const doc = exportDocument({
+      ...EMPTY,
+      ties: [{ id: "t1", title: "A" }],
+      plans: [{ id: "pl1", title: "TK" }],
+      workshops: [{ id: "w1", title: "Intro" }],
+      poses: [row("p1", { tie_id: "t1" }), { ...row("p2", { tie_id: "t1" }, 1), caption: "e1.x.y" },
+        row("p3", { plan_id: "pl1" }), row("p4", { workshop_id: "w1" })],
+    }, "2026-10-13T10:00:00Z");
+    expect(doc.ties[0].poses).toEqual([
+      { id: "p1", data, caption: null, position: 0, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z" },
+      { id: "p2", data, caption: "e1.x.y", position: 1, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-02T00:00:00Z" },
+    ]);
+    expect(doc.plans[0].poses.map((/** @type {any} */ d) => d.id)).toEqual(["p3"]);
+    expect(doc.workshops[0].poses.map((/** @type {any} */ d) => d.id)).toEqual(["p4"]);
   });
 
   it("labels the file with its format, version and time", () => {

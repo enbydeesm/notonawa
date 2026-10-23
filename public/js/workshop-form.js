@@ -17,6 +17,7 @@ import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, open } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
 import { drawingSection } from "./drawings-ui.js";
+import { poseSection, intoPhotos } from "./poses-ui.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -105,6 +106,7 @@ function showWorkshopForm(workshop) {
     const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, "Save workshop");
     const photos = photoSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
     const drawings = drawingSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
+    const poses = poseSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop", addPhoto: intoPhotos(photos) });
     const startInput = privateField(h("input", {
       id: "workshop-start_date", name: "start_date", type: "date", value: today(), required: true,
       onchange: () => { endInput.min = startInput.value; },
@@ -149,6 +151,7 @@ function showWorkshopForm(workshop) {
       })),
       photos.element,
       drawings.element,
+      poses.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("workshop-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -165,6 +168,7 @@ function showWorkshopForm(workshop) {
     dialog.addEventListener("close", () => {
       photos.close();
       drawings.close();
+      poses.close();
       dialog.remove();
       resolve(saved);
     });
@@ -263,7 +267,7 @@ function showWorkshopForm(workshop) {
     async function confirmDelete() {
       const choice = await choose({
         title: "Delete this workshop?",
-        message: "It'll be gone for good, with its photos and drawings. Its people, location and tags stay.",
+        message: "It'll be gone for good, with its photos, drawings and poses. Its people, location and tags stay.",
         choices: [{ label: "Delete workshop", value: "delete", style: "solid-danger" }],
       });
       if (choice !== "delete" || !workshop) return;
@@ -308,8 +312,8 @@ function showWorkshopForm(workshop) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
-      if (photos.busy || drawings.busy) {
-        showMessage(message, `Wait for the ${photos.busy ? "photos" : "drawings"} to finish, then save.`, true);
+      if (photos.busy || drawings.busy || poses.busy) {
+        showMessage(message, `Wait for the ${photos.busy ? "photos" : drawings.busy ? "drawings" : "poses"} to finish, then save.`, true);
         return;
       }
       saveButton.disabled = true;
@@ -331,6 +335,13 @@ function showWorkshopForm(workshop) {
           const problem = await drawings.savePending({ workshop_id: /** @type {string} */ (savedId) });
           if (problem) {
             showMessage(message, `The workshop is saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
+            return;
+          }
+        }
+        if (poses.waiting) {
+          const problem = await poses.savePending({ workshop_id: /** @type {string} */ (savedId) });
+          if (problem) {
+            showMessage(message, `The workshop is saved, but a pose couldn't be saved: ${problem} Save again to try again.`, true);
             return;
           }
         }

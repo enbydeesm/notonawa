@@ -20,6 +20,12 @@
   --paper: #fffdf8;
   --ink-black: #222; --ink-grey: #8a857e; --ink-red: #d63031; --ink-orange: #e8891c;
   --ink-green: #2e9145; --ink-blue: #2f6bd6; --ink-purple: #7e51a2; --ink-pink: #e0559a;
+  /* Poses (pose-scene.js reads these): the figure, the part being posed,
+     the floor, the backdrop and the ring, the same in both modes, as the
+     paper is, so a pose's picture looks the same whichever is on. Ropes
+     use the inks above. */
+  --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
+  --pose-ring: #8a857e;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
    (data-theme is set by theme-init.js before the page draws, then by
@@ -166,6 +172,46 @@ dialog.drawing-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .drawing-actions { display: flex; gap: 8px; }
 .drawing-actions button { flex: 1; padding: 10px; }
 .drawing-actions button.primary { margin-top: 0; padding: 10px; font-size: 0.9rem; }
+/* Poses: pictures of the figure (pose-scene.js) in the photos' grid and
+   viewer, and the poser filling the screen (pose-editor.js): the tools on
+   top, the 3D view as big as fits, and the sliders for the part being
+   posed below it, scrolling if there are many. */
+.pose-section { margin-top: 8px; }
+.pose-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pose-pending { display: grid; place-items: center; width: 100%; height: 100%; color: var(--muted); font-size: 0.8rem; }
+.pose-full-frame { display: grid; place-items: center; }
+.pose-full {
+  display: block; width: 100%; max-height: 60vh; object-fit: contain; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--pose-backdrop);
+}
+dialog.pose-editor {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 8px 12px;
+  border: 0; border-radius: 0;
+}
+dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
+.pose-tools { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 14px; }
+.pose-tools select.tool { width: auto; }
+.pose-frame {
+  position: relative; flex: 1; min-height: 180px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--pose-backdrop);
+}
+.pose-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.pose-hint {
+  position: absolute; left: 8px; top: 6px; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
+}
+.pose-panels { flex: none; max-height: 38dvh; overflow-y: auto; }
+.pose-panel { display: flex; flex-direction: column; gap: 8px; }
+.pose-panel[hidden] { display: none; }
+.pose-panel .hint { margin: 0; }
+.pose-menus { display: flex; gap: 8px; }
+.pose-menus select { flex: 1; min-width: 0; }
+.pose-part { margin: 0; font-size: 1rem; }
+.pose-sliders { display: flex; flex-direction: column; gap: 4px; }
+.pose-slider { display: grid; grid-template-columns: 7.5rem 1fr 2.5rem; align-items: center; gap: 8px; }
+.pose-slider label { margin: 0; font-size: 0.85rem; }
+.pose-slider input[type="range"] { width: 100%; margin: 0; padding: 0; }
+.pose-value { font-size: 0.85rem; text-align: right; font-variant-numeric: tabular-nums; }
+.pose-editor .message { margin: 0; }
 /* "Copy to…": the ties, plans or workshops to choose from. */
 .copy-targets { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .copy-target { display: flex; justify-content: space-between; gap: 8px; text-align: left; padding: 10px; }

@@ -9,7 +9,7 @@
 // is scripts/ui/chunks/<name>.mjs and starts from a new account of its own.
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
-  "notes", "photos", "drawings", "deleting", "account", "data", "insights", "education",
+  "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -18,7 +18,7 @@ export const UI_CHUNKS = [
 // as 30.
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
-  notes: 19, photos: 55, drawings: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
+  notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
 };
 
 /**
@@ -245,6 +245,15 @@ export const AREAS = [
       "public/js/tile-drag.js"],
     tests: ["test/api/drawings.test.js", "test/unit/drawings.test.js", "test/api/data-import.test.js"],
     ui: ["drawings", "data"],
+  },
+  {
+    name: "poses",
+    files: ["src/poses/", "public/js/figure-rig.js", "public/js/pose-format.js", "public/js/pose-skeleton.js",
+      "public/js/pose-scene.js", "public/js/pose-editor.js", "public/js/poses-ui.js", "public/js/import-poses.js",
+      "public/js/drawing-copy.js", "public/js/tile-drag.js", "scripts/vendor/"],
+    tests: ["test/api/poses.test.js", "test/unit/poses.test.js", "test/api/data-import.test.js"],
+    ui: ["poses", "data"],
+    generated: ["vendor"],
   },
   {
     name: "data",

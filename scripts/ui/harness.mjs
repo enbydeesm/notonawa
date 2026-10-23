@@ -130,8 +130,11 @@ await waitFor(`${BASE}/`, "wrangler dev");
 // --- start Chrome and connect ------------------------------------------------
 
 await refuseIfInUse(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome's debugging port");
+// --enable-unsafe-swiftshader: the poser's 3D view draws even where
+// headless Chrome has no GPU to use (recent Chrome only falls back to its
+// software renderer for WebGL when asked). It only draws our own pages.
 start(CHROME, [
-  "--headless=new", `--remote-debugging-port=${DEBUG_PORT}`, "--window-size=420,1400",
+  "--headless=new", "--enable-unsafe-swiftshader", `--remote-debugging-port=${DEBUG_PORT}`, "--window-size=420,1400",
   "--no-first-run", `--user-data-dir=${path.join(workDir, "chrome")}`, "about:blank",
 ], { stdio: "ignore" });
 const targets = await (await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome")).json();

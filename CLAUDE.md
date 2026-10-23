@@ -134,6 +134,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   workshop_id=`, `POST /api/drawings` (adding, duplicating and copying
   alike), `PUT /api/drawings/:id` (lines and/or caption), `PUT
   /api/drawings/order`, `DELETE /api/drawings/:id`).
+- `src/poses/`: poses on ties, plans and workshops (migration 0020): a 3D
+  figure kept as numbers, plain JSON in D1 (not encrypted, by choice; the
+  caption is). `parse.js` (pure: the format `{ v: 1, joints, body, lift,
+  camera, ring, ropes }`, `JOINTS` and their limits, the same as
+  `public/js/figure-rig.js`'s, kept in step by a unit test; 20 an item),
+  `db.js`, `routes.js` (the same routes as drawings, under `/api/poses`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the photo sweep and the backup, each
   carrying on if one before it fails).
@@ -259,6 +265,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `photos-ui.js` (a form's Photos section: dragging into order, and the
   viewer, which plays videos with speed buttons), `tile-drag.js`
   (dragging Photos' and Drawings' tiles into order),
+  `figure-rig.js` (pure: the poser's figure, its joints and limits, shapes
+  and presets), `pose-format.js` (pure: a pose, changing it, undo/redo),
+  `pose-skeleton.js` (the bones posed, with three.js's math only: where a
+  joint or rope point is; tested), `pose-scene.js` (the 3D view, with
+  `vendor/three.js`; pictures of poses), `pose-editor.js` (the poser: a
+  full-screen dialog like the drawing pad), `poses-ui.js` (a form's Poses
+  section, under Drawings; "Add as photo" through the Photos section's
+  `addFiles`), `import-poses.js` (pure: an import's poses),
   `drawing-format.js` (pure: the drawing format, simplifying a line, SVG
   paths and the export's SVG file), `drawing-edit.js` (pure: undo/redo and
   which line the eraser touches), `drawing-svg.js` (a drawing as SVG on
@@ -269,7 +283,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   picker of ties, plans and workshops), `import-drawings.js` (pure: an
   import's drawings, taken off and saved once the rest is),
   `vendor/` (libraries copied from node_modules by
-  `scripts/vendor.mjs`, never edited; their `.d.ts` beside them), `lock-rules.js` (pure) and `lock.js`
+  `scripts/vendor.mjs`, never edited; their `.d.ts` beside them; three.js
+  is bundled there from only the parts in `scripts/vendor/three-entry.mjs`,
+  with our own types, `scripts/vendor/three.d.ts`), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `opensOnTap`: a list's
   card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
@@ -391,7 +407,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   rebuild `public/js/world-shapes.js`, the Analytics map's country
   outlines, from Natural Earth's 1:110m countries (downloaded; not kept).
 - `node scripts/vendor.mjs`: copy `public/js/vendor/` again from
-  node_modules after updating a vendored package (mediabunny); `--check`
+  node_modules after updating a vendored package (mediabunny, three), or
+  after changing `scripts/vendor/three-entry.mjs` or `three.d.ts`; `--check`
   (in `npm run check`) fails if a copy differs.
 - `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]
   [--remote | --dev]`: the bug reports and ideas sent from the app, newest first.
@@ -441,7 +458,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Always check whether a code path should set `updated_at`.** Nothing updates
   it automatically (we chose not to use triggers, to avoid a second write per
   UPDATE; see considerations.md). Any UPDATE to a table with an `updated_at`
-  column (people, profile_notes, locations, plans, ties, workshops, drawings) should normally include
+  column (people, profile_notes, locations, plans, ties, workshops, drawings, poses) should normally include
   `updated_at = ${NOW}`.
 - **Timestamps are ISO text**, e.g. `2026-10-11T21:51:00Z`. In SQL, use the
   `NOW` constant from `src/lib.js` (`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
@@ -502,7 +519,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `profile_notes.description`, `locations.notes`, `plans.description`,
   `plans.notes`, `plans.album_url`, `workshops.description`,
   `workshops.notes`, `workshops.album_url` (migration 0018),
-  `drawings.caption` (migration 0019; a drawing's lines aren't)): parse them with
+  `drawings.caption` (migration 0019; a drawing's lines aren't),
+  `poses.caption` (migration 0020; a pose's numbers aren't)): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,
   searches or sorts by them. The page seals before sending (`vault.seal`,
   `sealOne`) and opens what it shows (`vault.open`). A new encrypted field

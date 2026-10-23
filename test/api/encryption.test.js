@@ -17,6 +17,7 @@ async function userWithPlainNotes() {
   await run("INSERT INTO tie_participants (id, tie_id, person_id, role, notes) VALUES (?, ?, ?, 'bottom', 'plain part')", `tp-${id}`, `t-${id}`, `p-${id}`);
   await run("INSERT INTO workshops (id, owner_id, title, start_date, description) VALUES (?, ?, 'Intro', '2026-01-01', 'plain class')", `w-${id}`, id);
   await run("INSERT INTO drawings (id, owner_id, tie_id, data, caption, position) VALUES (?, ?, ?, '{}', 'plain caption', 0)", `d-${id}`, id, `t-${id}`);
+  await run("INSERT INTO poses (id, owner_id, tie_id, data, caption, position) VALUES (?, ?, ?, '{}', 'plain pose', 0)", `po-${id}`, id, `t-${id}`);
   // Already encrypted, or empty: not pending.
   await run("INSERT INTO ties (id, owner_id, title, tie_date, tie_type, notes) VALUES (?, ?, 'Done', '2026-01-02', 'floor', ?)", `t2-${id}`, id, sealed("done"));
   await run("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'Empty', '2026-01-03', 'floor')", `t3-${id}`, id);
@@ -37,6 +38,7 @@ describe("encrypting older notes", () => {
       plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed"), album_url: null }],
       workshops: [{ id: `w-${me.id}`, description: "plain class", notes: null, album_url: null }],
       drawings: [{ id: `d-${me.id}`, caption: "plain caption" }],
+      poses: [{ id: `po-${me.id}`, caption: "plain pose" }],
     });
   });
 
@@ -52,6 +54,7 @@ describe("encrypting older notes", () => {
       plans: [{ id: `pl-${me.id}`, description: sealed("steps"), notes: sealed("not this") }],
       workshops: [{ id: `w-${me.id}`, description: sealed("class") }],
       drawings: [{ id: `d-${me.id}`, caption: sealed("caption") }],
+      poses: [{ id: `po-${me.id}`, caption: sealed("pose") }],
     };
     expect((await call("/api/encryption/seal", { method: "POST", body, cookie: me.cookie })).status).toBe(204);
     expect(await sql("SELECT notes, updated_at FROM people WHERE id = ?", `p-${me.id}`).first())

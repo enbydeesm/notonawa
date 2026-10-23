@@ -253,6 +253,37 @@ describe("drawings", () => {
   });
 });
 
+describe("poses", () => {
+  /** @param {string} owner @param {Record<string, string | null>} item */
+  const pose = (owner, item, id = newId("po")) =>
+    sql(`INSERT INTO poses (id, owner_id, tie_id, plan_id, workshop_id, data, position) VALUES (?, ?, ?, ?, ?, '{}', 0)`,
+      id, owner, item.tie_id ?? null, item.plan_id ?? null, item.workshop_id ?? null).run();
+
+  it("go only on their owner's ties, plans and workshops", async () => {
+    const tie = newId("tie"), plan = newId("plan"), w = newId("w");
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'floor')", tie, them).run();
+    await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, them).run();
+    await sql("INSERT INTO workshops (id, owner_id, title, start_date) VALUES (?, ?, 'x', '2026-01-01')", w, them).run();
+    await expect(pose(me, { tie_id: tie })).rejects.toThrow("ownership mismatch: pose tie");
+    await expect(pose(me, { plan_id: plan })).rejects.toThrow("ownership mismatch: pose plan");
+    await expect(pose(me, { workshop_id: w })).rejects.toThrow("ownership mismatch: pose workshop");
+  });
+
+  it("are on exactly one item, for good, and go with it", async () => {
+    const tie = newId("tie"), plan = newId("plan");
+    await sql("INSERT INTO ties (id, owner_id, title, tie_date, tie_type) VALUES (?, ?, 'x', '2026-01-01', 'floor')", tie, me).run();
+    await sql("INSERT INTO plans (id, owner_id, title) VALUES (?, ?, 'x')", plan, me).run();
+    await expect(pose(me, { tie_id: tie, plan_id: plan })).rejects.toThrow("CHECK constraint failed");
+    await expect(pose(me, {})).rejects.toThrow("CHECK constraint failed");
+    const d = newId("po");
+    await pose(me, { tie_id: tie }, d);
+    await expect(sql("UPDATE poses SET tie_id = NULL, plan_id = ? WHERE id = ?", plan, d).run()).rejects.toThrow("pose cannot move");
+    await expect(sql("UPDATE poses SET owner_id = ? WHERE id = ?", them, d).run()).rejects.toThrow("pose cannot move");
+    await sql("DELETE FROM ties WHERE id = ?", tie).run();
+    expect(await sql("SELECT id FROM poses WHERE id = ?", d).first()).toBeNull();
+  });
+});
+
 describe("key wraps", () => {
   /** @param {string} userId */
   const addPasskey = async (userId) => {
