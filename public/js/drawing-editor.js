@@ -3,16 +3,19 @@
 // are drawn with a finger, pen or mouse, in a color and width chosen above
 // the paper; the eraser takes out the whole line it touches. Undo and redo
 // go back over everything since the pad opened, and Clear can be undone too.
+// Download saves a picture of the drawing so far to the device, as a PNG.
 //
 // Nothing is saved here: editDrawing resolves with the new lines, and the
 // Drawings section saves them.
 
 import { h, showMessage } from "./dom.js";
-import { capitalise } from "./format.js";
+import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import { COLORS, MAX_STROKES, MAX_LINE_NUMBERS, drawing, toCanvas, simplify, strokePath } from "./drawing-format.js";
 import { startHistory, change, undo, redo, strokeAt } from "./drawing-edit.js";
-import { drawingSvg, strokeElement } from "./drawing-svg.js";
+import { drawingSvg, strokeElement, drawingPng } from "./drawing-svg.js";
+import { TOOL_ICONS } from "./tool-icons.js";
+import { saveFile } from "./download.js";
 
 /** @typedef {import("./drawing-format.js").Drawing} Drawing */
 /** @typedef {import("./drawing-format.js").Stroke} Stroke */
@@ -69,8 +72,16 @@ export function editDrawing(start) {
     const widthButtons = /** @type {Width[]} */ ([1, 2, 3]).map((w) => toggle(`drawing-width-${w}`, WIDTH_NAMES[w], "width-tool",
       () => pickWidth(w), h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
     const eraserButton = toggle("drawing-eraser", "Eraser: tap or drag over a line to remove it", "", () => setErasing(!erasing), "Eraser");
-    const undoButton = h("button", { type: "button", className: "tool", id: "drawing-undo", onclick: () => update(undo(history)) }, "Undo");
-    const redoButton = h("button", { type: "button", className: "tool", id: "drawing-redo", onclick: () => update(redo(history)) }, "Redo");
+    /**
+     * A button showing an icon, its name in aria-label and title.
+     * @param {string} id @param {string} label @param {import("./tool-icons.js").ToolIcon} kind @param {() => void} onclick
+     */
+    const iconButton = (id, label, kind, onclick) => h("button", {
+      type: "button", className: "tool icon-tool", id, "aria-label": label, title: label, onclick,
+    }, TOOL_ICONS[kind]());
+    const undoButton = iconButton("drawing-undo", "Undo", "undo", () => update(undo(history)));
+    const redoButton = iconButton("drawing-redo", "Redo", "redo", () => update(redo(history)));
+    const downloadButton = iconButton("drawing-download", "Download picture", "download", download);
     const clearButton = h("button", { type: "button", className: "tool", id: "drawing-clear", onclick: () => update(change(history, [])) }, "Clear");
 
     const dialog = h("dialog", { className: "drawing-editor", "aria-labelledby": "drawing-heading" },
@@ -78,7 +89,7 @@ export function editDrawing(start) {
       h("div", { className: "drawing-tools" },
         h("div", { className: "tool-group", role: "group", "aria-label": "Color" }, colorButtons),
         h("div", { className: "tool-group", role: "group", "aria-label": "Line width" }, widthButtons, eraserButton),
-        h("div", { className: "tool-group" }, undoButton, redoButton, clearButton)),
+        h("div", { className: "tool-group" }, undoButton, redoButton, downloadButton, clearButton)),
       h("div", { className: "drawing-pad-frame" }, paper),
       message,
       h("div", { className: "drawing-actions" },
@@ -211,6 +222,7 @@ export function editDrawing(start) {
       undoButton.disabled = history.past.length === 0;
       redoButton.disabled = history.future.length === 0;
       clearButton.disabled = history.strokes.length === 0;
+      downloadButton.disabled = history.strokes.length === 0;
       showMessage(message, "");
     }
 
@@ -235,6 +247,15 @@ export function editDrawing(start) {
       eraserButton.setAttribute("aria-pressed", String(on));
       // The width samples show the chosen color.
       for (const button of widthButtons) button.className = `tool width-tool ink-${color}`;
+    }
+
+    /** Saves a picture of the drawing so far to the device, as a PNG. */
+    async function download() {
+      try {
+        saveFile(`notonawa-drawing-${today()}.png`, await drawingPng(history.strokes), "image/png");
+      } catch (err) {
+        showMessage(message, err instanceof Error ? err.message : String(err), true);
+      }
     }
 
     async function cancel() {

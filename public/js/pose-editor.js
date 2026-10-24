@@ -3,7 +3,9 @@
 // the figure in 3D (pose-scene.js) with two ways of working:
 //
 //   Pose  tap a body part, then move it with the sliders below; the hips
-//         move the whole body (tipping it over, turning it, lifting it).
+//         move the whole body (tipping it over, turning it, lifting it,
+//         moving it across and front to back), and the head has the
+//         lifting and moving too.
 //         A starting position for the body, and one for the arms (each
 //         keeping the other), or a quick turn of the whole body, from the
 //         menus.
@@ -16,24 +18,28 @@
 // One finger dragging turns the view round the figure; two pinch to zoom
 // and drag to pan. Sliders work as a phone's touch would want, with a
 // finger, rather than dragging handles in 3D. "Add to visuals" puts a
-// picture of the view so far into the item's visuals, as a photo.
+// picture of the view so far into the item's visuals, as a photo; the
+// download button saves the same picture to the device.
 //
 // Undo and redo go back over everything since the poser opened, except the
 // view. Nothing else is saved here: editPose resolves with the new pose,
 // and the Visuals section saves it.
 
 import { h, showMessage, privateField } from "./dom.js";
-import { capitalise } from "./format.js";
+import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
   PART_LABELS, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withBodyPreset, withArmsPreset,
 } from "./figure-rig.js";
 import {
-  COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setCamera, panCamera,
+  COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
+  setCamera, panCamera,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
 } from "./pose-format.js";
-import { poseView } from "./pose-scene.js";
+import { poseView, poseImage } from "./pose-scene.js";
+import { TOOL_ICONS } from "./tool-icons.js";
+import { saveFile } from "./download.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -47,6 +53,11 @@ const VIEWS = /** @type {const} */ ([["Front", 0, 8], ["Left side", 90, 8], ["Ba
 const DRAG_START = 8;
 /** The view's height in the room per CSS px of the canvas, at a distance of 1 (its 38° field of view). */
 const PAN_PER_PX = 2 * Math.tan(19 * Math.PI / 180);
+
+/** The downloaded picture's size, as the visuals' full-size picture of a pose (poses-ui.js). */
+const PICTURE = { width: 900, height: 1200, type: "image/png" };
+/** The whole figure's shift sliders, in the order of its numbers. */
+const SHIFT_SLIDERS = /** @type {const} */ (["Across (cm)", "Front to back (cm)"]);
 
 /** Each hardpoint's sliders: their labels, in the order of its numbers. */
 const HARDPOINT_SLIDERS = /** @type {const} */ ({
@@ -110,8 +121,16 @@ export function editPose(start, { addToVisuals } = {}) {
     }, ...children);
     const poseTab = toggle("pose-mode-pose", "Pose the figure", "", () => setMode("pose"), "Pose");
     const ropeTab = toggle("pose-mode-rope", "Lay ropes", "", () => setMode("rope"), "Rope");
-    const undoButton = h("button", { type: "button", className: "tool", id: "pose-undo", onclick: doUndo }, "Undo");
-    const redoButton = h("button", { type: "button", className: "tool", id: "pose-redo", onclick: doRedo }, "Redo");
+    /**
+     * A button showing an icon, its name in aria-label and title.
+     * @param {string} id @param {string} label @param {import("./tool-icons.js").ToolIcon} kind @param {() => void} onclick
+     */
+    const iconButton = (id, label, kind, onclick) => h("button", {
+      type: "button", className: "tool icon-tool", id, "aria-label": label, title: label, onclick,
+    }, TOOL_ICONS[kind]());
+    const undoButton = iconButton("pose-undo", "Undo", "undo", doUndo);
+    const redoButton = iconButton("pose-redo", "Redo", "redo", doRedo);
+    const downloadButton = iconButton("pose-download", "Download picture", "download", download);
     const addVisualButton = addToVisuals
       ? h("button", { type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture }, "Add to visuals") : null;
     const viewMenu = h("select", { id: "pose-view-choice", className: "tool pose-view-menu", "aria-label": "View from", onchange: () => {
@@ -121,10 +140,10 @@ export function editPose(start, { addToVisuals } = {}) {
       const [, yaw, pitch] = chosen;
       const [, , distance, height, x, z] = current().camera;
       lookAt([yaw, pitch, distance, height, x, z]);
-    } }, h("option", { value: "" }, "View…"), VIEWS.map(([name], i) => h("option", { value: String(i) }, name)));
+    } }, h("option", { value: "" }, "View"), VIEWS.map(([name], i) => h("option", { value: String(i) }, name)));
     // The hint top left, the views top right, over the 3D view.
     const frame = h("div", { className: "pose-frame" }, view.canvas,
-      h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · two-finger drag to pan · pinch to zoom"),
+      h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · 2 fingers to pan · pinch to zoom"),
       viewMenu);
 
     // --- the Pose panel ----------------------------------------------------------
@@ -146,10 +165,11 @@ export function editPose(start, { addToVisuals } = {}) {
     } }, h("option", { value: "" }, "Turn body…"), ORIENTATIONS.map((o, i) => h("option", { value: String(i) }, o.name)));
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
-    const resetPart = h("button", { type: "button", id: "pose-reset-part", onclick: resetSelected }, "Reset this part");
+    const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
+    // The part's name, with Reset at the end of the same row.
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
       h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
-      partName, sliders, resetPart);
+      h("div", { className: "pose-part-row" }, partName, resetPart), sliders);
 
     // --- the Rope panel ----------------------------------------------------------
 
@@ -159,21 +179,25 @@ export function editPose(start, { addToVisuals } = {}) {
       h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
     const eraserButton = toggle("pose-eraser", "Eraser: tap a rope to take it out", "", () => setErasing(!erasing), "Eraser");
     const finishButton = h("button", { type: "button", className: "pose-finish", id: "pose-finish-rope", onclick: () => { endRope(); drawAll(); } }, "Finish rope");
-    const hardpointButtons = HARDPOINTS.map((kind) => h("button", { type: "button", id: `pose-${kind}`, onclick: () => toggleHardpoint(kind) }));
+    // The pose's hardpoint is pressed (tapping it again takes it away).
+    const hardpointButtons = HARDPOINTS.map((kind) => h("button", {
+      type: "button", className: "tool", id: `pose-${kind}`, "aria-pressed": "false", onclick: () => toggleHardpoint(kind),
+    }, kind));
     const hardpointSliders = h("div", { className: "pose-sliders", id: "pose-hardpoint-sliders" });
     const ropeHint = h("p", { className: "hint", id: "pose-rope-hint" });
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
       h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton, finishButton),
       h("div", { className: "tool-group", role: "group", "aria-label": "Rope color" }, colorButtons),
       ropeHint,
-      h("div", { className: "tool-group", role: "group", "aria-label": "Hardpoint" }, hardpointButtons),
+      h("div", { className: "tool-group", role: "group", "aria-labelledby": "pose-hardpoint-label" },
+        h("span", { className: "pose-row-label", id: "pose-hardpoint-label" }, "Hardpoint:"), hardpointButtons),
       hardpointSliders);
 
     const dialog = h("dialog", { className: "pose-editor", "aria-labelledby": "pose-heading" },
       h("h2", { id: "pose-heading", className: "visually-hidden" }, start ? "Edit pose" : "New pose"),
       h("div", { className: "pose-tools" },
         h("div", { className: "tool-group", role: "group", "aria-label": "Mode" }, poseTab, ropeTab),
-        h("div", { className: "tool-group" }, undoButton, redoButton),
+        h("div", { className: "tool-group" }, undoButton, redoButton, downloadButton),
         addVisualButton),
       frame,
       h("div", { className: "pose-panels" }, posePanel, ropePanel),
@@ -292,26 +316,35 @@ export function editPose(start, { addToVisuals } = {}) {
       }
       partName.textContent = /** @type {Record<string, string>} */ (PART_LABELS)[selected];
       resetPart.hidden = false;
+      // The hips and the head both move the whole figure: up and down,
+      // front to back, and across.
+      const wholeFigure = () => [
+        slider({ id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift, apply: setLift }),
+        ...[1, 0].map((i) => slider({
+          id: `pose-shift-${i}`, label: SHIFT_SLIDERS[i], min: SHIFT_RANGE[i][0], max: SHIFT_RANGE[i][1], value: pose.shift[i],
+          apply: (p, v) => setShift(p, i, v),
+        })),
+      ];
       if (selected === "pelvis") {
         sliders.replaceChildren(
           ...BODY_MOVES.map((m, i) => slider({
             id: `pose-body-${i}`, label: m.label, min: m.min, max: m.max, value: pose.body[i],
             apply: (p, v) => setBody(p, i, v),
           })),
-          slider({ id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift, apply: setLift }));
+          ...wholeFigure());
         return;
       }
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
       sliders.replaceChildren(...joint.moves.map((m, i) => slider({
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
         apply: (p, v) => setJoint(p, joint.name, i, v),
-      })));
+      })), ...(joint.name === "head" ? wholeFigure() : []));
     }
 
     function resetSelected() {
       if (!selected) return;
       if (selected === "pelvis") {
-        commit({ ...history.pose, body: [0, 0, 0], lift: newPose().lift });
+        commit({ ...history.pose, body: [0, 0, 0], lift: newPose().lift, shift: [0, 0] });
         return;
       }
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
@@ -322,7 +355,9 @@ export function editPose(start, { addToVisuals } = {}) {
       const pose = current();
       const kind = hardpointOf(pose);
       for (const [i, button] of hardpointButtons.entries()) {
-        button.textContent = `${HARDPOINTS[i] === kind ? "Remove" : "Add"} ${HARDPOINTS[i]}`;
+        const on = HARDPOINTS[i] === kind;
+        button.setAttribute("aria-pressed", String(on));
+        button.title = `${on ? "Remove" : "Add"} ${HARDPOINTS[i]}`;
       }
       finishButton.disabled = !laying?.p.length;
       ropeHint.textContent = erasing ? "Tap a rope to take it out."
@@ -337,7 +372,7 @@ export function editPose(start, { addToVisuals } = {}) {
       }
       const ranges = HARDPOINT_RANGES[kind];
       hardpointSliders.replaceChildren(...HARDPOINT_SLIDERS[kind].map((label, i) => slider({
-        id: `pose-${kind}-${i}`, label: `${capitalise(kind)}: ${label.toLowerCase()}`, min: ranges[i][0], max: ranges[i][1],
+        id: `pose-${kind}-${i}`, label, min: ranges[i][0], max: ranges[i][1],
         value: /** @type {number[]} */ (pose[kind])[i],
         apply: (p, v) => {
           const place = [.../** @type {number[]} */ (p[kind])];
@@ -434,6 +469,15 @@ export function editPose(start, { addToVisuals } = {}) {
       } finally {
         adding = false;
         /** @type {HTMLButtonElement} */ (addVisualButton).disabled = false;
+      }
+    }
+
+    /** Saves a picture of the pose as it is now to the device, as a PNG. */
+    async function download() {
+      try {
+        saveFile(`notonawa-pose-${today()}.png`, await poseImage(history.pose, PICTURE), "image/png");
+      } catch (err) {
+        say(err instanceof Error ? err.message : String(err), true);
       }
     }
 

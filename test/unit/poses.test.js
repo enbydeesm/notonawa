@@ -51,6 +51,7 @@ describe("the page and the server", () => {
     expect([page.BAMBOO, page.HASHIRA]).toEqual([server.BAMBOO, server.HASHIRA]);
     expect([page.BAMBOO_RANGE, page.BAMBOO_LENGTH]).toEqual([server.BAMBOO_RANGE, server.BAMBOO_LENGTH]);
     expect([page.HASHIRA_RANGE, page.HASHIRA_SIZE]).toEqual([server.HASHIRA_RANGE, server.HASHIRA_SIZE]);
+    expect(page.SHIFT_RANGE).toEqual(server.SHIFT_RANGE);
   });
 
   it("agree that every preset, a new pose and every new hardpoint can be saved", () => {
@@ -90,6 +91,13 @@ describe("parsePose", () => {
     expect(server.parsePose(onPost)).toEqual(onPost);
   });
 
+  it("keeps where the figure stands, and reads an older pose without it as not moved", () => {
+    expect(server.parsePose({ ...ok, shift: [-300, 45] }).shift).toEqual([-300, 45]);
+    const { shift, ...older } = ok;
+    expect(shift).toBeDefined();
+    expect(server.parsePose(older).shift).toEqual([0, 0]);
+  });
+
   it("puts joints left out at rest", () => {
     const parsed = server.parsePose({ ...ok, joints: { l_knee: [40] } });
     expect(parsed.joints.l_knee).toEqual([40]);
@@ -107,6 +115,9 @@ describe("parsePose", () => {
     bad({ ...ok, joints: { l_knee: [1.5] } }, /further than a body can/);
     bad({ ...ok, body: [181, 0, 0] }, /turn/);
     bad({ ...ok, lift: 251 }, /off the floor/);
+    bad({ ...ok, shift: [0, 301] }, /moved too far/);
+    bad({ ...ok, shift: [1.5, 0] }, /moved too far/);
+    bad({ ...ok, shift: [0] }, /moved too far/);
     bad({ ...ok, camera: [0, 90, 300, 100] }, /view/);
     bad({ ...ok, ring: [0, 500, 0] }, /ring is out of reach/);
     bad({ ...ok, ring: null }, /ring that isn't there/);
@@ -195,6 +206,20 @@ describe("the figure, posed", () => {
     expect(f.at("l_wrist").x).toBeGreaterThan(0);
     expect(f.at("r_wrist").x).toBeLessThan(0);
     expect(f.pelvis.y).toBe(STANDING_LIFT);
+  });
+
+  it("moves across and front to back as a whole, its ropes with it", () => {
+    const still = figure(page.newPose());
+    const moved = figure(page.setShift(page.setShift(page.newPose(), 0, 40), 1, -25));
+    expect([moved.pelvis.x, moved.pelvis.y, moved.pelvis.z]).toEqual([40, STANDING_LIFT, -25]);
+    expect(moved.head.x - still.head.x).toBeCloseTo(40);
+    expect(moved.head.z - still.head.z).toBeCloseTo(-25);
+    const rope = /** @type {import("../../public/js/pose-format.js").RopePoint} */ (["l_wrist", 0, 0, 0]);
+    expect(ropePoint(moved.skeleton, rope, moved.data).x - ropePoint(still.skeleton, rope, still.data).x).toBeCloseTo(40);
+    // A pose saved before shifting has none, and stands where it always did.
+    const { shift, ...older } = page.newPose();
+    expect(shift).toEqual([0, 0]);
+    expect(figure(/** @type {any} */ (older)).pelvis.x).toBe(0);
   });
 
   it("raises an arm forward, and bends an elbow and a knee the way a body does", () => {
@@ -315,6 +340,7 @@ describe("changing a pose", () => {
     p = page.setBody(p, 2, 200);
     expect(p.body).toEqual([0, 0, 180]);
     expect(page.setLift(p, -4).lift).toBe(0);
+    expect(page.setShift(page.setShift(p, 0, 400), 1, -12.4).shift).toEqual([300, -12]);
     expect(page.setCamera(p, [190, 100, 10, 400]).camera).toEqual([-170, 89, 60, 350, 0, 0]);
     expect(page.setCamera(p, [-190, 0, 300, 100, -400, 7]).camera).toEqual([170, 0, 300, 100, -300, 7]);
   });
@@ -423,6 +449,7 @@ describe("changing a pose", () => {
     expect(opened.joints.head).toEqual([0, 0, 0]);
     expect(opened.ring).toEqual([0, 280, 0]);
     expect(opened.ropes).toEqual([]);
+    expect(opened.shift).toEqual([0, 0]);
   });
 });
 

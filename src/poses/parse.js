@@ -8,6 +8,7 @@
 //     v: 1,
 //     joints: { spine: [bend, side, twist], l_elbow: [bend], … },
 //     body: [pitch, yaw, roll], lift,
+//     shift: [across, front to back],
 //     camera: [yaw, pitch, distance, target height, target x, target z],
 //     ring: [x, y, z] | null,
 //     bamboo: [x, y, z, turn] | null,
@@ -17,7 +18,8 @@
 //   }
 // At most one of ring, bamboo and hashira (the hardpoint) is there. Older
 // poses have a camera of four numbers (no sideways pan) and no bamboo or
-// hashira; they're read as having none.
+// hashira, and no shift (where the whole figure stands); they're read as
+// having none.
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
 // a unit test). Lengths are whole centimetres, except a rope point's
@@ -68,6 +70,8 @@ export const HASHIRA = "hashira";
 export const BODY_ANGLE = 180;
 /** How high the pelvis is above the floor, in cm. */
 export const LIFT = /** @type {const} */ ([0, 250]);
+/** Where the whole figure stands: across (x) and front to back (z), in cm. */
+export const SHIFT_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300]]);
 /** The camera: yaw, pitch, distance, and the target's height, x and z (cm). */
 export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350], [-300, 300], [-300, 300]]);
 /** The ring (a hardpoint): x, y, z in cm. */
@@ -98,7 +102,7 @@ export const MAX_BODY_BYTES = 256 * 1024;
  * @typedef {[string, number, number, number]} RopePoint
  * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[] }} Rope
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number,
+ *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[],
  * }} Pose
@@ -160,6 +164,8 @@ export function parsePose(value) {
   const angle = /** @type {[number, number]} */ ([-BODY_ANGLE, BODY_ANGLE]);
   if (!fits(doc.body, [angle, angle, angle])) throw bad("the body's turn isn't in the right format.");
   if (!within(doc.lift, LIFT[0], LIFT[1])) throw bad("the figure is off the floor by too much.");
+  const shift = doc.shift ?? [0, 0];
+  if (!fits(shift, SHIFT_RANGE)) throw bad("the figure is moved too far.");
   // A camera of four numbers is from before sideways panning.
   const camera = Array.isArray(doc.camera) && doc.camera.length === 4 ? [...doc.camera, 0, 0] : doc.camera;
   if (!fits(camera, CAMERA)) throw bad("the view isn't in the right format.");
@@ -208,7 +214,7 @@ export function parsePose(value) {
   /** @param {number[] | null} list */
   const copy = (list) => (list === null ? null : [...list]);
   return {
-    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, camera: [...camera],
+    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]], camera: [...camera],
     ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };
 }

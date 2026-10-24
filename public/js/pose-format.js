@@ -5,6 +5,8 @@
 //   joints   each joint's angles (figure-rig.js), whole degrees
 //   body     the whole body's pitch, yaw and roll, whole degrees
 //   lift     how high the pelvis is off the floor, cm
+//   shift    where the whole figure stands: [across, front to back], cm
+//            (older poses have none, read as [0, 0])
 //   camera   [yaw, pitch, distance, target height, target x, target z]:
 //            degrees and cm (older poses have the first four)
 //   ring     a ring to tie uplines to: [x, y, z] in cm, or null
@@ -34,7 +36,7 @@ import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints } from "./fig
 /** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
 /**
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number,
+ *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
  *   camera: Camera, ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[],
  * }} Pose
@@ -61,6 +63,8 @@ export const OFFSET = 600;
 
 /** The camera's limits: yaw, pitch, distance, and the target's height, x and z. */
 export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350], [-300, 300], [-300, 300]]);
+/** The whole figure's shift: across (x) and front to back (z). */
+export const SHIFT_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300]]);
 /** The ring's: x, y, z. */
 export const RING_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300]]);
 /** The bamboo's: x, y, z of its middle, and its turn. */
@@ -88,7 +92,7 @@ export const clamp = (n, [min, max]) => Math.min(max, Math.max(min, Math.round(n
 /** @returns {Pose} the figure standing, seen from the front and a little above */
 export function newPose() {
   return {
-    v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT,
+    v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT, shift: [0, 0],
     camera: [25, 8, 330, 100, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
   };
 }
@@ -108,7 +112,7 @@ export function readPose(saved) {
   }
   const camera = /** @type {Camera} */ ([...(saved.camera ?? fresh.camera), 0, 0].slice(0, 6));
   return {
-    ...fresh, ...saved, v: FORMAT_VERSION, joints, camera,
+    ...fresh, ...saved, v: FORMAT_VERSION, joints, camera, shift: saved.shift ? [saved.shift[0], saved.shift[1]] : [0, 0],
     ring: saved.ring ?? null, bamboo: saved.bamboo ?? null, hashira: saved.hashira ?? null,
     ropes: (saved.ropes ?? []).map((r) => ({ ...r, p: r.p.map((p) => /** @type {RopePoint} */ ([...p])) })),
   };
@@ -141,6 +145,20 @@ export function setBody(pose, index, angle) {
 
 /** @param {Pose} pose @param {number} lift @returns {Pose} */
 export const setLift = (pose, lift) => ({ ...pose, lift: clamp(lift, LIFT_RANGE) });
+
+/**
+ * The whole figure moved across or front to back (its ropes go with it;
+ * a hardpoint stays where it is).
+ * @param {Pose} pose
+ * @param {number} index 0 across, 1 front to back
+ * @param {number} cm
+ * @returns {Pose}
+ */
+export function setShift(pose, index, cm) {
+  const shift = /** @type {[number, number]} */ ([...pose.shift]);
+  shift[index] = clamp(cm, SHIFT_RANGE[index]);
+  return { ...pose, shift };
+}
 
 /**
  * The view, kept within its limits (yaw goes round and round).
@@ -310,8 +328,8 @@ export const finishRope = (pose, rope) => (rope.p.length >= 2 ? { ...pose, ropes
 export const removeRope = (pose, index) => ({ ...pose, ropes: pose.ropes.filter((_, i) => i !== index) });
 
 /**
- * A preset's figure (figure-rig.js) on this pose: its ropes, hardpoint and
- * view are kept.
+ * A preset's figure (figure-rig.js) on this pose: its ropes, hardpoint,
+ * view and where it stands are kept.
  * @param {Pose} pose
  * @param {import("./figure-rig.js").Posture} posture
  * @returns {Pose}

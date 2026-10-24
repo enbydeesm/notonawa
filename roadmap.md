@@ -143,3 +143,5 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 - Videos: encrypted video clips on ties and plans, with their location and device details removed. -->
 
 - Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons.
+
+- on model poser multiple hardpoints at once

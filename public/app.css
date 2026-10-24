@@ -186,6 +186,9 @@ dialog.drawing-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .tool-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .tool { padding: 6px 10px; font-size: 0.85rem; }
 .tool[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+/* Undo, redo and download (tool-icons.js): the icon in place of a word. */
+.tool.icon-tool { display: inline-grid; place-items: center; padding: 4px 8px; }
+.tool-icon { display: block; width: 20px; height: 20px; }
 .swatch-tool, .width-tool { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; }
 .swatch-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--ink); border: 1px solid var(--line); }
 .width-sample { display: block; width: 22px; border-radius: 99px; background: var(--ink); }
@@ -223,9 +226,15 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 }
 .pose-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .pose-hint {
-  position: absolute; left: 8px; top: 6px; right: 7.5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
+  position: absolute; left: 8px; top: 8px; right: 5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pose-frame select.pose-view-menu { position: absolute; right: 6px; top: 6px; width: auto; }
+/* The views, narrow so the hint fits on one line, on the floor's grey (the
+   3D view's colors are the same in both modes). */
+.pose-frame select.pose-view-menu {
+  position: absolute; right: 6px; top: 6px; width: 4.25rem; padding: 4px 6px;
+  background-color: var(--pose-floor); color: var(--ink-black); border-color: var(--ink-grey);
+}
 .pose-rope-tools .pose-finish { margin-left: auto; padding: 6px 10px; font-size: 0.85rem; }
 .pose-panels { flex: none; max-height: 38dvh; overflow-y: auto; }
 .pose-panel { display: flex; flex-direction: column; gap: 8px; }
@@ -233,7 +242,10 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel .hint { margin: 0; }
 .pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
 .pose-menus select { flex: 1 1 6.5rem; min-width: 0; }
+.pose-part-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pose-part { margin: 0; font-size: 1rem; }
+.pose-part-row .tool { flex: none; }
+.pose-row-label { font-size: 0.85rem; margin-right: 4px; }
 .pose-sliders { display: flex; flex-direction: column; gap: 4px; }
 .pose-slider { display: grid; grid-template-columns: 7.5rem 1fr 2.5rem; align-items: center; gap: 8px; }
 .pose-slider label { margin: 0; font-size: 0.85rem; }

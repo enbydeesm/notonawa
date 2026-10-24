@@ -1,10 +1,29 @@
-// The walkthrough's drawings chunk. Drawings on ties and plans: the drawing pad (colors, undo, the eraser), captions,
+// The walkthrough's drawings chunk. Drawings on ties and plans: the drawing pad (colors, undo, the eraser, downloading
+// a picture), captions,
 // duplicating, editing a copy on its own, copying to a plan, and export and import.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
+
+/**
+ * The PNG downloaded into an empty folder: whether its name is as given, and
+ * its width and height (from its header), once it's there.
+ * @param {string} folder
+ * @param {RegExp} name
+ */
+async function pngDownloaded(folder, name) {
+  for (let i = 0; i < 50; i++) {
+    const [file] = existsSync(folder) ? readdirSync(folder).filter((f) => f.endsWith(".png")) : [];
+    if (file) {
+      const bytes = readFileSync(path.join(folder, file));
+      return [name.test(file), bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+    }
+    await sleep(100);
+  }
+  return ["no download"];
+}
 
 export default async function () {
   await freshAccount();
@@ -54,8 +73,11 @@ export default async function () {
     return [document.documentElement.dataset.theme, getComputedStyle($("#drawing-pad .paper")).fill,
       Math.round(r.width) === innerWidth, Math.round(r.height) === innerHeight,
       $("#drawing-color-black").getAttribute("aria-pressed"), $("#drawing-width-2").getAttribute("aria-pressed"),
-      $("#drawing-undo").disabled, leakyFields()];`),
-  ["dark", "rgb(255, 253, 248)", true, true, "true", "true", true, []]);
+      $("#drawing-undo").disabled, $("#drawing-download").disabled, leakyFields()];`),
+  ["dark", "rgb(255, 253, 248)", true, true, "true", "true", true, true, []]);
+  check("undo, redo and download are icons, named for screen readers", await run(`
+    return ["#drawing-undo", "#drawing-redo", "#drawing-download"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]);`),
+  [["Undo", true, ""], ["Redo", true, ""], ["Download picture", true, ""]]);
 
   await run(`$("#drawing-color-red").click();`);
   await drawLine([[100, 100], [300, 100], [500, 100], [800, 100]]);
@@ -65,6 +87,11 @@ export default async function () {
   check("undo and redo", await run(`
     $("#drawing-undo").click(); const undone = ${paths}; $("#drawing-redo").click();
     return [undone, ${paths}, $("#drawing-redo").disabled];`), [["ink-red"], ["ink-red", "ink-blue"], true]);
+  const pictures = path.join(workDir, "downloads-drawing-picture");
+  await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: pictures });
+  await run(`$("#drawing-download").click();`);
+  check("download saves the drawing to the device, as a PNG the canvas's size",
+    await pngDownloaded(pictures, /^notonawa-drawing-\d{4}-\d{2}-\d{2}\.png$/), [true, 900, 1200]);
   await run(`$("#drawing-eraser").click();`);
   await drawLine([[450, 102]]);
   check("the eraser takes out the whole line it touches, and can be undone", await run(`

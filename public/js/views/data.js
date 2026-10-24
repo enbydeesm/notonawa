@@ -33,7 +33,8 @@ import { takeDrawings } from "../import-drawings.js";
 import { saveDrawing } from "../drawings-ui.js";
 import { takePoses } from "../import-poses.js";
 import { savePose } from "../poses-ui.js";
-import { COLORS, svgFile } from "../drawing-format.js";
+import { svgFile } from "../drawing-format.js";
+import { drawingColors } from "../drawing-svg.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import { uploadPhoto } from "../photo-upload.js";
@@ -110,19 +111,6 @@ async function findWorkshopDuplicates(sealedBatch, plainBatch) {
   const candidates = /** @type {any[]} */ (await open("workshop", result.candidates));
   const matches = duplicateMatches(plainBatch, candidates, ["description", "notes"]);
   return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
-}
-
-/**
- * The colors drawings are drawn in on the page (app.css), for their
- * pictures in an export.
- * @returns {Record<import("../drawing-format.js").Color, string> & { paper: string }}
- */
-function drawingColors() {
-  const style = getComputedStyle(document.documentElement);
-  const read = (/** @type {string} */ name) => style.getPropertyValue(name).trim();
-  return /** @type {any} */ (Object.fromEntries([
-    ["paper", read("--paper")], ...COLORS.map((c) => [c, read(`--ink-${c}`)]),
-  ]));
 }
 
 /**

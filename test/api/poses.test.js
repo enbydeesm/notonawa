@@ -11,7 +11,7 @@ import { MAX_PER_ITEM, JOINTS } from "../../src/poses/parse.js";
 const pose = (elbow = 90, color = "red") => ({
   v: 1,
   joints: { ...Object.fromEntries(Object.entries(JOINTS).map(([name, r]) => [name, r.map(() => 0)])), l_elbow: [elbow] },
-  body: [0, 0, 0], lift: 99, camera: [20, 10, 300, 110, 0, 0], ring: [0, 280, 0], bamboo: null, hashira: null,
+  body: [0, 0, 0], lift: 99, shift: [15, -40], camera: [20, 10, 300, 110, 0, 0], ring: [0, 280, 0], bamboo: null, hashira: null,
   ropes: [{ c: color, w: 2, p: [["chest", 0, 120, 110], ["ring", 0, 0, 0]] }],
 });
 
@@ -50,6 +50,8 @@ describe("adding a pose", () => {
     await call("/api/poses", { method: "POST", body: { tie_id: tie, data } });
     const stored = JSON.parse(/** @type {string} */ ((await sql("SELECT data FROM poses WHERE tie_id = ?", tie).first())?.data));
     expect(stored).not.toHaveProperty("extra");
+    // From before the figure could be moved: stored as not moved.
+    expect(stored.shift).toEqual([0, 0]);
     expect(stored.ropes).toEqual([{ c: "blue", w: 1, p: [["pelvis", 1, 2, 3], ["l_knee", 4, 5, 6]] }]);
     expect(stored.joints.l_knee).toEqual([30]);
     expect(stored.joints.spine).toEqual([0, 0, 0]);
@@ -63,6 +65,7 @@ describe("adding a pose", () => {
       { ...pose(), joints: { tail: [1] } },
       { ...pose(), joints: { l_elbow: [-10] } },
       { ...pose(), lift: 900 },
+      { ...pose(), shift: [0, 500] },
       { ...pose(), ring: null },
       { ...pose(), ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0]] }] },
       { ...pose(), ropes: [{ c: "red", w: 2, p: [["wing", 0, 0, 0], ["chest", 0, 0, 0]] }] },

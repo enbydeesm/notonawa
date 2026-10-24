@@ -67,7 +67,9 @@ export function makeSkeleton(pelvis = new Object3D()) {
  * @param {Pose} pose
  */
 export function posed({ pelvis, bones }, pose) {
-  pelvis.position.set(0, pose.lift, 0);
+  // Poses saved before the figure could be moved have no shift.
+  const [x, z] = pose.shift ?? [0, 0];
+  pelvis.position.set(x, pose.lift, z);
   const turn = bodyRotation(pose.body);
   pelvis.rotation.set(turn.x, turn.y, turn.z, turn.order);
   for (const joint of JOINTS) {

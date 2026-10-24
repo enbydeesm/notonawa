@@ -1,13 +1,32 @@
 // The walkthrough's poses chunk. Poses on ties: the poser (body and arms
-// presets, posing a part with a slider, undo, laying a rope with taps, the
-// ring, bamboo and hashira, "Add to visuals"), saving with the tie,
+// presets, posing a part with a slider, the head and hips moving the whole
+// figure, undo, downloading a picture, laying a rope with taps, the ring,
+// bamboo and hashira, "Add to visuals"), saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
+
+/**
+ * The PNG downloaded into an empty folder: whether its name is as given, and
+ * its width and height (from its header), once it's there.
+ * @param {string} folder
+ * @param {RegExp} name
+ */
+async function pngDownloaded(folder, name) {
+  for (let i = 0; i < 50; i++) {
+    const [file] = existsSync(folder) ? readdirSync(folder).filter((f) => f.endsWith(".png")) : [];
+    if (file) {
+      const bytes = readFileSync(path.join(folder, file));
+      return [name.test(file), bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+    }
+    await sleep(100);
+  }
+  return ["no download"];
+}
 
 export default async function () {
   await freshAccount();
@@ -54,13 +73,25 @@ export default async function () {
       $("#pose-mode-pose").getAttribute("aria-pressed"), $("#pose-part").textContent, $("#pose-undo").disabled, leakyFields()];`),
   [true, true, true, true, "true", "Tap a body part to pose it", true, []]);
 
-  check("the help, the views top right, and menus for the body and the arms", await run(`
+  check("the help on one line, the views top right on the floor's grey, and menus for the body and the arms", await run(`
     const options = (id) => [...$(id).options].map((o) => o.textContent);
     const frame = $(".pose-frame").getBoundingClientRect(), views = $("#pose-view-choice").getBoundingClientRect();
-    return [$(".pose-hint").textContent, Math.round(frame.right - views.right) < 12 && Math.round(views.top - frame.top) < 12,
+    const hint = $(".pose-hint");
+    return [hint.textContent, hint.scrollWidth <= hint.clientWidth && hint.getBoundingClientRect().height < 20,
+      Math.round(frame.right - views.right) < 12 && Math.round(views.top - frame.top) < 12,
+      getComputedStyle($("#pose-view-choice")).backgroundColor, options("#pose-view-choice")[0],
       options("#pose-body-preset").slice(0, 4), options("#pose-arms-preset"), $("#pose-add-visual").textContent];`),
-  ["Drag to turn · two-finger drag to pan · pinch to zoom", true, ["Body…", "Standing", "Kneeling", "Kneeling up"],
-    ["Arms…", "At sides", "Behind back", "Crossed in front", "Arms behind head"], "Add to visuals"]);
+  ["Drag to turn · 2 fingers to pan · pinch to zoom", true, true, "rgb(217, 211, 200)", "View",
+    ["Body…", "Standing", "Kneeling", "Kneeling up"], ["Arms…", "At sides", "Behind back", "Crossed in front", "Arms behind head"],
+    "Add to visuals"]);
+  check("undo, redo and download are icons, named for screen readers", await run(`
+    return ["#pose-undo", "#pose-redo", "#pose-download"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]);`),
+  [["Undo", true, ""], ["Redo", true, ""], ["Download picture", true, ""]]);
+  const pictures = path.join(workDir, "downloads-pose-picture");
+  await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: pictures });
+  await run(`$("#pose-download").click();`);
+  check("download saves a picture of the pose to the device, as a PNG",
+    await pngDownloaded(pictures, /^notonawa-pose-\d{4}-\d{2}-\d{2}\.png$/), [true, 900, 1200]);
   check("an arms position can be chosen, and undone", await run(`
     set("#pose-arms-preset", "1"); await wait(300);
     const after = $("#pose-undo").disabled;
@@ -71,9 +102,12 @@ export default async function () {
 
   // The view looks at the figure's hips, in the middle.
   await tap(0.5, 0.5);
-  check("tapping the figure's middle picks its hips, with sliders for the whole body", await run(`
-    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent), leakyFields()];`),
-  ["Hips and whole body", ["Tip forward", "Turn", "Roll", "Height (cm)"], []]);
+  check("tapping the figure's middle picks its hips, with sliders for the whole body and Reset beside its name", await run(`
+    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent),
+      $("#pose-reset-part").textContent, $("#pose-reset-part").parentElement === $("#pose-part").parentElement,
+      Math.round($("#pose-reset-part").getBoundingClientRect().right) === Math.round($("#pose-panel-pose").getBoundingClientRect().right),
+      leakyFields()];`),
+  ["Hips and whole body", ["Tip forward", "Turn", "Roll", "Height (cm)", "Front to back (cm)", "Across (cm)"], "Reset", true, true, []]);
   // Turning keeps the hips in the middle of the view, for the taps below.
   const turned = `[...document.querySelectorAll("#pose-sliders output")][1].textContent`;
   check("a slider moves the body, as one change to undo", await run(`
@@ -86,15 +120,34 @@ export default async function () {
     return ${turned};`), "0");
   await run(`$("#pose-redo").click(); await wait(200);`);
 
-  check("Rope mode: thickness, the eraser and Finish rope above the colors, and a ring, bamboo or hashira to add", await run(`
+  // The head is at the top of the view.
+  await tap(0.5, 0.2);
+  check("the head has its own sliders, and the whole figure's height and moves", await run(`
+    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent).slice(3)];`),
+  ["Head", ["Height (cm)", "Front to back (cm)", "Across (cm)"]]);
+  check("moving the figure from the head is one change; the head's Reset leaves it moved, and undo puts it back", await run(`
+    ${slide("pose-shift-0", 30)} ${slide("pose-head-0", 20)}
+    const moved = [$("#pose-shift-0").value, $("#pose-head-0").value];
+    $("#pose-reset-part").click(); await wait(200);
+    const reset = [$("#pose-shift-0").value, $("#pose-head-0").value];
+    $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200);
+    return [moved, reset, $("#pose-shift-0").value, $("#pose-head-0").value];`), [["30", "20"], ["30", "0"], "0", "0"]);
+  await tap(0.5, 0.5);
+
+  const hardpoints = `["ring", "bamboo", "hashira"].map((k) => [$("#pose-" + k).textContent, $("#pose-" + k).getAttribute("aria-pressed")])`;
+  const hardpointLabels = `[...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent)`;
+  check("Rope mode: thickness, the eraser and Finish rope above the colors, and a ring, bamboo or hashira, the one there highlighted", await run(`
     $("#pose-mode-rope").click(); await wait(200);
     const rows = [...$("#pose-panel-rope").children].map((c) => c.getAttribute("aria-label"));
     const finish = $("#pose-finish-rope"), row = finish.parentElement;
-    const before = [$("#pose-panel-pose").hidden, ["ring", "bamboo", "hashira"].map((k) => $("#pose-" + k).textContent), finish.disabled,
-      row.lastElementChild === finish];
+    const before = [$("#pose-panel-pose").hidden, ${hardpoints}, $("#pose-ring").parentElement.firstElementChild.textContent,
+      finish.disabled, row.lastElementChild === finish];
     $("#pose-ring").click(); await wait(200);
-    return [rows.slice(0, 2), ...before, $("#pose-ring").textContent, document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length, leakyFields()];`),
-  [["Rope thickness", "Rope color"], true, ["Add ring", "Add bamboo", "Add hashira"], true, true, "Remove ring", 3, []]);
+    return [rows.slice(0, 2), ...before, ${hardpoints}, $("#pose-ring").title, getComputedStyle($("#pose-ring")).backgroundColor,
+      ${hardpointLabels}, leakyFields()];`),
+  [["Rope thickness", "Rope color"], true, [["ring", "false"], ["bamboo", "false"], ["hashira", "false"]], "Hardpoint:", true, true,
+    [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]], "Remove ring", "rgb(254, 199, 98)",
+    ["Across (cm)", "Height (cm)", "Front to back (cm)"], []]);
 
   await tap(0.5, 0.5);
   await tap(0.5, 0.38);
@@ -146,18 +199,18 @@ export default async function () {
     await wait(300);
     $("#pose-mode-rope").click(); await wait(100);
     $("#pose-bamboo").click(); await wait(200);
-    const bamboo = [["ring", "bamboo", "hashira"].map((k) => $("#pose-" + k).textContent), $("#pose-rope-hint").textContent,
-      document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length];
+    const bamboo = [${hardpoints}, $("#pose-rope-hint").textContent, ${hardpointLabels}];
     // No rope is on the bamboo, so nothing to ask about.
     $("#pose-hashira").click(); await wait(300);
     const asked = ${topDialog}.classList.contains("pose-editor");
-    const hashira = [$("#pose-hashira").textContent, document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length];
+    const hashira = [$("#pose-hashira").getAttribute("aria-pressed"), ${hardpointLabels}];
     $("#pose-cancel").click(); await wait(300);
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
     const [p] = await ${tiePoses};
     return [bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
-  [[["Add ring", "Remove bamboo", "Add hashira"], "Tap the body to lay a rope, point by point. Tap the bamboo for an upline.", 4],
-    true, ["Remove hashira", 3], false, [0, 195, 0]]);
+  [[[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]], "Tap the body to lay a rope, point by point. Tap the bamboo for an upline.",
+    ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn"]],
+  true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`
     $("#tie-pose-duplicate").click(); await wait(1000);
     ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
