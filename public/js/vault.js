@@ -244,6 +244,32 @@ export function openMedia(records) {
 }
 
 /**
+ * A share's snapshot sealed with a new key of its own (crypto/share.js),
+ * bound to its id and kind. The key goes in the link, and only there.
+ * @param {string} id from newShareId()
+ * @param {import("./crypto/share.js").ShareKind} kind
+ * @param {unknown} data the copy, as JSON
+ * @returns {Promise<{ key: string, body: ArrayBuffer }>} the key (base64url) and the sealed snapshot
+ */
+export function sealShare(id, kind, data) {
+  return call("sealShare", { id, kind, data });
+}
+
+/**
+ * A share's snapshot opened with the key from its link. The sealed bytes
+ * are handed to the Worker, so they're emptied here. Throws CantOpen if it
+ * won't open.
+ * @param {string} id
+ * @param {import("./crypto/share.js").ShareKind} kind
+ * @param {string} key base64url, from the link
+ * @param {ArrayBuffer} sealed
+ * @returns {Promise<unknown>}
+ */
+export function openShare(id, kind, key, sealed) {
+  return call("openShare", { id, kind, key, sealed }, [sealed]);
+}
+
+/**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock
  *   listeners (the page is showing something else, e.g. "Account deleted")

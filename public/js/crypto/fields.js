@@ -29,6 +29,8 @@ export const ENCRYPTED = /** @type {const} */ ({
   workshop: { table: "workshops", fields: ["description", "notes", "album_url"] },
   drawing: { table: "drawings", fields: ["caption"] },
   pose: { table: "poses", fields: ["caption"] },
+  // The sender's own name for a share (src/shares/).
+  share: { table: "shares", fields: ["label"] },
 });
 
 /** @typedef {keyof typeof ENCRYPTED} RecordKind */

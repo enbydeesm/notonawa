@@ -3,3 +3,14 @@
 // SQL for "now" as an ISO timestamp, e.g. '2026-10-11T21:51:00Z'.
 // Every timestamp the app writes uses this format.
 export const NOW = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
+
+/**
+ * SQL for everything an account keeps in R2, in bytes: its photos and
+ * videos, and its shares. Both count toward the 1 GB (MAX_ACCOUNT_BYTES).
+ * @param {string} owner where the owner's id is bound, e.g. "?1" (never a value)
+ * @returns {string}
+ */
+export function accountBytes(owner) {
+  return `((SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ${owner})
+         + (SELECT COALESCE(SUM(bytes), 0) FROM shares WHERE owner_id = ${owner}))`;
+}

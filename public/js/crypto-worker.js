@@ -7,7 +7,8 @@
 // where error is "wrong-secret" when a secret didn't unlock, or a message.
 // Its operations work on whole records of a known kind (seal or open a
 // tie's notes, search the ties, seal a photo or open one of mine by id),
-// never a general "decrypt this".
+// never a general "decrypt this". Shares are sealed and opened with their
+// own link's key, never the data key.
 
 import { VaultCore } from "./crypto/vault-core.js";
 import { WrongSecret } from "./crypto/keys.js";
@@ -49,6 +50,8 @@ const OPERATIONS = {
   openPhoto: (args) => vault.openPhoto(args),
   sealCaption: (args) => vault.sealCaption(args),
   openMedia: (args) => vault.openMedia(args),
+  sealShare: (args) => vault.sealShare(args),
+  openShare: (args) => vault.openShare(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied

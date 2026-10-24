@@ -1570,7 +1570,9 @@ about 6 minutes, too slow to run after every change.
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)
-built 2026-10-24, migration 0021, not yet deployed; the rest isn't built.
+built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
+server) built 2026-10-24, migration 0022, not yet deployed; the rest isn't
+built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -1891,7 +1893,18 @@ tests and the walkthrough included.
    (one more encrypted field). Tests: the encrypted-columns unit test, the
    export round trip, the People walkthrough chunk. *First: small, no new
    ideas, and invites need it.*
-2. **Shares on the server** (2–3 days). Migration 0022: `shares` and
+2. **Shares on the server** (2–3 days). *Built 2026-10-24.* Changed from
+   the plan: revoking deletes the row and files at once (no `revoked_at`);
+   the last allowed open deletes the share in the same request (a use
+   counts when the sealed copy is sent, since that's when it can be
+   read); an ended share and one that never was get the same 404; the
+   passphrase, claims and view-only get their own migrations in phases 7
+   and 8. Snapshots are in the photos bucket under
+   `<owner id>/shares/<share id>/`, so deleting the account's files takes
+   them; the photo sweep checks them against `shares`. Starting a new key
+   deletes the account's shares (their names couldn't be opened). The
+   link's key goes into HKDF before sealing, so phase 7 can mix in a
+   passphrase. As first planned: Migration 0022: `shares` and
    `share_claims`. A new `src/shares/` (`parse.js`: kinds, expiry choices,
    uses, limits; `db.js`; `storage.js`: R2 under `shares/`; `routes.js`:
    create, upload files, list mine, revoke, open). Cleanup in

@@ -13,6 +13,7 @@ export const ENCRYPTED_COLUMNS = {
   workshops: ["description", "notes", "album_url"],
   drawings: ["caption"],
   poses: ["caption"],
+  shares: ["label"],
 };
 
 /**
@@ -30,6 +31,7 @@ export const OWNER_SCOPE = {
   workshops: "owner_id = ?1",
   drawings: "owner_id = ?1",
   poses: "owner_id = ?1",
+  shares: "owner_id = ?1",
 };
 
 // A value that's still plain text: not empty, and not sealed. (LIKE ignores

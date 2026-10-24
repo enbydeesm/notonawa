@@ -15,6 +15,8 @@ import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./k
 import { sealRecord, openRecord } from "./fields.js";
 import { matchingTies } from "../search-match.js";
 import { sealPhoto, sealVideo, openPart, openPieces, sealCaption, openCaption } from "./media.js";
+import { newShareKey, sealSnapshot, openSnapshot } from "./share.js";
+import { toBase64url, fromBase64url } from "./keys.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
 /** @typedef {import("./fields.js").RecordKind} RecordKind */
@@ -224,6 +226,38 @@ export class VaultCore {
         return { ...record, caption: null, unreadable: ["caption"] };
       }
     }));
+  }
+
+  /**
+   * Seals a share's snapshot with a new key of its own (crypto/share.js),
+   * for the link. Doesn't touch the data key, but like everything else
+   * here only runs while the journal is unlocked.
+   * @param {{ id: string, kind: import("./share.js").ShareKind, data: unknown }} args
+   * @returns {Promise<{ key: string, body: ArrayBuffer }>} the link's key (base64url) and the sealed snapshot
+   */
+  async sealShare({ id, kind, data }) {
+    this.#unlocked();
+    const key = newShareKey();
+    const sealed = await sealSnapshot({ id, kind, key, data });
+    const result = { key: toBase64url(key), body: sealed.buffer };
+    key.fill(0);
+    return result;
+  }
+
+  /**
+   * Opens a share's snapshot with the key from its link. Throws CantOpen
+   * if it won't.
+   * @param {{ id: string, kind: import("./share.js").ShareKind, key: string, sealed: ArrayBuffer }} args
+   * @returns {Promise<unknown>}
+   */
+  async openShare({ id, kind, key, sealed }) {
+    this.#unlocked();
+    const linkKey = fromBase64url(key);
+    try {
+      return await openSnapshot({ id, kind, key: linkKey, sealed: new Uint8Array(sealed) });
+    } finally {
+      linkKey.fill(0);
+    }
   }
 
   /** @returns {[CryptoKey, string]} */

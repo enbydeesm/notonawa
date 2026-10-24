@@ -33,6 +33,13 @@ describe("convertJournal", () => {
     });
     expect(calls).toEqual([["person", 0], ["profileNote", 0], ["tie", 2], ["participant", 3], ["location", 0], ["plan", 0], ["workshop", 0]]);
   });
+
+  it("converts the names of the account's shares, keeping the rest of the account", async () => {
+    const out = await convertJournal({ account: { notices: [{ message: "Hi" }], shares: [{ label: "x" }] } }, mark);
+    expect(out.account).toEqual({ notices: [{ message: "Hi" }], shares: [{ label: "x", kind: "share" }] });
+    const { doc, unreadable } = withoutUnreadableMarks({ account: { shares: [{ label: null, unreadable: ["label"] }] } });
+    expect([doc.account.shares, unreadable]).toEqual([[{ label: null }], 1]);
+  });
 });
 
 describe("withoutUnreadableMarks", () => {

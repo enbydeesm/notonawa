@@ -27,6 +27,8 @@ import { handlePoses } from "./poses/routes.js";
 import { handleVisuals } from "./visuals/routes.js";
 import { handleStats } from "./stats/routes.js";
 import { handleFeedback } from "./feedback/routes.js";
+import { handleShares } from "./shares/routes.js";
+import { cleanUpShares } from "./shares/cleanup.js";
 import { sweepOrphans } from "./media/storage.js";
 import { cleanUp } from "./cleanup.js";
 import { takeBackup } from "./backup/run.js";
@@ -51,8 +53,9 @@ export default {
 
   /**
    * The daily cron trigger (wrangler.jsonc): backs up the database (keeping
-   * 30 days), then clears ended sessions and expired sign-in challenges, and
-   * photo files left without a row. Each runs even if one before it fails.
+   * 30 days), then clears ended sessions and expired sign-in challenges,
+   * shares that have ended, and photo and share files left without a row.
+   * Each runs even if one before it fails.
    * @param {ScheduledController} _controller
    * @param {Env} env
    */
@@ -63,6 +66,7 @@ export default {
         ? takeBackup(env.DB, env.BACKUPS, env.BACKUP_PUBLIC_KEY)
         : Promise.reject(new Error("BACKUP_PUBLIC_KEY or BACKUPS isn't set: no backup taken.")))],
       ["clean-up", () => cleanUp(env.DB)],
+      ["share clean-up", () => cleanUpShares(env.DB, env.PHOTOS)],
       ["photo sweep", () => sweepOrphans(env.DB, env.PHOTOS)],
     ];
     let failed = false;
@@ -136,6 +140,7 @@ async function respond(request, env) {
     (await handleVisuals(request, env, user, url)) ??
     (await handleStats(request, env, user, url)) ??
     (await handleFeedback(request, env, user, url)) ??
+    (await handleShares(request, env, user, url)) ??
     notFound()
   );
 }

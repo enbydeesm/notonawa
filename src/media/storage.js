@@ -1,8 +1,11 @@
 // The photo files in R2 (the PHOTOS bucket). Each photo is one object,
 // keyed "<owner id>/<photo id>": the sealed thumbnail, then the sealed full
-// size. We can't read them; the browser decrypts.
+// size. We can't read them; the browser decrypts. Shares' files are in the
+// same folders, under "<owner id>/shares/" (shares/parse.js).
 
 import { keysWithRows } from "./db.js";
+import { shareOfKey } from "../shares/parse.js";
+import { sharesWithRows } from "../shares/db.js";
 
 // R2 deletes and lists up to 1000 keys at a time.
 const BATCH = 1000;
@@ -29,8 +32,8 @@ export async function deleteObjects(bucket, ownerId, ids) {
 }
 
 /**
- * Deletes every photo file a user has (deleting the account, or starting a
- * new key).
+ * Deletes every photo and share file a user has (deleting the account, or
+ * starting a new key).
  * @param {R2Bucket} bucket
  * @param {string} ownerId
  */
@@ -46,10 +49,10 @@ export async function deleteAllObjects(bucket, ownerId) {
 }
 
 /**
- * The daily clean-up's part for photos: deletes files with no row, which
- * can be left if a delete or an upload stopped half-way (rows and files
- * can't change in one transaction). Files newer than a day are left alone,
- * in case their upload is still finishing.
+ * The daily clean-up's part for photos and shares: deletes files with no
+ * row, which can be left if a delete or an upload stopped half-way (rows
+ * and files can't change in one transaction). Files newer than a day are
+ * left alone, in case their upload is still finishing.
  * @param {D1Database} db
  * @param {R2Bucket} bucket
  * @param {number} [now]
@@ -62,8 +65,17 @@ export async function sweepOrphans(db, bucket, now = Date.now()) {
   do {
     const listed = await bucket.list({ limit: BATCH, cursor });
     const old = listed.objects.filter((o) => now - o.uploaded.getTime() > SWEEP_GRACE_MS).map((o) => o.key);
-    const kept = await keysWithRows(db, old);
-    const orphans = old.filter((key) => !kept.has(key));
+    const shareFiles = old.flatMap((key) => {
+      const share = shareOfKey(key);
+      return share ? [{ key, ...share }] : [];
+    });
+    const photos = old.filter((key) => !shareOfKey(key));
+    const kept = await keysWithRows(db, photos);
+    const keptShares = await sharesWithRows(db, shareFiles);
+    const orphans = [
+      ...photos.filter((key) => !kept.has(key)),
+      ...shareFiles.filter((s) => !keptShares.has(`${s.ownerId}/${s.shareId}`)).map((s) => s.key),
+    ];
     if (orphans.length > 0) await bucket.delete(orphans);
     deleted += orphans.length;
     cursor = listed.truncated ? listed.cursor : undefined;

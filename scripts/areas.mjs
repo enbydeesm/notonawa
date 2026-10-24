@@ -236,9 +236,17 @@ export const AREAS = [
       "public/js/drag-order.js", "public/js/tile-drag.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
       "scripts/vendor.mjs"],
     tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js",
-      "test/unit/drag-order.test.js", "test/unit/video-fit.test.js"],
+      "test/unit/drag-order.test.js", "test/unit/video-fit.test.js", "test/api/shares.test.js"],
     ui: ["photos", "data", "education"],
     generated: ["vendor"],
+  },
+  {
+    // Shares (phase 2: the server and the sealing only; no pages yet).
+    name: "shares",
+    files: ["src/shares/", "public/js/crypto/share.js"],
+    tests: ["test/api/shares.test.js", "test/unit/shares-parse.test.js", "test/unit/crypto-share.test.js",
+      "test/unit/vault-core.test.js"],
+    ui: [],
   },
   {
     name: "drawings",

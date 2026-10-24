@@ -39,6 +39,8 @@ describe("encrypting older notes", () => {
       workshops: [{ id: `w-${me.id}`, description: "plain class", notes: null, album_url: null }],
       drawings: [{ id: `d-${me.id}`, caption: "plain caption" }],
       poses: [{ id: `po-${me.id}`, caption: "plain pose" }],
+      // A share's name is sealed when it's made, so there's never any plain.
+      shares: [],
     });
   });
 

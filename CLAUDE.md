@@ -50,7 +50,8 @@ building live in [roadmap.md](roadmap.md).
   `RP_ID` and `ORIGIN` in `wrangler.jsonc` (localhost values in `.dev.vars`):
   passkeys are tied to `RP_ID` for good, so changing domain means everyone
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
-  `/api/auth/` routes per IP.
+  `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
+  account.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -150,8 +151,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   kind: "media" | "drawing" | "pose", id }] }`: every visual, or it's
   refused). The kinds have no order routes of their own.
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
-  challenges; `index.js` also runs the photo sweep and the backup, each
-  carrying on if one before it fails).
+  challenges; `index.js` also runs the share clean-up, the photo sweep
+  (which checks share files too) and the backup, each carrying on if one
+  before it fails).
 - `src/backup/`: the daily backup (migration-free). `run.js` reads every
   table in one batch, gzips it as JSON and saves it in the R2 bucket
   `BACKUPS`, deleting ones over 30 days old; `crypto.js` seals it with
@@ -177,6 +179,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   the subject and text, a bug report or feedback, with the kind, version
   and time only, never what was written), `notify.js` (sends it; a failure
   is logged, and doesn't fail the request).
+- `src/shares/`: shares, sealed copies of a profile, tie, plan or workshop
+  that someone else opens with a link (migration 0022; no pages yet, see
+  considerations.md, "Sharing between accounts"). `parse.js` (pure: kinds,
+  expiries, limits (50 live an account, a 2 MB snapshot, counted in the
+  1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
+  `<owner id>/shares/<share id>/snapshot` in the photos bucket), `db.js`,
+  `storage.js`, `cleanup.js` (the daily job: expired ones), `routes.js`
+  (`GET`/`POST /api/shares`, `DELETE /api/shares/:id` (revoking deletes it
+  at once), `POST /api/shares/open` with `{ id }`: someone else's counts a
+  use, and the last allowed one deletes it; ended or unknown is the same
+  404). The label is an encrypted column; the snapshot is sealed with the
+  link's own key, which the server never sees.
 - `src/notices/`: messages from us (migration 0012), written only with
   `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
   now, not dismissed), `POST /api/notices/:id/dismiss`.
@@ -245,6 +259,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `crypto/fields.js` (pure: sealing and opening notes fields),
   `crypto/media.js` (pure: sealing and opening photos, videos (their full
   size in 1 MB pieces, format v2) and captions, bound to the photo's id),
+  `crypto/share.js` (pure: a share's id and key, sealing and opening its
+  snapshot, bound to its id and kind, and the link's `#<id>.<key>`),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -555,7 +571,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   deletes `media` rows (directly or by cascade: a tie, a plan, the account,
   a new key) must then delete their files (`media/storage.js`); read the
   photo ids in the same batch as the delete. The daily sweep only catches
-  what a crash left behind.
+  what a crash left behind. Shares' files are there too, in their owner's
+  folder: deleting a share's row deletes its files (`shares/storage.js`).
 - **Photos and videos are prepared and sealed before they leave the
   device** (`preparePhoto`/`prepareVideo`, then `vault.sealPhoto`/
   `sealVideo`) and shown only from `photoUrl()` (`photo-urls.js`), whose

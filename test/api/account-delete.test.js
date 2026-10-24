@@ -31,6 +31,7 @@ const OWNED_ROWS = {
   notices: "SELECT count(*) AS n FROM notices WHERE user_id = ?",
   notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
   feedback: "SELECT count(*) AS n FROM feedback WHERE user_id = ?",
+  shares: "SELECT count(*) AS n FROM shares WHERE owner_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -107,6 +108,9 @@ async function userWithEverything() {
   await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();
   await sql("INSERT INTO notice_dismissals (notice_id, user_id) VALUES (?, ?)", notice, id).run();
   await post("/api/feedback", { kind: "bug", message: "The + button", app_version: "2026.10.20.001" });
+  // A share (its file is tested in shares.test.js).
+  await post("/api/shares", { id: `share-${id.slice(0, 16)}`, kind: "tie", label: null, expires: "1d", max_uses: 1,
+    snapshot: btoa("x".repeat(40)).replace(/=+$/, "") });
   return { id, cookie };
 }
 
