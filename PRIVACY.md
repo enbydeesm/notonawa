@@ -117,7 +117,8 @@ what it shows). **Drawings are not encrypted**: the lines you draw, their
 colors, and which tie, plan or workshop each is on are readable by our
 server (only a drawing's caption is encrypted), so don't write names or
 other identifying details in a drawing itself. **Poses are not encrypted
-either**: the figure's position, the view, the ropes and the ring, and
+either**: the figure's position, the view, the ropes and the ring, bamboo
+or hashira they're tied to, and
 which tie, plan or workshop each pose is on, are readable by our server
 (only a pose's caption is encrypted).
 
@@ -230,9 +231,9 @@ allow on this site, protects you further.
   can pose it again. These numbers are **not encrypted** and are readable
   by our server; a pose's caption is encrypted on your device, like a
   drawing's.
-- Pictures of a pose are drawn on your device from those numbers. "Add as
-  photo" turns one into a photo, which is then encrypted and stored like any
-  other photo.
+- Pictures of a pose are drawn on your device from those numbers. "Add to
+  visuals" in the poser turns one into a photo, which is then encrypted and
+  stored like any other photo.
 - Up to 20 poses can be stored on each tie, plan or workshop. Duplicating or
   copying one stores a new pose with the same numbers.
 - Deleting a pose, or the tie, plan or workshop it's on, deletes it straight

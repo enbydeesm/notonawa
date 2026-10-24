@@ -1,14 +1,11 @@
-// The Photos section of the tie form (and the plan form): thumbnails in a
-// grid, each with its caption, and a + to add photos and videos (a ▶ marks
-// a video). Tapping one opens the
-// viewer: the full size, its caption, moving it earlier or later, and
-// deleting it. Photos can also be dragged into order, with a mouse or (after
-// holding still a moment, so a swipe still scrolls) a finger; the viewer's
-// Move earlier/later buttons stay for keyboards and screen readers.
+// Photos and videos in a form's Visuals section (visuals-ui.js, which holds
+// the grid and the order): choosing and adding them (a ▶ marks a video),
+// their thumbnails, and the viewer: the full size, a video's speeds, its
+// caption, moving it earlier or later, and deleting it.
 //
-// On something already saved, each change is saved as it's made. On a new
-// tie, the photos wait in the form and are uploaded once the tie is saved
-// (uploadPending), as they need its id.
+// On something already saved, each one is uploaded as it's added. On a new
+// tie, plan or workshop, they wait in the form and are uploaded once it's
+// saved (savePending), as they need its id.
 //
 // Every photo or video is prepared (metadata stripped, shrunk: photo-prep.js,
 // video-prep.js) and sealed (in the crypto Worker) before it leaves the
@@ -26,9 +23,7 @@ import { VIDEO_ACCEPT, isVideo } from "./video-fit.js";
 import { openPhoto, sealCaption, openMedia, CantOpen } from "./vault.js";
 import { uploadPhoto } from "./photo-upload.js";
 import { photoUrl, revoke } from "./photo-urls.js";
-import { MAX_CAPTION } from "./crypto/media.js";
-import { moveItem } from "./drag-order.js";
-import { tileDrag } from "./tile-drag.js";
+import { viewerParts } from "./visual-viewer.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./photo-prep.js").PreparedPhoto} PreparedPhoto */
@@ -39,7 +34,7 @@ import { tileDrag } from "./tile-drag.js";
  * list) or waiting for its tie to be saved (prepared).
  * @typedef {{
  *   id: string, kind: "photo" | "video", mime: string, caption: string | null, unreadable?: boolean,
- *   thumbUrl?: string, prepared?: PreparedPhoto | PreparedVideo,
+ *   thumbUrl?: string, prepared?: PreparedPhoto | PreparedVideo, position?: number, created_at?: string,
  * }} Photo
  */
 
@@ -72,75 +67,47 @@ const noun = (photo) => (photo.kind === "video" ? "Video" : "Photo");
 const thumbType = (photo) => (photo.kind === "video" ? "image/jpeg" : photo.mime);
 
 /**
- * @param {{ item: Item | null, idPrefix: string }} options item: what's
- *   being edited, or null for a new tie (photos wait for uploadPending)
+ * Photos and videos, for the Visuals section.
+ * @param {import("./visuals-ui.js").VisualContext} ctx
  */
-export function photoSection({ item, idPrefix }) {
-  /** @type {Photo[]} */
+export function photoKind(ctx) {
+  const { idPrefix } = ctx;
+  /** Every photo and video, in the order added (the section has their order). @type {Photo[]} */
   let photos = [];
-  let busy = 0;
 
-  const status = h("p", { className: "message", id: `${idPrefix}-photos-message`, "aria-live": "polite" });
-  const grid = h("div", { className: "photo-grid", id: `${idPrefix}-photos` });
-  const drag = tileDrag(grid, {
-    count: () => photos.length,
-    onDrop: async (from, to) => {
-      try {
-        await saveOrder(moveItem(photos, from, to));
-        say("");
-      } catch (err) {
-        say("Couldn't move it: " + errorMessage(err), true);
-      }
-    },
-  });
   const input = privateField(h("input", {
     type: "file", accept: `${ACCEPT},${VIDEO_ACCEPT}`, multiple: true, hidden: true, id: `${idPrefix}-photo-input`, onchange: addChosen,
   }));
-  const addButton = h("button", {
-    type: "button", className: "label-add", id: `${idPrefix}-add-photos`,
-    "aria-label": "Add photos or videos", title: "Add photos or videos", onclick: () => input.click(),
-  }, "+");
-  const element = h("div", { className: "photo-section" },
-    h("div", { className: "label-row" }, h("label", {}, "Photos and videos"), addButton),
-    input,
-    grid,
-    // A new tie or plan's photos wait for the form to be saved; when
-    // editing, they're uploaded as they're added.
-    h("p", { className: "hint" }, item
-      ? "Drag photos into order and caption them to describe a sequence."
-      : "Drag photos into order and caption them to describe a sequence. They are uploaded when you save this form."),
-    status);
 
-  /** @param {string} text @param {boolean} [isError] */
-  const say = (text, isError = false) => showMessage(status, text, isError);
-
-  async function load() {
-    if (!item) return;
-    say("Loading photos…");
-    try {
-      /** @type {{ id: string, kind: "photo" | "video", mime: string, caption: string | null }[]} */
-      const listed = await api(`/api/media?${new URLSearchParams(item)}`);
-      const opened = await openMedia(listed);
-      photos = opened.map((p) => ({ id: p.id, kind: p.kind, mime: p.mime, caption: p.caption, unreadable: !!p.unreadable }));
-      draw();
-      say("");
-      await Promise.all(photos.map(loadThumb));
-    } catch (err) {
-      say("Couldn't load the photos: " + errorMessage(err), true);
-    }
+  /**
+   * @param {import("./visuals-ui.js").Item} item
+   * @returns {Promise<Photo[]>}
+   */
+  async function load(item) {
+    /** @type {{ id: string, kind: "photo" | "video", mime: string, caption: string | null, position: number, created_at: string }[]} */
+    const listed = await api(`/api/media?${new URLSearchParams(item)}`);
+    const opened = await openMedia(listed);
+    const loaded = opened.map((p, i) => /** @type {Photo} */ ({
+      id: p.id, kind: p.kind, mime: p.mime, caption: p.caption, unreadable: !!p.unreadable,
+      position: listed[i].position, created_at: listed[i].created_at,
+    }));
+    photos = loaded;
+    Promise.all(loaded.map(loadThumb));
+    return loaded;
   }
 
   /** @param {Photo} photo */
   async function loadThumb(photo) {
     try {
       const bytes = await openPhoto(photo.id, "thumb", photo.kind);
+      if (ctx.closed()) return;
       setThumb(photo, photoUrl(bytes, thumbType(photo)));
     } catch (err) {
       if (err instanceof CantOpen) {
         photo.unreadable = true;
-        draw();
+        ctx.draw();
       } else {
-        say("Couldn't load a photo: " + errorMessage(err), true);
+        ctx.say("Couldn't load a photo: " + errorMessage(err), true);
       }
     }
   }
@@ -149,35 +116,18 @@ export function photoSection({ item, idPrefix }) {
   function setThumb(photo, url) {
     if (photo.thumbUrl) revoke(photo.thumbUrl);
     photo.thumbUrl = url;
-    draw();
+    ctx.draw();
   }
 
-  function draw() {
-    grid.replaceChildren(...photos.map((photo, i) => {
-      const label = `${noun(photo)} ${i + 1} of ${photos.length}${photo.caption ? `: ${photo.caption}` : ""}`;
-      return h("figure", { className: "photo-tile" },
-        h("button", { type: "button", className: "photo-thumb", "aria-label": label, onclick: () => view(photo) },
-          photo.thumbUrl ? h("img", { src: photo.thumbUrl, alt: "" })
-            : h("span", { className: "photo-placeholder" }, photo.unreadable ? "Can't decrypt" : "…"),
-          photo.kind === "video" ? h("span", { className: "video-badge", "aria-hidden": "true" }, "▶") : null),
-        photo.caption ? h("figcaption", {}, photo.caption) : null);
-    }));
-    addButton.disabled = photos.length >= MAX_PHOTOS;
-  }
-
-  /**
-   * Puts the photos in this order, saving it if they're all saved. Waiting
-   * photos (a new tie) are only in this form until it's saved.
-   * @param {Photo[]} order
-   */
-  async function saveOrder(order) {
-    const saved = order.filter((p) => !p.prepared);
-    if (item && saved.length === order.length) {
-      await api("/api/media/order", { method: "PUT", body: { ...item, ids: saved.map((p) => p.id) } });
-    }
-    photos = order;
-    draw();
-  }
+  /** @param {Photo} photo */
+  const look = (photo) => ({
+    icon: photo.kind,
+    noun: noun(photo),
+    thumb: photo.thumbUrl ? h("img", { src: photo.thumbUrl, alt: "" })
+      : h("span", { className: "photo-placeholder" }, photo.unreadable ? "Can't decrypt" : "…"),
+    caption: photo.caption,
+    unreadable: false,
+  });
 
   async function addChosen() {
     const files = [...(input.files ?? [])];
@@ -188,62 +138,64 @@ export function photoSection({ item, idPrefix }) {
   /**
    * Prepares and adds photos and videos (chosen, or made on the page, like
    * a picture of a pose): uploaded now if the item is saved, otherwise
-   * waiting for it.
+   * waiting for it. Each goes last.
    * @param {File[]} files
    * @returns {Promise<string[]>} what went wrong with any of them
    */
-  async function addFiles(files) {
-    const room = MAX_PHOTOS - photos.length;
-    if (files.length > room) say(`There can be at most ${MAX_PHOTOS} photos and videos, so only ${room} more can be added.`, true);
-    const problems = [];
-    busy++;
-    const chosen = files.slice(0, Math.max(0, room));
-    for (const [i, file] of chosen.entries()) {
-      const counted = `${i + 1} of ${chosen.length}`;
-      try {
-        /** @type {PreparedPhoto | PreparedVideo} */
-        let prepared;
-        /** @type {Photo["kind"]} */
-        let kind = "photo";
-        if (isVideo(file)) {
-          kind = "video";
-          if (photos.filter((p) => p.kind === "video").length >= MAX_VIDEOS) {
-            throw new Error(`There can be at most ${MAX_VIDEOS} videos on a tie or plan.`);
+  function addFiles(files) {
+    return ctx.busy(async () => {
+      const room = MAX_PHOTOS - photos.length;
+      if (files.length > room) ctx.say(`There can be at most ${MAX_PHOTOS} photos and videos, so only ${room} more can be added.`, true);
+      const problems = [];
+      const chosen = files.slice(0, Math.max(0, room));
+      for (const [i, file] of chosen.entries()) {
+        const counted = `${i + 1} of ${chosen.length}`;
+        try {
+          /** @type {PreparedPhoto | PreparedVideo} */
+          let prepared;
+          /** @type {Photo["kind"]} */
+          let kind = "photo";
+          if (isVideo(file)) {
+            kind = "video";
+            if (photos.filter((p) => p.kind === "video").length >= MAX_VIDEOS) {
+              throw new Error(`There can be at most ${MAX_VIDEOS} videos on a tie, plan or workshop.`);
+            }
+            ctx.say(`Preparing video ${counted}…`);
+            const { prepareVideo } = await import("./video-prep.js");
+            prepared = await prepareVideo(file, {
+              onProgress: (fraction) => ctx.say(`Preparing video ${counted}… ${Math.round(fraction * 100)}%`),
+              withoutSound: () => askWithoutSound(file.name),
+            });
+          } else {
+            ctx.say(`Preparing photo ${counted}…`);
+            prepared = await preparePhoto(file);
           }
-          say(`Preparing video ${counted}…`);
-          const { prepareVideo } = await import("./video-prep.js");
-          prepared = await prepareVideo(file, {
-            onProgress: (fraction) => say(`Preparing video ${counted}… ${Math.round(fraction * 100)}%`),
-            withoutSound: () => askWithoutSound(file.name),
-          });
-        } else {
-          say(`Preparing photo ${counted}…`);
-          prepared = await preparePhoto(file);
+          /** @type {Photo} */
+          const photo = { id: crypto.randomUUID(), kind, mime: prepared.mime, caption: null, prepared };
+          const item = ctx.item();
+          if (item) {
+            ctx.say(`Uploading ${kind} ${counted}…`);
+            await upload(item, photo);
+          } else {
+            photos.push(photo);
+            ctx.append("media", photo);
+            setThumb(photo, photoUrl(prepared.thumb.slice(0), thumbType(photo)));
+          }
+        } catch (err) {
+          problems.push(`${file.name}: ${errorMessage(err)}`);
         }
-        /** @type {Photo} */
-        const photo = { id: crypto.randomUUID(), kind, mime: prepared.mime, caption: null, prepared };
-        if (item) {
-          say(`Uploading ${kind} ${counted}…`);
-          await upload(item, photo);
-        } else {
-          photos.push(photo);
-          setThumb(photo, photoUrl(prepared.thumb.slice(0), thumbType(photo)));
-        }
-      } catch (err) {
-        problems.push(`${file.name}: ${errorMessage(err)}`);
       }
-    }
-    busy--;
-    if (problems.length) say(problems.join(" "), true);
-    else if (files.length <= room) say("");
-    if (files.length > room) problems.push("There's no room for more photos.");
-    return problems;
+      if (problems.length) ctx.say(problems.join(" "), true);
+      else if (files.length <= room) ctx.say("");
+      if (files.length > room) problems.push("There's no room for more photos.");
+      return problems;
+    });
   }
 
   /**
    * Seals a prepared photo or video and uploads it, last on the item, then
-   * its caption if it has one. Adds it to the grid (or updates it there).
-   * @param {Item} target
+   * its caption if it has one. Adds it to the section (or updates it there).
+   * @param {import("./visuals-ui.js").Item} target
    * @param {Photo} photo with prepared
    */
   async function upload(target, photo) {
@@ -253,36 +205,18 @@ export function photoSection({ item, idPrefix }) {
     const thumbCopy = prepared.thumb.slice(0);
     await uploadPhoto({ item: target, prepared, caption: photo.caption, id: photo.id });
     delete photo.prepared;
-    if (!photos.includes(photo)) photos.push(photo);
-    setThumb(photo, photoUrl(thumbCopy, thumbType(photo)));
-  }
-
-  /**
-   * After a new tie is saved: uploads the photos waiting for it, in order.
-   * Ones that fail stay waiting, so saving again tries them again.
-   * @param {Item} target
-   * @returns {Promise<string | null>} what went wrong, or null
-   */
-  async function uploadPending(target) {
-    item = target;
-    const waiting = photos.filter((p) => p.prepared);
-    for (const [i, photo] of waiting.entries()) {
-      say(`Uploading ${photo.kind} ${i + 1} of ${waiting.length}…`);
-      try {
-        await upload(target, photo);
-      } catch (err) {
-        say("", false);
-        return errorMessage(err);
-      }
+    if (!photos.includes(photo)) {
+      photos.push(photo);
+      ctx.append("media", photo);
     }
-    say("");
-    return null;
+    setThumb(photo, photoUrl(thumbCopy, thumbType(photo)));
   }
 
   /** @param {Photo} photo */
   function view(photo) {
-    const index = () => photos.indexOf(photo);
-    const message = h("p", { className: "message", id: `${idPrefix}-viewer-message` });
+    const message = h("p", { className: "message", id: `${idPrefix}-viewer-message`, "aria-live": "polite" });
+    /** @param {string} text @param {boolean} [isError] */
+    const tell = (text, isError = false) => showMessage(message, text, isError);
     const isVideoShown = photo.kind === "video";
     const image = isVideoShown
       ? h("video", { className: "photo-full", id: `${idPrefix}-video`, controls: true, playsInline: true, preload: "metadata", poster: photo.thumbUrl })
@@ -303,38 +237,37 @@ export function photoSection({ item, idPrefix }) {
       video.playbackRate = speed;
       for (const [i, button] of speedButtons.entries()) button.setAttribute("aria-pressed", String(SPEEDS[i] === speed));
     }
-    const captionInput = privateField(h("input", {
-      id: `${idPrefix}-photo-caption`, maxLength: MAX_CAPTION, value: photo.caption ?? "", placeholder: "e.g. Front, or the second wrap",
-    }));
-    const earlier = h("button", { type: "button", id: `${idPrefix}-photo-earlier`, onclick: () => move(-1) }, "Move earlier");
-    const later = h("button", { type: "button", id: `${idPrefix}-photo-later`, onclick: () => move(1) }, "Move later");
-    const position = h("p", { className: "hint" });
+    const parts = viewerParts({
+      id: `${idPrefix}-photo`, noun: noun(photo), caption: photo.caption, placeholder: "e.g. Front, or the second wrap",
+      nav: ctx.nav(photo), tell,
+      save: async (text) => {
+        if (!photo.prepared) {
+          await api(`/api/media/${photo.id}`, { method: "PATCH", body: { caption: await sealCaption(photo.id, text ?? "") } });
+        }
+        photo.caption = text;
+        if (image instanceof HTMLImageElement) image.alt = text ?? "";
+        ctx.draw();
+      },
+    });
     /** @type {string | null} */
     let fullUrl = null;
 
     const dialog = h("dialog", { className: "form-dialog photo-viewer", "aria-label": noun(photo) },
       image,
       speeds,
-      position,
-      h("label", { htmlFor: `${idPrefix}-photo-caption` }, "Caption"),
-      captionInput,
-      h("div", { className: "dialog-buttons" },
-        h("button", { type: "button", id: `${idPrefix}-photo-save-caption`, onclick: saveCaption }, "Save caption"),
-        earlier, later),
+      parts.position,
+      parts.captionRow,
+      parts.input,
+      parts.moveRow,
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"),
       h("button", { type: "button", className: "danger dialog-delete", id: `${idPrefix}-photo-delete`, onclick: remove }, `Delete ${photo.kind}`),
       message);
+    parts.attach(dialog);
     dialog.addEventListener("close", () => {
       if (image instanceof HTMLVideoElement) image.pause();
       if (fullUrl) revoke(fullUrl);
       dialog.remove();
     });
-
-    function showPosition() {
-      position.textContent = `${noun(photo)} ${index() + 1} of ${photos.length}`;
-      earlier.disabled = index() <= 0;
-      later.disabled = index() >= photos.length - 1;
-    }
 
     async function showFull() {
       if (photo.prepared) {
@@ -344,44 +277,19 @@ export function photoSection({ item, idPrefix }) {
       }
       // A video shows its thumbnail as its poster until it's loaded.
       if (!isVideoShown) image.src = photo.thumbUrl ?? "";
-      else showMessage(message, "Loading the video…");
+      else tell("Loading the video…");
       try {
-        fullUrl = photoUrl(await openPhoto(photo.id, "full", photo.kind), photo.mime);
-        image.src = fullUrl;
-        showMessage(message, "");
-      } catch (err) {
-        showMessage(message, err instanceof CantOpen
-          ? `This ${photo.kind} can't be decrypted.` : `Couldn't load the ${photo.kind}: ` + errorMessage(err), true);
-      }
-    }
-
-    async function saveCaption() {
-      const text = captionInput.value.trim();
-      try {
-        if (!photo.prepared) {
-          showMessage(message, "Saving…");
-          await api(`/api/media/${photo.id}`, { method: "PATCH", body: { caption: await sealCaption(photo.id, text) } });
+        const url = photoUrl(await openPhoto(photo.id, "full", photo.kind), photo.mime);
+        if (!dialog.open) {
+          revoke(url);
+          return;
         }
-        photo.caption = text || null;
-        if (image instanceof HTMLImageElement) image.alt = text;
-        draw();
-        showMessage(message, "Caption saved.");
+        fullUrl = url;
+        image.src = fullUrl;
+        tell("");
       } catch (err) {
-        showMessage(message, "Couldn't save the caption: " + errorMessage(err), true);
-      }
-    }
-
-    /** @param {number} step -1 earlier, 1 later */
-    async function move(step) {
-      const from = index();
-      const to = from + step;
-      if (to < 0 || to >= photos.length) return;
-      try {
-        await saveOrder(moveItem(photos, from, to));
-        showPosition();
-        showMessage(message, "");
-      } catch (err) {
-        showMessage(message, "Couldn't move it: " + errorMessage(err), true);
+        tell(err instanceof CantOpen
+          ? `This ${photo.kind} can't be decrypted.` : `Couldn't load the ${photo.kind}: ` + errorMessage(err), true);
       }
     }
 
@@ -395,36 +303,36 @@ export function photoSection({ item, idPrefix }) {
       try {
         if (!photo.prepared) await api(`/api/media/${photo.id}`, { method: "DELETE" });
         photos = photos.filter((p) => p !== photo);
-        if (photo.thumbUrl) revoke(photo.thumbUrl);
-        draw();
+        forget(photo);
+        ctx.remove(photo);
         dialog.close();
       } catch (err) {
-        showMessage(message, "Couldn't delete: " + errorMessage(err), true);
+        tell("Couldn't delete: " + errorMessage(err), true);
       }
     }
 
-    document.body.append(dialog);
-    dialog.showModal();
-    showPosition();
+    parts.show(dialog);
     showFull();
   }
 
-  /** Revokes everything this section showed (when its form closes). */
-  function close() {
-    drag.stop();
-    for (const photo of photos) if (photo.thumbUrl) revoke(photo.thumbUrl);
-    photos = [];
+  /** @param {Photo} photo */
+  function forget(photo) {
+    if (photo.thumbUrl) revoke(photo.thumbUrl);
+    delete photo.thumbUrl;
   }
 
-  load();
   return {
-    element,
-    uploadPending,
+    extra: input,
+    load,
+    look,
+    view,
+    add: () => input.click(),
     addFiles,
-    close,
-    /** Whether photos are still being prepared or uploaded. */
-    get busy() { return busy > 0; },
-    /** Whether any photos are waiting for the tie to be saved. */
-    get waiting() { return photos.some((p) => p.prepared); },
+    room: () => (photos.length >= MAX_PHOTOS ? `There can be at most ${MAX_PHOTOS} photos and videos.` : null),
+    /** @param {Photo} photo */
+    waiting: (photo) => !!photo.prepared,
+    /** @param {Photo} photo @param {import("./visuals-ui.js").Item} target */
+    savePending: (photo, target) => upload(target, photo),
+    forget,
   };
 }

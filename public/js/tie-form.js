@@ -14,9 +14,7 @@ import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, forgetSearch, open } from "./vault.js";
-import { photoSection } from "./photos-ui.js";
-import { drawingSection } from "./drawings-ui.js";
-import { poseSection, intoPhotos } from "./poses-ui.js";
+import { visualSection } from "./visuals-ui.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -82,9 +80,7 @@ function showTieForm(tie) {
     const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
-    const photos = photoSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
-    const drawings = drawingSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
-    const poses = poseSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie", addPhoto: intoPhotos(photos) });
+    const visuals = visualSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
 
     const form = h("form", { id: "tie-form", onsubmit: save },
       h("label", { htmlFor: "tie-title" }, "Title"),
@@ -124,9 +120,7 @@ function showTieForm(tie) {
         id: "tie-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
       })),
-      photos.element,
-      drawings.element,
-      poses.element,
+      visuals.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -141,9 +135,7 @@ function showTieForm(tie) {
       h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie"),
       form);
     dialog.addEventListener("close", () => {
-      photos.close();
-      drawings.close();
-      poses.close();
+      visuals.close();
       dialog.remove();
       resolve(saved);
     });
@@ -337,8 +329,8 @@ function showTieForm(tie) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
-      if (photos.busy || drawings.busy || poses.busy) {
-        showMessage(message, `Wait for the ${photos.busy ? "photos" : drawings.busy ? "drawings" : "poses"} to finish, then save.`, true);
+      if (visuals.busy) {
+        showMessage(message, "Wait for the visuals to finish, then save.", true);
         return;
       }
       saveButton.disabled = true;
@@ -351,24 +343,10 @@ function showTieForm(tie) {
         // The search index has this tie's old notes (or none): fetch it afresh.
         forgetSearch();
         saved = true;
-        if (photos.waiting) {
-          const problem = await photos.uploadPending({ tie_id: /** @type {string} */ (savedId) });
+        if (visuals.waiting) {
+          const problem = await visuals.savePending({ tie_id: /** @type {string} */ (savedId) });
           if (problem) {
-            showMessage(message, `The tie is saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
-            return;
-          }
-        }
-        if (drawings.waiting) {
-          const problem = await drawings.savePending({ tie_id: /** @type {string} */ (savedId) });
-          if (problem) {
-            showMessage(message, `The tie is saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
-            return;
-          }
-        }
-        if (poses.waiting) {
-          const problem = await poses.savePending({ tie_id: /** @type {string} */ (savedId) });
-          if (problem) {
-            showMessage(message, `The tie is saved, but a pose couldn't be saved: ${problem} Save again to try again.`, true);
+            showMessage(message, `The tie is saved, but a visual couldn't be saved: ${problem} Save again to try again.`, true);
             return;
           }
         }

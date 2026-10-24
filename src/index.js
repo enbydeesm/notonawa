@@ -24,6 +24,7 @@ import { handleData } from "./data/routes.js";
 import { handleMedia } from "./media/routes.js";
 import { handleDrawings } from "./drawings/routes.js";
 import { handlePoses } from "./poses/routes.js";
+import { handleVisuals } from "./visuals/routes.js";
 import { handleStats } from "./stats/routes.js";
 import { handleFeedback } from "./feedback/routes.js";
 import { sweepOrphans } from "./media/storage.js";
@@ -132,6 +133,7 @@ async function respond(request, env) {
     (await handleMedia(request, env, user, url)) ??
     (await handleDrawings(request, env, user, url)) ??
     (await handlePoses(request, env, user, url)) ??
+    (await handleVisuals(request, env, user, url)) ??
     (await handleStats(request, env, user, url)) ??
     (await handleFeedback(request, env, user, url)) ??
     notFound()

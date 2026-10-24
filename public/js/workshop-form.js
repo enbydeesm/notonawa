@@ -15,9 +15,7 @@ import { personRows } from "./person-rows.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, open } from "./vault.js";
-import { photoSection } from "./photos-ui.js";
-import { drawingSection } from "./drawings-ui.js";
-import { poseSection, intoPhotos } from "./poses-ui.js";
+import { visualSection } from "./visuals-ui.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -104,9 +102,7 @@ function showWorkshopForm(workshop) {
       h("button", { type: "button", "aria-label": "Remove location", onclick: removeDeletedLocation }, "✕"));
     const tagList = h("div", { className: "tag-row", id: "workshop-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, "Save workshop");
-    const photos = photoSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
-    const drawings = drawingSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
-    const poses = poseSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop", addPhoto: intoPhotos(photos) });
+    const visuals = visualSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
     const startInput = privateField(h("input", {
       id: "workshop-start_date", name: "start_date", type: "date", value: today(), required: true,
       onchange: () => { endInput.min = startInput.value; },
@@ -149,9 +145,7 @@ function showWorkshopForm(workshop) {
         id: "workshop-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
       })),
-      photos.element,
-      drawings.element,
-      poses.element,
+      visuals.element,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("workshop-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -166,9 +160,7 @@ function showWorkshopForm(workshop) {
       h("h2", { id: "workshop-form-heading" }, workshop ? "Edit workshop" : "Add a workshop"),
       form);
     dialog.addEventListener("close", () => {
-      photos.close();
-      drawings.close();
-      poses.close();
+      visuals.close();
       dialog.remove();
       resolve(saved);
     });
@@ -312,8 +304,8 @@ function showWorkshopForm(workshop) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
-      if (photos.busy || drawings.busy || poses.busy) {
-        showMessage(message, `Wait for the ${photos.busy ? "photos" : drawings.busy ? "drawings" : "poses"} to finish, then save.`, true);
+      if (visuals.busy) {
+        showMessage(message, "Wait for the visuals to finish, then save.", true);
         return;
       }
       saveButton.disabled = true;
@@ -324,24 +316,10 @@ function showWorkshopForm(workshop) {
         if (savedId) await api(`/api/workshops/${encodeURIComponent(savedId)}`, { method: "PUT", body });
         else savedId = (await api("/api/workshops", { method: "POST", body })).id;
         saved = true;
-        if (photos.waiting) {
-          const problem = await photos.uploadPending({ workshop_id: /** @type {string} */ (savedId) });
+        if (visuals.waiting) {
+          const problem = await visuals.savePending({ workshop_id: /** @type {string} */ (savedId) });
           if (problem) {
-            showMessage(message, `The workshop is saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
-            return;
-          }
-        }
-        if (drawings.waiting) {
-          const problem = await drawings.savePending({ workshop_id: /** @type {string} */ (savedId) });
-          if (problem) {
-            showMessage(message, `The workshop is saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
-            return;
-          }
-        }
-        if (poses.waiting) {
-          const problem = await poses.savePending({ workshop_id: /** @type {string} */ (savedId) });
-          if (problem) {
-            showMessage(message, `The workshop is saved, but a pose couldn't be saved: ${problem} Save again to try again.`, true);
+            showMessage(message, `The workshop is saved, but a visual couldn't be saved: ${problem} Save again to try again.`, true);
             return;
           }
         }

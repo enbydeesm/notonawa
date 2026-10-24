@@ -1,7 +1,7 @@
-// The walkthrough's poses chunk. Poses on ties: the poser (a preset, posing
-// a part with a slider, undo, laying a rope with taps, the ring), saving
-// with the tie, captions, "Add as photo", duplicating, and export and
-// import. Taps on the 3D view are real input (Chrome's own mouse events),
+// The walkthrough's poses chunk. Poses on ties: the poser (body and arms
+// presets, posing a part with a slider, undo, laying a rope with taps, the
+// ring, bamboo and hashira, "Add to visuals"), saving with the tie,
+// captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -42,11 +42,10 @@ export default async function () {
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
-  check("the tie form has Poses, with a + to add one, under Drawings", await run(`
-    const labels = [...document.querySelectorAll("#tie-form .label-row label")].map((l) => l.textContent);
-    return [labels.indexOf("Poses") === labels.indexOf("Drawings") + 1, $("#tie-add-pose").getAttribute("aria-label")];`),
-  [true, "Add pose"]);
-  check("+ opens the poser, filling the screen, with the 3D view drawn and Pose chosen", await run(`
+  check("the Visuals + offers the model poser", await run(`
+    $("#tie-add-visual").click(); await wait(300);
+    return $("#tie-add-pose").textContent;`), "Model poser");
+  check("it opens the poser, filling the screen, with the 3D view drawn and Pose chosen", await run(`
     $("#tie-add-pose").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await wait(500);
@@ -55,13 +54,20 @@ export default async function () {
       $("#pose-mode-pose").getAttribute("aria-pressed"), $("#pose-part").textContent, $("#pose-undo").disabled, leakyFields()];`),
   [true, true, true, true, "true", "Tap a body part to pose it", true, []]);
 
-  check("a starting pose can be chosen, and undone", await run(`
-    set("#pose-preset", "1"); await wait(300);
+  check("the help, the views top right, and menus for the body and the arms", await run(`
+    const options = (id) => [...$(id).options].map((o) => o.textContent);
+    const frame = $(".pose-frame").getBoundingClientRect(), views = $("#pose-view-choice").getBoundingClientRect();
+    return [$(".pose-hint").textContent, Math.round(frame.right - views.right) < 12 && Math.round(views.top - frame.top) < 12,
+      options("#pose-body-preset").slice(0, 4), options("#pose-arms-preset"), $("#pose-add-visual").textContent];`),
+  ["Drag to turn · two-finger drag to pan · pinch to zoom", true, ["Body…", "Standing", "Kneeling", "Kneeling up"],
+    ["Arms…", "At sides", "Behind back", "Crossed in front", "Arms behind head"], "Add to visuals"]);
+  check("an arms position can be chosen, and undone", await run(`
+    set("#pose-arms-preset", "1"); await wait(300);
     const after = $("#pose-undo").disabled;
     $("#pose-undo").click(); await wait(200);
     const undone = $("#pose-redo").disabled;
     $("#pose-redo").click(); await wait(200);
-    return [after, undone, $("#pose-preset").value];`), [false, false, ""]);
+    return [after, undone, $("#pose-arms-preset").value];`), [false, false, ""]);
 
   // The view looks at the figure's hips, in the middle.
   await tap(0.5, 0.5);
@@ -80,12 +86,15 @@ export default async function () {
     return ${turned};`), "0");
   await run(`$("#pose-redo").click(); await wait(200);`);
 
-  check("Rope mode: the tools, and a ring to add", await run(`
+  check("Rope mode: thickness, the eraser and Finish rope above the colors, and a ring, bamboo or hashira to add", await run(`
     $("#pose-mode-rope").click(); await wait(200);
-    const before = [$("#pose-panel-pose").hidden, $("#pose-ring").textContent, $("#pose-finish-rope").disabled];
+    const rows = [...$("#pose-panel-rope").children].map((c) => c.getAttribute("aria-label"));
+    const finish = $("#pose-finish-rope"), row = finish.parentElement;
+    const before = [$("#pose-panel-pose").hidden, ["ring", "bamboo", "hashira"].map((k) => $("#pose-" + k).textContent), finish.disabled,
+      row.lastElementChild === finish];
     $("#pose-ring").click(); await wait(200);
-    return [...before, $("#pose-ring").textContent, document.querySelectorAll("#pose-ring-sliders input[type=range]").length, leakyFields()];`),
-  [true, "Add ring", true, "Remove ring", 3, []]);
+    return [rows.slice(0, 2), ...before, $("#pose-ring").textContent, document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length, leakyFields()];`),
+  [["Rope thickness", "Rope color"], true, ["Add ring", "Add bamboo", "Add hashira"], true, true, "Remove ring", 3, []]);
 
   await tap(0.5, 0.5);
   await tap(0.5, 0.38);
@@ -98,38 +107,62 @@ export default async function () {
   await tap(0.5, 0.4);
   await run(`$("#pose-finish-rope").click(); await wait(200);`);
 
-  check("saved, it waits in the form for the tie, drawn as a picture", await run(`
+  check("Add to visuals puts a picture of the pose into the form's visuals, as a photo", await run(`
+    $("#pose-add-visual").click();
+    for (let i = 0; i < 100 && !/Added|Couldn't/.test($("#pose-message").textContent); i++) await wait(100);
+    return [$("#pose-message").textContent, document.querySelectorAll("#tie-visuals .visual-photo img").length];`),
+  ["Added to visuals, as a photo.", 1]);
+  check("saved, the pose waits in the form for the tie, drawn as a picture, after the photo", await run(`
     $("#pose-save").click();
-    for (let i = 0; i < 50 && !document.querySelector("#tie-poses img"); i++) await wait(100);
-    return [!!$("dialog.pose-editor"), document.querySelectorAll("#tie-poses .photo-tile").length,
-      ($("#tie-poses img")?.src ?? "").startsWith("blob:")];`), [false, 1, true]);
-  check("…and is saved with the tie: the figure, the ring and the rope, plain", await run(`
-    $("#tie-save").click(); await wait(2000); await settle();
+    for (let i = 0; i < 50 && !document.querySelector("#tie-visuals .visual-pose img"); i++) await wait(100);
+    return [!!$("dialog.pose-editor"), [...document.querySelectorAll("#tie-visuals .photo-tile")].map((t) => t.className),
+      ($("#tie-visuals .visual-pose img")?.src ?? "").startsWith("blob:")];`), [false, ["photo-tile visual-photo", "photo-tile visual-pose"], true]);
+  check("…and is saved with the tie: the figure, the ring and the rope, plain, and the picture sealed like any photo", await run(`
+    $("#tie-save").click(); await wait(3000); await settle();
     const [p] = await ${tiePoses};
-    return [!!document.querySelector("dialog[open]"), p.data.body, p.data.joints.l_elbow, p.data.ring, p.data.ropes.length,
-      p.data.ropes[0].p.length, p.caption];`),
-  [false, [0, 20, 0], [100], [0, 280, 0], 1, 2, null]);
-
-  check("a caption is saved encrypted and shown under the pose", await run(`
-    ${openTie} $("#tie-poses .photo-thumb").click(); await wait(800);
-    set("#tie-pose-caption", " Lift "); $("#tie-pose-save-caption").click(); await wait(800);
-    const [p] = await ${tiePoses};
-    return [$("#tie-poses figcaption")?.textContent, /^e1\\./.test(p.caption), p.caption.includes("Lift"), leakyFields()];`),
-  ["Lift", true, false, []]);
-  check("Add as photo puts a picture of it into Photos and videos, sealed like any photo", await run(`
-    $("#tie-pose-photo").click();
-    for (let i = 0; i < 100 && !/Added|Couldn't/.test($("#tie-pose-viewer-message").textContent); i++) await wait(100);
-    const message = $("#tie-pose-viewer-message").textContent;
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Pose test");
     const media = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    return [message, media.length, media[0]?.kind];`),
-  ["Added to Photos and videos, above.", 1, "photo"]);
+    return [!!document.querySelector("dialog[open]"), p.data.body, p.data.joints.l_elbow, p.data.ring, p.data.ropes.length,
+      p.data.ropes[0].p.length, p.caption, media.map((m) => [m.kind, m.position]), p.position];`),
+  [false, [0, 20, 0], [100], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
+
+  check("a caption is saved encrypted and shown under the pose", await run(`
+    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);
+    set("#tie-pose-caption", " Lift "); $("#tie-pose-save-caption").click(); await wait(800);
+    const [p] = await ${tiePoses};
+    return [$("#tie-visuals .visual-pose figcaption")?.textContent, /^e1\\./.test(p.caption), p.caption.includes("Lift"), leakyFields()];`),
+  ["Lift", true, false, []]);
+  check("its details: Edit pose above the caption, the moves and Duplicate and Copy to… in rows, no Add as photo", await run(`
+    const d = ${topDialog};
+    const order = [...d.children].map((c) => c.id || c.className);
+    const edit = order.indexOf("tie-pose-edit"), caption = order.indexOf("tie-pose-caption");
+    return [edit > 0 && edit < caption, $("#tie-pose-edit").className, $("#tie-pose-duplicate").parentElement === $("#tie-pose-copy").parentElement,
+      $("#tie-pose-earlier").parentElement === $("#tie-pose-later").parentElement, !!$("#tie-pose-photo")];`),
+  [true, "outline-accent wide", true, true, false]);
+  check("Edit pose: a bamboo in place of the ring, then a hashira, its own sliders each; nothing kept on Cancel", await run(`
+    $("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await wait(300);
+    $("#pose-mode-rope").click(); await wait(100);
+    $("#pose-bamboo").click(); await wait(200);
+    const bamboo = [["ring", "bamboo", "hashira"].map((k) => $("#pose-" + k).textContent), $("#pose-rope-hint").textContent,
+      document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length];
+    // No rope is on the bamboo, so nothing to ask about.
+    $("#pose-hashira").click(); await wait(300);
+    const asked = ${topDialog}.classList.contains("pose-editor");
+    const hashira = [$("#pose-hashira").textContent, document.querySelectorAll("#pose-hardpoint-sliders input[type=range]").length];
+    $("#pose-cancel").click(); await wait(300);
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
+    const [p] = await ${tiePoses};
+    return [bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
+  [[["Add ring", "Remove bamboo", "Add hashira"], "Tap the body to lay a rope, point by point. Tap the bamboo for an upline.", 4],
+    true, ["Remove hashira", 3], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`
     $("#tie-pose-duplicate").click(); await wait(1000);
     ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
     const [a, b] = await ${tiePoses};
-    return [[...document.querySelectorAll("#tie-poses figcaption")].map((f) => f.textContent),
+    return [[...document.querySelectorAll("#tie-visuals .visual-pose figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
   [["Lift", "Lift"], true, true]);
   await run(`${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);`);
@@ -165,10 +198,10 @@ export default async function () {
 
   await go("/");
   check("deleting a pose asks first, then removes it", await run(`
-    ${openTie} $("#tie-poses .photo-thumb").click(); await wait(800);
+    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);
     $("#tie-pose-delete").click(); await wait(300);
     const asked = ${topDialog}.querySelector("h2").textContent;
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete pose").click(); await wait(800);
-    return [asked, document.querySelectorAll("#tie-poses .photo-tile").length, (await ${tiePoses}).length];`),
+    return [asked, document.querySelectorAll("#tie-visuals .visual-pose").length, (await ${tiePoses}).length];`),
   ["Delete this pose?", 1, 1]);
 }

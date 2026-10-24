@@ -21,8 +21,11 @@
  * }} Joint
  */
 /**
- * A body part's shape: a capsule from a to b, or an ellipsoid at c.
- * @typedef {{ capsule: [number[], number[]], r: number } | { ellipsoid: number[], radii: number[] }} Shape
+ * A body part's shape: a capsule from a to b, an ellipsoid at c, or a block
+ * at c (an ellipsoid squared off, so its front, back and sides are flatter
+ * and a rope across them stays near the surface).
+ * @typedef {{ capsule: [number[], number[]], r: number } | { ellipsoid: number[], radii: number[] }
+ *   | { block: number[], radii: number[] }} Shape
  */
 
 /** How high the pelvis is when standing (cm). */
@@ -90,13 +93,13 @@ export const PART_LABELS = Object.freeze({ pelvis: "Hips and whole body", ...Obj
  * @type {Readonly<Record<string, Shape[]>>}
  */
 export const SHAPES = Object.freeze({
-  pelvis: [{ ellipsoid: [0, 0, 0], radii: [16, 11, 11] }],
-  spine: [{ ellipsoid: [0, 8, 0], radii: [14, 12, 10] }],
-  chest: [{ ellipsoid: [0, 12, 0.5], radii: [17, 14.5, 11] }],
-  // The neck, the head, and a nose, so it's clear which way it faces.
-  head: [{ capsule: [[0, -2, 0], [0, 8, 0]], r: 5 }, { ellipsoid: [0, 17, 1], radii: [9.5, 11.5, 10.5] }, { ellipsoid: [0, 16, 11], radii: [1.6, 2.4, 1.6] }],
+  pelvis: [{ block: [0, 0, 0], radii: [15.5, 10, 10] }],
+  spine: [{ block: [0, 8, 0], radii: [13.5, 10, 9] }],
+  chest: [{ block: [0, 12, 0], radii: [16.5, 13.5, 10] }],
+  // The neck and the head.
+  head: [{ capsule: [[0, -2, 0], [0, 8, 0]], r: 5 }, { ellipsoid: [0, 17, 1], radii: [9.5, 11.5, 10.5] }],
   ...Object.fromEntries(["l", "r"].flatMap((side) => [
-    [`${side}_shoulder`, [{ ellipsoid: [0, 0, 0], radii: [6.5, 6.5, 6.5] }, { capsule: [[0, 0, 0], [0, -29, 0]], r: 5 }]],
+    [`${side}_shoulder`, [{ ellipsoid: [0, 0, 0], radii: [5.5, 5.5, 5.5] }, { capsule: [[0, 0, 0], [0, -29, 0]], r: 5 }]],
     [`${side}_elbow`, [{ capsule: [[0, 0, 0], [0, -25, 0]], r: 4 }]],
     // A flat hand, its palm toward the thigh.
     [`${side}_wrist`, [{ ellipsoid: [0, -8.5, 0], radii: [2.3, 9, 4.6] }]],
@@ -165,58 +168,84 @@ export const ORIENTATIONS = Object.freeze([
   { name: "Upside down", body: /** @type {[number, number, number]} */ ([180, 180, 0]) },
 ]);
 
-// Arms behind the back, forearms folded across each other (a box tie): the
-// upper arms back enough that the forearms clear the back, one a little
-// lower than the other.
-const BOX_TIE = { l_shoulder: [-40, 10, -90], l_elbow: [100], r_shoulder: [-48, 10, -90], r_elbow: [110] };
+/** The arms' joints, which the arms presets set and the body presets leave alone. */
+export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_shoulder", "r_elbow", "r_wrist"]);
+
+/** @typedef {{ name: string, joints: Record<string, number[]>, body: [number, number, number], lift: number }} BodyPreset */
+/** @typedef {{ name: string, joints: Record<string, number[]> }} ArmsPreset */
 
 /**
- * Starting poses: a name, and the joints that aren't at rest. Choosing one
- * keeps the ropes, ring and view.
- * @type {readonly { name: string, joints: Record<string, number[]>, body: [number, number, number], lift: number }[]}
+ * Starting positions for the body: everything but the arms (the trunk,
+ * head and legs, and the whole body's turn and height), as the joints that
+ * aren't at rest. Choosing one keeps the arms, ropes, hardpoint and view.
+ * @type {readonly BodyPreset[]}
  */
-export const PRESETS = Object.freeze([
+export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
-  { name: "Standing, box tie", joints: BOX_TIE, body: [0, 0, 0], lift: STANDING_LIFT },
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
-    name: "Kneeling, sitting back", body: [0, 0, 0], lift: 29,
-    joints: { ...BOX_TIE, l_hip: [65, 8, 0], r_hip: [65, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
+    name: "Kneeling", body: [0, 0, 0], lift: 29,
+    joints: { l_hip: [65, 8, 0], r_hip: [65, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
   },
-  {
-    name: "Kneeling up", body: [0, 0, 0], lift: 55,
-    joints: { ...BOX_TIE, l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] },
-  },
-  {
-    name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT,
-    joints: { ...BOX_TIE, l_hip: [100, 15, 0], l_knee: [155], l_ankle: [-40] },
-  },
+  { name: "Kneeling up", body: [0, 0, 0], lift: 55, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
+  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, 15, 0], l_knee: [155], l_ankle: [-40] } },
   {
     name: "Face down", body: [90, 0, 0], lift: 110,
-    joints: { ...BOX_TIE, head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 5, 0], l_knee: [20], r_knee: [80] },
+    joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 5, 0], l_knee: [20], r_knee: [80] },
   },
   {
     name: "Face up", body: [-90, 0, 0], lift: 110,
-    joints: { ...BOX_TIE, head: [30, 0, 0], l_hip: [60, 10, 0], r_hip: [20, 10, 0], l_knee: [90], r_knee: [40] },
+    joints: { head: [30, 0, 0], l_hip: [60, 10, 0], r_hip: [20, 10, 0], l_knee: [90], r_knee: [40] },
   },
   {
     name: "On its side", body: [0, 0, 90], lift: 110,
-    joints: { ...BOX_TIE, spine: [10, 0, 0], l_hip: [90, 0, 0], l_knee: [140], r_hip: [20, 0, 0], r_knee: [30] },
+    joints: { spine: [10, 0, 0], l_hip: [90, 0, 0], l_knee: [140], r_hip: [20, 0, 0], r_knee: [30] },
   },
   {
     name: "Upside down", body: [180, 180, 0], lift: 165,
-    joints: { ...BOX_TIE, l_hip: [10, 30, 0], r_hip: [10, 30, 0], l_knee: [15], r_knee: [15] },
+    joints: { l_hip: [10, 30, 0], r_hip: [10, 30, 0], l_knee: [15], r_knee: [15] },
   },
-]);
+]));
 
 /**
- * A preset's joints, every one listed (the rest at rest).
- * @param {typeof PRESETS[number]} preset
+ * Starting positions for the arms. Choosing one keeps the rest of the body.
+ * @type {readonly ArmsPreset[]}
+ */
+export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
+  { name: "At sides", joints: {} },
+  // A box tie: the upper arms back enough that the forearms clear the
+  // back, folded across each other, one a little lower than the other.
+  { name: "Behind back", joints: { l_shoulder: [-40, 10, -90], l_elbow: [100], r_shoulder: [-48, 10, -90], r_elbow: [110] } },
+  // The forearms across the front of the chest, one above the other.
+  { name: "Crossed in front", joints: { l_shoulder: [40, 0, -90], l_elbow: [90], r_shoulder: [50, 0, -90], r_elbow: [100] } },
+  // Elbows up and out, hands meeting behind the head.
+  { name: "Arms behind head", joints: { l_shoulder: [170, -20, -45], l_elbow: [120], r_shoulder: [170, -20, -45], r_elbow: [120] } },
+]));
+
+/**
+ * A body preset on a figure: its trunk, head and legs, and the body's turn
+ * and height, with the arms left as they were.
+ * @param {Posture} posture the figure now
+ * @param {BodyPreset} preset
  * @returns {Posture}
  */
-export function presetPosture(preset) {
-  const joints = restJoints();
-  for (const [name, angles] of Object.entries(preset.joints)) joints[name] = clampJoint(name, angles);
+export function withBodyPreset(posture, preset) {
+  const joints = { ...posture.joints };
+  for (const j of JOINTS) {
+    if (!ARM_JOINTS.includes(j.name)) joints[j.name] = clampJoint(j.name, preset.joints[j.name] ?? []);
+  }
   return { joints, body: [...preset.body], lift: preset.lift };
+}
+
+/**
+ * An arms preset on a figure, with the rest of the body left as it was.
+ * @param {Posture} posture
+ * @param {ArmsPreset} preset
+ * @returns {Posture}
+ */
+export function withArmsPreset(posture, preset) {
+  const joints = { ...posture.joints };
+  for (const name of ARM_JOINTS) joints[name] = clampJoint(name, preset.joints[name] ?? []);
+  return { ...posture, joints };
 }

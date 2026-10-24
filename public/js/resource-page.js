@@ -5,9 +5,7 @@
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage, opensOnTap } from "./dom.js";
 import { open, sealOne, forgetSearch } from "./vault.js";
-import { photoSection } from "./photos-ui.js";
-import { drawingSection } from "./drawings-ui.js";
-import { poseSection, intoPhotos } from "./poses-ui.js";
+import { visualSection } from "./visuals-ui.js";
 import { listTools } from "./list-tools.js";
 import { orderList } from "./list-order.js";
 
@@ -42,7 +40,7 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * form: its named fields match the API's fields. Elements with data-add-only
  *   are hidden while editing. Needs a .message, a submit button and a
  *   [data-cancel-edit] button. A [data-photos] element (plans only) gets the
- *   Photos, Drawings and Poses sections; a new item's photos, drawings and poses are
+ *   Visuals section; a new item's visuals are
  *   saved once it is.
  * signal: aborts when the view is left (its photos are revoked then).
  * onEdit: runs whenever the form switches to editing an item, or back to
@@ -87,12 +85,8 @@ export function setupResourcePage(config) {
   /** @type {Item[]} */
   let items = [];
   const photoSlot = /** @type {HTMLElement | null} */ (form.querySelector("[data-photos]"));
-  /** @type {ReturnType<typeof photoSection> | null} */
-  let photos = null;
-  /** @type {ReturnType<typeof drawingSection> | null} */
-  let drawings = null;
-  /** @type {ReturnType<typeof poseSection> | null} */
-  let poses = null;
+  /** @type {ReturnType<typeof visualSection> | null} */
+  let visuals = null;
   const tools = config.searchable ? listTools({ noun: config.searchable.noun, onChange: draw }) : null;
   if (tools) {
     if (config.searchable?.slot) config.searchable.slot.append(tools.element);
@@ -101,18 +95,14 @@ export function setupResourcePage(config) {
   const itemActions = config.actionsInDialog ? $("[data-item-actions]", form) : null;
 
   /**
-   * Fresh Photos, Drawings and Poses sections for the item being edited (or a new one).
+   * A fresh Visuals section for the item being edited (or a new one).
    * @param {string | null} id
    */
   function showPhotos(id) {
     if (!photoSlot) return;
-    photos?.close();
-    drawings?.close();
-    poses?.close();
-    photos = photoSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
-    drawings = drawingSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
-    poses = poseSection({ item: id ? { plan_id: id } : null, idPrefix: "plan", addPhoto: intoPhotos(photos) });
-    photoSlot.replaceChildren(photos.element, drawings.element, poses.element);
+    visuals?.close();
+    visuals = visualSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
+    photoSlot.replaceChildren(visuals.element);
   }
 
   /**
@@ -288,8 +278,8 @@ export function setupResourcePage(config) {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (photos?.busy || drawings?.busy || poses?.busy) {
-      showMessage(message, `Wait for the ${photos?.busy ? "photos" : drawings?.busy ? "drawings" : "poses"} to finish, then save.`, true);
+    if (visuals?.busy) {
+      showMessage(message, "Wait for the visuals to finish, then save.", true);
       return;
     }
     submit.disabled = true;
@@ -305,29 +295,11 @@ export function setupResourcePage(config) {
         id = /** @type {string} */ ((await api(`/api/${resource}`, { method: "POST", body })).id);
       }
       forgetSearch();
-      if (photos?.waiting) {
-        const problem = await photos.uploadPending({ plan_id: id });
+      if (visuals?.waiting) {
+        const problem = await visuals.savePending({ plan_id: id });
         if (problem) {
           markEditing(id);
-          showMessage(message, `Saved, but a photo couldn't be uploaded: ${problem} Save again to try again.`, true);
-          await load();
-          return;
-        }
-      }
-      if (drawings?.waiting) {
-        const problem = await drawings.savePending({ plan_id: id });
-        if (problem) {
-          markEditing(id);
-          showMessage(message, `Saved, but a drawing couldn't be saved: ${problem} Save again to try again.`, true);
-          await load();
-          return;
-        }
-      }
-      if (poses?.waiting) {
-        const problem = await poses.savePending({ plan_id: id });
-        if (problem) {
-          markEditing(id);
-          showMessage(message, `Saved, but a pose couldn't be saved: ${problem} Save again to try again.`, true);
+          showMessage(message, `Saved, but a visual couldn't be saved: ${problem} Save again to try again.`, true);
           await load();
           return;
         }
@@ -349,18 +321,12 @@ export function setupResourcePage(config) {
   // Closed (saved, Cancel or Esc): photos picked but not saved are let go,
   // and it opens fresh next time.
   dialog?.addEventListener("close", () => {
-    photos?.close();
-    photos = null;
-    drawings?.close();
-    drawings = null;
-    poses?.close();
-    poses = null;
+    visuals?.close();
+    visuals = null;
     editingId = null;
   });
   config.signal?.addEventListener("abort", () => {
-    photos?.close();
-    drawings?.close();
-    poses?.close();
+    visuals?.close();
   });
   archivedToggle.addEventListener("change", load);
 

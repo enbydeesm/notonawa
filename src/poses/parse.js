@@ -8,15 +8,23 @@
 //     v: 1,
 //     joints: { spine: [bend, side, twist], l_elbow: [bend], … },
 //     body: [pitch, yaw, roll], lift,
-//     camera: [yaw, pitch, distance, target height],
+//     camera: [yaw, pitch, distance, target height, target x, target z],
 //     ring: [x, y, z] | null,
-//     ropes: [{ c: "red", w: 2, p: [["l_elbow", x, y, z] | ["ring", 0, 0, 0], …] }, …],
+//     bamboo: [x, y, z, turn] | null,
+//     hashira: [x, z, turn] | null,
+//     ropes: [{ c: "red", w: 2, p: [["l_elbow", x, y, z] | ["ring", 0, 0, 0]
+//       | ["bamboo", along, 0, 0] | ["hashira", x, y, z], …] }, …],
 //   }
+// At most one of ring, bamboo and hashira (the hardpoint) is there. Older
+// poses have a camera of four numbers (no sideways pan) and no bamboo or
+// hashira; they're read as having none.
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
 // a unit test). Lengths are whole centimetres, except a rope point's
 // offset, which is whole millimetres from its bone, so a rope stays on the
-// body when the figure is posed again. c and w are a drawing's colors and
+// body when the figure is posed again. A point on the bamboo is how far
+// along it from its middle, and one on the hashira is where on the post,
+// both in millimetres too. c and w are a drawing's colors and
 // widths (src/drawings/parse.js).
 
 import { BadInput } from "../http.js";
@@ -50,18 +58,28 @@ export const JOINTS = Object.freeze({
   r_ankle: [[-50, 30]],
 });
 
-/** What a rope point can be on: the pelvis, the part after each joint, or the ring. */
+/** What a rope point can be on: the pelvis, or the part after each joint (or a hardpoint). */
 export const BONES = Object.freeze(["pelvis", ...Object.keys(JOINTS)]);
 export const RING = "ring";
+export const BAMBOO = "bamboo";
+export const HASHIRA = "hashira";
 
 /** The body's pitch, yaw and roll, each in whole degrees. */
 export const BODY_ANGLE = 180;
 /** How high the pelvis is above the floor, in cm. */
 export const LIFT = /** @type {const} */ ([0, 250]);
-/** The camera: yaw, pitch, distance and target height (cm). */
-export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350]]);
-/** The ring (hardpoint): x, y, z in cm. */
+/** The camera: yaw, pitch, distance, and the target's height, x and z (cm). */
+export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350], [-300, 300], [-300, 300]]);
+/** The ring (a hardpoint): x, y, z in cm. */
 export const RING_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300]]);
+/** The bamboo: its middle's x, y, z in cm, and how far it's turned. */
+export const BAMBOO_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300], [-90, 90]]);
+/** The bamboo's length, in cm. */
+export const BAMBOO_LENGTH = 150;
+/** The hashira (a post from the floor up): its x and z in cm, and its turn. */
+export const HASHIRA_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300], [-45, 45]]);
+/** The hashira's width and height, in cm. */
+export const HASHIRA_SIZE = /** @type {const} */ ({ width: 10, height: 450 });
 /** How far a rope point can be from its bone, in mm, each way. */
 export const OFFSET = 600;
 
@@ -81,7 +99,8 @@ export const MAX_BODY_BYTES = 256 * 1024;
  * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[] }} Rope
  * @typedef {{
  *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number,
- *   camera: [number, number, number, number], ring: [number, number, number] | null, ropes: Rope[],
+ *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
+ *   ropes: Rope[],
  * }} Pose
  */
 
@@ -141,8 +160,18 @@ export function parsePose(value) {
   const angle = /** @type {[number, number]} */ ([-BODY_ANGLE, BODY_ANGLE]);
   if (!fits(doc.body, [angle, angle, angle])) throw bad("the body's turn isn't in the right format.");
   if (!within(doc.lift, LIFT[0], LIFT[1])) throw bad("the figure is off the floor by too much.");
-  if (!fits(doc.camera, CAMERA)) throw bad("the view isn't in the right format.");
-  if (doc.ring !== null && !fits(doc.ring, RING_RANGE)) throw bad("the ring is out of reach.");
+  // A camera of four numbers is from before sideways panning.
+  const camera = Array.isArray(doc.camera) && doc.camera.length === 4 ? [...doc.camera, 0, 0] : doc.camera;
+  if (!fits(camera, CAMERA)) throw bad("the view isn't in the right format.");
+  const ring = doc.ring ?? null;
+  const bamboo = doc.bamboo ?? null;
+  const hashira = doc.hashira ?? null;
+  if (ring !== null && !fits(ring, RING_RANGE)) throw bad("the ring is out of reach.");
+  if (bamboo !== null && !fits(bamboo, BAMBOO_RANGE)) throw bad("the bamboo is out of reach.");
+  if (hashira !== null && !fits(hashira, HASHIRA_RANGE)) throw bad("the hashira is out of reach.");
+  if ([ring, bamboo, hashira].filter((x) => x !== null).length > 1) throw bad("it can only have one of a ring, bamboo or hashira.");
+  const along = /** @type {[number, number]} */ ([-BAMBOO_LENGTH * 5, BAMBOO_LENGTH * 5]);
+  const up = /** @type {[number, number]} */ ([0, HASHIRA_SIZE.height * 10]);
 
   if (!Array.isArray(doc.ropes)) throw bad("it has no rope list.");
   if (doc.ropes.length > MAX_ROPES) throw bad(`it has more than ${MAX_ROPES} ropes.`);
@@ -157,8 +186,14 @@ export function parsePose(value) {
       if (!Array.isArray(point) || point.length !== 4) throw bad("a rope point isn't in the right format.");
       const [bone, ...xyz] = point;
       if (bone === RING) {
-        if (doc.ring === null) throw bad("a rope goes to a ring that isn't there.");
+        if (ring === null) throw bad("a rope goes to a ring that isn't there.");
         if (!xyz.every((n) => n === 0)) throw bad("a rope point isn't in the right format.");
+      } else if (bone === BAMBOO) {
+        if (bamboo === null) throw bad("a rope goes to a bamboo that isn't there.");
+        if (!fits(xyz, [along, [0, 0], [0, 0]])) throw bad("a rope point is off the bamboo.");
+      } else if (bone === HASHIRA) {
+        if (hashira === null) throw bad("a rope goes to a hashira that isn't there.");
+        if (!fits(xyz, [offset, up, offset])) throw bad("a rope point is off the hashira.");
       } else if (!BONES.includes(bone) || !fits(xyz, [offset, offset, offset])) {
         throw bad("a rope point is off the figure.");
       }
@@ -170,10 +205,11 @@ export function parsePose(value) {
   if (points > MAX_POINTS) throw bad("it's too detailed to store.");
 
   const [pitch, yaw, roll] = doc.body;
-  const [cameraYaw, cameraPitch, distance, height] = doc.camera;
+  /** @param {number[] | null} list */
+  const copy = (list) => (list === null ? null : [...list]);
   return {
-    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, camera: [cameraYaw, cameraPitch, distance, height],
-    ring: doc.ring === null ? null : [doc.ring[0], doc.ring[1], doc.ring[2]], ropes,
+    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, camera: [...camera],
+    ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };
 }
 
@@ -189,17 +225,4 @@ export function parseEdit(body) {
   if ("caption" in body) edit.caption = parseCaption(body.caption);
   if (!("data" in edit) && !("caption" in edit)) throw new BadInput("Nothing to change: send data or caption.");
   return edit;
-}
-
-/**
- * A new order for an item's poses: every one of their ids, once each,
- * first to last.
- * @param {unknown} value
- * @returns {string[]}
- */
-export function parseOrder(value) {
-  if (!Array.isArray(value) || value.length > MAX_PER_ITEM) throw new BadInput("Expected the poses' ids in order.");
-  const ids = value.map(parsePoseId);
-  if (new Set(ids).size !== ids.length) throw new BadInput("Each pose can only be listed once.");
-  return ids;
 }

@@ -49,7 +49,7 @@ describe("parseDrawing", () => {
   });
 });
 
-describe("parseEdit, parseOrder and parseDrawingId", () => {
+describe("parseEdit and parseDrawingId", () => {
   const id = "3f1c2a9e-1d2b-4c3d-8e4f-5a6b7c8d9e0f";
 
   it("take new lines, a caption, or both", () => {
@@ -60,10 +60,8 @@ describe("parseEdit, parseOrder and parseDrawingId", () => {
     expect(() => server.parseEdit({ caption: "plain" })).toThrow(/encrypted/);
   });
 
-  it("take each id once", () => {
-    expect(server.parseOrder([id])).toEqual([id]);
-    expect(() => server.parseOrder([id, id])).toThrow(/once/);
-    expect(() => server.parseOrder("x")).toThrow();
+  it("checks ids", () => {
+    expect(server.parseDrawingId(id)).toBe(id);
     expect(() => server.parseDrawingId("../x")).toThrow(/drawing id/);
   });
 });

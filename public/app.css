@@ -21,11 +21,12 @@
   --ink-black: #222; --ink-grey: #8a857e; --ink-red: #d63031; --ink-orange: #e8891c;
   --ink-green: #2e9145; --ink-blue: #2f6bd6; --ink-purple: #7e51a2; --ink-pink: #e0559a;
   /* Poses (pose-scene.js reads these): the figure, the part being posed,
-     the floor, the backdrop and the ring, the same in both modes, as the
-     paper is, so a pose's picture looks the same whichever is on. Ropes
-     use the inks above. */
+     the floor, the backdrop and the hardpoints (the ring and the lines
+     things hang from, a bamboo, a wooden hashira), the same in both modes,
+     as the paper is, so a pose's picture looks the same whichever is on.
+     Ropes use the inks above. */
   --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
-  --pose-ring: #8a857e;
+  --pose-ring: #8a857e; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
    (data-theme is set by theme-init.js before the page draws, then by
@@ -137,6 +138,33 @@ video.photo-full { width: 100%; background: var(--bg); }
   position: absolute; left: 6px; bottom: 6px; padding: 2px 6px; border-radius: 6px;
   background: var(--card); color: var(--text); font-size: 0.75rem; line-height: 1.2; opacity: 0.9;
 }
+/* Visuals (visuals-ui.js): photos, videos, drawings and poses in one grid,
+   each tile outlined in its kind's chart color, with a key beside the
+   label, and "Add a visual from…". */
+.visual-photo { --c: var(--chart-teal); } .visual-video { --c: var(--chart-purple); }
+.visual-drawing { --c: var(--chart-coral); } .visual-pose { --c: var(--chart-yellow); }
+.photo-tile[class*="visual-"] .photo-thumb { border: 2px solid var(--c); }
+.drawing-thumb { display: block; width: 100%; height: 100%; }
+.visual-key { display: flex; gap: 6px; margin-left: auto; }
+.visual-key-item {
+  display: grid; place-items: center; width: 26px; height: 26px; border: 2px solid var(--c); border-radius: 6px; color: var(--text);
+}
+.visual-key-item .visual-icon { width: 16px; height: 16px; }
+.visual-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.visual-choice { display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left; font-size: 1rem; }
+.visual-choice .visual-icon { flex: none; width: 28px; height: 28px; }
+/* The details dialogs: Save caption beside the caption's label, muted
+   until the caption changes; rows of two buttons; Edit outlined in the
+   accent; and swiping sideways left to the page, not the browser. */
+.caption-row { margin-top: 14px; }
+.caption-row .save-caption { margin-left: auto; padding: 4px 10px; font-size: 0.85rem; }
+.save-caption:not(:disabled) { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.save-caption:disabled { color: var(--muted); }
+.dialog-row { display: flex; gap: 8px; margin-top: 8px; }
+.dialog-row button { flex: 1; padding: 10px; }
+button.outline-accent { border: 2px solid var(--accent-ink); color: var(--accent-ink); }
+button.wide { width: 100%; padding: 10px; margin-top: 4px; }
+dialog.swipeable { touch-action: pan-y; }
 /* Drawings: lines on a sheet of paper (an SVG, drawing-svg.js), in the
    photos' grid and viewer, and the drawing pad filling the screen. */
 .ink-black { --ink: var(--ink-black); } .ink-grey { --ink: var(--ink-grey); } .ink-red { --ink: var(--ink-red); }
@@ -145,7 +173,6 @@ video.photo-full { width: 100%; background: var(--bg); }
 .drawing-paper { display: block; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .drawing-paper .paper { fill: var(--paper); }
 .drawing-paper path { stroke: var(--ink); }
-.drawing-section { margin-top: 8px; }
 .drawing-thumb .drawing-paper { width: 100%; height: 100%; }
 .drawing-full .drawing-paper {
   width: 100%; max-height: 60vh; margin: 0 auto; border: 1px solid var(--line); border-radius: 8px;
@@ -176,8 +203,7 @@ dialog.drawing-editor[open] { display: flex; flex-direction: column; gap: 8px; }
    viewer, and the poser filling the screen (pose-editor.js): the tools on
    top, the 3D view as big as fits, and the sliders for the part being
    posed below it, scrolling if there are many. */
-.pose-section { margin-top: 8px; }
-.pose-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+img.pose-thumb { display: block; width: 100%; height: 100%; object-fit: cover; }
 .pose-pending { display: grid; place-items: center; width: 100%; height: 100%; color: var(--muted); font-size: 0.8rem; }
 .pose-full-frame { display: grid; place-items: center; }
 .pose-full {
@@ -197,14 +223,16 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 }
 .pose-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .pose-hint {
-  position: absolute; left: 8px; top: 6px; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
+  position: absolute; left: 8px; top: 6px; right: 7.5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
 }
+.pose-frame select.pose-view-menu { position: absolute; right: 6px; top: 6px; width: auto; }
+.pose-rope-tools .pose-finish { margin-left: auto; padding: 6px 10px; font-size: 0.85rem; }
 .pose-panels { flex: none; max-height: 38dvh; overflow-y: auto; }
 .pose-panel { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel[hidden] { display: none; }
 .pose-panel .hint { margin: 0; }
-.pose-menus { display: flex; gap: 8px; }
-.pose-menus select { flex: 1; min-width: 0; }
+.pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
+.pose-menus select { flex: 1 1 6.5rem; min-width: 0; }
 .pose-part { margin: 0; font-size: 1rem; }
 .pose-sliders { display: flex; flex-direction: column; gap: 4px; }
 .pose-slider { display: grid; grid-template-columns: 7.5rem 1fr 2.5rem; align-items: center; gap: 8px; }

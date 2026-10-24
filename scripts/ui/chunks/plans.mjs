@@ -82,12 +82,12 @@ export default async function () {
     set("#plan-tie_type", ""); set("#plan-album_url", ""); await submit();
     const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "plan-tag");
     if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
-  check("the photo note says what photos are for, and when a new plan's are uploaded", await run(`
+  check("the visuals note says what they're for, and when a new plan's are saved", await run(`
     ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
     return [fresh, editing];`),
-    ["Drag photos into order and caption them to describe a sequence. They are uploaded when you save this form.",
-      "Drag photos into order and caption them to describe a sequence."]);
+    ["Drag visuals into order and caption them to describe a sequence. They're saved when you save this form.",
+      "Drag visuals into order and caption them to describe a sequence."]);
   check("a plan can't pick itself as its parent", await run(`await clickIn("Hip harness", "Edit"); const o = [...$("#plan-variation_of").options].map((o) => o.text); $("[data-cancel-edit]").click(); return o;`),
     ["N/A", "Hip harness, one-sided"]);
 

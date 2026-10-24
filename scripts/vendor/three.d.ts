@@ -76,7 +76,18 @@ export class PerspectiveCamera extends Camera {
   updateProjectionMatrix(): void;
 }
 
+export class BufferAttribute {
+  count: number;
+  needsUpdate: boolean;
+  getX(index: number): number;
+  getY(index: number): number;
+  getZ(index: number): number;
+  setXYZ(index: number, x: number, y: number, z: number): this;
+}
+
 export class BufferGeometry {
+  getAttribute(name: string): BufferAttribute;
+  computeVertexNormals(): void;
   dispose(): void;
 }
 
@@ -110,7 +121,7 @@ export class Material {
   dispose(): void;
 }
 export class MeshStandardMaterial extends Material {
-  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number });
+  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean });
 }
 export class MeshBasicMaterial extends Material {
   constructor(parameters?: { color?: ColorLike });

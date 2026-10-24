@@ -8,7 +8,7 @@
 // CONSENT_SUMMARY: what changed, shown when they're asked.
 // POLICY_HASH: the wording the version is for (without the date).
 
-export const POLICY_VERSION = "2026-10-23T11:01:22Z";
+export const POLICY_VERSION = "2026-10-23T23:53:24Z";
 export const CONSENT_VERSION = "2026-10-12-draft";
 export const CONSENT_SUMMARY = null;
-export const POLICY_HASH = "8507162c94d4805293a5f14c42f3aa06cd603858e96b62b56cb03e911f82658d";
+export const POLICY_HASH = "33c01742b76652ec77bfbff41aef3a80fcaef2677498c1eda634e2d9bfaa5609";

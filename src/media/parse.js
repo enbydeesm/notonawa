@@ -156,26 +156,3 @@ export function parseCaption(value) {
   return caption;
 }
 
-/**
- * A new order for an item's photos: every one of its photo ids, once each,
- * first to last.
- * @param {unknown} value
- * @returns {string[]}
- */
-export function parseOrder(value) {
-  if (!Array.isArray(value) || value.length > MAX_PER_ITEM) throw new BadInput("Expected the photos' ids in order.");
-  const ids = value.map(parseMediaId);
-  if (new Set(ids).size !== ids.length) throw new BadInput("Each photo can only be listed once.");
-  return ids;
-}
-
-/**
- * Whether two lists hold the same ids (in any order).
- * @param {string[]} a
- * @param {string[]} b
- */
-export function sameIds(a, b) {
-  if (a.length !== b.length) return false;
-  const set = new Set(a);
-  return b.every((id) => set.has(id));
-}

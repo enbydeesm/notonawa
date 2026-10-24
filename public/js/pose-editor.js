@@ -4,26 +4,33 @@
 //
 //   Pose  tap a body part, then move it with the sliders below; the hips
 //         move the whole body (tipping it over, turning it, lifting it).
-//         A starting pose, or a quick turn of the whole body, from the
-//         menus at the top.
-//   Rope  tap the body, point after point, to lay a rope; tap the ring
-//         for an upline. "Finish rope" ends one. The eraser takes out the
-//         rope tapped. The ring can be added, moved and taken away.
+//         A starting position for the body, and one for the arms (each
+//         keeping the other), or a quick turn of the whole body, from the
+//         menus.
+//   Rope  tap the body, point after point, to lay a rope; tap the
+//         hardpoint (a ring or bamboo for uplines, or a hashira to tie
+//         to). "Finish rope" ends one. The eraser takes out the rope
+//         tapped. One hardpoint at a time can be added, moved and taken
+//         away.
 //
 // One finger dragging turns the view round the figure; two pinch to zoom
-// and slide up and down. Sliders work as a phone's touch would want, with
-// a finger, rather than dragging handles in 3D.
+// and drag to pan. Sliders work as a phone's touch would want, with a
+// finger, rather than dragging handles in 3D. "Add to visuals" puts a
+// picture of the view so far into the item's visuals, as a photo.
 //
 // Undo and redo go back over everything since the poser opened, except the
-// view. Nothing is saved here: editPose resolves with the new pose, and the
-// Poses section saves it.
+// view. Nothing else is saved here: editPose resolves with the new pose,
+// and the Visuals section saves it.
 
 import { h, showMessage, privateField } from "./dom.js";
 import { capitalise } from "./format.js";
 import { choose } from "./dialog.js";
-import { PART_LABELS, PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, presetPosture } from "./figure-rig.js";
 import {
-  COLORS, WIDTHS, RING_RANGE, DEFAULT_RING, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setCamera, setRing,
+  PART_LABELS, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withBodyPreset, withArmsPreset,
+} from "./figure-rig.js";
+import {
+  COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setCamera, panCamera,
+  hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
 } from "./pose-format.js";
 import { poseView } from "./pose-scene.js";
@@ -38,6 +45,15 @@ const WIDTH_NAMES = /** @type {const} */ ({ 1: "Thin", 2: "Medium", 3: "Thick" }
 const VIEWS = /** @type {const} */ ([["Front", 0, 8], ["Left side", 90, 8], ["Back", 180, 8], ["Right side", -90, 8], ["Above", 25, 70]]);
 /** How far a pointer moves (CSS px) before a tap becomes a drag. */
 const DRAG_START = 8;
+/** The view's height in the room per CSS px of the canvas, at a distance of 1 (its 38° field of view). */
+const PAN_PER_PX = 2 * Math.tan(19 * Math.PI / 180);
+
+/** Each hardpoint's sliders: their labels, in the order of its numbers. */
+const HARDPOINT_SLIDERS = /** @type {const} */ ({
+  ring: ["Across (cm)", "Height (cm)", "Front to back (cm)"],
+  bamboo: ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn"],
+  hashira: ["Across (cm)", "Front to back (cm)", "Turn"],
+});
 
 // The last rope color and width chosen, kept while the page is open.
 /** @type {Color} */
@@ -48,9 +64,11 @@ let lastWidth = 2;
 /**
  * Opens the poser on a pose (or a new one, standing).
  * @param {Pose | null} start
+ * @param {{ addToVisuals?: (pose: Pose) => Promise<void> }} [options] addToVisuals:
+ *   puts a picture of the pose into the item's visuals (the button's left out without it)
  * @returns {Promise<Pose | null>} the new pose, or null if cancelled
  */
-export function editPose(start) {
+export function editPose(start, { addToVisuals } = {}) {
   return new Promise((resolve) => {
     let history = startHistory(start ? readPose(start) : newPose());
     /** A slider being dragged: its pose, not yet a change (it is when let go). @type {Pose | null} */
@@ -75,9 +93,7 @@ export function editPose(start) {
     view.canvas.id = "pose-view";
     view.canvas.className = "pose-canvas";
     view.canvas.setAttribute("role", "img");
-    view.canvas.setAttribute("aria-label", "The figure: drag to turn the view, pinch to zoom, tap a part to pose it");
-    const frame = h("div", { className: "pose-frame" }, view.canvas,
-      h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · pinch to zoom"));
+    view.canvas.setAttribute("aria-label", "The figure: drag to turn the view, two fingers to pan, pinch to zoom, tap a part to pose it");
 
     const message = h("p", { className: "message", id: "pose-message", "aria-live": "polite" });
     /** @param {string} text @param {boolean} [isError] */
@@ -96,22 +112,33 @@ export function editPose(start) {
     const ropeTab = toggle("pose-mode-rope", "Lay ropes", "", () => setMode("rope"), "Rope");
     const undoButton = h("button", { type: "button", className: "tool", id: "pose-undo", onclick: doUndo }, "Undo");
     const redoButton = h("button", { type: "button", className: "tool", id: "pose-redo", onclick: doRedo }, "Redo");
-    const viewMenu = h("select", { id: "pose-view-choice", className: "tool", "aria-label": "View from", onchange: () => {
+    const addVisualButton = addToVisuals
+      ? h("button", { type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture }, "Add to visuals") : null;
+    const viewMenu = h("select", { id: "pose-view-choice", className: "tool pose-view-menu", "aria-label": "View from", onchange: () => {
       const chosen = VIEWS[Number(viewMenu.value)];
       viewMenu.value = "";
       if (!chosen) return;
       const [, yaw, pitch] = chosen;
-      const [, , distance, height] = current().camera;
-      lookAt([yaw, pitch, distance, height]);
+      const [, , distance, height, x, z] = current().camera;
+      lookAt([yaw, pitch, distance, height, x, z]);
     } }, h("option", { value: "" }, "View…"), VIEWS.map(([name], i) => h("option", { value: String(i) }, name)));
+    // The hint top left, the views top right, over the 3D view.
+    const frame = h("div", { className: "pose-frame" }, view.canvas,
+      h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · two-finger drag to pan · pinch to zoom"),
+      viewMenu);
 
     // --- the Pose panel ----------------------------------------------------------
 
-    const presetMenu = h("select", { id: "pose-preset", "aria-label": "Start from a pose", onchange: () => {
-      const preset = PRESETS[Number(presetMenu.value)];
-      presetMenu.value = "";
-      if (preset) commit(withPosture(history.pose, presetPosture(preset)));
-    } }, h("option", { value: "" }, "Start from…"), PRESETS.map((p, i) => h("option", { value: String(i) }, p.name)));
+    const bodyMenu = h("select", { id: "pose-body-preset", "aria-label": "Body position", onchange: () => {
+      const preset = BODY_PRESETS[Number(bodyMenu.value)];
+      bodyMenu.value = "";
+      if (preset) commit(withPosture(history.pose, withBodyPreset(history.pose, preset)));
+    } }, h("option", { value: "" }, "Body…"), BODY_PRESETS.map((p, i) => h("option", { value: String(i) }, p.name)));
+    const armsMenu = h("select", { id: "pose-arms-preset", "aria-label": "Arms position", onchange: () => {
+      const preset = ARMS_PRESETS[Number(armsMenu.value)];
+      armsMenu.value = "";
+      if (preset) commit(withPosture(history.pose, withArmsPreset(history.pose, preset)));
+    } }, h("option", { value: "" }, "Arms…"), ARMS_PRESETS.map((p, i) => h("option", { value: String(i) }, p.name)));
     const turnMenu = h("select", { id: "pose-orientation", "aria-label": "Turn the whole body", onchange: () => {
       const choice = ORIENTATIONS[Number(turnMenu.value)];
       turnMenu.value = "";
@@ -121,7 +148,7 @@ export function editPose(start) {
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", id: "pose-reset-part", onclick: resetSelected }, "Reset this part");
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
-      h("div", { className: "pose-menus" }, presetMenu, turnMenu),
+      h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
       partName, sliders, resetPart);
 
     // --- the Rope panel ----------------------------------------------------------
@@ -131,22 +158,23 @@ export function editPose(start) {
     const widthButtons = WIDTHS.map((w) => toggle(`pose-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
       h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
     const eraserButton = toggle("pose-eraser", "Eraser: tap a rope to take it out", "", () => setErasing(!erasing), "Eraser");
-    const finishButton = h("button", { type: "button", id: "pose-finish-rope", onclick: () => { endRope(); drawAll(); } }, "Finish rope");
-    const ringButton = h("button", { type: "button", id: "pose-ring", onclick: toggleRing });
-    const ringSliders = h("div", { className: "pose-sliders", id: "pose-ring-sliders" });
+    const finishButton = h("button", { type: "button", className: "pose-finish", id: "pose-finish-rope", onclick: () => { endRope(); drawAll(); } }, "Finish rope");
+    const hardpointButtons = HARDPOINTS.map((kind) => h("button", { type: "button", id: `pose-${kind}`, onclick: () => toggleHardpoint(kind) }));
+    const hardpointSliders = h("div", { className: "pose-sliders", id: "pose-hardpoint-sliders" });
     const ropeHint = h("p", { className: "hint", id: "pose-rope-hint" });
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
+      h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton, finishButton),
       h("div", { className: "tool-group", role: "group", "aria-label": "Rope color" }, colorButtons),
-      h("div", { className: "tool-group", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton),
       ropeHint,
-      h("div", { className: "tool-group" }, finishButton, ringButton),
-      ringSliders);
+      h("div", { className: "tool-group", role: "group", "aria-label": "Hardpoint" }, hardpointButtons),
+      hardpointSliders);
 
     const dialog = h("dialog", { className: "pose-editor", "aria-labelledby": "pose-heading" },
       h("h2", { id: "pose-heading", className: "visually-hidden" }, start ? "Edit pose" : "New pose"),
       h("div", { className: "pose-tools" },
         h("div", { className: "tool-group", role: "group", "aria-label": "Mode" }, poseTab, ropeTab),
-        h("div", { className: "tool-group" }, undoButton, redoButton, viewMenu)),
+        h("div", { className: "tool-group" }, undoButton, redoButton),
+        addVisualButton),
       frame,
       h("div", { className: "pose-panels" }, posePanel, ropePanel),
       message,
@@ -212,7 +240,7 @@ export function editPose(start) {
       drawAll();
     }
 
-    /** @param {[number, number, number, number]} camera */
+    /** @param {number[]} camera */
     function lookAt(camera) {
       history = look(history, setCamera(history.pose, camera));
       if (draft) draft = { ...draft, camera: history.pose.camera };
@@ -292,24 +320,29 @@ export function editPose(start) {
 
     function drawRopePanel() {
       const pose = current();
-      ringButton.textContent = pose.ring ? "Remove ring" : "Add ring";
+      const kind = hardpointOf(pose);
+      for (const [i, button] of hardpointButtons.entries()) {
+        button.textContent = `${HARDPOINTS[i] === kind ? "Remove" : "Add"} ${HARDPOINTS[i]}`;
+      }
       finishButton.disabled = !laying?.p.length;
       ropeHint.textContent = erasing ? "Tap a rope to take it out."
         : laying?.p.length ? `Rope: ${laying.p.length} ${laying.p.length === 1 ? "point" : "points"}. Keep tapping, then Finish rope.`
-          : pose.ring ? "Tap the body to lay a rope, point by point. Tap the ring for an upline."
-            : "Tap the body to lay a rope, point by point. Add a ring for uplines.";
+          : kind === "hashira" ? "Tap the body to lay a rope, point by point. Tap the hashira to tie to it."
+            : kind ? `Tap the body to lay a rope, point by point. Tap the ${kind} for an upline.`
+              : "Tap the body to lay a rope, point by point. Add a ring, bamboo or hashira to tie to.";
       if (draft) return;
-      if (!pose.ring) {
-        ringSliders.replaceChildren();
+      if (!kind) {
+        hardpointSliders.replaceChildren();
         return;
       }
-      const names = ["Ring: across (cm)", "Ring: height (cm)", "Ring: front to back (cm)"];
-      ringSliders.replaceChildren(...names.map((label, i) => slider({
-        id: `pose-ring-${i}`, label, min: RING_RANGE[i][0], max: RING_RANGE[i][1], value: /** @type {number[]} */ (pose.ring)[i],
+      const ranges = HARDPOINT_RANGES[kind];
+      hardpointSliders.replaceChildren(...HARDPOINT_SLIDERS[kind].map((label, i) => slider({
+        id: `pose-${kind}-${i}`, label: `${capitalise(kind)}: ${label.toLowerCase()}`, min: ranges[i][0], max: ranges[i][1],
+        value: /** @type {number[]} */ (pose[kind])[i],
         apply: (p, v) => {
-          const ring = /** @type {[number, number, number]} */ ([.../** @type {number[]} */ (p.ring)]);
-          ring[i] = v;
-          return setRing(p, ring);
+          const place = [.../** @type {number[]} */ (p[kind])];
+          place[i] = v;
+          return moveHardpoint(p, place);
         },
       })));
     }
@@ -364,12 +397,43 @@ export function editPose(start) {
       else if (rope.p.length === 1) say("A rope needs two points or more, so that one was left out.");
     }
 
-    function toggleRing() {
-      if (history.pose.ring) {
-        endRope();
-        commit(setRing(history.pose, null));
-      } else {
-        commit(setRing(history.pose, DEFAULT_RING));
+    /**
+     * Adds this hardpoint in place of any other, or takes it away if it's
+     * there, asking first if rope points on the old one would go.
+     * @param {import("./pose-format.js").Hardpoint} kind
+     */
+    async function toggleHardpoint(kind) {
+      endRope();
+      const now = hardpointOf(history.pose);
+      const next = now === kind ? null : kind;
+      const lost = hardpointPointsLost(history.pose, next);
+      if (lost > 0) {
+        const choice = await choose({
+          title: `Take the ropes off the ${now}?`,
+          message: `${lost} rope ${lost === 1 ? "point is" : "points are"} on the ${now}. ` +
+            `${next ? `They can't move to a ${next}, so they'll` : "They'll"} be taken out (Undo brings them back).`,
+          choices: [{ label: next ? `Add ${next}` : `Remove ${now}`, value: "go" }],
+        });
+        if (choice !== "go") return;
+      }
+      commit(setHardpoint(history.pose, next));
+    }
+
+    let adding = false;
+    /** "Add to visuals": a picture of the pose as it is now. */
+    async function addPicture() {
+      if (!addToVisuals || adding) return;
+      adding = true;
+      /** @type {HTMLButtonElement} */ (addVisualButton).disabled = true;
+      try {
+        say("Adding a picture to the visuals…");
+        await addToVisuals(history.pose);
+        say("Added to visuals, as a photo.");
+      } catch (err) {
+        say(err instanceof Error ? err.message : String(err), true);
+      } finally {
+        adding = false;
+        /** @type {HTMLButtonElement} */ (addVisualButton).disabled = false;
       }
     }
 
@@ -397,7 +461,8 @@ export function editPose(start) {
         say(problem, true);
         return;
       }
-      const point = hit.kind === "ring" ? RING_POINT : bonePoint(hit.bone, hit.mm);
+      const point = hit.kind === "ring" ? RING_POINT : hit.kind === "bamboo" ? bambooPoint(hit.along)
+        : hit.kind === "hashira" ? hashiraPoint(hit.mm) : bonePoint(hit.bone, hit.mm);
       laying = addPoint(laying ?? { c: color, w: width, p: [] }, point);
       say("");
       drawAll();
@@ -406,7 +471,7 @@ export function editPose(start) {
     /** The pointers down on the view, where each started and is now. @type {Map<number, { x0: number, y0: number, x: number, y: number }>} */
     const pointers = new Map();
     let dragged = false;
-    /** The two-finger gesture's last spread and middle. @type {{ spread: number, middle: number } | null} */
+    /** The two-finger gesture's last spread and middle. @type {{ spread: number, x: number, y: number } | null} */
     let pinch = null;
 
     /** @param {PointerEvent} event */
@@ -416,7 +481,7 @@ export function editPose(start) {
     };
     const twoFingers = () => {
       const [a, b] = [...pointers.values()];
-      return { spread: Math.hypot(a.x - b.x, a.y - b.y), middle: (a.y + b.y) / 2 };
+      return { spread: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     };
 
     view.canvas.addEventListener("pointerdown", (event) => {
@@ -438,17 +503,22 @@ export function editPose(start) {
       const dx = x - p.x, dy = y - p.y;
       p.x = x;
       p.y = y;
-      const [yaw, pitch, distance, height] = current().camera;
+      const [yaw, pitch, distance, height, tx, tz] = current().camera;
       if (pointers.size >= 2 && pinch) {
+        // Pinching zooms; the fingers' middle moving drags the view along
+        // with it, as far in the room as on the screen.
         const now = twoFingers();
         const zoom = pinch.spread / Math.max(now.spread, 1);
-        lookAt([yaw, pitch, distance * zoom, height + (now.middle - pinch.middle) * 0.6]);
+        const cm = distance * PAN_PER_PX / Math.max(view.canvas.getBoundingClientRect().height, 1);
+        const panned = panCamera(setCamera(current(), [yaw, pitch, distance * zoom, height, tx, tz]),
+          -(now.x - pinch.x) * cm, (now.y - pinch.y) * cm);
+        lookAt(panned.camera);
         pinch = now;
         return;
       }
       if (!dragged && Math.hypot(x - p.x0, y - p.y0) < DRAG_START) return;
       dragged = true;
-      lookAt([yaw - dx * 0.45, pitch + dy * 0.35, distance, height]);
+      lookAt([yaw - dx * 0.45, pitch + dy * 0.35, distance, height, tx, tz]);
     });
     /** @param {PointerEvent} event */
     const lift = (event) => {
@@ -462,8 +532,8 @@ export function editPose(start) {
     view.canvas.addEventListener("pointercancel", lift);
     view.canvas.addEventListener("wheel", (event) => {
       event.preventDefault();
-      const [yaw, pitch, distance, height] = current().camera;
-      lookAt([yaw, pitch, distance * (1 + Math.sign(event.deltaY) * 0.1), height]);
+      const [yaw, pitch, distance, height, tx, tz] = current().camera;
+      lookAt([yaw, pitch, distance * (1 + Math.sign(event.deltaY) * 0.1), height, tx, tz]);
     }, { passive: false });
     // No scrolling, zooming the page or the iPhone's hold menu on the view.
     view.canvas.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });

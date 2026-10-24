@@ -1,6 +1,7 @@
 // Database queries for poses. Every query is kept to one owner's rows.
 
 import { NOW } from "../sql.js";
+import { nextPosition } from "../visuals/db.js";
 import { MAX_PER_ITEM } from "./parse.js";
 
 /** @typedef {import("../media/parse.js").Item} Item */
@@ -47,7 +48,7 @@ export async function insertPose(db, ownerId, { id, item, data, caption }) {
     db.prepare(
       `INSERT INTO poses (id, owner_id, tie_id, plan_id, workshop_id, data, caption, position)
        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7,
-              COALESCE((SELECT MAX(position) FROM poses WHERE owner_id = ?2 AND ${item.column} = ?8), -1) + 1
+              ${nextPosition(item.column, "?2", "?8")}
         WHERE EXISTS (SELECT 1 FROM ${item.table} WHERE id = ?8 AND owner_id = ?2)
           AND (SELECT COUNT(*) FROM poses WHERE owner_id = ?2 AND ${item.column} = ?8) < ?9
        RETURNING position`
@@ -89,27 +90,6 @@ export async function updatePose(db, ownerId, id, edit) {
     `UPDATE poses SET ${sets.join(", ")}, updated_at = ${NOW} WHERE id = ? AND owner_id = ?`
   ).bind(...values, id, ownerId).run();
   return result.meta.changes > 0;
-}
-
-/**
- * Puts an item's poses in this order, numbering them from 0, if ids is
- * exactly the poses it has.
- * @param {D1Database} db
- * @param {string} ownerId
- * @param {Item} item
- * @param {string[]} ids
- * @returns {Promise<boolean>} false if ids aren't all of them
- */
-export async function setOrder(db, ownerId, item, ids) {
-  const list = JSON.stringify(ids);
-  const result = await db.prepare(
-    `UPDATE poses SET position = (SELECT CAST(key AS INTEGER) FROM json_each(?3) WHERE value = poses.id)
-      WHERE owner_id = ?1 AND ${item.column} = ?2
-        AND (SELECT COUNT(*) FROM poses WHERE owner_id = ?1 AND ${item.column} = ?2) = json_array_length(?3)
-        AND NOT EXISTS (SELECT 1 FROM poses WHERE owner_id = ?1 AND ${item.column} = ?2
-                         AND id NOT IN (SELECT value FROM json_each(?3)))`
-  ).bind(ownerId, item.id, list).run();
-  return result.meta.changes > 0 || ids.length === 0;
 }
 
 /**

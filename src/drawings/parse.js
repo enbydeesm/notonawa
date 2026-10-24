@@ -95,16 +95,3 @@ export function parseEdit(body) {
   if (!("data" in edit) && !("caption" in edit)) throw new BadInput("Nothing to change: send data or caption.");
   return edit;
 }
-
-/**
- * A new order for an item's drawings: every one of their ids, once each,
- * first to last.
- * @param {unknown} value
- * @returns {string[]}
- */
-export function parseOrder(value) {
-  if (!Array.isArray(value) || value.length > MAX_PER_ITEM) throw new BadInput("Expected the drawings' ids in order.");
-  const ids = value.map(parseDrawingId);
-  if (new Set(ids).size !== ids.length) throw new BadInput("Each drawing can only be listed once.");
-  return ids;
-}

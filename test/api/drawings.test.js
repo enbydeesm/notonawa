@@ -96,18 +96,6 @@ describe("changing a drawing", () => {
     expect((await call(`/api/drawings/${id}`, { method: "PUT", body: {} })).status).toBe(400);
   });
 
-  it("puts an item's drawings in a new order, only with every one of them", async () => {
-    const plan = await newPlan();
-    const ids = [];
-    for (const c of ["red", "green", "blue"]) ids.push(await create("/api/drawings", { plan_id: plan, data: lines(c) }));
-    const order = [ids[2], ids[0], ids[1]];
-    expect((await call("/api/drawings/order", { method: "PUT", body: { plan_id: plan, ids: order } })).status).toBe(204);
-    expect((await listOf({ plan_id: plan })).map((/** @type {any} */ d) => d.id)).toEqual(order);
-    const partial = await call("/api/drawings/order", { method: "PUT", body: { plan_id: plan, ids: [ids[0], ids[1]] } });
-    expect(partial.status).toBe(400);
-    expect((await listOf({ plan_id: plan })).map((/** @type {any} */ d) => d.id)).toEqual(order);
-  });
-
   it("deletes one, leaving its copies", async () => {
     const tie = await newTie();
     const other = await newTie();

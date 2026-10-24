@@ -5,11 +5,20 @@
 //   joints   each joint's angles (figure-rig.js), whole degrees
 //   body     the whole body's pitch, yaw and roll, whole degrees
 //   lift     how high the pelvis is off the floor, cm
-//   camera   [yaw, pitch, distance, target height]: degrees and cm
-//   ring     the hardpoint [x, y, z] in cm, or null
+//   camera   [yaw, pitch, distance, target height, target x, target z]:
+//            degrees and cm (older poses have the first four)
+//   ring     a ring to tie uplines to: [x, y, z] in cm, or null
+//   bamboo   a bamboo pole across, [x, y, z, turn] (its middle, and
+//            degrees turned from lying left to right), or null
+//   hashira  an upright post from the floor up, [x, z, turn], or null
 //   ropes    [{ c, w, p }]: a drawing's color and width, and points, each
 //            [bone, x, y, z]: mm from that bone's joint, in the bone's own
-//            directions, so a rope moves with the body; or ["ring", 0, 0, 0]
+//            directions, so a rope moves with the body; or ["ring", 0, 0, 0];
+//            ["bamboo", along, 0, 0], mm along it from its middle; or
+//            ["hashira", x, y, z], mm from the foot of the post, in its
+//            own directions
+//
+// Only one hardpoint (ring, bamboo or hashira) is there at a time.
 //
 // Every change makes a new pose (one is never changed in place), so a
 // history is just the poses before and after.
@@ -21,16 +30,23 @@ import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints } from "./fig
 /** @typedef {import("./drawing-format.js").Width} Width */
 /** @typedef {[string, number, number, number]} RopePoint */
 /** @typedef {{ c: Color, w: Width, p: RopePoint[] }} Rope */
+/** @typedef {[number, number, number, number, number, number]} Camera */
+/** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
 /**
  * @typedef {{
  *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number,
- *   camera: [number, number, number, number], ring: [number, number, number] | null, ropes: Rope[],
+ *   camera: Camera, ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
+ *   ropes: Rope[],
  * }} Pose
  */
 
 export { COLORS };
 export const FORMAT_VERSION = 1;
 export const RING = "ring";
+export const BAMBOO = "bamboo";
+export const HASHIRA = "hashira";
+/** @type {readonly Hardpoint[]} */
+export const HARDPOINTS = Object.freeze([RING, BAMBOO, HASHIRA]);
 /** Rope widths: a drawing's 1–3, as thin, medium and thick rope. */
 export const WIDTHS = /** @type {const} */ ([1, 2, 3]);
 /** The rope's radius for each width, in cm. */
@@ -43,12 +59,28 @@ export const MAX_POSES = 20;
 /** How far a rope point can be from its bone, in mm, each way. */
 export const OFFSET = 600;
 
-/** The camera's limits: yaw, pitch, distance and target height. */
-export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350]]);
+/** The camera's limits: yaw, pitch, distance, and the target's height, x and z. */
+export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350], [-300, 300], [-300, 300]]);
 /** The ring's: x, y, z. */
 export const RING_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300]]);
-/** Where a new ring goes: above the figure, at a typical hardpoint height. */
-export const DEFAULT_RING = /** @type {[number, number, number]} */ ([0, 280, 0]);
+/** The bamboo's: x, y, z of its middle, and its turn. */
+export const BAMBOO_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300], [-90, 90]]);
+/** The bamboo's length, cm. */
+export const BAMBOO_LENGTH = 150;
+/** The hashira's: x, z, and its turn (a square post looks the same every 90°). */
+export const HASHIRA_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300], [-45, 45]]);
+/** The hashira's width and height, cm: from the floor to as high as a hardpoint goes. */
+export const HASHIRA_SIZE = /** @type {const} */ ({ width: 10, height: 450 });
+
+/** Each hardpoint's limits, and where a new one goes. */
+export const HARDPOINT_RANGES = /** @type {const} */ ({ ring: RING_RANGE, bamboo: BAMBOO_RANGE, hashira: HASHIRA_RANGE });
+/**
+ * A new ring or bamboo hangs above the figure, low enough to be in view; a
+ * new hashira stands behind it, 12 cm from its back (the back is about
+ * 10 cm behind the middle of the body, and the post 5 cm to its middle).
+ * @type {Readonly<Record<Hardpoint, number[]>>}
+ */
+export const DEFAULT_HARDPOINTS = Object.freeze({ ring: [0, 195, 0], bamboo: [0, 195, 0, 0], hashira: [0, -27, 0] });
 
 /** @param {number} n @param {readonly [number, number]} range */
 export const clamp = (n, [min, max]) => Math.min(max, Math.max(min, Math.round(n)));
@@ -57,7 +89,7 @@ export const clamp = (n, [min, max]) => Math.min(max, Math.max(min, Math.round(n
 export function newPose() {
   return {
     v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT,
-    camera: [25, 8, 330, 100], ring: null, ropes: [],
+    camera: [25, 8, 330, 100, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
   };
 }
 
@@ -74,8 +106,10 @@ export function readPose(saved) {
     const angles = saved.joints?.[j.name];
     if (Array.isArray(angles)) joints[j.name] = clampJoint(j.name, angles);
   }
+  const camera = /** @type {Camera} */ ([...(saved.camera ?? fresh.camera), 0, 0].slice(0, 6));
   return {
-    ...fresh, ...saved, v: FORMAT_VERSION, joints,
+    ...fresh, ...saved, v: FORMAT_VERSION, joints, camera,
+    ring: saved.ring ?? null, bamboo: saved.bamboo ?? null, hashira: saved.hashira ?? null,
     ropes: (saved.ropes ?? []).map((r) => ({ ...r, p: r.p.map((p) => /** @type {RopePoint} */ ([...p])) })),
   };
 }
@@ -111,30 +145,94 @@ export const setLift = (pose, lift) => ({ ...pose, lift: clamp(lift, LIFT_RANGE)
 /**
  * The view, kept within its limits (yaw goes round and round).
  * @param {Pose} pose
- * @param {[number, number, number, number]} camera
+ * @param {number[]} camera yaw, pitch, distance, target height, x and z
  * @returns {Pose}
  */
-export function setCamera(pose, [yaw, pitch, distance, height]) {
+export function setCamera(pose, [yaw, pitch, distance, height, x = 0, z = 0]) {
   const wrapped = ((Math.round(yaw) % 360) + 540) % 360 - 180;
   return {
     ...pose,
-    camera: [wrapped, clamp(pitch, CAMERA[1]), clamp(distance, CAMERA[2]), clamp(height, CAMERA[3])],
+    camera: [wrapped, clamp(pitch, CAMERA[1]), clamp(distance, CAMERA[2]), clamp(height, CAMERA[3]), clamp(x, CAMERA[4]), clamp(z, CAMERA[5])],
   };
 }
 
 /**
- * The ring moved, added (at DEFAULT_RING) or taken away. Taking it away
- * also takes every rope point on it, and any rope left too short.
+ * The view slid sideways and up or down, as two fingers dragging across
+ * the screen move it: right and up are the screen's, seen from the camera.
  * @param {Pose} pose
- * @param {[number, number, number] | null} ring
+ * @param {number} right cm to the right
+ * @param {number} up cm up
  * @returns {Pose}
  */
-export function setRing(pose, ring) {
-  if (ring) {
-    return { ...pose, ring: /** @type {[number, number, number]} */ (ring.map((n, i) => clamp(n, RING_RANGE[i]))) };
+export function panCamera(pose, right, up) {
+  const [yaw, pitch, distance, height, x, z] = pose.camera;
+  const turn = yaw * Math.PI / 180;
+  return setCamera(pose, [yaw, pitch, distance, height + up, x + Math.cos(turn) * right, z - Math.sin(turn) * right]);
+}
+
+/** Which hardpoint a pose has, if any. @param {Pose} pose @returns {Hardpoint | null} */
+export const hardpointOf = (pose) => HARDPOINTS.find((k) => pose[k] !== null) ?? null;
+
+/**
+ * Ropes with a hardpoint's points changed (or taken out, if `to` is null),
+ * and any rope left too short taken out.
+ * @param {Rope[]} ropes
+ * @param {Hardpoint} from
+ * @param {RopePoint | null} to
+ */
+function moveHardpointPoints(ropes, from, to) {
+  return ropes
+    .map((r) => ({ ...r, p: r.p.flatMap((p) => (p[0] !== from ? [p] : to ? [/** @type {RopePoint} */ ([...to])] : [])) }))
+    .filter((r) => r.p.length >= 2);
+}
+
+/**
+ * The rope points a pose would lose by changing its hardpoint to `next`:
+ * all on the one it has, except between a ring and a bamboo, which both
+ * hold uplines, so they move across.
+ * @param {Pose} pose
+ * @param {Hardpoint | null} next
+ */
+export function hardpointPointsLost(pose, next) {
+  const now = hardpointOf(pose);
+  if (!now || now === next || (next && now !== HASHIRA && next !== HASHIRA)) return 0;
+  return pose.ropes.reduce((n, r) => n + r.p.filter((p) => p[0] === now).length, 0);
+}
+
+/**
+ * The pose with this hardpoint (at its default place) in place of the one
+ * it has, or with none (null). Between a ring and a bamboo, the uplines
+ * move across: to the bamboo's middle, or to the ring. Otherwise the old
+ * one's rope points go, and any rope left too short.
+ * @param {Pose} pose
+ * @param {Hardpoint | null} next
+ * @returns {Pose}
+ */
+export function setHardpoint(pose, next) {
+  const now = hardpointOf(pose);
+  if (now === next) return pose;
+  let ropes = pose.ropes;
+  if (now) {
+    const upline = next && now !== HASHIRA && next !== HASHIRA;
+    ropes = moveHardpointPoints(ropes, now, upline ? /** @type {RopePoint} */ ([next, 0, 0, 0]) : null);
   }
-  const ropes = pose.ropes.map((r) => ({ ...r, p: r.p.filter((p) => p[0] !== RING) })).filter((r) => r.p.length >= 2);
-  return { ...pose, ring: null, ropes };
+  /** @type {Pose} */
+  const changed = { ...pose, ring: null, bamboo: null, hashira: null, ropes };
+  if (next) changed[next] = [...DEFAULT_HARDPOINTS[next]];
+  return changed;
+}
+
+/**
+ * The hardpoint the pose has, moved (kept within its limits).
+ * @param {Pose} pose
+ * @param {number[]} place its numbers, as in the pose
+ * @returns {Pose}
+ */
+export function moveHardpoint(pose, place) {
+  const kind = hardpointOf(pose);
+  if (!kind) return pose;
+  const ranges = HARDPOINT_RANGES[kind];
+  return { ...pose, [kind]: place.map((n, i) => clamp(n, ranges[i])) };
 }
 
 /** How many rope points a pose has, all its ropes together. @param {Pose} pose */
@@ -151,6 +249,21 @@ export const bonePoint = (bone, mm) => /** @type {RopePoint} */ ([bone, ...mm.ma
 
 /** @type {RopePoint} */
 export const RING_POINT = [RING, 0, 0, 0];
+
+/**
+ * A point on the bamboo, mm along it from its middle (kept on it).
+ * @param {number} along
+ * @returns {RopePoint}
+ */
+export const bambooPoint = (along) => [BAMBOO, clamp(along, [-BAMBOO_LENGTH * 5, BAMBOO_LENGTH * 5]), 0, 0];
+
+/**
+ * A point on the hashira, mm from the foot of the post in its own
+ * directions (kept on it).
+ * @param {[number, number, number]} mm
+ * @returns {RopePoint}
+ */
+export const hashiraPoint = ([x, y, z]) => [HASHIRA, clamp(x, [-OFFSET, OFFSET]), clamp(y, [0, HASHIRA_SIZE.height * 10]), clamp(z, [-OFFSET, OFFSET])];
 
 /**
  * Why a point can't be added to a rope, or null if it can.
@@ -197,8 +310,8 @@ export const finishRope = (pose, rope) => (rope.p.length >= 2 ? { ...pose, ropes
 export const removeRope = (pose, index) => ({ ...pose, ropes: pose.ropes.filter((_, i) => i !== index) });
 
 /**
- * A preset's figure (figure-rig.js) on this pose: its ropes, ring and view
- * are kept.
+ * A preset's figure (figure-rig.js) on this pose: its ropes, hardpoint and
+ * view are kept.
  * @param {Pose} pose
  * @param {import("./figure-rig.js").Posture} posture
  * @returns {Pose}

@@ -11,7 +11,7 @@ import { MAX_PER_ITEM, JOINTS } from "../../src/poses/parse.js";
 const pose = (elbow = 90, color = "red") => ({
   v: 1,
   joints: { ...Object.fromEntries(Object.entries(JOINTS).map(([name, r]) => [name, r.map(() => 0)])), l_elbow: [elbow] },
-  body: [0, 0, 0], lift: 99, camera: [20, 10, 300, 110], ring: [0, 280, 0],
+  body: [0, 0, 0], lift: 99, camera: [20, 10, 300, 110, 0, 0], ring: [0, 280, 0], bamboo: null, hashira: null,
   ropes: [{ c: color, w: 2, p: [["chest", 0, 120, 110], ["ring", 0, 0, 0]] }],
 });
 
@@ -109,18 +109,6 @@ describe("changing a pose", () => {
     expect([saved.data, saved.caption]).toEqual([pose(10), null]);
 
     expect((await call(`/api/poses/${id}`, { method: "PUT", body: {} })).status).toBe(400);
-  });
-
-  it("puts an item's poses in a new order, only with every one of them", async () => {
-    const plan = await newPlan();
-    const ids = [];
-    for (const angle of [10, 20, 30]) ids.push(await create("/api/poses", { plan_id: plan, data: pose(angle) }));
-    const order = [ids[2], ids[0], ids[1]];
-    expect((await call("/api/poses/order", { method: "PUT", body: { plan_id: plan, ids: order } })).status).toBe(204);
-    expect((await listOf({ plan_id: plan })).map((/** @type {any} */ d) => d.id)).toEqual(order);
-    const partial = await call("/api/poses/order", { method: "PUT", body: { plan_id: plan, ids: [ids[0], ids[1]] } });
-    expect(partial.status).toBe(400);
-    expect((await listOf({ plan_id: plan })).map((/** @type {any} */ d) => d.id)).toEqual(order);
   });
 
   it("deletes one, leaving its copies", async () => {

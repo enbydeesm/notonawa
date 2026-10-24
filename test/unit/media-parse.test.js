@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseMediaId, parseItem, parseUpload, limitProblem, parseCaption, parseOrder, sameIds,
+  parseMediaId, parseItem, parseUpload, limitProblem, parseCaption,
   MAX_OBJECT_BYTES, MAX_VIDEO_BYTES, MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, MAX_ACCOUNT_BYTES,
 } from "../../src/media/parse.js";
 import { BadInput } from "../../src/http.js";
@@ -99,17 +99,3 @@ describe("parseCaption", () => {
   });
 });
 
-describe("parseOrder and sameIds", () => {
-  const other = "1b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
-  it("takes each photo id once", () => {
-    expect(parseOrder([other, ID])).toEqual([other, ID]);
-    expect(() => parseOrder([ID, ID])).toThrow("once");
-    expect(() => parseOrder("x")).toThrow(BadInput);
-    expect(() => parseOrder(["x"])).toThrow(BadInput);
-  });
-  it("compares lists of ids in any order", () => {
-    expect(sameIds([ID, other], [other, ID])).toBe(true);
-    expect(sameIds([ID], [other])).toBe(false);
-    expect(sameIds([ID], [ID, other])).toBe(false);
-  });
-});

@@ -1477,7 +1477,7 @@ about 6 minutes, too slow to run after every change.
   than another package. It's fetched only when a form has poses to show, or
   one is added (`poses-ui.js` imports the 3D code itself).
 - **Kept as numbers, like drawings' lines**: each joint's angles, the body's
-  turn and height, the view, the ring and the ropes (`pose-format.js`;
+  turn and height, the view, the hardpoint and the ropes (`pose-format.js`;
   `src/poses/parse.js` checks the same format). A picture couldn't be posed
   again, and is far bigger. Rope points are kept in millimetres from a bone,
   in the bone's own directions, so a rope stays on the arm it was laid on
@@ -1490,12 +1490,35 @@ about 6 minutes, too slow to run after every change.
   the floor, face down faces the floor.
 - **Sliders, not 3D handles.** Dragging gizmos in 3D is hard with a finger on
   a phone; tapping a part and moving sliders isn't. One finger turns the
-  view, two pinch and slide it. Undo and redo cover everything but the
-  view (turning the view isn't a change to undo).
-- **"Add as photo"** draws the pose on the device and hands the picture to
-  the form's Photos section (`addFiles`), which prepares and seals it like
-  any photo. Pictures and thumbnails come from one hidden 3D view, reused:
-  browsers allow only a few at once.
+  view, two pinch and pan it (sideways too: the camera's target has an x
+  and z since the second round, so older poses' four-number cameras are
+  read as not panned). Undo and redo cover everything but the view
+  (turning the view isn't a change to undo).
+- **Body and arms presets, separately** (second round, after trying it on a
+  phone). One "Start from…" list set every joint, so choosing kneeling
+  after placing the arms put them back in a box tie. Now a body preset
+  sets everything but the arms (trunk, head, legs, the body's turn and
+  height) and an arms preset only the shoulders, elbows and wrists, so
+  each leaves the other, and any arm moved by hand, as it was.
+- **One hardpoint at a time: a ring, a bamboo or a hashira**, each added in
+  view (a ring or bamboo at 195 cm; the first ring, at 280, was above the
+  view, so adding it looked like nothing happened). Several at once is for
+  a later release. Between a ring and a bamboo the uplines move across
+  (to the bamboo's middle, or the ring), as both hang the body from above;
+  a hashira's ropes are tied to the side of a post, with nothing to match
+  overhead, so switching to or from it takes its rope points out, after
+  asking. A bamboo point is how far along it; a hashira point is where on
+  the post, in its own directions, so both stay put when it's moved or
+  turned.
+- **"Add to visuals"** in the poser (it was "Add as photo" in the pose's
+  details) draws the pose on the device and hands the picture to the
+  Visuals section, which prepares and seals it like any photo, last.
+  Pictures and thumbnails come from one hidden 3D view, reused: browsers
+  allow only a few at once.
+- **Flatter torso.** The chest, waist and hips are squared-off ellipsoids
+  (a superellipsoid made from a sphere, as three.js's rounded box isn't in
+  the bundle), and the shoulders smaller, so a rope between two points on
+  the front doesn't cut so deep into the body; the nose is gone.
 - **A sequence is a plan with several poses in order**: no new schema.
 - **Export and import**: poses are in notonawa.json as their numbers. No
   picture of each in the zip (drawings have SVGs): that would need the 3D
@@ -1505,3 +1528,41 @@ about 6 minutes, too slow to run after every change.
 - **Left out for now** (see roadmap.md): dragging a hand or foot to place
   the limb (inverse kinematics), ropes that follow the body's surface
   between points, a second figure, props, and animation.
+
+## Visuals: photos, drawings and poses in one order (October 2026)
+
+**Status:** built (2026-10-23)
+
+- **One section and one order** on ties, plans and workshops, in place of
+  separate Photos and videos, Drawings and Poses sections, so a sequence
+  can mix them (a photo, then the pose that explains it). + opens "Add a
+  visual from…" (photo/video, drawing, model poser). Each tile is outlined
+  in its kind's chart color (photos teal, videos purple, drawings coral,
+  poses yellow), with a key of icons beside the label; videos keep their ▶,
+  and each tile's name says its kind, so color isn't the only clue.
+- **No migration: the three tables share one count.** Each kind keeps its
+  own table and `position` column; a new one goes after the item's last
+  visual of any kind (`nextPosition` in `src/visuals/db.js`), and `PUT
+  /api/visuals/order` numbers all three in one batch, each update checking
+  the whole list (every visual, under its own kind) so it's all or
+  nothing. The per-kind order routes are gone, as they'd renumber one
+  kind from 0. Items from before overlap (each kind counted from 0); the
+  page breaks ties photos, drawings, poses, then oldest first, and the
+  first move saves the mixed order.
+  - **Weighed and not adopted:** one `visuals` table, or a separate order
+    table. Either means a migration and joins for three kinds stored
+    differently (files in R2, lines, numbers), for nothing the shared
+    count doesn't already give.
+- **Export and import** keep each visual's position, so the file holds the
+  mixed order. Import adds each kind in turn (they go through different
+  routes), then puts each item's back in the file's order. An item that
+  already had visuals, or where one couldn't be added, is left as saved:
+  the order route only takes all of an item's visuals.
+- **The details dialogs** share their caption row (Save caption beside the
+  label, muted until the caption changes, then yellow), "← Move earlier"
+  and "Move later →", and swiping left or right to the next or the one
+  before, across kinds (not from the caption, the buttons or a video's own
+  controls). They open focused on themselves, not the caption, so a phone
+  doesn't put its keyboard over the picture. A drawing's and a pose's Edit
+  is outlined in the accent above the caption, with Duplicate and Copy to…
+  side by side.

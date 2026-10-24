@@ -3,9 +3,9 @@
 // sealed object in R2 and its row in D1, and hand it back only to its owner.
 
 import { BadInput, json, notFound, noContent, readJson } from "../http.js";
-import { parseItem, itemFromParams, parseUpload, parseMediaId, parseCaption, parseOrder, sameIds, limitProblem } from "./parse.js";
+import { itemFromParams, parseUpload, parseMediaId, parseCaption, limitProblem } from "./parse.js";
 import {
-  listMedia, uploadCheck, insertMedia, getMediaSizes, setCaption, mediaIds, setOrder, deleteMedia,
+  listMedia, uploadCheck, insertMedia, getMediaSizes, setCaption, deleteMedia,
 } from "./db.js";
 import { objectKey, deleteObjects } from "./storage.js";
 
@@ -34,20 +34,6 @@ export async function handleMedia(request, env, user, url) {
     const item = itemFromParams(url.searchParams);
     const media = await listMedia(db, user.id, item);
     return media ? json(media) : notFound();
-  }
-
-  // PUT /api/media/order  body { tie_id | plan_id | workshop_id, ids } ->
-  //   puts an item's photos in this order (ids: every one of them, first to last)
-  if (url.pathname === "/api/media/order") {
-    if (method !== "PUT") return null;
-    const body = await readJson(request);
-    const item = parseItem(body);
-    const ids = parseOrder(body.ids);
-    if (!sameIds(ids, await mediaIds(db, user.id, item))) {
-      throw new BadInput("The photos have changed. Reload and try again.");
-    }
-    await setOrder(db, user.id, item, ids);
-    return noContent();
   }
 
   // GET /api/media/:id/thumb|full -> the sealed thumbnail or full size

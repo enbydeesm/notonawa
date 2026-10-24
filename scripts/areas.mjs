@@ -256,6 +256,13 @@ export const AREAS = [
     generated: ["vendor"],
   },
   {
+    name: "visuals",
+    files: ["src/visuals/", "public/js/visuals-ui.js", "public/js/visual-viewer.js", "public/js/visual-order.js", "public/js/visual-icons.js"],
+    tests: ["test/api/visuals.test.js", "test/unit/visual-order.test.js", "test/api/media.test.js", "test/api/drawings.test.js",
+      "test/api/poses.test.js"],
+    ui: ["photos", "drawings", "poses", "data"],
+  },
+  {
     name: "data",
     files: ["src/data/", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
       "public/js/import-steps.js", "public/js/import-dedupe.js", "public/js/import-photos.js",

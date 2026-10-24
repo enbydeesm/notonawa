@@ -1,6 +1,7 @@
 // Database queries for photos (the media table). The files are in R2
 // (storage.js); every query here is kept to one owner's rows.
 
+import { nextPosition } from "../visuals/db.js";
 import { MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, MAX_ACCOUNT_BYTES } from "./parse.js";
 
 /** @typedef {import("./parse.js").Item} Item */
@@ -67,7 +68,7 @@ export async function insertMedia(db, ownerId, upload) {
   const row = await db.prepare(
     `INSERT INTO media (id, owner_id, tie_id, plan_id, workshop_id, kind, mime, position, thumb_bytes, bytes)
      SELECT ?1, ?2, ?3, ?4, ?13, ?5, ?6,
-            COALESCE((SELECT MAX(position) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7), -1) + 1,
+            ${nextPosition(item.column, "?2", "?7")},
             ?8, ?9
       WHERE (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7) < ?10
         AND (SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ?2) + ?9 <= ?11
@@ -105,34 +106,6 @@ export async function setCaption(db, ownerId, id, caption) {
   const result = await db.prepare("UPDATE media SET caption = ? WHERE id = ? AND owner_id = ?")
     .bind(caption, id, ownerId).run();
   return result.meta.changes > 0;
-}
-
-/**
- * The ids of an item's photos (in any order).
- * @param {D1Database} db
- * @param {string} ownerId
- * @param {Item} item
- * @returns {Promise<string[]>}
- */
-export async function mediaIds(db, ownerId, item) {
-  const { results } = await db.prepare(`SELECT id FROM media WHERE owner_id = ? AND ${item.column} = ?`)
-    .bind(ownerId, item.id).all();
-  return results.map((r) => /** @type {string} */ (r.id));
-}
-
-/**
- * Puts an item's photos in this order (ids: all of them, checked by the
- * caller), numbering them from 0.
- * @param {D1Database} db
- * @param {string} ownerId
- * @param {Item} item
- * @param {string[]} ids
- */
-export async function setOrder(db, ownerId, item, ids) {
-  await db.prepare(
-    `UPDATE media SET position = (SELECT CAST(key AS INTEGER) FROM json_each(?3) WHERE value = media.id)
-      WHERE owner_id = ?1 AND ${item.column} = ?2`
-  ).bind(ownerId, item.id, JSON.stringify(ids)).run();
 }
 
 /**

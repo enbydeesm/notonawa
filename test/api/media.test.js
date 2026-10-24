@@ -202,17 +202,6 @@ describe("a photo's caption, order and deletion", () => {
     expect((await call(`/api/media?tie_id=${tie}`)).body[0].caption).toBeNull();
   });
 
-  it("reorders an item's photos, given all of them", async () => {
-    const tie = await newTie();
-    const a = (await upload({ tie_id: tie })).id;
-    const b = (await upload({ tie_id: tie })).id;
-    const c = (await upload({ tie_id: tie })).id;
-    expect((await call("/api/media/order", { method: "PUT", body: { tie_id: tie, ids: [c, a, b] } })).status).toBe(204);
-    expect((await call(`/api/media?tie_id=${tie}`)).body.map((/** @type {any} */ m) => m.id)).toEqual([c, a, b]);
-    const partial = await call("/api/media/order", { method: "PUT", body: { tie_id: tie, ids: [a, b] } });
-    expect(partial).toEqual({ status: 400, body: { error: "The photos have changed. Reload and try again." } });
-  });
-
   it("deletes a photo and its file", async () => {
     const me = await signedInUser();
     const { id } = await upload({ tie_id: await newTie() });
@@ -232,7 +221,6 @@ describe("a photo's caption, order and deletion", () => {
     expect((await call(`/api/media?tie_id=${tie}`, { cookie })).status).toBe(404);
     expect((await call(`/api/media/${id}`, { method: "PATCH", cookie, body: { caption: sealed("x") } })).status).toBe(404);
     expect((await call(`/api/media/${id}`, { method: "DELETE", cookie })).status).toBe(404);
-    expect((await call("/api/media/order", { method: "PUT", cookie, body: { tie_id: tie, ids: [id] } })).status).toBe(400);
     expect(await stored(me.id, id)).not.toBeNull();
   });
 

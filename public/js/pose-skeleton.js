@@ -5,13 +5,43 @@
 
 import { Object3D, Vector3 } from "./vendor/three.js";
 import { JOINTS, jointRotation, bodyRotation } from "./figure-rig.js";
-import { RING } from "./pose-format.js";
+import { RING, BAMBOO, HASHIRA } from "./pose-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
 
 /** The ring's size, and where ropes meet it (the bottom of the ring), cm. */
 export const RING_RADIUS = 5;
+/** The bamboo's thickness: ropes meet its underside, cm. */
+export const BAMBOO_RADIUS = 2.5;
+
+/**
+ * A point in a hardpoint's own directions (cm), turned `turn` degrees
+ * about the upright and moved to `at`, as a point in the room.
+ * @param {[number, number, number]} at
+ * @param {number} turn
+ * @param {[number, number, number]} local
+ */
+function turned([ax, ay, az], turn, [x, y, z]) {
+  const t = turn * Math.PI / 180;
+  return new Vector3(ax + x * Math.cos(t) + z * Math.sin(t), ay + y, az - x * Math.sin(t) + z * Math.cos(t));
+}
+
+/**
+ * A point in the room (cm) in a hardpoint's own directions: the bamboo's
+ * from its middle, along it in x; the hashira's from its foot.
+ * @param {Pose} pose
+ * @param {"bamboo" | "hashira"} kind
+ * @param {Vector3} world
+ * @returns {[number, number, number]} cm
+ */
+export function toHardpoint(pose, kind, world) {
+  const [ax, ay, az, turn] = kind === BAMBOO ? /** @type {number[]} */ (pose.bamboo)
+    : [/** @type {number[]} */ (pose.hashira)[0], 0, /** @type {number[]} */ (pose.hashira)[1], /** @type {number[]} */ (pose.hashira)[2]];
+  const t = turn * Math.PI / 180;
+  const dx = world.x - ax, dz = world.z - az;
+  return [dx * Math.cos(t) - dz * Math.sin(t), world.y - ay, dx * Math.sin(t) + dz * Math.cos(t)];
+}
 
 /**
  * A new skeleton at rest: the pelvis (its root) and every bone by name.
@@ -66,8 +96,16 @@ export const onBone = ({ bones }, bone, cm = [0, 0, 0]) =>
  */
 export function ropePoint(skeleton, [bone, x, y, z], pose) {
   if (bone === RING) {
-    const [rx, ry, rz] = /** @type {[number, number, number]} */ (pose.ring);
+    const [rx, ry, rz] = /** @type {number[]} */ (pose.ring);
     return new Vector3(rx, ry - RING_RADIUS, rz);
+  }
+  if (bone === BAMBOO) {
+    const [bx, by, bz, turn] = /** @type {number[]} */ (pose.bamboo);
+    return turned([bx, by, bz], turn, [x / 10, -BAMBOO_RADIUS, 0]);
+  }
+  if (bone === HASHIRA) {
+    const [hx, hz, turn] = /** @type {number[]} */ (pose.hashira);
+    return turned([hx, 0, hz], turn, [x / 10, y / 10, z / 10]);
   }
   return onBone(skeleton, bone, [x / 10, y / 10, z / 10]);
 }

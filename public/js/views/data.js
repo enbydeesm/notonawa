@@ -37,6 +37,7 @@ import { COLORS, svgFile } from "../drawing-format.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import { uploadPhoto } from "../photo-upload.js";
+import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
 
@@ -70,6 +71,16 @@ import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
  * for photos.
  * @template [E=DrawingEntry]
  * @typedef {{ item: PhotoTarget["item"], entries: E[], onlyIfEmpty: boolean }} DrawingTarget
+ */
+
+/**
+ * The visuals an import added to one tie, plan or workshop, each kind's
+ * with its id and its position in the file, so their shared order can be
+ * put back once they're all saved.
+ * @typedef {{
+ *   item: PhotoTarget["item"],
+ *   lists: Record<import("../visual-order.js").VisualKind, { id: string, position: number }[]>,
+ * }} Placed
  */
 
 /**
@@ -293,11 +304,14 @@ export function mount() {
         });
       }
       forgetSearch();
+      /** @type {Map<string, Placed>} */
+      const placed = new Map();
       const drawingResult = drawingTargets.length
-        ? await importSaved(drawingTargets, { path: "/api/drawings", save: saveDrawing, one: "drawing", many: "drawings" }) : null;
+        ? await importSaved(drawingTargets, { path: "/api/drawings", save: saveDrawing, one: "drawing", many: "drawings", kind: "drawing" }, placed) : null;
       const poseResult = poseTargets.length
-        ? await importSaved(poseTargets, { path: "/api/poses", save: savePose, one: "pose", many: "poses" }) : null;
-      const photoResult = files && targets.length ? await importPhotos(targets, files) : null;
+        ? await importSaved(poseTargets, { path: "/api/poses", save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
+      const photoResult = files && targets.length ? await importPhotos(targets, files, placed) : null;
+      await putBackOrder(placed);
       const extras = [drawingResult, poseResult, photoResult].filter(Boolean).join(" ") || null;
       // The file's role names, if mine are still the defaults.
       const tookNames = await adoptRoleNames(fileRoleNames).catch(() => false);
@@ -329,9 +343,10 @@ export function mount() {
    * it has none yet.
    * @param {PhotoTarget[]} targets
    * @param {Map<string, Uint8Array<ArrayBuffer>>} files
+   * @param {Map<string, Placed>} placed where each one added is noted
    * @returns {Promise<string>} what happened, in words
    */
-  async function importPhotos(targets, files) {
+  async function importPhotos(targets, files, placed) {
     const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
     /** Whether videos can go up without their sound, once asked. @type {boolean | null} */
     let silentOk = null;
@@ -365,7 +380,8 @@ export function mount() {
               withoutSound: async () => (silentOk ??= await askWithoutSound(entry.file)),
             })
             : await preparePhoto(file);
-          await uploadPhoto({ item: target.item, prepared, caption: entry.caption });
+          const id = await uploadPhoto({ item: target.item, prepared, caption: entry.caption });
+          note(placed, target.item, "media", id, entry.position);
           added++;
         } catch (err) {
           problems.push(`${entry.file}: ${errorMessage(err)}`);
@@ -388,10 +404,12 @@ export function mount() {
    * @param {DrawingTarget<E>[]} targets
    * @param {{
    *   path: string, save: (item: PhotoTarget["item"], entry: E) => Promise<string>, one: string, many: string,
+   *   kind: "drawing" | "pose",
    * }} kind where they're listed, how one is saved, and what they're called
+   * @param {Map<string, Placed>} placed where each one added is noted
    * @returns {Promise<string>} what happened, in words
    */
-  async function importSaved(targets, { path, save, one, many }) {
+  async function importSaved(targets, { path, save, one, many, kind }, placed) {
     const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
     let done = 0;
     let added = 0;
@@ -407,7 +425,8 @@ export function mount() {
       for (const entry of target.entries) {
         showMessage(importMessage, `Adding ${many}… ${(++done).toLocaleString()} of ${total.toLocaleString()}`);
         try {
-          await save(target.item, entry);
+          const id = await save(target.item, entry);
+          note(placed, target.item, kind, id, /** @type {{ position?: number }} */ (entry).position ?? 0);
           added++;
         } catch (err) {
           problems.push(errorMessage(err));
@@ -420,6 +439,41 @@ export function mount() {
       kept ? `Skipped ${counted(kept)} on ties, plans or workshops that already have ${many}.` : "",
       problems.length ? `${counted(problems.length)} couldn't be added: ${problems.slice(0, 3).join(" ")}` : "",
     ].filter(Boolean).join(" ");
+  }
+
+  /**
+   * Notes a visual an import added, and where it was in the file.
+   * @param {Map<string, Placed>} placed
+   * @param {PhotoTarget["item"]} item
+   * @param {import("../visual-order.js").VisualKind} kind
+   * @param {string} id
+   * @param {number} position
+   */
+  function note(placed, item, kind, id, position) {
+    const key = JSON.stringify(item);
+    let entry = placed.get(key);
+    if (!entry) placed.set(key, entry = { item, lists: { media: [], drawing: [], pose: [] } });
+    entry.lists[kind].push({ id, position });
+  }
+
+  /**
+   * Puts each item's imported visuals back in the order they had in the
+   * file, photos, drawings and poses together (each kind went in after the
+   * other). An item that had visuals already, or where one couldn't be
+   * added, is left as it is: the server only takes an order with all of
+   * them, and nothing is lost either way.
+   * @param {Map<string, Placed>} placed
+   */
+  async function putBackOrder(placed) {
+    for (const { item, lists } of placed.values()) {
+      const order = orderBody(mergeVisuals(lists).map(({ kind, item: v }) => ({ kind, id: v.id })));
+      if (order.length < 2) continue;
+      try {
+        await api("/api/visuals/order", { method: "PUT", body: { ...item, order } });
+      } catch {
+        // As it was saved: each kind in the file's order.
+      }
+    }
   }
 
   /**

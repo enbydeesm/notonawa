@@ -8,9 +8,10 @@ export const RELEASES = [
   {
     "version": "2026.10.23.001",
     "notes": [
-      "Poses: tap + on \"Poses\", under Drawings on a tie, plan or workshop, to pose a 3D figure. Start from a pose such as kneeling, face down or upside down, or tap a body part and move it with the sliders. Drag to turn the view; pinch to zoom.",
-      "In Rope, tap the body point by point to lay a rope, and add a ring to draw uplines. Undo and Redo go back over everything you've done.",
-      "\"Add as photo\" saves a picture of a pose to the photos above it. Caption, duplicate, copy and reorder poses like drawings, and line several up on a plan to show a sequence.",
+      "Visuals: photos and videos, drawings and poses now share one section on ties, plans and workshops, in whatever order you drag them into. Tap + to add a visual from a photo or video, a drawing, or the model poser. Each is outlined in its own color, and you can swipe through them in their details.",
+      "Poses: pose a 3D figure. Choose a position for the body (standing, kneeling, kneeling up, face down…) and for the arms (at sides, behind back, crossed in front, behind head) separately, or tap a body part and move it with the sliders. Drag to turn the view, drag with two fingers to pan, and pinch to zoom.",
+      "In Rope, tap the body point by point to lay a rope, and add a ring or bamboo for uplines, or a hashira to tie to. Undo and Redo go back over everything you've done.",
+      "\"Add to visuals\" in the poser saves a picture of the pose as a photo. Caption, duplicate, copy and reorder poses like drawings, and line several up to show a sequence.",
       "Poses aren't encrypted (their captions are). They're in your export, and come back when you import it."
     ]
   },

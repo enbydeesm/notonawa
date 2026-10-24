@@ -37,11 +37,18 @@ export default async function () {
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Drawing test"); set("#tie-tie_type", "floor");`);
-  check("the tie form has Drawings, with a + to add one, under Photos and videos", await run(`
+  check("the tie form has Visuals, with a + to add one and a key to the outline colors", await run(`
     const labels = [...document.querySelectorAll("#tie-form .label-row label")].map((l) => l.textContent);
-    return [labels.indexOf("Drawings") === labels.indexOf("Photos and videos") + 1, $("#tie-add-drawing").getAttribute("aria-label")];`),
-  [true, "Add drawing"]);
-  check("+ opens the drawing pad, filling the screen, on light paper even in dark mode", await run(`
+    const key = $("#tie-form .visual-key");
+    return [labels.includes("Visuals"), labels.includes("Drawings"), $("#tie-add-visual").getAttribute("aria-label"),
+      key.getAttribute("aria-label"), [...key.children].map((k) => k.title)];`),
+  [true, false, "Add visual", "Outline colors: teal photo, purple video, coral drawing, yellow pose", ["Photo", "Video", "Drawing", "Pose"]]);
+  check("+ asks what to add a visual from", await run(`
+    $("#tie-add-visual").click(); await wait(300);
+    const d = ${topDialog};
+    return [d.querySelector("h2").textContent, [...d.querySelectorAll(".visual-choice")].map((b) => [b.textContent, !!b.querySelector("svg")]), leakyFields()];`),
+  ["Add a visual from…", [["Photo/video", true], ["Drawing", true], ["Model poser", true]], []]);
+  check("Drawing opens the drawing pad, filling the screen, on light paper even in dark mode", await run(`
     $("#tie-add-drawing").click(); await wait(400);
     const pad = $("dialog.drawing-editor[open]"), r = pad.getBoundingClientRect();
     return [document.documentElement.dataset.theme, getComputedStyle($("#drawing-pad .paper")).fill,
@@ -65,8 +72,8 @@ export default async function () {
     $("#drawing-undo").click(); return [erased, pressed, ${paths}];`), [["ink-blue"], "true", ["ink-red", "ink-blue"]]);
   check("saved, it waits in the form for the tie", await run(`
     $("#drawing-save").click(); await wait(300);
-    return [!!$("dialog.drawing-editor"), document.querySelectorAll("#tie-drawings .photo-tile").length,
-      document.querySelectorAll("#tie-drawings .photo-tile path").length];`), [false, 1, 2]);
+    return [!!$("dialog.drawing-editor"), document.querySelectorAll("#tie-visuals .visual-drawing").length,
+      document.querySelectorAll("#tie-visuals .visual-drawing path").length];`), [false, 1, 2]);
   check("…and is saved with the tie, its lines as drawn, plain, and no caption", await run(`
     $("#tie-save").click(); await wait(2000); await settle();
     const [d] = await ${tieDrawings};
@@ -76,21 +83,21 @@ export default async function () {
   [false, ["red2", "blue3"], null, 4, true]);
 
   check("a caption is saved encrypted and shown under the drawing", await run(`
-    ${openTie} $("#tie-drawings .photo-thumb").click(); await wait(500);
+    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500);
     set("#tie-drawing-caption", " Front view "); $("#tie-drawing-save-caption").click(); await wait(800);
     const [d] = await ${tieDrawings};
-    return [$("#tie-drawings figcaption")?.textContent, /^e1\\./.test(d.caption), d.caption.includes("Front"), leakyFields()];`),
+    return [$("#tie-visuals .visual-drawing figcaption")?.textContent, /^e1\\./.test(d.caption), d.caption.includes("Front"), leakyFields()];`),
   ["Front view", true, false, []]);
   check("Duplicate adds a copy last, with the same lines and caption", await run(`
     $("#tie-drawing-duplicate").click(); await wait(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
     ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
     const [a, b] = await ${tieDrawings};
-    return [message, [...document.querySelectorAll("#tie-drawings figcaption")].map((f) => f.textContent),
+    return [message, [...document.querySelectorAll("#tie-visuals .visual-drawing figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
   ["Duplicated: the copy is last, and can be edited on its own.", ["Front view", "Front view"], true, true]);
 
-  await run(`document.querySelectorAll("#tie-drawings .photo-thumb")[1].click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);`);
+  await run(`document.querySelectorAll("#tie-visuals .visual-drawing .photo-thumb")[1].click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);`);
   await run(`$("#drawing-color-green").click();`);
   await drawLine([[100, 1000], [800, 1000]]);
   check("editing the copy changes only the copy", await run(`
@@ -102,7 +109,7 @@ export default async function () {
   [3, ["red", "blue"], ["red", "blue", "green"]]);
 
   check("Cancel on the pad asks before throwing away what's drawn", await run(`
-    $("#tie-drawings .photo-thumb").click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);
+    $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);
     return $("#drawing-cancel") !== null;`), true);
   await drawLine([[200, 400], [600, 400]]);
   check("…and nothing's saved", await run(`
@@ -136,9 +143,9 @@ export default async function () {
     return [message, opened.caption, JSON.stringify(copy.data) === JSON.stringify(original.data)];`),
   ['Copied to "Harness plan".', "Front view", true]);
   await go("/plans");
-  check("the plan's form shows it, under its photos", await run(`
+  check("the plan's form shows it in its visuals", await run(`
     await clickIn("Harness plan", "Edit");
-    return [[...document.querySelectorAll("#plan-drawings figcaption")].map((f) => f.textContent), !!$("#plan-add-drawing")];`),
+    return [[...document.querySelectorAll("#plan-visuals .visual-drawing figcaption")].map((f) => f.textContent), !!$("#plan-add-visual")];`),
   [["Front view"], true]);
   await run(`$("[data-cancel-edit]").click(); await wait(200);`);
 
@@ -178,10 +185,10 @@ export default async function () {
 
   await go("/");
   check("deleting a drawing asks first, then removes it", await run(`
-    ${openTie} $("#tie-drawings .photo-thumb").click(); await wait(500);
+    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500);
     $("#tie-drawing-delete").click(); await wait(300);
     const asked = ${topDialog}.querySelector("h2").textContent;
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete drawing").click(); await wait(800);
-    return [asked, document.querySelectorAll("#tie-drawings .photo-tile").length, (await ${tieDrawings}).length];`),
+    return [asked, document.querySelectorAll("#tie-visuals .visual-drawing").length, (await ${tieDrawings}).length];`),
   ["Delete this drawing?", 1, 1]);
 }

@@ -6,8 +6,8 @@
 
 import { BadInput, json, notFound, noContent, readJson } from "../http.js";
 import { parseItem, itemFromParams } from "../media/parse.js";
-import { parsePose, parsePoseId, parseCaption, parseEdit, parseOrder, MAX_PER_ITEM, MAX_BODY_BYTES } from "./parse.js";
-import { listPoses, insertPose, updatePose, setOrder, deletePose } from "./db.js";
+import { parsePose, parsePoseId, parseCaption, parseEdit, MAX_PER_ITEM, MAX_BODY_BYTES } from "./parse.js";
+import { listPoses, insertPose, updatePose, deletePose } from "./db.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -50,19 +50,6 @@ export async function handlePoses(request, env, user, url) {
       return json({ id, position: result.position }, 201);
     }
     return null;
-  }
-
-  // PUT /api/poses/order  body { tie_id | plan_id | workshop_id, ids } ->
-  //   puts an item's poses in this order (ids: every one of them, first
-  //   to last)
-  if (url.pathname === "/api/poses/order") {
-    if (method !== "PUT") return null;
-    const body = await readJson(request);
-    const item = parseItem(body);
-    if (!(await setOrder(db, user.id, item, parseOrder(body.ids)))) {
-      throw new BadInput("The poses have changed. Reload and try again.");
-    }
-    return noContent();
   }
 
   const one = url.pathname.match(ONE_PATH);

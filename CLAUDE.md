@@ -120,11 +120,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/media/`: photos and videos on ties, plans and workshops (migration
   0010, workshops since 0018; files in the R2 bucket `PHOTOS`). `parse.js` (pure: limits, including 5
   videos of the 30 an item and 40 MB a video, upload parameters, sealed
-  captions, order), `db.js`, `storage.js` (R2: keys, deleting, the daily
+  captions), `db.js`, `storage.js` (R2: keys, deleting, the daily
   sweep of files without a row), `routes.js` (`GET /api/media?tie_id=|
   plan_id=|workshop_id=`, `PUT /api/media/:id` (the upload), `GET /api/media/:id/thumb|
-  full`, `PATCH /api/media/:id` (caption), `PUT /api/media/order`, `DELETE
-  /api/media/:id`).
+  full`, `PATCH /api/media/:id` (caption), `DELETE /api/media/:id`).
 - `src/drawings/`: drawings on ties, plans and workshops (migration 0019),
   kept as their lines, plain JSON in D1 (not encrypted, by choice; the
   caption is, as an encrypted column). `parse.js` (pure: the format
@@ -132,14 +131,24 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   item; `public/js/drawing-format.js` has the same rules, kept in step by
   a unit test), `db.js`, `routes.js` (`GET /api/drawings?tie_id=|plan_id=|
   workshop_id=`, `POST /api/drawings` (adding, duplicating and copying
-  alike), `PUT /api/drawings/:id` (lines and/or caption), `PUT
-  /api/drawings/order`, `DELETE /api/drawings/:id`).
+  alike), `PUT /api/drawings/:id` (lines and/or caption), `DELETE
+  /api/drawings/:id`).
 - `src/poses/`: poses on ties, plans and workshops (migration 0020): a 3D
   figure kept as numbers, plain JSON in D1 (not encrypted, by choice; the
   caption is). `parse.js` (pure: the format `{ v: 1, joints, body, lift,
-  camera, ring, ropes }`, `JOINTS` and their limits, the same as
-  `public/js/figure-rig.js`'s, kept in step by a unit test; 20 an item),
-  `db.js`, `routes.js` (the same routes as drawings, under `/api/poses`).
+  camera, ring, bamboo, hashira, ropes }`: a camera of six numbers (four
+  in older poses, read as not panned sideways), at most one hardpoint
+  (ring, bamboo or hashira; older poses have no bamboo or hashira),
+  `JOINTS` and their limits, the same as `public/js/figure-rig.js`'s and
+  `pose-format.js`'s, kept in step by a unit test; 20 an item), `db.js`,
+  `routes.js` (the same routes as drawings, under `/api/poses`).
+- `src/visuals/`: an item's photos and videos, drawings and poses share
+  one order (no migration: each table's `position` counts across all
+  three). `db.js` (`nextPosition`: the SQL each insert uses to go last
+  among them all; `setVisualOrder`), `parse.js` (pure), `routes.js` (`PUT
+  /api/visuals/order` with `{ tie_id | plan_id | workshop_id, order: [{
+  kind: "media" | "drawing" | "pose", id }] }`: every visual, or it's
+  refused). The kinds have no order routes of their own.
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the photo sweep and the backup, each
   carrying on if one before it fails).
@@ -261,25 +270,36 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   a video is chosen), `drag-order.js` (pure: dragging photos into order),
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
   lock), `photo-upload.js` (sealing and uploading one prepared photo or
-  video and its caption; used by the Photos section and import),
-  `photos-ui.js` (a form's Photos section: dragging into order, and the
-  viewer, which plays videos with speed buttons), `tile-drag.js`
-  (dragging Photos' and Drawings' tiles into order),
-  `figure-rig.js` (pure: the poser's figure, its joints and limits, shapes
-  and presets), `pose-format.js` (pure: a pose, changing it, undo/redo),
-  `pose-skeleton.js` (the bones posed, with three.js's math only: where a
-  joint or rope point is; tested), `pose-scene.js` (the 3D view, with
-  `vendor/three.js`; pictures of poses), `pose-editor.js` (the poser: a
-  full-screen dialog like the drawing pad), `poses-ui.js` (a form's Poses
-  section, under Drawings; "Add as photo" through the Photos section's
-  `addFiles`), `import-poses.js` (pure: an import's poses),
+  video and its caption; used by the Visuals section and import),
+  `visuals-ui.js` (a form's Visuals section, on ties, plans and workshops:
+  photos and videos, drawings and poses in one grid and one order, each
+  tile outlined in its kind's chart color with a key beside the label;
+  + opens "Add a visual from…"; each kind's own part is in `photos-ui.js`,
+  `drawings-ui.js` and `poses-ui.js`), `visual-viewer.js` (what their
+  details dialogs share: the caption with Save caption beside its label,
+  ← Move earlier and Move later →, swiping to the next, not focusing the
+  caption), `visual-order.js` (pure: merging the kinds' lists into one
+  order, reading a swipe), `visual-icons.js` (camera, play, pencil and
+  kneeling-figure icons), `photos-ui.js` (photos and videos: adding them,
+  and the viewer, which plays videos with speed buttons), `tile-drag.js`
+  (dragging the Visuals section's tiles into order),
+  `figure-rig.js` (pure: the poser's figure, its joints and limits, shapes,
+  and the body and arms presets, each leaving the other's joints alone),
+  `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
+  undo/redo), `pose-skeleton.js` (the bones posed, with three.js's math
+  only: where a joint or rope point is; tested), `pose-scene.js` (the 3D
+  view, with `vendor/three.js`; pictures of poses), `pose-editor.js` (the
+  poser: a full-screen dialog like the drawing pad; "Add to visuals" puts
+  a picture of the pose in the item's visuals as a photo), `poses-ui.js`
+  (poses: the poser, their pictures, and the viewer), `import-poses.js`
+  (pure: an import's poses),
   `drawing-format.js` (pure: the drawing format, simplifying a line, SVG
   paths and the export's SVG file), `drawing-edit.js` (pure: undo/redo and
   which line the eraser touches), `drawing-svg.js` (a drawing as SVG on
   the page), `drawing-editor.js` (the drawing pad: a full-screen dialog
   over the form, not a view, so the form isn't closed), `drawings-ui.js`
-  (a form's Drawings section, under Photos: its viewer's caption, Edit,
-  Duplicate, Copy to…; `saveDrawing`), `drawing-copy.js` (Copy to…'s
+  (drawings: the drawing pad, and the viewer's Edit, Duplicate, Copy to…;
+  `saveDrawing`), `drawing-copy.js` (Copy to…'s
   picker of ties, plans and workshops), `import-drawings.js` (pure: an
   import's drawings, taken off and saved once the rest is),
   `vendor/` (libraries copied from node_modules by

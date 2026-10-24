@@ -1,10 +1,9 @@
-// The Poses section of the tie, plan and workshop forms, under Drawings:
-// pictures of the item's poses in a grid, each with its caption, and a +
-// that opens the poser (pose-editor.js). Tapping one opens the viewer: a
-// bigger picture, its caption, Edit, Duplicate, Copy to… another tie, plan
-// or workshop, "Add as photo" (the picture goes into the form's Photos,
-// sealed like any photo), moving it earlier or later, and deleting it.
-// Poses can also be dragged into order, as drawings can.
+// Poses in a form's Visuals section (visuals-ui.js, which holds the grid
+// and the order): adding one with the poser (pose-editor.js), pictures of
+// them for their tiles, and the viewer: a bigger picture, Edit, its
+// caption, moving it earlier or later, Duplicate, Copy to… another tie,
+// plan or workshop, and deleting it. The poser's "Add to visuals" puts a
+// picture of the pose into the item's visuals, sealed like any photo.
 //
 // A pose is kept as numbers (pose-format.js), not encrypted; its caption
 // is, sealed here like notes. The pictures are drawn on this device from
@@ -13,17 +12,15 @@
 //
 // On something already saved, each change is saved as it's made. On a new
 // tie, plan or workshop, the poses wait in the form and are saved once it
-// is (savePending), as they need its id.
+// is, as they need its id.
 
 import { api, errorMessage } from "./api.js";
-import { h, showMessage, privateField } from "./dom.js";
+import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
 import { open, sealOne } from "./vault.js";
-import { MAX_CAPTION } from "./crypto/media.js";
 import { MAX_POSES } from "./pose-format.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
-import { moveItem } from "./drag-order.js";
-import { tileDrag } from "./tile-drag.js";
+import { viewerParts } from "./visual-viewer.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -31,12 +28,15 @@ import { tileDrag } from "./tile-drag.js";
 /**
  * A pose in the section: saved (with the server's id) or waiting for its
  * item to be saved (id null). url: its picture, once drawn.
- * @typedef {{ id: string | null, data: Pose, caption: string | null, unreadable?: boolean, url?: string }} Entry
+ * @typedef {{
+ *   id: string | null, data: Pose, caption: string | null, unreadable?: boolean, url?: string,
+ *   position?: number, created_at?: string,
+ * }} Entry
  */
 
 /** A thumbnail's size, 3:4 like a photo's. */
 const THUMB = { width: 300, height: 400, type: "image/jpeg", quality: 0.85 };
-/** The viewer's picture, and a photo made from a pose. */
+/** The viewer's picture, and a photo made from a pose ("Add to visuals"). */
 const FULL = { width: 900, height: 1200, type: "image/png" };
 
 /**
@@ -49,17 +49,6 @@ export async function savePose(item, { data, caption }) {
   const { caption: sealed } = await sealOne("pose", { caption });
   return (await api("/api/poses", { method: "POST", body: { ...item, data, caption: sealed } })).id;
 }
-
-/**
- * "Add as photo" for a form: puts a pose's picture into its Photos section,
- * which prepares and seals it like any photo.
- * @param {{ addFiles: (files: File[]) => Promise<string[]> }} photos the form's Photos section
- * @returns {(file: File) => Promise<void>}
- */
-export const intoPhotos = (photos) => async (file) => {
-  const problems = await photos.addFiles([file]);
-  if (problems.length) throw new Error(problems.join(" "));
-};
 
 /** The 3D code, fetched the first time it's needed. */
 const scene = () => import("./pose-scene.js");
@@ -77,55 +66,26 @@ async function picture(pose, size) {
 }
 
 /**
- * @param {{
- *   item: Item | null, idPrefix: string,
- *   addPhoto?: (file: File) => Promise<void>,
- * }} options item: what's being edited, or null for a new one (poses
- *   wait for savePending); addPhoto: puts a picture into the form's Photos
+ * Poses, for the Visuals section.
+ * @param {import("./visuals-ui.js").VisualContext} ctx
  */
-export function poseSection({ item, idPrefix, addPhoto }) {
+export function poseKind(ctx) {
+  const { idPrefix } = ctx;
   /** @type {Entry[]} */
   let poses = [];
-  let busy = 0;
-  let closed = false;
 
-  const status = h("p", { className: "message", id: `${idPrefix}-poses-message`, "aria-live": "polite" });
-  const grid = h("div", { className: "photo-grid", id: `${idPrefix}-poses` });
-  const drag = tileDrag(grid, {
-    count: () => poses.length,
-    onDrop: async (from, to) => {
-      try {
-        await saveOrder(moveItem(poses, from, to));
-        say("");
-      } catch (err) {
-        say("Couldn't move it: " + errorMessage(err), true);
-      }
-    },
-  });
-  const addButton = h("button", {
-    type: "button", className: "label-add", id: `${idPrefix}-add-pose`,
-    "aria-label": "Add pose", title: "Add pose", onclick: add,
-  }, "+");
-  const element = h("div", { className: "photo-section pose-section" },
-    h("div", { className: "label-row" }, h("label", {}, "Poses"), addButton),
-    grid,
-    item ? null : h("p", { className: "hint" }, "Poses are saved when you save this form."),
-    status);
-
-  /** @param {string} text @param {boolean} [isError] */
-  const say = (text, isError = false) => showMessage(status, text, isError);
-
-  async function load() {
-    if (!item) return;
-    try {
-      /** @type {{ id: string, data: Pose, caption: string | null }[]} */
-      const listed = await api(`/api/poses?${new URLSearchParams(item)}`);
-      const opened = await open("pose", listed);
-      poses = opened.map((d) => ({ id: d.id, data: d.data, caption: d.caption, unreadable: !!d.unreadable?.length }));
-      draw();
-    } catch (err) {
-      say("Couldn't load the poses: " + errorMessage(err), true);
-    }
+  /**
+   * @param {Item} item
+   * @returns {Promise<Entry[]>}
+   */
+  async function load(item) {
+    /** @type {{ id: string, data: Pose, caption: string | null, position: number, created_at: string }[]} */
+    const listed = await api(`/api/poses?${new URLSearchParams(item)}`);
+    const opened = await open("pose", listed);
+    poses = opened.map((d) => ({
+      id: d.id, data: d.data, caption: d.caption, unreadable: !!d.unreadable?.length, position: d.position, created_at: d.created_at,
+    }));
+    return poses;
   }
 
   /** Whether pictures are being drawn (only one run at a time). */
@@ -136,55 +96,40 @@ export function poseSection({ item, idPrefix, addPhoto }) {
     if (drawingPictures) return;
     drawingPictures = true;
     try {
-      for (let entry = poses.find((d) => !d.url); entry && !closed; entry = poses.find((d) => !d.url)) {
+      for (let entry = poses.find((d) => !d.url); entry && !ctx.closed(); entry = poses.find((d) => !d.url)) {
         const data = entry.data;
         const blob = await picture(data, THUMB);
-        if (closed) return;
+        if (ctx.closed()) return;
         if (!blob) {
-          say("This browser can't show 3D, so poses can't be shown or edited here.", true);
+          ctx.say("This browser can't show 3D, so poses can't be shown or edited here.", true);
           return;
         }
         // Kept only if the pose is still there and wasn't changed meanwhile.
         if (poses.includes(entry) && entry.data === data && !entry.url) entry.url = URL.createObjectURL(blob);
         else if (!poses.includes(entry)) continue;
-        draw();
+        ctx.draw();
       }
     } catch (err) {
-      say("Couldn't show a pose: " + errorMessage(err), true);
+      ctx.say("Couldn't show a pose: " + errorMessage(err), true);
     } finally {
       drawingPictures = false;
     }
   }
 
-  function draw() {
-    grid.replaceChildren(...poses.map((d, i) => {
-      const label = `Pose ${i + 1} of ${poses.length}${d.caption ? `: ${d.caption}` : ""}`;
-      return h("figure", { className: "photo-tile" },
-        h("button", { type: "button", className: "photo-thumb pose-thumb", "aria-label": label, onclick: () => view(d) },
-          d.url ? h("img", { src: d.url, alt: "" }) : h("span", { className: "pose-pending", "aria-hidden": "true" }, `Pose ${i + 1}`)),
-        d.caption ? h("figcaption", {}, d.caption)
-          : d.unreadable ? h("figcaption", { className: "deleted" }, "(can't decrypt the caption)") : null);
-    }));
-    addButton.disabled = poses.length >= MAX_POSES;
-    if (poses.some((d) => !d.url)) drawPictures();
+  /** @param {Entry} d */
+  function look(d) {
+    if (!d.url) queueMicrotask(drawPictures);
+    return {
+      icon: /** @type {const} */ ("pose"), noun: "Pose",
+      thumb: d.url ? h("img", { className: "pose-thumb", src: d.url, alt: "" }) : h("span", { className: "pose-pending", "aria-hidden": "true" }, "Pose"),
+      caption: d.caption, unreadable: !!d.unreadable,
+    };
   }
 
   /** @param {Entry} entry its picture's out of date */
   function forgetPicture(entry) {
     if (entry.url) URL.revokeObjectURL(entry.url);
     delete entry.url;
-  }
-
-  /**
-   * Puts the poses in this order, saving it if they're all saved.
-   * @param {Entry[]} order
-   */
-  async function saveOrder(order) {
-    if (item && order.every((d) => d.id)) {
-      await api("/api/poses/order", { method: "PUT", body: { ...item, ids: order.map((d) => d.id) } });
-    }
-    poses = order;
-    draw();
   }
 
   /**
@@ -195,9 +140,21 @@ export function poseSection({ item, idPrefix, addPhoto }) {
   async function append(data, caption) {
     /** @type {Entry} */
     const entry = { id: null, data, caption };
+    const item = ctx.item();
     if (item) entry.id = await savePose(item, entry);
     poses.push(entry);
-    draw();
+    ctx.append("pose", entry);
+  }
+
+  /**
+   * "Add to visuals" in the poser: a picture of the pose, added last as a photo.
+   * @param {Pose} pose
+   */
+  async function addPicture(pose) {
+    const blob = await picture(pose, FULL);
+    if (!blob) throw new Error("This browser can't draw the pose.");
+    const problems = await ctx.addPhotos([new File([blob], "Pose.png", { type: "image/png" })]);
+    if (problems.length) throw new Error(problems.join(" "));
   }
 
   /**
@@ -209,13 +166,13 @@ export function poseSection({ item, idPrefix, addPhoto }) {
     try {
       const { canDraw3d } = await scene();
       if (!canDraw3d()) {
-        say("This browser can't show 3D, so poses can't be made here. Try the latest Chrome or Safari.", true);
+        ctx.say("This browser can't show 3D, so poses can't be made here. Try the latest Chrome or Safari.", true);
         return null;
       }
       const { editPose } = await import("./pose-editor.js");
-      return await editPose(start);
+      return await editPose(start, { addToVisuals: addPicture });
     } catch (err) {
-      say("Couldn't open the poser: " + errorMessage(err), true);
+      ctx.say("Couldn't open the poser: " + errorMessage(err), true);
       return null;
     }
   }
@@ -223,72 +180,54 @@ export function poseSection({ item, idPrefix, addPhoto }) {
   async function add() {
     const data = await poser(null);
     if (!data) return;
-    busy++;
-    try {
-      say(item ? "Saving the pose…" : "");
-      await append(data, null);
-      say("");
-    } catch (err) {
-      say("Couldn't save the pose: " + errorMessage(err), true);
-    } finally {
-      busy--;
-    }
-  }
-
-  /**
-   * After a new item is saved: saves the poses waiting for it, in order.
-   * Ones that fail stay waiting, so saving again tries them again.
-   * @param {Item} target
-   * @returns {Promise<string | null>} what went wrong, or null
-   */
-  async function savePending(target) {
-    item = target;
-    const waiting = poses.filter((d) => !d.id);
-    for (const [i, entry] of waiting.entries()) {
-      say(`Saving pose ${i + 1} of ${waiting.length}…`);
+    await ctx.busy(async () => {
       try {
-        entry.id = await savePose(target, entry);
+        ctx.say(ctx.item() ? "Saving the pose…" : "");
+        await append(data, null);
+        ctx.say("");
       } catch (err) {
-        say("");
-        return errorMessage(err);
+        ctx.say("Couldn't save the pose: " + errorMessage(err), true);
       }
-    }
-    say("");
-    return null;
+    });
   }
 
   /** @param {Entry} entry */
   function view(entry) {
-    const index = () => poses.indexOf(entry);
     /** The viewer's own picture, revoked when it closes. @type {string | null} */
     let fullUrl = null;
     const message = h("p", { className: "message", id: `${idPrefix}-pose-viewer-message`, "aria-live": "polite" });
+    /** @param {string} text @param {boolean} [isError] */
+    const tell = (text, isError = false) => showMessage(message, text, isError);
     const image = h("img", { className: "pose-full", alt: "The pose", src: entry.url ?? "" });
-    const captionInput = privateField(h("input", {
-      id: `${idPrefix}-pose-caption`, maxLength: MAX_CAPTION, value: entry.caption ?? "", placeholder: "e.g. Step 2: the hip line",
-    }));
-    const earlier = h("button", { type: "button", id: `${idPrefix}-pose-earlier`, onclick: () => move(-1) }, "Move earlier");
-    const later = h("button", { type: "button", id: `${idPrefix}-pose-later`, onclick: () => move(1) }, "Move later");
+    const parts = viewerParts({
+      id: `${idPrefix}-pose`, noun: "Pose", caption: entry.caption, placeholder: "e.g. Step 2: the hip line",
+      nav: ctx.nav(entry), tell,
+      save: async (text) => {
+        if (entry.id) {
+          const { caption } = await sealOne("pose", { caption: text });
+          await api(`/api/poses/${entry.id}`, { method: "PUT", body: { caption } });
+        }
+        entry.caption = text;
+        entry.unreadable = false;
+        ctx.draw();
+      },
+    });
     const duplicateButton = h("button", { type: "button", id: `${idPrefix}-pose-duplicate`, onclick: duplicate }, "Duplicate");
-    const photoButton = addPhoto
-      ? h("button", { type: "button", id: `${idPrefix}-pose-photo`, onclick: toPhoto }, "Add as photo") : null;
-    const position = h("p", { className: "hint" });
 
     const dialog = h("dialog", { className: "form-dialog photo-viewer", "aria-label": "Pose" },
       h("div", { className: "pose-full-frame" }, image),
-      position,
-      h("label", { htmlFor: `${idPrefix}-pose-caption` }, "Caption"),
-      captionInput,
-      h("div", { className: "dialog-buttons" },
-        h("button", { type: "button", id: `${idPrefix}-pose-save-caption`, onclick: saveCaption }, "Save caption"),
-        h("button", { type: "button", id: `${idPrefix}-pose-edit`, onclick: edit }, "Edit pose"),
-        photoButton,
+      parts.position,
+      h("button", { type: "button", className: "outline-accent wide", id: `${idPrefix}-pose-edit`, onclick: edit }, "Edit pose"),
+      parts.captionRow,
+      parts.input,
+      parts.moveRow,
+      h("div", { className: "dialog-row" },
         duplicateButton,
-        h("button", { type: "button", id: `${idPrefix}-pose-copy`, onclick: copy }, "Copy to…"),
-        earlier, later),
+        h("button", { type: "button", id: `${idPrefix}-pose-copy`, onclick: copy }, "Copy to…")),
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"),
       h("button", { type: "button", className: "danger dialog-delete", id: `${idPrefix}-pose-delete`, onclick: remove }, "Delete pose"),
       message);
+    parts.attach(dialog);
     dialog.addEventListener("close", () => {
       if (fullUrl) URL.revokeObjectURL(fullUrl);
       dialog.remove();
@@ -307,36 +246,17 @@ export function poseSection({ item, idPrefix, addPhoto }) {
       }
     }
 
-    function showPosition() {
-      position.textContent = `Pose ${index() + 1} of ${poses.length}`;
-      earlier.disabled = index() <= 0;
-      later.disabled = index() >= poses.length - 1;
+    function refresh() {
+      parts.refresh();
       duplicateButton.disabled = poses.length >= MAX_POSES;
-    }
-
-    /** @param {string} text @param {boolean} [isError] */
-    const tell = (text, isError = false) => showMessage(message, text, isError);
-
-    async function saveCaption() {
-      const text = captionInput.value.trim() || null;
-      try {
-        if (entry.id) {
-          tell("Saving…");
-          const { caption } = await sealOne("pose", { caption: text });
-          await api(`/api/poses/${entry.id}`, { method: "PUT", body: { caption } });
-        }
-        entry.caption = text;
-        entry.unreadable = false;
-        draw();
-        tell("Caption saved.");
-      } catch (err) {
-        tell("Couldn't save the caption: " + errorMessage(err), true);
-      }
     }
 
     async function edit() {
       const data = await poser(entry.data);
-      if (!data) return;
+      if (!data) {
+        refresh();
+        return;
+      }
       try {
         if (entry.id) {
           tell("Saving…");
@@ -344,7 +264,8 @@ export function poseSection({ item, idPrefix, addPhoto }) {
         }
         entry.data = data;
         forgetPicture(entry);
-        draw();
+        ctx.draw();
+        refresh();
         await showFull();
         tell("Pose saved.");
       } catch (err) {
@@ -352,36 +273,21 @@ export function poseSection({ item, idPrefix, addPhoto }) {
       }
     }
 
-    async function toPhoto() {
-      if (!addPhoto) return;
-      try {
-        tell("Adding the photo…");
-        const blob = await picture(entry.data, FULL);
-        if (!blob) throw new Error("This browser can't draw the pose.");
-        const name = `${(entry.caption ?? `Pose ${index() + 1}`).replace(/[^\w .-]+/g, "").trim() || "Pose"}.png`;
-        await addPhoto(new File([blob], name, { type: "image/png" }));
-        tell("Added to Photos and videos, above.");
-      } catch (err) {
-        tell("Couldn't add the photo: " + errorMessage(err), true);
-      }
-    }
-
     async function duplicate() {
-      busy++;
-      try {
-        tell(item ? "Duplicating…" : "");
-        await append(entry.data, entry.caption);
-        showPosition();
-        tell("Duplicated: the copy is last, and can be edited on its own.");
-      } catch (err) {
-        tell("Couldn't duplicate it: " + errorMessage(err), true);
-      } finally {
-        busy--;
-      }
+      await ctx.busy(async () => {
+        try {
+          tell(ctx.item() ? "Duplicating…" : "");
+          await append(entry.data, entry.caption);
+          refresh();
+          tell("Duplicated: the copy is last, and can be edited on its own.");
+        } catch (err) {
+          tell("Couldn't duplicate it: " + errorMessage(err), true);
+        }
+      });
     }
 
     async function copy() {
-      const target = await chooseCopyTarget({ exclude: item, noun: "pose" });
+      const target = await chooseCopyTarget({ exclude: ctx.item(), noun: "pose" });
       if (!target) return;
       try {
         tell("Copying…");
@@ -392,24 +298,10 @@ export function poseSection({ item, idPrefix, addPhoto }) {
       }
     }
 
-    /** @param {number} step -1 earlier, 1 later */
-    async function move(step) {
-      const from = index();
-      const to = from + step;
-      if (to < 0 || to >= poses.length) return;
-      try {
-        await saveOrder(moveItem(poses, from, to));
-        showPosition();
-        tell("");
-      } catch (err) {
-        tell("Couldn't move it: " + errorMessage(err), true);
-      }
-    }
-
     async function remove() {
       const choice = await choose({
         title: "Delete this pose?",
-        message: "It'll be gone for good. Copies of it elsewhere, and photos made from it, are kept.",
+        message: "It'll be gone for good. Copies of it elsewhere, and pictures added from it, are kept.",
         choices: [{ label: "Delete pose", value: "delete", style: "solid-danger" }],
       });
       if (choice !== "delete") return;
@@ -417,35 +309,28 @@ export function poseSection({ item, idPrefix, addPhoto }) {
         if (entry.id) await api(`/api/poses/${entry.id}`, { method: "DELETE" });
         forgetPicture(entry);
         poses = poses.filter((d) => d !== entry);
-        draw();
+        ctx.remove(entry);
         dialog.close();
       } catch (err) {
         tell("Couldn't delete: " + errorMessage(err), true);
       }
     }
 
-    document.body.append(dialog);
-    dialog.showModal();
-    showPosition();
+    parts.show(dialog);
+    refresh();
     showFull();
   }
 
-  /** Lets go of the section (when its form closes). */
-  function close() {
-    closed = true;
-    drag.stop();
-    for (const entry of poses) forgetPicture(entry);
-    poses = [];
-  }
-
-  load();
   return {
-    element,
-    savePending,
-    close,
-    /** Whether a pose is being saved. */
-    get busy() { return busy > 0; },
-    /** Whether any poses are waiting for the item to be saved. */
-    get waiting() { return poses.some((d) => !d.id); },
+    load,
+    look,
+    view,
+    add,
+    room: () => (poses.length >= MAX_POSES ? `There can be at most ${MAX_POSES} poses.` : null),
+    /** @param {Entry} entry */
+    waiting: (entry) => !entry.id,
+    /** @param {Entry} entry @param {Item} target */
+    savePending: async (entry, target) => { entry.id = await savePose(target, entry); },
+    forget: forgetPicture,
   };
 }
