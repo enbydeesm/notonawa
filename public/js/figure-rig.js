@@ -226,8 +226,8 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
       l_shoulder: [0, 5, 87], l_elbow: [150], l_wrist: [-10, -20], r_shoulder: [0, 5, 87], r_elbow: [150], r_wrist: [-10, -20],
     },
   },
-  // The arms straight down behind the back.
-  { name: "Tenshi", joints: { l_shoulder: [-48, 5, -2], r_shoulder: [-48, 5, -2] } },
+  // The elbows back, the forearms folded forward beside the chest.
+  { name: "Tenshi", joints: { l_shoulder: [-48, 5, -2], l_elbow: [150], r_shoulder: [-48, 5, -2], r_elbow: [150] } },
   // The forearms across the front of the chest, the hands crossing, as in a hug.
   {
     name: "Crossed (hug)", joints: {

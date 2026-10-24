@@ -279,13 +279,18 @@ describe("the figure, posed", () => {
     expect(hands[1].x).toBeLessThan(-25);
   });
 
-  it("in tenshi, has the arms straight down and back, behind the body", () => {
+  it("in tenshi, has the elbows back and the hands folded forward beside the chest", () => {
     const f = figure("Standing, Tenshi");
-    for (const [i, w] of f.wrists.entries()) {
-      expect(w.z).toBeLessThan(-30);
-      expect(w.y).toBeLessThan(f.elbows[i].y - 10);
-      expect(f.elbows[i].z).toBeLessThan(-15);
+    const shoulder = f.at("l_shoulder").y;
+    for (const elbow of f.elbows) expect(elbow.z).toBeLessThan(-15);
+    const hands = [f.at("l_wrist", [0, -6, 0]), f.at("r_wrist", [0, -6, 0])];
+    for (const [i, hand] of hands.entries()) {
+      expect(hand.z).toBeGreaterThan(f.elbows[i].z + 20);
+      expect(hand.y).toBeGreaterThan(f.elbows[i].y);
+      expect(hand.y).toBeLessThan(shoulder);
     }
+    expect(hands[0].x).toBeGreaterThan(15);
+    expect(hands[1].x).toBeLessThan(-15);
   });
 
   it("kneels with its shins on the floor", () => {
