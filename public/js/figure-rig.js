@@ -163,7 +163,7 @@ export const ORIENTATIONS = Object.freeze([
   { name: "Upright", body: /** @type {[number, number, number]} */ ([0, 0, 0]) },
   { name: "Face down", body: /** @type {[number, number, number]} */ ([90, 0, 0]) },
   { name: "Face up", body: /** @type {[number, number, number]} */ ([-90, 0, 0]) },
-  { name: "On its side", body: /** @type {[number, number, number]} */ ([0, 0, 90]) },
+  { name: "On their side", body: /** @type {[number, number, number]} */ ([0, 0, 90]) },
   // Tipped right over and turned round, so it still faces the front.
   { name: "Upside down", body: /** @type {[number, number, number]} */ ([180, 180, 0]) },
 ]);
@@ -185,7 +185,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
-    name: "Kneeling", body: [0, 0, 0], lift: 29,
+    name: "Kneeling (seiza)", body: [0, 0, 0], lift: 29,
     joints: { l_hip: [65, 8, 0], r_hip: [65, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
   },
   { name: "Kneeling up", body: [0, 0, 0], lift: 55, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
@@ -199,7 +199,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
     joints: { head: [30, 0, 0], l_hip: [60, 10, 0], r_hip: [20, 10, 0], l_knee: [90], r_knee: [40] },
   },
   {
-    name: "On its side", body: [0, 0, 90], lift: 110,
+    name: "On their side", body: [0, 0, 90], lift: 110,
     joints: { spine: [10, 0, 0], l_hip: [90, 0, 0], l_knee: [140], r_hip: [20, 0, 0], r_knee: [30] },
   },
   {
@@ -214,13 +214,26 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
  */
 export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
   { name: "At sides", joints: {} },
-  // A box tie: the upper arms back enough that the forearms clear the
-  // back, folded across each other, one a little lower than the other.
-  { name: "Behind back", joints: { l_shoulder: [-40, 10, -90], l_elbow: [100], r_shoulder: [-48, 10, -90], r_elbow: [110] } },
-  // The forearms across the front of the chest, one above the other.
-  { name: "Crossed in front", joints: { l_shoulder: [40, 0, -90], l_elbow: [90], r_shoulder: [50, 0, -90], r_elbow: [100] } },
-  // Elbows up and out, hands meeting behind the head.
-  { name: "Arms behind head", joints: { l_shoulder: [170, -20, -45], l_elbow: [120], r_shoulder: [170, -20, -45], r_elbow: [120] } },
+  // The upper arms back enough that the forearms clear the back, folded
+  // across each other, one a little lower than the other.
+  { name: "Boxtie", joints: { l_shoulder: [-21, 5, -90], l_elbow: [105], r_shoulder: [-21, 5, -90], r_elbow: [90] } },
+  // Elbows up past the head, hands meeting behind the neck.
+  { name: "Bunny ears", joints: { l_shoulder: [180, 2, -50], l_elbow: [142], r_shoulder: [180, 2, -50], r_elbow: [142] } },
+  // Elbows down by the sides, the forearms folded up and out, hands at the
+  // shoulders' height.
+  {
+    name: "Tengu", joints: {
+      l_shoulder: [0, 5, 87], l_elbow: [150], l_wrist: [-10, -20], r_shoulder: [0, 5, 87], r_elbow: [150], r_wrist: [-10, -20],
+    },
+  },
+  // The arms straight down behind the back.
+  { name: "Tenshi", joints: { l_shoulder: [-48, 5, -2], r_shoulder: [-48, 5, -2] } },
+  // The forearms across the front of the chest, the hands crossing, as in a hug.
+  {
+    name: "Crossed (hug)", joints: {
+      l_shoulder: [20, 3, -65], l_elbow: [133], l_wrist: [20, 0], r_shoulder: [20, 3, -65], r_elbow: [133], r_wrist: [20, 0],
+    },
+  },
 ]));
 
 /**

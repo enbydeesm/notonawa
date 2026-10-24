@@ -280,7 +280,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ← Move earlier and Move later →, swiping to the next, not focusing the
   caption), `visual-order.js` (pure: merging the kinds' lists into one
   order, reading a swipe), `visual-icons.js` (camera, play, pencil and
-  kneeling-figure icons), `photos-ui.js` (photos and videos: adding them,
+  high-kicking figure icons), `photos-ui.js` (photos and videos: adding them,
   and the viewer, which plays videos with speed buttons), `tile-drag.js`
   (dragging the Visuals section's tiles into order),
   `figure-rig.js` (pure: the poser's figure, its joints and limits, shapes,

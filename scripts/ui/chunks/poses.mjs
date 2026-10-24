@@ -82,7 +82,7 @@ export default async function () {
       getComputedStyle($("#pose-view-choice")).backgroundColor, options("#pose-view-choice")[0],
       options("#pose-body-preset").slice(0, 4), options("#pose-arms-preset"), $("#pose-add-visual").textContent];`),
   ["Drag to turn · 2 fingers to pan · pinch to zoom", true, true, "rgb(217, 211, 200)", "View",
-    ["Body…", "Standing", "Kneeling", "Kneeling up"], ["Arms…", "At sides", "Behind back", "Crossed in front", "Arms behind head"],
+    ["Body…", "Standing", "Kneeling (seiza)", "Kneeling up"], ["Arms…", "At sides", "Boxtie", "Bunny ears", "Tengu", "Tenshi", "Crossed (hug)"],
     "Add to visuals"]);
   check("undo, redo and download are icons, named for screen readers", await run(`
     return ["#pose-undo", "#pose-redo", "#pose-download"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]);`),
@@ -178,7 +178,7 @@ export default async function () {
     const media = await (await fetch("/api/media?tie_id=" + tie.id)).json();
     return [!!document.querySelector("dialog[open]"), p.data.body, p.data.joints.l_elbow, p.data.ring, p.data.ropes.length,
       p.data.ropes[0].p.length, p.caption, media.map((m) => [m.kind, m.position]), p.position];`),
-  [false, [0, 20, 0], [100], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
+  [false, [0, 20, 0], [105], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
 
   check("a caption is saved encrypted and shown under the pose", await run(`
     ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);

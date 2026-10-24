@@ -238,37 +238,58 @@ describe("the figure, posed", () => {
     expect(toes.at("l_ankle", [0, 0, 15]).y).toBeGreaterThan(toes.at("l_ankle").y + 5);
   });
 
-  it("in a box tie, has the elbows and wrists behind the back, the forearms crossing", () => {
-    const f = figure("Standing, Behind back");
+  it("in a box tie, has the elbows and wrists at the back, the forearms crossing", () => {
+    const f = figure("Standing, Boxtie");
     const backOfChest = f.at("chest", [0, 12, -10.5]).z;
-    for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeLessThan(backOfChest - 3);
+    for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeLessThan(backOfChest + 3);
     // Each forearm reaches past the middle of the back.
-    expect(f.wrists[0].x).toBeLessThan(2);
-    expect(f.wrists[1].x).toBeGreaterThan(-2);
-    // One above the other, so they don't pass through each other.
-    expect(Math.abs(f.wrists[0].y - f.wrists[1].y)).toBeGreaterThan(5);
-  });
-
-  it("with its arms crossed in front, has the forearms across the chest, one above the other", () => {
-    const f = figure("Standing, Crossed in front");
-    const frontOfChest = f.at("chest", [0, 12, 10]).z;
-    for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeGreaterThan(frontOfChest + 4);
     expect(f.wrists[0].x).toBeLessThan(0);
     expect(f.wrists[1].x).toBeGreaterThan(0);
-    expect(Math.abs(f.wrists[0].y - f.wrists[1].y)).toBeGreaterThan(5);
+    // One above the other, so they don't pass through each other.
+    expect(Math.abs(f.wrists[0].y - f.wrists[1].y)).toBeGreaterThan(4);
   });
 
-  it("with its arms behind its head, has the hands behind the head and the elbows out", () => {
-    const f = figure("Standing, Arms behind head");
+  it("in a hug, has the forearms across the front of the chest, the hands crossing", () => {
+    const f = figure("Standing, Crossed (hug)");
+    const frontOfChest = f.at("chest", [0, 12, 10]).z;
+    for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeGreaterThan(frontOfChest - 2);
+    for (const w of f.wrists) expect(Math.abs(w.x)).toBeLessThan(4);
+    expect(f.at("l_wrist", [0, -6, 0]).x).toBeLessThan(0);
+    expect(f.at("r_wrist", [0, -6, 0]).x).toBeGreaterThan(0);
+  });
+
+  it("with bunny ears, has the elbows up past the head and the hands behind the neck", () => {
+    const f = figure("Standing, Bunny ears");
     const hands = [f.at("l_wrist", [0, -6, 0]), f.at("r_wrist", [0, -6, 0])];
-    for (const hand of hands) expect(hand.z).toBeLessThan(f.head.z - 12);
-    for (const hand of hands) expect(Math.abs(hand.y - f.head.y)).toBeLessThan(8);
-    expect(f.elbows[0].x).toBeGreaterThan(20);
-    expect(f.elbows[1].x).toBeLessThan(-20);
+    for (const hand of hands) expect(hand.z).toBeLessThan(f.head.z - 10);
+    for (const hand of hands) expect(hand.y).toBeGreaterThan(f.at("l_shoulder").y);
+    for (const hand of hands) expect(hand.y).toBeLessThan(f.head.y);
+    for (const elbow of f.elbows) expect(elbow.y).toBeGreaterThan(f.head.y);
+    expect(f.elbows[0].x).toBeGreaterThan(12);
+    expect(f.elbows[1].x).toBeLessThan(-12);
+  });
+
+  it("in tengu, has the elbows down at the sides and the hands up and out at the shoulders' height", () => {
+    const f = figure("Standing, Tengu");
+    const shoulder = f.at("l_shoulder").y;
+    for (const elbow of f.elbows) expect(elbow.y).toBeLessThan(shoulder - 20);
+    const hands = [f.at("l_wrist", [0, -6, 0]), f.at("r_wrist", [0, -6, 0])];
+    for (const hand of hands) expect(Math.abs(hand.y - shoulder)).toBeLessThan(8);
+    expect(hands[0].x).toBeGreaterThan(25);
+    expect(hands[1].x).toBeLessThan(-25);
+  });
+
+  it("in tenshi, has the arms straight down and back, behind the body", () => {
+    const f = figure("Standing, Tenshi");
+    for (const [i, w] of f.wrists.entries()) {
+      expect(w.z).toBeLessThan(-30);
+      expect(w.y).toBeLessThan(f.elbows[i].y - 10);
+      expect(f.elbows[i].z).toBeLessThan(-15);
+    }
   });
 
   it("kneels with its shins on the floor", () => {
-    for (const name of ["Kneeling", "Kneeling up"]) {
+    for (const name of ["Kneeling (seiza)", "Kneeling up"]) {
       const f = figure(name);
       for (const knee of f.knees) expect(knee.y, name).toBeGreaterThan(3);
       for (const knee of f.knees) expect(knee.y, name).toBeLessThan(9);
@@ -282,7 +303,7 @@ describe("the figure, posed", () => {
     expect(down.head.z).toBeGreaterThan(down.pelvis.z + 40);
     const up = figure("Face up");
     expect(up.face.y).toBeGreaterThan(up.head.y);
-    const side = figure("On its side");
+    const side = figure("On their side");
     expect(Math.abs(side.head.y - side.pelvis.y)).toBeLessThan(25);
     // Lying on its right side: the left shoulder above the right.
     expect(side.at("l_shoulder").y).toBeGreaterThan(side.at("r_shoulder").y);
@@ -301,7 +322,7 @@ describe("the figure, posed", () => {
       if (name === "Upside down") expect(up, name).toBeLessThan(-40);
       if (name === "Face down") expect(f.face.y, name).toBeLessThan(f.head.y);
       if (name === "Face up") expect(f.face.y, name).toBeGreaterThan(f.head.y);
-      if (name === "On its side") expect(Math.abs(up), name).toBeLessThan(10);
+      if (name === "On their side") expect(Math.abs(up), name).toBeLessThan(10);
     }
   });
 
@@ -427,18 +448,18 @@ describe("changing a pose", () => {
   });
 
   it("keeps the arms when the body changes, and the body when the arms do", () => {
-    const behind = /** @type {any} */ (ARMS_PRESETS.find((x) => x.name === "Behind back"));
-    const kneeling = /** @type {any} */ (BODY_PRESETS.find((x) => x.name === "Kneeling"));
+    const behind = /** @type {any} */ (ARMS_PRESETS.find((x) => x.name === "Boxtie"));
+    const kneeling = /** @type {any} */ (BODY_PRESETS.find((x) => x.name === "Kneeling (seiza)"));
     const up = /** @type {any} */ (BODY_PRESETS.find((x) => x.name === "Kneeling up"));
     // Kneeling, arms at the sides; then behind the back; then kneeling up.
     let p = page.withPosture(page.newPose(), withBodyPreset(page.newPose(), kneeling));
     expect(ARM_JOINTS.every((j) => p.joints[j].every((a) => a === 0))).toBe(true);
     p = page.withPosture(p, withArmsPreset(p, behind));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([29, [155], [100]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([29, [155], [105]]);
     // An arm moved by hand stays as it is, too.
     p = page.setJoint(p, "r_wrist", 0, 30);
     p = page.withPosture(p, withBodyPreset(p, up));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([55, [90], [100], [30, 0]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([55, [90], [105], [30, 0]]);
     expect(p.joints.l_hip).toEqual([0, 0, 0]);
   });
 
