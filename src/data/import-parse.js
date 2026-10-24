@@ -31,6 +31,7 @@ const MAX_ID_LENGTH = 100;
  * @typedef {Times & {
  *   file_id: string, name: string, pronouns: string | null, notes: string | null, is_self: 0 | 1,
  *   default_role: string | null, is_educator: 0 | 1, based_in: string | null, aliases: string | null,
+ *   about: string | null,
  *   archived_at: string | null, profile_notes: ProfileNoteInput[],
  * }} PersonInput
  * @typedef {Times & {
@@ -255,12 +256,12 @@ function parseImportTiePlans(value) {
 /** @param {Record<string, unknown>} p @returns {PersonInput} */
 function parsePerson(p) {
   const { values } = parseFields(RESOURCES.people, p);
-  const [name, pronouns, notes, isSelf, defaultRole, isEducator, basedIn, aliases] =
-    /** @type {[string, string | null, string | null, 0 | 1, string | null, 0 | 1, string | null, string | null]} */ (values);
+  const [name, pronouns, notes, isSelf, defaultRole, isEducator, basedIn, aliases, about] =
+    /** @type {[string, string | null, string | null, 0 | 1, string | null, 0 | 1, string | null, string | null, string | null]} */ (values);
   return {
     file_id: /** @type {string} */ (parseId(p.id)),
     name, pronouns, notes, is_self: isSelf, default_role: defaultRole,
-    is_educator: isEducator, based_in: basedIn, aliases,
+    is_educator: isEducator, based_in: basedIn, aliases, about,
     ...archiveAndTimes(p),
     profile_notes: list(p.profile_notes, "Profile notes", MAX_ITEMS).map((n) => parseProfileNote(asObject(n))),
   };

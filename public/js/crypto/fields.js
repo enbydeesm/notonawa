@@ -22,7 +22,7 @@ import { toBase64url, fromBase64url } from "./keys.js";
 export const ENCRYPTED = /** @type {const} */ ({
   tie: { table: "ties", fields: ["notes", "album_url"] },
   participant: { table: "tie_participants", fields: ["notes"] },
-  person: { table: "people", fields: ["notes", "based_in", "aliases"] },
+  person: { table: "people", fields: ["notes", "based_in", "aliases", "about"] },
   profileNote: { table: "profile_notes", fields: ["description"] },
   location: { table: "locations", fields: ["notes"] },
   plan: { table: "plans", fields: ["description", "notes", "album_url"] },

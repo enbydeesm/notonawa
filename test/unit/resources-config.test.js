@@ -33,6 +33,7 @@ describe("parseFields", () => {
     // A person's city and other names are sealed in the browser, like notes.
     expect(() => parseFields(RESOURCES.people, { name: "x", based_in: "Seattle, WA" })).toThrow("weren't encrypted");
     expect(() => parseFields(RESOURCES.people, { name: "x", aliases: '[{"platform":"scene","alias":"k"}]' })).toThrow("weren't encrypted");
+    expect(() => parseFields(RESOURCES.people, { name: "x", about: "Rigger in Seattle" })).toThrow("weren't encrypted");
     expect(parseFields(RESOURCES.people, { name: "x", is_educator: true }).values).toContain(1);
     // A plan's stage is no longer on the form, so edits leave it alone.
     expect(parseFields(RESOURCES.plans, { title: "x" }, { editing: true }).columns).not.toContain("stage");
@@ -41,13 +42,13 @@ describe("parseFields", () => {
   it("leaves out create-only fields when editing: an edit can't change who is me", () => {
     expect(parseFields(RESOURCES.people, { name: "Sam", is_self: true }).columns).toContain("is_self");
     const edit = parseFields(RESOURCES.people, { name: "Sam", is_self: true }, { editing: true });
-    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role", "is_educator", "based_in", "aliases"]);
-    expect(edit.values).toEqual(["Sam", null, null, null, 0, null, null]);
+    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role", "is_educator", "based_in", "aliases", "about"]);
+    expect(edit.values).toEqual(["Sam", null, null, null, 0, null, null, null]);
   });
 
   it("ignores fields that aren't part of the resource", () => {
     const { columns } = parseFields(RESOURCES.people, { name: "Sam", owner_id: "someone-else", archived_at: "x" });
-    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role", "is_educator", "based_in", "aliases"]);
+    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role", "is_educator", "based_in", "aliases", "about"]);
   });
 });
 

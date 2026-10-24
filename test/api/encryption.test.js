@@ -32,7 +32,7 @@ describe("encrypting older notes", () => {
     expect(pending).toEqual({
       ties: [{ id: `t-${me.id}`, notes: "plain tie", album_url: null }],
       tie_participants: [{ id: `tp-${me.id}`, notes: "plain part" }],
-      people: [{ id: `p-${me.id}`, notes: "plain person", based_in: null, aliases: null }],
+      people: [{ id: `p-${me.id}`, notes: "plain person", based_in: null, aliases: null, about: null }],
       profile_notes: [{ id: `n-${me.id}`, description: "plain like" }],
       locations: [{ id: `l-${me.id}`, notes: "plain location" }],
       plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed"), album_url: null }],

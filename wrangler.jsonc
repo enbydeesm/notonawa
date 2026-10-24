@@ -110,6 +110,10 @@
 	// be, so it has its own (otherwise it would claim notonawa.app).
 	// No backups (BACKUP_PUBLIC_KEY is empty, so the daily job skips them)
 	// and no feedback emails (without FEEDBACK_EMAIL, nothing is sent).
+	// `npm run dev` runs this environment on localhost (RP_ID and ORIGIN from
+	// .dev.vars) with its remote database and photos bucket, so local work
+	// never touches the real journal. Passkeys made there work only on
+	// localhost, and new code needs its migrations applied here first.
 	"env": {
 		"dev": {
 			"name": "notonawa-dev",
@@ -138,14 +142,16 @@
 			"r2_buckets": [
 				{
 					"binding": "PHOTOS",
-					"bucket_name": "notonawa-photos-dev"
+					"bucket_name": "notonawa-photos-dev",
+					"remote": true
 				}
 			],
 			"d1_databases": [
 				{
 					"binding": "DB",
 					"database_name": "notonawa-dev",
-					"database_id": "da883076-6cad-4ef2-9bfe-59143e5256a6"
+					"database_id": "da883076-6cad-4ef2-9bfe-59143e5256a6",
+					"remote": true
 				}
 			]
 		}

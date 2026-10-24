@@ -75,6 +75,21 @@ export default async function () {
     [["Edit person", "Sam", "Save changes", "e.g. Seattle, WA"], ["Scene name", "FetLife", "Instagram", "X/Twitter", "Bluesky", "Other"], [], [true, true, 1],
       ["Sam", "they/them", "Bottom", true, ["based in Seattle, WA", "aka fetlife: knotsam · instagram: @sam"], 1], false,
       [["fetlife:knotsam", "instagram:@sam"], "Prefers floor work", "Seattle, WA", true]]);
+  check("my profile has About me, apart from private notes; others' cards and a new person don't show it while empty", await run(`
+    await openPerson("Me");
+    const beside = (label, hint) => Math.abs(label.getBoundingClientRect().top - hint.getBoundingClientRect().top) < 6
+      && hint.getBoundingClientRect().left > label.getBoundingClientRect().right;
+    const shown = [$("#person-about-field").hidden, $("#person-about-label").textContent, $("#person-about-hint").textContent,
+      $("#person-about").readOnly, $("label[for=person-notes]").textContent, $("#person-notes-hint").textContent,
+      beside($("#person-about-label"), $("#person-about-hint")), beside($("label[for=person-notes]"), $("#person-notes-hint"))];
+    set("#person-about", "Rigger, mostly floor"); await submit();
+    const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self);
+    await openPerson("Me"); const refilled = $("#person-about").value; $("[data-cancel-edit]").click(); await wait(200);
+    await openPerson("Sam"); const onSam = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await wait(200);
+    $("#add-person").click(); await wait(300); const onAdd = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await wait(200);
+    return [shown, /^e1\\./.test(me.about), refilled, onSam, onAdd, leakyFields()];`),
+    [[false, "About me", "What a profile invite may optionally share.", false, "Private notes", "These are never shared.", true, true],
+      true, "Rigger, mostly floor", true, true, []]);
   check("people: a search card (by name or alias) and sorts by name or date added (newest first to start), with me always on top", await run(`
     const box = $(".list-search"); const sort = (k) => $(".sort-button[data-sort=" + k + "]");
     const label = (k) => sort(k).getAttribute("aria-label");
@@ -100,4 +115,17 @@ export default async function () {
     const opened = [$("#person-dialog").open, $("#person-name").value, personButtons()];
     $("[data-cancel-edit]").click(); await wait(200);
     return opened;`), [true, "Alex", ["Close", "Restore", "Delete"]]);
+
+  // Until profile invites are built, only an import puts About on someone
+  // else's card: this adds one through the API, as an import would.
+  await run(`
+    const { sealOne } = await import("/js/vault.js");
+    const body = await sealOne("person", { name: "Robin", about: "Teaches on weekends" });
+    await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });`);
+  await go("/people");
+  check("someone else's About shows as theirs, read-only", await run(`
+    await openPerson("Robin");
+    const shown = [$("#person-about-field").hidden, $("#person-about-label").textContent, $("#person-about").readOnly, $("#person-about").value];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return shown;`), [false, "About them", true, "Teaches on weekends"]);
 }

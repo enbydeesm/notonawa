@@ -69,9 +69,10 @@ const SQL = {
   tags: `INSERT INTO tags (id, owner_id, name)
          SELECT ${j("id")}, ?1, ${j("name")} FROM json_each(?2) j WHERE true
          ON CONFLICT (owner_id, name) DO NOTHING`,
-  people: `INSERT INTO people (id, owner_id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at)
+  people: `INSERT INTO people (id, owner_id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about,
+                              archived_at, created_at, updated_at)
            SELECT ${j("id")}, ?1, ${j("name")}, ${j("pronouns")}, ${j("notes")}, ${j("is_self")}, ${j("default_role")},
-                  ${j("is_educator")}, ${j("based_in")}, ${j("aliases")},
+                  ${j("is_educator")}, ${j("based_in")}, ${j("aliases")}, ${j("about")},
                   ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
              FROM json_each(?2) j`,
   // The people are new rows of mine (?1 isn't needed: profile notes have no owner).

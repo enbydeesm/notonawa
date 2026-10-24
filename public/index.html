@@ -265,7 +265,21 @@
         </div>
         <div id="person-aliases" role="group" aria-labelledby="person-aliases-label"></div>
 
-        <label for="person-notes">Notes</label>
+        <!-- About: "About me" on my own profile, what a profile invite can
+             share; on anyone else's, what they shared, shown only when there
+             is some and not edited here (people.js). Encrypted. -->
+        <div id="person-about-field" hidden>
+          <div class="label-row">
+            <label for="person-about" id="person-about-label">About me</label>
+            <span class="hint" id="person-about-hint"></span>
+          </div>
+          <textarea id="person-about" name="about" autocomplete="off" spellcheck="false"></textarea>
+        </div>
+
+        <div class="label-row">
+          <label for="person-notes">Private notes</label>
+          <span class="hint" id="person-notes-hint">These are never shared.</span>
+        </div>
         <textarea id="person-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <button type="submit" class="primary">Add person</button>

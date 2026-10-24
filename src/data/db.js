@@ -18,7 +18,7 @@ export async function readAccount(db, userId) {
               top_label, bottom_label, theme, seen_release, hide_welcome
          FROM users WHERE id = ?`),
     q("SELECT name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at"),
-    q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at
+    q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, archived_at, created_at, updated_at
          FROM people WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT n.person_id, n.type, n.description, n.noted_on, n.is_current, n.created_at, n.updated_at
          FROM profile_notes n JOIN people p ON p.id = n.person_id

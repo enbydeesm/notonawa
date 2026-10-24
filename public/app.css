@@ -419,6 +419,9 @@ button.switch { flex: none; padding: 4px; border: none; border-radius: 999px; }
    the label's text; an invisible margin around it keeps it easy to tap. */
 .label-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
 .label-row label { margin: 0; min-width: 3.75rem; }
+/* A hint beside a label (the People dialog's About me and Private notes):
+   quieter than the label it sits next to, which is muted too. */
+.label-row .hint { margin: 0; font-size: 0.8rem; font-style: italic; opacity: 0.8; }
 .label-add {
   position: relative; width: 1rem; height: 1rem;
   font-size: 0.95rem; font-weight: 600; border-radius: 4px;

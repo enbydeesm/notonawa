@@ -71,7 +71,8 @@ describe("planFor", () => {
   it("runs an area's tests and chunks for one of its files", () => {
     const plan = planFor(["public/js/views/people.js"]);
     expect(plan.areas).toEqual(["people"]);
-    expect(plan.tests).toEqual(["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js"]);
+    expect(plan.tests).toEqual(["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js",
+      "test/unit/person-about.test.js"]);
     expect(plan.ui).toEqual(["people", "locations", "ties", "search"]);
     expect(plan.generated).toEqual([]);
   });

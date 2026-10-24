@@ -95,7 +95,7 @@ export function exportDocument(rows, exportedAt) {
     },
     people: rows.people.map((p) => ({
       id: p.id, name: p.name, pronouns: p.pronouns, notes: p.notes, is_self: !!p.is_self, default_role: p.default_role,
-      is_educator: !!p.is_educator, based_in: p.based_in, aliases: p.aliases,
+      is_educator: !!p.is_educator, based_in: p.based_in, aliases: p.aliases, about: p.about,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       profile_notes: (notesByPerson.get(p.id) ?? []).map((n) => ({
         type: n.type, description: n.description, noted_on: n.noted_on, is_current: !!n.is_current,

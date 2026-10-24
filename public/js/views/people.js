@@ -9,6 +9,7 @@ import { roleName, roleOptions } from "../roles.js";
 import { capitalise } from "../format.js";
 import { PLATFORMS, readAliases, aliasesText, akaText } from "../aliases.js";
 import { CAP_PATHS } from "../nav.js";
+import { aboutField } from "../person-about.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -78,6 +79,16 @@ export function mount(_root, { signal }) {
 
   $("#person-add-alias").addEventListener("click", () => addAliasRow().focus(), { signal });
 
+  /** About me on my own profile; on others', what they shared, read-only (person-about.js). */
+  function showAbout(/** @type {any} */ person) {
+    const about = aboutField(person);
+    $("#person-about-field").hidden = !about;
+    if (!about) return;
+    $("#person-about-label").textContent = about.label;
+    $("#person-about-hint").textContent = about.hint;
+    /** @type {HTMLTextAreaElement} */ ($("#person-about")).readOnly = about.readOnly;
+  }
+
   const page = setupResourcePage({
     resource: "people",
     signal,
@@ -94,6 +105,7 @@ export function mount(_root, { signal }) {
     // deleted: the API refuses, so its buttons aren't shown.
     onEdit: (person) => {
       $("#person-self-flag").hidden = !person?.is_self;
+      showAbout(person);
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
     },

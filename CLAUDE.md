@@ -464,7 +464,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   page load there locks and unlocks): every chunk, or the ones named, 3 at
   a time (`--jobs 1`: one at a time, with output as it happens; use it to
   tell whether a failure only happens when the machine is busy).
-- `npm run dev`: local app. `npm run types`: regenerate
+- `npm run dev`: the app on localhost, with the dev environment's remote
+  database and photos bucket (`--env dev`; apply new migrations there
+  first; accounts made locally sign in only on localhost). `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
 
 ### Data rules

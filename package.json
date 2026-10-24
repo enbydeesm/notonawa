@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --env dev",
     "types": "wrangler types",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json && tsc -p public/tsconfig.json",

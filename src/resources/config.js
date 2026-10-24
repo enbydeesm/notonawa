@@ -81,8 +81,12 @@ export const RESOURCES = {
       // { platform, alias } (public/js/aliases.js).
       based_in: { parse: encryptedText },
       aliases: { parse: encryptedText },
+      // "About me" on my own profile, what a profile invite can share; on
+      // anyone else's, what they shared (migration 0021). Encrypted; notes
+      // stay private.
+      about: { parse: encryptedText },
     },
-    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at",
+    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",
     // "Add & archive" in the tie form's people picker: someone tied with once.
     archiveOnCreate: true,

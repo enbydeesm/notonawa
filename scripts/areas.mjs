@@ -175,8 +175,10 @@ export const AREAS = [
   },
   {
     name: "people",
-    files: ["public/js/views/people.js", "public/js/aliases.js", "public/js/list-tools.js", "public/js/list-order.js"],
-    tests: ["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js"],
+    files: ["public/js/views/people.js", "public/js/aliases.js", "public/js/list-tools.js", "public/js/list-order.js",
+      "public/js/person-about.js"],
+    tests: ["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js",
+      "test/unit/person-about.test.js"],
     ui: ["people", "locations", "ties", "search"],
   },
   {

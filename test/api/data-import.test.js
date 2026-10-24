@@ -148,6 +148,7 @@ async function fillJournal() {
   const sam = await create("/api/people", {
     name: "Sam", pronouns: "they/them", notes: sealed("Floor work"), default_role: "bottom",
     is_educator: true, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"sammy"}]'),
+    about: sealed("Teaches on weekends"),
   });
   const gone = await create("/api/people", { name: "Gone" });
   await call(`/api/people/${sam}/archive`, { method: "POST" });
