@@ -225,9 +225,20 @@ const PAGE_HELPERS = `
     return [text(".tie-date") !== null, text(".tie-place"), c.querySelectorAll(".tie-rating .hank.filled").length,
       text(".tie-with"), [...c.querySelectorAll(".tie-tags .tag")].map((t) => t.innerText)];
   };
+  // A row's button, by its label. Plans are cards with no buttons but the
+  // title: "Edit" taps the card's text, and the rest are in its dialog.
   const clickIn = async (title, label) => {
-    const item = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === title);
-    [...item.querySelectorAll("button")].find((b) => b.textContent === label).click();
+    const item = [...document.querySelectorAll(".item, .plan-card")]
+      .find((i) => i.querySelector(".item-title, .tie-title").innerText === title);
+    if (!item.classList.contains("plan-card")) {
+      [...item.querySelectorAll("button")].find((b) => b.textContent === label).click();
+    } else {
+      item.querySelector(".tie-place").click();
+      if (label !== "Edit") {
+        await wait(300);
+        [...document.querySelectorAll("dialog[open] [data-item-actions] button")].find((b) => b.textContent === label).click();
+      }
+    }
     await wait(500);
   };
   // Waits until the ties list has stopped changing (up to 4 seconds), rather

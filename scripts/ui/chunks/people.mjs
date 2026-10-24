@@ -95,4 +95,9 @@ export default async function () {
     set("#show-archived", true); await wait(600); const names = personNames();
     await openPerson("Alex"); const buttons = personButtons(); $("[data-cancel-edit]").click(); await wait(200);
     return [names, buttons];`), [["Alex"], ["Close", "Restore", "Delete"]]);
+  check("tapping a person's row, not just their name, opens them", await run(`
+    $("#list .item").click(); await wait(500);
+    const opened = [$("#person-dialog").open, $("#person-name").value, personButtons()];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return opened;`), [true, "Alex", ["Close", "Restore", "Delete"]]);
 }

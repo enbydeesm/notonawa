@@ -270,7 +270,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   import's drawings, taken off and saved once the rest is),
   `vendor/` (libraries copied from node_modules by
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them), `lock-rules.js` (pure) and `lock.js`
-  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`), `dialog.js` (`choose`),
+  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `opensOnTap`: a list's
+  card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
   (pure: the Plans search, done on the device over the loaded plans and
   kept only in memory, and a plan's tie count and average rating),
@@ -305,9 +306,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
   `resource-page.js` (list/edit pages; with `dialog`, the form is in a
-  dialog that + and Edit open, as on Plans, People and Locations; with
-  `actionsInDialog`, Archive and Delete are in the dialog, not on the
-  cards, as on People and Locations), `aliases.js` (pure: a person's social and scene
+  dialog that + and tapping a row open, as on Plans, People and Locations;
+  with `actionsInDialog`, the rows have no buttons, tapping one anywhere
+  opens it, archived ones too, and Archive and Delete are in the dialog,
+  as on all three; `itemClass`: Plans' rows are cards like ties'), `aliases.js` (pure: a person's social and scene
   names, sealed as one JSON field; `personMatch`, what a people search
   finds and shows), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure

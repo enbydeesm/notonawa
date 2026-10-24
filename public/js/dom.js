@@ -78,3 +78,24 @@ export function infoButton(button) {
     text.hidden = !open;
   });
 }
+
+/**
+ * Makes a card in a list open when it's tapped anywhere, not just its title
+ * (which stays the button keyboards and screen readers use). A tap on a
+ * link, button or field on the card does only its own thing, and so does
+ * the tap that ends selecting some of its text.
+ * @template {HTMLElement} T
+ * @param {T} card
+ * @param {() => void} open
+ * @returns {T}
+ */
+export function opensOnTap(card, open) {
+  card.classList.add("tappable");
+  card.addEventListener("click", (event) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("a, button, input, select, textarea, label")) return;
+    if (getSelection()?.toString()) return;
+    open();
+  });
+  return card;
+}

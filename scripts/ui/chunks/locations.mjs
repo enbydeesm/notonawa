@@ -86,4 +86,10 @@ export default async function () {
     $("dialog[open] .dialog-cancel").click(); await wait(300);
     await openItem("Old flat"); $("#location-is_default").click(); await submit();
     return [start, !!$("#list .item .badge")];`), [[true, "Old flat", true], false]);
+  check("tapping a location's row, not just its name, opens it", await run(`
+    const row = [...document.querySelectorAll("#list .item")].find((i) => i.querySelector(".name-button").textContent === "Studio");
+    row.click(); await wait(500);
+    const opened = [$("#location-dialog").open, $("#location-name").value];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return opened;`), [true, "Studio"]);
 }

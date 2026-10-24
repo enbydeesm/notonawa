@@ -1432,3 +1432,27 @@ about 6 minutes, too slow to run after every change.
 - **Dragging into order** is shared with photos (`tile-drag.js`).
 - **Left out for now**: shapes, text and straight lines; zooming the pad;
   a count of drawings on tie cards.
+
+## Tapping a card opens it; plans as cards (October 2026)
+
+**Status:** built (2026-10-24)
+
+- **The whole card opens it**, on Ties, Plans, People, Locations and
+  Education (and the tie lists in Calendar and Analytics, the same card),
+  not just its title: a small target on a phone. The title or name stays a
+  button, so keyboards and screen readers have the same way in, and a tap
+  on a link, button or field on the card does only its own thing, as does
+  the tap that ends selecting text (`opensOnTap` in `dom.js`).
+- **Plans work like People and Locations**: no Edit, Archive or Delete on
+  the card; Archive (or Restore) and Delete are in the plan's dialog, and
+  an archived plan opens from its card too. The plan card is laid out like
+  a tie's: the title, and the plan type where a tie's date goes; the tie
+  type and what it's a variation of, and the difficulty in hanks; how many
+  photos, and how many ties it's on at the right; the album link; the tags.
+  The description and notes are in the dialog only, as a tie's notes are,
+  and the average rating of its ties left the card (the dialog lists each
+  tie's).
+- **No version on the card.** `plans.version` has been 1 for every plan
+  since migration 0001: it was meant to count substantive edits for a plan
+  history that was never built, and nothing changes it. Showing "v1" on
+  every card would say nothing; it's back when something bumps it.

@@ -1,5 +1,6 @@
-// Plans view: "Add a Plan" (the + opens the form in a dialog, which Edit
-// opens too), a search over the plans, and the list. A saved plan's form
+// Plans view: "Add a Plan" (the + opens the form in a dialog, which tapping
+// a plan's card opens too, with its Archive and Delete), a search over the
+// plans, and the list, as cards like the ties'. A saved plan's form
 // lists the ties it's on; tapping one opens it in the tie form.
 
 import { h, $, showMessage } from "../dom.js";
@@ -115,6 +116,8 @@ export function mount(_root, { signal }) {
     list: $("#list"),
     archivedToggle: $("#show-archived"),
     dialog,
+    actionsInDialog: true,
+    itemClass: "tie-card plan-card",
     filter: (plans) => filterPlans(plans, search),
 
     onLoad: (plans, archived) => {
@@ -133,33 +136,29 @@ export function mount(_root, { signal }) {
     // The album link is sealed before it's sent, so the server can't check it.
     prepare: (data) => ({ ...data, tags, album_url: webLinkOrNull(data.album_url) }),
 
-    renderItem: (plan, plans) => {
+    // A card like a tie's: the title (which opens the dialog, as tapping
+    // the card does) and the plan type; the tie type and what it's a
+    // variation of, and the difficulty in hanks; how many photos and how
+    // many ties it's on; the album; the tags. Its description and notes
+    // are in the dialog only.
+    renderItem: (plan, plans, edit) => {
       const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
-      /** @type {(string | HTMLElement)[]} */
-      const meta = [PLAN_TYPE_NAMES[plan.plan_type] || plan.plan_type];
-      if (plan.tie_type) meta.push(capitalise(plan.tie_type));
-      if (plan.est_difficulty != null) {
-        meta.push(h("span", {}, "difficulty ", ratingHanks(plan.est_difficulty, `${plan.est_difficulty}/5`)));
-      }
-      meta.push(`v${plan.version}`);
-      if (plan.variation_of) meta.push(`variation of ${parent ? parent.title : "another plan"}`);
-      if (plan.photo_count) meta.push(plan.photo_count === 1 ? "1 photo" : `${plan.photo_count} photos`);
-      const { count, average } = tieSummary(plan.linked_ties ?? []);
+      const kind = [plan.tie_type ? capitalise(plan.tie_type) : null,
+        plan.variation_of ? `variation of ${parent ? parent.title : "another plan"}` : null].filter(Boolean).join(" · ");
+      const { count } = tieSummary(plan.linked_ties ?? []);
       return [
-        h("div", { className: "item-title" }, plan.title),
-        h("div", { className: "item-meta" }, meta.flatMap((part, i) => (i ? [" · ", part] : [part]))),
-        // How it's gone: the ties it's on, and their average rating.
-        h("div", { className: "item-meta plan-ties" }, tieCountText(count),
-          average !== null
-            ? [" · average ", ratingHanks(Math.round(average), `Average rating ${average}/5`),
-              h("span", { className: "plan-ties-average", "aria-hidden": "true" }, ` ${average}`)]
-            : null),
-        plan.description ? h("div", { className: "item-notes" }, plan.description) : null,
-        plan.notes ? h("div", { className: "item-notes item-meta" }, plan.notes) : null,
-        plan.tags?.length
-          ? h("div", { className: "tag-row item-tags" }, plan.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
+        h("button", { type: "button", className: "tie-title", onclick: edit }, plan.title),
+        h("span", { className: "tie-date plan-type" }, PLAN_TYPE_NAMES[plan.plan_type] || plan.plan_type),
+        h("div", { className: "tie-place" }, kind),
+        plan.est_difficulty != null
+          ? h("div", { className: "tie-rating" }, ratingHanks(plan.est_difficulty, `Difficulty ${plan.est_difficulty}/5`))
           : null,
-        albumLink(plan.album_url, "item-album"),
+        h("div", { className: "plan-photos" }, plan.photo_count ? (plan.photo_count === 1 ? "1 photo" : `${plan.photo_count} photos`) : null),
+        h("div", { className: "plan-ties" }, tieCountText(count)),
+        albumLink(plan.album_url, "tie-album"),
+        plan.tags?.length
+          ? h("div", { className: "tag-row tie-tags" }, plan.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
+          : null,
       ];
     },
 

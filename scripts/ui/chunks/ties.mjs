@@ -163,4 +163,9 @@ export default async function () {
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
   await sleep(1500);
   check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
+  check("tapping a tie's card, not just its title, opens it", await run(`
+    $(".tie-card .tie-date").click(); await wait(1000);
+    const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, getComputedStyle($(".tie-card")).cursor];
+    $("#tie-form .dialog-cancel").click(); await wait(600);
+    return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged from Plans", "pointer"], false]);
 }

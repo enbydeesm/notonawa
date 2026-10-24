@@ -3,7 +3,7 @@
 // Delete when showing archived).
 
 import { api, errorMessage } from "./api.js";
-import { h, $, showMessage } from "./dom.js";
+import { h, $, showMessage, opensOnTap } from "./dom.js";
 import { open, sealOne, forgetSearch } from "./vault.js";
 import { photoSection } from "./photos-ui.js";
 import { drawingSection } from "./drawings-ui.js";
@@ -33,6 +33,7 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   prepare?: (data: Record<string, any>) => Record<string, any>,
  *   dialog?: HTMLDialogElement,
  *   actionsInDialog?: boolean,
+ *   itemClass?: string,
  *   filter?: (items: Item[]) => Item[],
  *   signal?: AbortSignal,
  * }} ResourcePageConfig
@@ -58,9 +59,11 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * dialog: the form is in this dialog (plans), with its heading: add() and
  *   Edit open it, and saving or [data-cancel-edit] closes it. Like the tie
  *   form, a tap outside doesn't close it; Esc does.
- * actionsInDialog: the rows have no buttons (renderItem calls edit, e.g.
- *   from the name); Archive (or Restore) and Delete are in the dialog
- *   instead, in its [data-item-actions] element, for the item being edited.
+ * actionsInDialog: the rows have no buttons: tapping one anywhere opens it
+ *   (and renderItem calls edit from the name, the button keyboards use);
+ *   Archive (or Restore) and Delete are in the dialog instead, in its
+ *   [data-item-actions] element, for the item being edited.
+ * itemClass: the rows' class, in place of "item" (plans are cards, like ties).
  * filter: what the page's own search finds (plans); redraw() after it
  *   changes.
  */
@@ -272,8 +275,9 @@ export function setupResourcePage(config) {
     for (const item of shown) {
       const unreadable = item.unreadable?.length
         ? h("div", { className: "item-meta deleted" }, "(can't decrypt the notes)") : null;
-      list.append(h("div", { className: "item" }, renderItem(item, items, () => openForm(item)), unreadable,
-        config.actionsInDialog ? null : renderActions(item)));
+      const row = h("div", { className: config.itemClass ?? "item" }, renderItem(item, items, () => openForm(item)), unreadable,
+        config.actionsInDialog ? null : renderActions(item));
+      list.append(config.actionsInDialog ? opensOnTap(row, () => openForm(item)) : row);
     }
   }
 

@@ -130,7 +130,8 @@ export default async function () {
       $("#workshop-end_date").value, tagChips("#workshop-tags"), lastBox("#workshop-educators").value, !!$("#workshop-delete")];
     set("#workshop-title", "Intro to floor, day one"); $("#workshop-save").click(); await wait(1500);
     const renamed = titles();
-    $(".workshop-card .tie-title").click(); await wait(1200);
+    // Tapping the card, not just its title, opens it too.
+    $(".workshop-card .tie-date").click(); await wait(1200);
     // The confirmation opens on top of the form, which has a Delete workshop button too.
     $("#workshop-delete").click(); await wait(300);
     [...[...document.querySelectorAll("dialog[open]")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete workshop").click();

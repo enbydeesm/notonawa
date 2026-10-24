@@ -193,7 +193,12 @@
         </div>
 
         <button type="submit" class="primary">Add plan</button>
-        <button type="button" class="dialog-cancel" data-cancel-edit>Cancel</button>
+        <!-- Archive (or Restore) and Delete go in data-item-actions while
+             editing (resource-page.js, actionsInDialog). -->
+        <div class="dialog-actions">
+          <button type="button" data-cancel-edit>Close</button>
+          <span class="dialog-item-actions" data-item-actions></span>
+        </div>
         <p class="message"></p>
       </form>
     </dialog>

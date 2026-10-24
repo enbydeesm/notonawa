@@ -3,7 +3,7 @@
 // ties behind a chart.
 
 import { api } from "./api.js";
-import { h, $ } from "./dom.js";
+import { h, $, opensOnTap } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
 import { formatDate } from "./format.js";
 import { ratingHanks } from "./rope-rating.js";
@@ -19,11 +19,11 @@ function renderLabel(label) {
 }
 
 /**
- * A tie as a card: title (tap to edit) and date; type and location, and the
+ * A tie as a card (tap it to edit; its title is the button): title and date; type and location, and the
  * rating; who took part, on one line; its tags; how many photos, and its
  * album link. Call fitPeople() on its container once it's on the page.
  * @param {Record<string, any>} tie as POST /api/ties/search returns it, opened
- * @param {(id: string) => void} onEdit runs when the title is tapped
+ * @param {(id: string) => void} onEdit runs when the card is tapped
  */
 export function tieCard(tie, onEdit) {
   const place = placeLine(tie);
@@ -32,7 +32,7 @@ export function tieCard(tie, onEdit) {
     return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${roleName(role)})`);
   });
 
-  return h("article", { className: "tie-card" },
+  return opensOnTap(h("article", { className: "tie-card" },
     h("button", { type: "button", className: "tie-title", onclick: () => onEdit(tie.id) }, tie.title || "Untitled tie"),
     h("span", { className: "tie-date" }, formatDate(tie.tie_date)),
     h("div", { className: "tie-place" }, place.flatMap((part, i) => (i === 0 ? [renderLabel(part)] : [" ", renderLabel(part)]))),
@@ -49,7 +49,7 @@ export function tieCard(tie, onEdit) {
       ? h("div", { className: "tie-photos" }, tie.photo_count === 1 ? "1 photo" : `${tie.photo_count} photos`)
       : null,
     albumLink(tie.album_url, "tie-album")
-  );
+  ), () => onEdit(tie.id));
 }
 
 /**

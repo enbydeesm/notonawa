@@ -1,7 +1,7 @@
 // A workshop drawn as a card in the Education view's lists, like a tie's
 // card (the same classes, so fitPeople() fits its people lines too).
 
-import { h } from "./dom.js";
+import { h, opensOnTap } from "./dom.js";
 import { ratingHanks } from "./rope-rating.js";
 import { participantLabel } from "./ties-view.js";
 import { roleName } from "./roles.js";
@@ -25,11 +25,11 @@ function peopleLine(label, people) {
 }
 
 /**
- * A workshop as a card: title (tap to edit) and dates; location and how
+ * A workshop as a card (tap it to edit; its title is the button): title and dates; location and how
  * many attended, and the rating; its educators and participants, a line
  * each; its tags; how many photos, and its album link.
  * @param {Record<string, any>} workshop as GET /api/workshops lists it, opened
- * @param {(id: string) => void} onEdit runs when the title is tapped
+ * @param {(id: string) => void} onEdit runs when the card is tapped
  */
 export function workshopCard(workshop, onEdit) {
   const place = workshop.location_name
@@ -38,7 +38,7 @@ export function workshopCard(workshop, onEdit) {
   const attendees = workshop.attendee_count != null
     ? `${workshop.attendee_count} ${workshop.attendee_count === 1 ? "attendee" : "attendees"}` : null;
 
-  return h("article", { className: "tie-card workshop-card" },
+  return opensOnTap(h("article", { className: "tie-card workshop-card" },
     h("button", { type: "button", className: "tie-title", onclick: () => onEdit(workshop.id) }, workshop.title),
     h("span", { className: "tie-date" }, dateRangeText(/** @type {any} */ (workshop))),
     h("div", { className: "tie-place" }, place, place && attendees ? " · " : null, attendees),
@@ -54,5 +54,5 @@ export function workshopCard(workshop, onEdit) {
       ? h("div", { className: "tie-photos" }, workshop.photo_count === 1 ? "1 photo" : `${workshop.photo_count} photos`)
       : null,
     albumLink(workshop.album_url, "tie-album")
-  );
+  ), () => onEdit(workshop.id));
 }

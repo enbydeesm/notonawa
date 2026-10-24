@@ -8,9 +8,12 @@ export default async function () {
   await seedTie(await seedJournal());
   console.log("Deleting");
   await go("/plans");
-  check("plan delete dialog has the three options", await run(`await clickIn("Hip harness", "Delete"); return dialogButtons();`),
+  check("plan delete, from its dialog, has the three options", await run(`await clickIn("Hip harness", "Delete"); return dialogButtons().slice(-3);`),
     ["Remove from linked ties too", "Just delete the plan", "Cancel"]);
-  check("cancel keeps the plan", await run(`await clickDialog("Cancel"); return [!!document.querySelector("dialog[open]"), titles().length];`), [false, 2]);
+  check("cancel keeps the plan, its dialog still open", await run(`
+    await clickDialog("Cancel"); const open = [...document.querySelectorAll("dialog[open]")].map((d) => d.id);
+    $("[data-cancel-edit]").click(); await wait(200);
+    return [open, titles().length];`), [["plan-dialog"], 2]);
   check("'Just delete the plan'", await run(`await clickIn("Hip harness", "Delete"); await clickDialog("Just delete the plan"); return titles();`), ["Hip harness, one-sided"]);
   await go("/locations");
   check("location delete, from its dialog, offers archiving instead", await run(`

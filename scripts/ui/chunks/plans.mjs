@@ -7,6 +7,11 @@ export default async function () {
   console.log("Plans");
   await go("/plans");
   const addPlan = `$("#add-plan").click(); await wait(300);`;
+  // A plan's card, by its title, and what it shows: its type (top right),
+  // tie type and variation, difficulty hanks, ties, and how many buttons.
+  const planCard = `const cardOf = (t) => [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === t);
+    const parts = (c) => [c.querySelector(".plan-type").innerText, c.querySelector(".tie-place").innerText,
+      c.querySelectorAll(".tie-rating .hank.filled").length, c.querySelector(".plan-ties").innerText, c.querySelectorAll("button").length];`;
   check("Plans starts with a small \"Add a Plan\" card, its yellow + first at the left, then the search, then the list", await run(`
     const cards = [...document.querySelectorAll("#view > section.card")];
     const plus = $("#add-plan"), navPlus = $("nav .nav-add"), label = $("#add-plan-label");
@@ -22,13 +27,20 @@ export default async function () {
     set("#plan-title", "Hip harness"); set("#plan-plan_type", "harness"); $("#plan-est_difficulty-picker .hank-button:nth-child(3)").click(); await submit();
     const closed = $("#plan-dialog").open;
     ${addPlan} set("#plan-title", "Hip harness, one-sided"); set("#plan-variation_of", optionValue($("#plan-variation_of"), "Hip harness")); await submit();
-    return [opened, types, closed, $("#stage"), items().find((i) => i.startsWith("Hip harness |")), items().find((i) => i.startsWith("Hip harness, one-sided"))];`),
+    ${planCard}
+    return [opened, types, closed, $("#stage"), parts(cardOf("Hip harness")), parts(cardOf("Hip harness, one-sided"))];`),
     [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
-      "Hip harness | Harness · difficulty 3/5 · v1 | 0 ties | Edit | Archive | Delete",
-      "Hip harness, one-sided | Idea · v1 · variation of Hip harness | 0 ties | Edit | Archive | Delete"]);
+      ["Harness", "", 3, "0 ties", 1], ["Idea", "variation of Hip harness", 0, "0 ties", 1]]);
+  check("tapping a plan's card opens it, with Archive and Delete in the dialog", await run(`
+    ${planCard}
+    cardOf("Hip harness").querySelector(".plan-ties").click(); await wait(400);
+    const opened = [$("#plan-dialog").open, $("#plan-title").value, [...$("#plan-dialog [data-item-actions]").children].map((b) => b.textContent),
+      getComputedStyle(cardOf("Hip harness")).cursor];
+    $("[data-cancel-edit]").click(); await wait(200);
+    return opened;`), [true, "Hip harness", ["Archive", "Delete"], "pointer"]);
   check("difficulty is rope hanks: the list shows them, Edit opens the dialog filled in, and Cancel closes it; + then starts empty", await run(`
     const filled = () => document.querySelectorAll("#plan-est_difficulty-picker .hank-button.filled").length;
-    const listed = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Hip harness")
+    const listed = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness")
       .querySelectorAll(".hank-rating .hank.filled").length;
     await clickIn("Hip harness", "Edit"); const editing = [$("#plan-dialog").open, $("#plan-form-heading").textContent, filled(), $("[name=est_difficulty]").value];
     $("[data-cancel-edit]").click(); await wait(200); const closed = $("#plan-dialog").open;
@@ -46,13 +58,15 @@ export default async function () {
     const box = $("#tags-search"); box.value = "plan-tag"; $("#tags-add").click(); $("#tags-ok").click(); await wait(200);
     const chips = tagChips("#plan-tags");
     await submit();
-    const item = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Hip harness");
-    const link = item.querySelector(".item-album a");
+    const item = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness");
+    const link = item.querySelector(".tie-album a");
     const stored = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Hip harness");
-    return [types, refused, chips, item.querySelector(".item-meta").innerText, tagChips(".item .item-tags"),
-      [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags];`),
-    [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Harness · Floor · difficulty 3/5 · v1",
-      ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"]]);
+    // Tapping the album link opens it, not the plan.
+    link.addEventListener("click", (e) => e.preventDefault(), { once: true }); link.click(); await wait(300);
+    return [types, refused, chips, item.querySelector(".tie-place").innerText, tagChips(".plan-card .tie-tags"),
+      [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags, $("#plan-dialog").open];`),
+    [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor",
+      ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"], false]);
   check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
     await clickIn("Hip harness", "Edit");
     const editing = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
@@ -84,10 +98,12 @@ export default async function () {
     await post("/api/ties", { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] });
     await post("/api/ties", { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] });`);
   await go("/plans");
-  check("a plan's card counts its ties and shows their average rating in hanks", await run(`
-    const line = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === "Linked plan").querySelector(".plan-ties");
-    return [line.firstChild.textContent, line.querySelectorAll(".hank.filled").length, line.querySelector(".visually-hidden").textContent,
-      line.querySelector(".plan-ties-average").textContent];`), ["2 ties", 4, "Average rating 3.5/5", " 3.5"]);
+  check("a plan's card counts its ties, bottom right, with its type top right and tags at the bottom", await run(`
+    ${planCard}
+    const c = cardOf("Linked plan"), box = c.getBoundingClientRect(), ties = c.querySelector(".plan-ties").getBoundingClientRect();
+    const typeBox = c.querySelector(".plan-type").getBoundingClientRect(), tags = c.querySelector(".tie-tags").getBoundingClientRect();
+    return [parts(c), box.right - ties.right < 16, box.right - typeBox.right < 16, typeBox.top - box.top < 20, tags.top >= ties.bottom - 1,
+      tagChips(".plan-card .tie-tags")];`), [["Sequence", "Suspension", 0, "2 ties", 1], true, true, true, true, ["search-tag"]]);
   check("its form lists the linked ties, newest first, each with its rating at the end of the row", await run(`
     await clickIn("Linked plan", "Edit");
     const rows = [...document.querySelectorAll("#plan-linked-ties li")];
@@ -101,9 +117,8 @@ export default async function () {
     document.querySelectorAll("#tie-form .hank-button")[4].click(); $("#tie-save").click(); await wait(1500);
     const rows = [...document.querySelectorAll("#plan-linked-ties li")].map((li) => li.querySelectorAll(".hank.filled").length);
     $("[data-cancel-edit]").click(); await wait(300);
-    const line = [...document.querySelectorAll(".item")].find((i) => i.querySelector(".item-title").innerText === "Linked plan").querySelector(".plan-ties");
-    return [opened, rows, $("#plan-dialog").open, line.querySelector(".plan-ties-average").textContent];`),
-    [["Edit tie", "Linked again", true], [5, 4], false, " 4.5"]);
+    return [opened, rows, $("#plan-dialog").open];`),
+    [["Edit tie", "Linked again", true], [5, 4], false]);
   const planTitles = `await wait(100); return titles();`;
   check("the search: a keyword in the title", await run(`await type("#search-q", "ONE-SIDED"); ${planTitles}`), ["Hip harness, one-sided"]);
   check("…Clear search shows them all again, and hides itself", await run(`
@@ -125,4 +140,16 @@ export default async function () {
     [["search-tag"], ["search-tag"], ["Linked plan"], "true"]);
   check("…nothing found says so", await run(`
     await type("#search-q", "zzz"); return [titles(), $("#list .empty")?.textContent];`), [[], "No matches."]);
+  check("an archived plan opens from its card too, to restore it", await run(`
+    $("#search-clear").click(); await wait(200);
+    await clickIn("Linked plan", "Archive"); await wait(300);
+    set("#show-archived", true); await wait(600);
+    ${planCard}
+    cardOf("Linked plan").querySelector(".tie-place").click(); await wait(400);
+    const opened = [$("#plan-dialog").open, $("#plan-title").value, [...$("#plan-dialog [data-item-actions]").children].map((b) => b.textContent)];
+    [...$("#plan-dialog [data-item-actions]").children].find((b) => b.textContent === "Restore").click(); await wait(600);
+    const archived = titles();
+    set("#show-archived", false); await wait(600);
+    return [opened, $("#plan-dialog").open, archived, titles().includes("Linked plan")];`),
+    [[true, "Linked plan", ["Restore", "Delete"]], false, [], true]);
 }
