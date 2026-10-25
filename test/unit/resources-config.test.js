@@ -42,13 +42,15 @@ describe("parseFields", () => {
   it("leaves out create-only fields when editing: an edit can't change who is me", () => {
     expect(parseFields(RESOURCES.people, { name: "Sam", is_self: true }).columns).toContain("is_self");
     const edit = parseFields(RESOURCES.people, { name: "Sam", is_self: true }, { editing: true });
-    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role", "is_educator", "based_in", "aliases", "about"]);
-    expect(edit.values).toEqual(["Sam", null, null, null, 0, null, null, null]);
+    expect(edit.columns).toEqual(["name", "pronouns", "notes", "default_role", "is_educator", "based_in", "aliases", "about",
+      "about_shared_on"]);
+    expect(edit.values).toEqual(["Sam", null, null, null, 0, null, null, null, null]);
   });
 
   it("ignores fields that aren't part of the resource", () => {
     const { columns } = parseFields(RESOURCES.people, { name: "Sam", owner_id: "someone-else", archived_at: "x" });
-    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role", "is_educator", "based_in", "aliases", "about"]);
+    expect(columns).toEqual(["name", "pronouns", "notes", "is_self", "default_role", "is_educator", "based_in", "aliases", "about",
+      "about_shared_on"]);
   });
 });
 

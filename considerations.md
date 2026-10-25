@@ -1571,8 +1571,9 @@ about 6 minutes, too slow to run after every change.
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)
 built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
-server) built 2026-10-24, migration 0022, not yet deployed; the rest isn't
-built.
+server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
+(profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
+deployed; the rest isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -1759,10 +1760,11 @@ below).
   only by their next share. Hidden on others' cards while empty.
 - **Adding a shared profile**: **New person**, or **Add to an existing
   card** (active people, not me). For an existing card a merge dialog asks,
-  field by field, whether to replace or keep the name, pronouns, based in
-  and Educator, and whether to add the new social names to the list or
-  replace it. About is always replaced (it's theirs); private notes are
-  never touched. The rules are pure (`contact-merge.js`).
+  field by field, whether to replace or keep the name, pronouns, usual
+  role, based in and Educator, and whether to add the new social names to
+  the list or replace it. About is replaced when they shared one (it's
+  theirs), with the date; private notes are never touched. The rules are
+  pure (`contact-merge.js`).
 
 ### Connecting accounts
 
@@ -1916,7 +1918,27 @@ tests and the walkthrough included.
    parse and crypto; API for expiry, uses, revoke, ownership, the daily
    cleanup, account deletion (`account-delete.test.js`). *Alone because
    it's the security-critical part, worth reviewing without UI around it.*
-3. **Profile invites** (2–3 days). Needs the QR library (vendored, with
+3. **Profile invites** (2–3 days). *Built 2026-10-24.* Changed from the
+   plan: the name to share is typed in (suggested from my profile's, or
+   empty while it's still "Me", which would mean nothing in someone else's
+   People), not ticked; and each share keeps its link's key, sealed with
+   the owner's data key (`shares.link_key`, migration 0023), so Shared by
+   me can show the code again. The cost: anyone who could unlock my journal
+   could open my live shares, a small step past having the journal itself.
+   The key isn't exported (it opens the share, so it stays with the
+   account, as wraps do). uqr 0.1.3 was read in full and vendored; only its
+   `encode()` is used, with medium error correction and a 4-square border,
+   and a test pins its output. A share arriving from another account is
+   read strictly (`profile-share.js`). Opening a share spends a use, so the
+   opened contents are kept in memory until added or locked, and coming
+   back to `/open` shows them again. After trying it: Share my profile
+   sits in the middle of the dialog's title row; the usual role can be
+   shared too (stored as the role, so it reads in each account's own role
+   names; a merge keeps the role I'd set for them unless I choose theirs);
+   and About them says when it was shared (`people.about_shared_on`,
+   migration 0024, a plain date: the server sees the save anyway). An
+   invite without an About leaves the card's About and its date as they
+   were, rather than emptying them. As first planned: Needs the QR library (vendored, with
    permission). The Share screen (what to include, how long, how many
    people, the QR code, Copy link, the share sheet), the `/open` route,
    view and template, opening and the preview, New person or Add to an

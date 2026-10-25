@@ -3,7 +3,7 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent"} ViewName
+ * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent" | "open"} ViewName
  * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean, beforeConsent?: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
  *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
@@ -24,6 +24,8 @@ export const ROUTES = [
   { path: "/education", view: "education", title: "Education · NotoNawa", nav: true, needsKey: true },
   { path: "/account", view: "account", title: "Account · NotoNawa", nav: true, needsKey: true, beforeConsent: true },
   { path: "/data", view: "data", title: "Your data · NotoNawa", nav: true, needsKey: true, beforeConsent: true },
+  // A share's link: /open#<id>.<key> (pending-share.js takes the key out).
+  { path: "/open", view: "open", title: "Shared with you · NotoNawa", nav: true, needsKey: true },
   { path: "/signin", view: "signin", title: "Sign in · NotoNawa", nav: false, needsKey: false },
 ];
 

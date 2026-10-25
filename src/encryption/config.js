@@ -13,7 +13,7 @@ export const ENCRYPTED_COLUMNS = {
   workshops: ["description", "notes", "album_url"],
   drawings: ["caption"],
   poses: ["caption"],
-  shares: ["label"],
+  shares: ["label", "link_key"],
 };
 
 /**

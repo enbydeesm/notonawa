@@ -8,11 +8,12 @@ import { $, showMessage } from "../dom.js";
 import { recoverySecret } from "../auth-flows.js";
 import { signInAndUnlock, signUp, finishRecovery } from "../key-flows.js";
 import { navigate } from "../navigate.js";
+import { pendingShare } from "../pending-share.js";
 import { APP_VERSION } from "../releases.js";
 
 // Into the journal. Replacing this entry, so Back doesn't return here (it
 // would only send you on again).
-const toJournal = () => navigate("/", { replace: true });
+const toJournal = () => navigate(pendingShare().link || pendingShare().damaged ? "/open" : "/", { replace: true });
 
 export async function mount() {
   const VIEWS = ["choose", "signup", "recover", "add-passkey"];

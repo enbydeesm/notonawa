@@ -14,6 +14,8 @@
      self tie; the tie types use them too, plus coral for hashira. Yellow
      and purple differ in lightness as well as hue. */
   --chart-yellow: #fec762; --chart-purple: #7e51a2; --chart-teal: #248686; --chart-coral: #e07a5f;
+  /* A share's QR code: dark on light in both modes, as scanners need. */
+  --qr-dark: #000; --qr-light: #fff;
   --chart-grey: #b9b2a6;
   /* Drawings: the paper and the inks, the same in both modes, so a drawing
      looks the same whichever is on (the paper stays light in dark mode). */
@@ -784,6 +786,13 @@ dialog.form-dialog {
 .name-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0 4px; }
 .name-row label, .name-row h2 { margin: 0; }
 .name-row.heading-row { margin: 0 0 12px; }
+/* The People dialog's heading: the title, Share my profile in the middle
+   (on my own profile), and "This is me" at the right. */
+#person-dialog .heading-row { display: grid; grid-template-columns: 1fr auto 1fr; }
+#person-dialog .heading-row > h2 { grid-column: 1; }
+#person-dialog .heading-row > .heading-action { grid-column: 2; }
+#person-dialog .heading-row > .self-flag { grid-column: 3; justify-self: end; }
+.heading-action { padding: 4px 10px; font-size: 0.85rem; white-space: nowrap; }
 .self-flag { display: inline-flex; align-items: center; gap: 6px; }
 .self-flag[hidden] { display: none; }
 .self-flag input { width: 14px; height: 14px; margin: 0; }
@@ -885,3 +894,18 @@ dialog.form-dialog {
 .workshop-card .tie-date { white-space: normal; text-align: right; }
 .summary-card .stat-pairs { margin-bottom: 12px; }
 .summary-card .item-meta { margin: 4px 0 0; }
+
+/* Sharing: an invite's choices, its code, Shared by me, and opening one
+   (share-profile-dialog.js, share-code.js, shared-by-me.js, views/open.js). */
+.share-fields, .merge-field { border: 1px solid var(--line); border-radius: 8px; margin: 12px 0; padding: 8px 12px; }
+.share-fields legend, .merge-field legend { color: var(--muted); font-size: 0.9rem; padding: 0 4px; }
+.share-field, .merge-field label.inline { margin: 6px 0; align-items: flex-start; overflow-wrap: anywhere; }
+.share-field input, .merge-field input { margin-top: 3px; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.qr-code { display: block; width: min(100%, 280px); height: auto; margin: 12px auto; border-radius: 8px; }
+.qr-dark { fill: var(--qr-dark); }
+.qr-light { fill: var(--qr-light); }
+.share-code input[readonly] { font-size: 0.85rem; }
+.shared-profile { margin: 8px 0 12px; }
+.shared-about { white-space: pre-wrap; overflow-wrap: anywhere; }
+#open-body > button { margin: 4px 8px 4px 0; }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { env } from "cloudflare:test";
-import { call, createOtherUser, sessionCookieFor, sql } from "../helpers.js";
+import { call, createOtherUser, sessionCookieFor, sql, sealed } from "../helpers.js";
 import { isoAt } from "../../src/auth/session.js";
 
 // Every table, and how to count one user's rows in it (child rows through
@@ -109,7 +109,7 @@ async function userWithEverything() {
   await sql("INSERT INTO notice_dismissals (notice_id, user_id) VALUES (?, ?)", notice, id).run();
   await post("/api/feedback", { kind: "bug", message: "The + button", app_version: "2026.10.20.001" });
   // A share (its file is tested in shares.test.js).
-  await post("/api/shares", { id: `share-${id.slice(0, 16)}`, kind: "tie", label: null, expires: "1d", max_uses: 1,
+  await post("/api/shares", { id: `share-${id.slice(0, 16)}`, kind: "tie", label: null, link_key: sealed("key"), expires: "1d", max_uses: 1,
     snapshot: btoa("x".repeat(40)).replace(/=+$/, "") });
   return { id, cookie };
 }

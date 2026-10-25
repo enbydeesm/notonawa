@@ -10,6 +10,7 @@ import { capitalise } from "../format.js";
 import { PLATFORMS, readAliases, aliasesText, akaText } from "../aliases.js";
 import { CAP_PATHS } from "../nav.js";
 import { aboutField } from "../person-about.js";
+import { openShareProfile } from "../share-profile-dialog.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -79,6 +80,10 @@ export function mount(_root, { signal }) {
 
   $("#person-add-alias").addEventListener("click", () => addAliasRow().focus(), { signal });
 
+  /** My own profile, while its dialog is open: what Share my profile shares. @type {any} */
+  let sharing = null;
+  $("#person-share").addEventListener("click", () => { if (sharing) openShareProfile(sharing); }, { signal });
+
   /** About me on my own profile; on others', what they shared, read-only (person-about.js). */
   function showAbout(/** @type {any} */ person) {
     const about = aboutField(person);
@@ -106,6 +111,9 @@ export function mount(_root, { signal }) {
     onEdit: (person) => {
       $("#person-self-flag").hidden = !person?.is_self;
       showAbout(person);
+      // An invite to add my profile: what's saved, not what's being typed.
+      sharing = person?.is_self ? person : null;
+      $("#person-share").hidden = !sharing;
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
     },

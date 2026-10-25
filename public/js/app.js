@@ -26,6 +26,7 @@ import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { showUnseenReleases } from "./whats-new.js";
 import { showWelcome } from "./welcome.js";
+import { takeShareLink } from "./pending-share.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -45,7 +46,13 @@ const VIEWS = {
   "not-found": () => import("./views/not-found.js"),
   unlock: () => import("./views/unlock.js"),
   consent: () => import("./views/consent.js"),
+  open: () => import("./views/open.js"),
 };
+
+// A share's link (/open#<id>.<key>): its key is kept in memory and taken
+// out of the address before anything else runs, so it isn't left in the
+// address bar or the history entry, and survives signing in and unlocking.
+takeShareLink();
 
 const root = $("#view");
 renderNav();
@@ -197,6 +204,12 @@ onConsentRequired(() => {
 // New role names saved in Settings: draw the view again with them.
 document.addEventListener(SETTINGS_SAVED, () => {
   show({ fresh: true, scroll: window.scrollY, focus: false });
+});
+
+// Another share's link opened in this tab: only the "#…" changed, so the
+// page didn't load again.
+window.addEventListener("hashchange", () => {
+  if (takeShareLink()) show({ fresh: true, scroll: 0, focus: true });
 });
 
 // Registered before any view's own popstate listener, so a view being left

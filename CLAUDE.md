@@ -180,8 +180,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and time only, never what was written), `notify.js` (sends it; a failure
   is logged, and doesn't fail the request).
 - `src/shares/`: shares, sealed copies of a profile, tie, plan or workshop
-  that someone else opens with a link (migration 0022; no pages yet, see
-  considerations.md, "Sharing between accounts"). `parse.js` (pure: kinds,
+  that someone else opens with a link (migrations 0022 and 0023; see
+  considerations.md, "Sharing between accounts"; only profile invites have
+  pages so far). `parse.js` (pure: kinds,
   expiries, limits (50 live an account, a 2 MB snapshot, counted in the
   1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
   `<owner id>/shares/<share id>/snapshot` in the photos bucket), `db.js`,
@@ -189,8 +190,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`GET`/`POST /api/shares`, `DELETE /api/shares/:id` (revoking deletes it
   at once), `POST /api/shares/open` with `{ id }`: someone else's counts a
   use, and the last allowed one deletes it; ended or unknown is the same
-  404). The label is an encrypted column; the snapshot is sealed with the
-  link's own key, which the server never sees.
+  404). The label and `link_key` (the link's key, kept so its owner can
+  show the code again; never exported) are encrypted columns; the snapshot
+  is sealed with the link's own key, which the server only ever has sealed
+  with the owner's.
 - `src/notices/`: messages from us (migration 0012), written only with
   `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
   now, not dismissed), `POST /api/notices/:id/dismiss`.
@@ -261,6 +264,21 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   size in 1 MB pieces, format v2) and captions, bound to the photo's id),
   `crypto/share.js` (pure: a share's id and key, sealing and opening its
   snapshot, bound to its id and kind, and the link's `#<id>.<key>`),
+  `share-options.js` (pure: a share's expiry and use choices, the warning
+  for one anyone can use for good, Shared by me's words, the link),
+  `profile-share.js` (pure: a profile invite's contents, built from the
+  ticked fields and the name typed in, and read strictly, as it comes from
+  another account), `contact-merge.js` (pure: a shared profile as a new
+  person, or merged field by field into one I have; their About, when they
+  shared one, replaces the card's, dated in `people.about_shared_on`
+  (migration 0024); my notes are never touched), `pending-share.js` (the link
+  being opened, its key taken out of the address on load and kept in
+  memory through sign-in and unlock; forgotten on lock), `qr.js` (pure: a
+  link's QR code as one SVG path, from `vendor/uqr.js`), `share-code.js`
+  (a share's code, link, Copy link and share sheet), `share-profile-dialog.js`
+  ("Share my profile", from my own profile in People), `shared-by-me.js`
+  (Your data's list: Show code, Revoke), `views/open.js` (`/open`: opening
+  a share and adding it),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -443,7 +461,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   rebuild `public/js/world-shapes.js`, the Analytics map's country
   outlines, from Natural Earth's 1:110m countries (downloaded; not kept).
 - `node scripts/vendor.mjs`: copy `public/js/vendor/` again from
-  node_modules after updating a vendored package (mediabunny, three), or
+  node_modules after updating a vendored package (mediabunny, three, uqr), or
   after changing `scripts/vendor/three-entry.mjs` or `three.d.ts`; `--check`
   (in `npm run check`) fails if a copy differs.
 - `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]

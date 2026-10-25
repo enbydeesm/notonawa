@@ -40,7 +40,7 @@ const BASE64URL = /^[A-Za-z0-9_-]*$/;
 
 /**
  * @typedef {{
- *   id: string, kind: ShareKind, label: string | null,
+ *   id: string, kind: ShareKind, label: string | null, linkKey: string,
  *   expires: string | null, maxUses: number | null, snapshot: Uint8Array,
  * }} NewShare
  */
@@ -55,8 +55,9 @@ export function parseShareId(value) {
 }
 
 /**
- * A new share: POST /api/shares with { id, kind, label, expires, max_uses,
- * snapshot } (the snapshot sealed, as base64url).
+ * A new share: POST /api/shares with { id, kind, label, link_key, expires,
+ * max_uses, snapshot } (the snapshot sealed, as base64url; the label and
+ * link key sealed with the owner's data key).
  * @param {Record<string, any>} body
  * @returns {NewShare}
  */
@@ -69,7 +70,7 @@ export function parseNewShare(body) {
     throw new BadInput(`A share can be opened between 1 and ${MAX_USES} times, or any number.`);
   }
   return {
-    id, kind: body.kind, label: parseLabel(body.label),
+    id, kind: body.kind, label: parseLabel(body.label), linkKey: parseLinkKey(body.link_key),
     expires: EXPIRY[/** @type {keyof typeof EXPIRY} */ (body.expires)], maxUses, snapshot: parseSnapshot(body.snapshot),
   };
 }
@@ -88,6 +89,25 @@ function parseLabel(value) {
   }
   if (label !== null && label.length > MAX_SEALED_LABEL) throw new BadInput("That name is too long.");
   return label;
+}
+
+/**
+ * The link's key, sealed in the browser so its owner can show the code
+ * again. Required: every share keeps one.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function parseLinkKey(value) {
+  let key;
+  try {
+    key = encryptedText(value);
+  } catch {
+    key = null;
+  }
+  if (key === null || key.length > MAX_SEALED_LABEL) {
+    throw new BadInput("Couldn't share: its key wasn't encrypted. Reload the page and try again.");
+  }
+  return key;
 }
 
 /**

@@ -73,7 +73,7 @@ describe("planFor", () => {
     expect(plan.areas).toEqual(["people"]);
     expect(plan.tests).toEqual(["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js",
       "test/unit/person-about.test.js"]);
-    expect(plan.ui).toEqual(["people", "locations", "ties", "search"]);
+    expect(plan.ui).toEqual(["people", "locations", "ties", "search", "shares"]);
     expect(plan.generated).toEqual([]);
   });
 

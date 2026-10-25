@@ -1,8 +1,10 @@
 // Copies the browser libraries the pages use from node_modules into
 // public/js/vendor/ (there's no build step), with their type definitions
 // beside them for the type checker: mediabunny, which reads and re-encodes
-// videos (video-prep.js), and three.js, which draws the poser's figure
-// (pose-scene.js). Their versions are pinned in package.json.
+// videos (video-prep.js), three.js, which draws the poser's figure
+// (pose-scene.js), and uqr, which works out a share link's QR code (qr.js;
+// only its encode(), which is pure arithmetic: we draw the squares
+// ourselves). Their versions are pinned in package.json.
 //
 // three.js is too big to copy whole (about 2 MB, fetched every time the
 // poser opens, as nothing is cached): only the parts named in
@@ -32,6 +34,8 @@ const FILES = [
   },
   { to: "three.js", make: bundleThree },
   { to: "three.d.ts", make: () => readFileSync(new URL("./vendor/three.d.ts", import.meta.url), "utf8") },
+  { from: "uqr/dist/index.mjs", to: "uqr.js" },
+  { from: "uqr/dist/index.d.mts", to: "uqr.d.ts" },
 ];
 
 /** The parts of three.js in three-entry.mjs, as one minified module. */

@@ -29,13 +29,15 @@ export async function handleShares(request, env, user, url) {
   const { method } = request;
 
   if (url.pathname === "/api/shares") {
-    // GET /api/shares -> [{ id, kind, label, bytes, expires_at, max_uses,
-    //   use_count, created_at }]: my live shares, newest first (labels sealed)
+    // GET /api/shares -> [{ id, kind, label, link_key, bytes, expires_at,
+    //   max_uses, use_count, created_at }]: my live shares, newest first
+    //   (labels and link keys sealed with my data key)
     if (method === "GET") return json(await listShares(db, user.id));
 
-    // POST /api/shares  body { id, kind, label, expires, max_uses, snapshot }
-    //   -> { id } (201): a new share. The browser chose the id and sealed
-    //   the snapshot (base64url) and label. expires: 10m, 1h, 1d, 7d, 30d or
+    // POST /api/shares  body { id, kind, label, link_key, expires, max_uses,
+    //   snapshot } -> { id } (201): a new share. The browser chose the id,
+    //   sealed the snapshot (base64url) with the link's key, and sealed the
+    //   label and that key with my data key, so I can show the code again. expires: 10m, 1h, 1d, 7d, 30d or
     //   never (until revoked); max_uses: 1 to 100, or null for any number.
     //   At most 50 live an account, counted in its 1 GB.
     if (method === "POST") {

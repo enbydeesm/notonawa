@@ -9,13 +9,13 @@ import { sealed } from "../sealed.js";
 const ID = "AbCdEfGhIjKlMnOpQrStUv";
 const snapshot = (/** @type {number} */ bytes) => toBase64url(new Uint8Array(bytes).fill(7));
 const share = (/** @type {Record<string, unknown>} */ change = {}) => ({
-  id: ID, kind: "tie", label: sealed("For Sam"), expires: "1d", max_uses: 1, snapshot: snapshot(64), ...change,
+  id: ID, kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), expires: "1d", max_uses: 1, snapshot: snapshot(64), ...change,
 });
 
 describe("parseNewShare", () => {
   it("reads a share, with its expiry as a fixed SQLite modifier and its snapshot as bytes", () => {
     const parsed = parseNewShare(share());
-    expect(parsed).toMatchObject({ id: ID, kind: "tie", label: sealed("For Sam"), expires: "+1 day", maxUses: 1 });
+    expect(parsed).toMatchObject({ id: ID, kind: "tie", label: sealed("For Sam"), linkKey: sealed("key"), expires: "+1 day", maxUses: 1 });
     expect(parsed.snapshot).toEqual(new Uint8Array(64).fill(7));
     expect(parseNewShare(share({ expires: "never", max_uses: null, label: null }))).toMatchObject({ expires: null, maxUses: null, label: null });
     expect(parseNewShare(share({ expires: "10m" })).expires).toBe("+10 minutes");
@@ -34,6 +34,11 @@ describe("parseNewShare", () => {
   it("allows 1 to 100 uses, or any number", () => {
     expect(parseNewShare(share({ max_uses: MAX_USES })).maxUses).toBe(MAX_USES);
     for (const bad of [0, MAX_USES + 1, 1.5, "2"]) expect(() => parseNewShare(share({ max_uses: bad }))).toThrow("between 1 and");
+  });
+
+  it("needs the link's key, sealed", () => {
+    expect(() => parseNewShare(share({ link_key: null }))).toThrow("key wasn't encrypted");
+    expect(() => parseNewShare(share({ link_key: "abc" }))).toThrow("key wasn't encrypted");
   });
 
   it("only takes a sealed name", () => {

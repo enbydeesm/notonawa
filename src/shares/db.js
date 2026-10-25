@@ -9,9 +9,10 @@ import { MAX_ACCOUNT_BYTES } from "../media/parse.js";
 /** @typedef {import("./parse.js").NewShare} NewShare */
 
 /**
- * A share as its owner sees it in their list: label still sealed.
+ * A share as its owner sees it in their list: label and link key still
+ * sealed.
  * @typedef {{
- *   id: string, kind: string, label: string | null, bytes: number, expires_at: string | null,
+ *   id: string, kind: string, label: string | null, link_key: string | null, bytes: number, expires_at: string | null,
  *   max_uses: number | null, use_count: number, created_at: string,
  * }} ShareRow
  */
@@ -47,14 +48,14 @@ export async function shareCheck(db, ownerId, id) {
  */
 export async function insertShare(db, ownerId, share, bytes) {
   const row = await db.prepare(
-    `INSERT INTO shares (id, owner_id, kind, label, bytes, expires_at, max_uses)
+    `INSERT INTO shares (id, owner_id, kind, label, bytes, expires_at, max_uses, link_key)
      SELECT ?1, ?2, ?3, ?4, ?5,
-            CASE WHEN ?6 IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?6) END, ?7
+            CASE WHEN ?6 IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?6) END, ?7, ?10
       WHERE (SELECT COUNT(*) FROM shares WHERE owner_id = ?2 AND ${LIVE}) < ?8
         AND ${accountBytes("?2")} + ?5 <= ?9
      RETURNING id`
-  ).bind(share.id, ownerId, share.kind, share.label, bytes, share.expires, share.maxUses, MAX_LIVE_SHARES, MAX_ACCOUNT_BYTES)
-    .first();
+  ).bind(share.id, ownerId, share.kind, share.label, bytes, share.expires, share.maxUses, MAX_LIVE_SHARES, MAX_ACCOUNT_BYTES,
+    share.linkKey).first();
   return row !== null;
 }
 
@@ -66,7 +67,7 @@ export async function insertShare(db, ownerId, share, bytes) {
  */
 export async function listShares(db, ownerId) {
   const { results } = await db.prepare(
-    `SELECT id, kind, label, bytes, expires_at, max_uses, use_count, created_at
+    `SELECT id, kind, label, link_key, bytes, expires_at, max_uses, use_count, created_at
        FROM shares WHERE owner_id = ? AND ${LIVE} ORDER BY created_at DESC, rowid DESC`
   ).bind(ownerId).all();
   return /** @type {ShareRow[]} */ (results);

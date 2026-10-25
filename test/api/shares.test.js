@@ -29,7 +29,7 @@ async function otherUser() {
 async function share(change = {}, cookie) {
   const bytes = /** @type {Uint8Array | undefined} */ (change.bytes) ?? snapshotBytes();
   const { bytes: _bytes, ...rest } = change;
-  const body = { id: newShareId(), kind: "tie", label: sealed("For Sam"), expires: "1d", max_uses: 1, snapshot: toBase64url(bytes), ...rest };
+  const body = { id: newShareId(), kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), expires: "1d", max_uses: 1, snapshot: toBase64url(bytes), ...rest };
   const res = await call("/api/shares", { method: "POST", body, cookie });
   return { id: /** @type {string} */ (body.id), bytes, res };
 }
@@ -56,7 +56,7 @@ describe("making a share", () => {
     expect(list.map((/** @type {any} */ s) => s.id).slice(0, 2)).toEqual([second.id, first.id]);
     const listed = list.find((/** @type {any} */ s) => s.id === first.id);
     expect(listed).toEqual({
-      id: first.id, kind: "tie", label: sealed("For Sam"), bytes: 64, expires_at: null, max_uses: null, use_count: 0,
+      id: first.id, kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), bytes: 64, expires_at: null, max_uses: null, use_count: 0,
       created_at: expect.stringMatching(/Z$/),
     });
     // A day from now, as an ISO timestamp.
@@ -68,7 +68,7 @@ describe("making a share", () => {
     const me = await signedInUser();
     const { id, bytes } = await share();
     const again = await call("/api/shares", { method: "POST", body: {
-      id, kind: "tie", label: null, expires: "1d", max_uses: 1, snapshot: toBase64url(snapshotBytes()),
+      id, kind: "tie", label: null, link_key: sealed("key"), expires: "1d", max_uses: 1, snapshot: toBase64url(snapshotBytes()),
     } });
     expect(again.status).toBe(409);
     const object = await env.PHOTOS.get(snapshotKey(me.id, id));
@@ -245,6 +245,8 @@ describe("the export", () => {
     expect(doc.account.shares).toContainEqual({
       kind: "workshop", label: sealed("For Sam"), expires_at: null, max_uses: null, use_count: 0, created_at: expect.any(String),
     });
+    // Nor their link keys: those open them, so they stay with the account.
     expect(JSON.stringify(doc.account.shares)).not.toContain("snapshot");
+    expect(JSON.stringify(doc.account.shares)).not.toContain("link_key");
   });
 });

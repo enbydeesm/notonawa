@@ -9,7 +9,7 @@
 // is scripts/ui/chunks/<name>.mjs and starts from a new account of its own.
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
-  "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education",
+  "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -19,6 +19,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
+  shares: 40,
 };
 
 /**
@@ -179,7 +180,7 @@ export const AREAS = [
       "public/js/person-about.js"],
     tests: ["test/api/resources.test.js", "test/unit/aliases.test.js", "test/unit/list-order.test.js",
       "test/unit/person-about.test.js"],
-    ui: ["people", "locations", "ties", "search"],
+    ui: ["people", "locations", "ties", "search", "shares"],
   },
   {
     name: "locations",
@@ -236,17 +237,21 @@ export const AREAS = [
       "public/js/drag-order.js", "public/js/tile-drag.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
       "scripts/vendor.mjs"],
     tests: ["test/api/media.test.js", "test/unit/media-parse.test.js", "test/unit/crypto-media.test.js", "test/unit/photo-fit.test.js",
-      "test/unit/drag-order.test.js", "test/unit/video-fit.test.js", "test/api/shares.test.js"],
+      "test/unit/drag-order.test.js", "test/unit/video-fit.test.js", "test/api/shares.test.js",
+      "test/unit/qr.test.js"],
     ui: ["photos", "data", "education"],
     generated: ["vendor"],
   },
   {
-    // Shares (phase 2: the server and the sealing only; no pages yet).
+    // Shares: profile invites, their codes, Shared by me, and opening one.
     name: "shares",
-    files: ["src/shares/", "public/js/crypto/share.js"],
+    files: ["src/shares/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
+      "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
+      "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js"],
     tests: ["test/api/shares.test.js", "test/unit/shares-parse.test.js", "test/unit/crypto-share.test.js",
-      "test/unit/vault-core.test.js"],
-    ui: [],
+      "test/unit/vault-core.test.js", "test/unit/share-options.test.js", "test/unit/profile-share.test.js",
+      "test/unit/contact-merge.test.js", "test/unit/qr.test.js"],
+    ui: ["shares"],
   },
   {
     name: "drawings",
