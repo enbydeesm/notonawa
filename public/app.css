@@ -895,6 +895,8 @@ dialog.form-dialog {
 .whats-new .release h3 { margin: 12px 0 4px; font-size: 1rem; }
 .whats-new .release ul { margin: 0; padding-left: 20px; }
 .whats-new .release li { margin: 4px 0; }
+.whats-new .release .release-intro { margin: 4px 0; }
+.whats-new .release li ul { margin-top: 2px; }
 
 /* "Add a Plan", "Add a Person", "Add a Location": the + and its label, as
    small as a card gets. */

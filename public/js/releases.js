@@ -3,17 +3,31 @@
 /** The app's version: the newest release. */
 export const APP_VERSION = "2026.10.26.001";
 
-/** @type {{ version: string, notes: string[] }[]} newest first */
+/**
+ * Newest first. A note is its words, or its words and sub-bullets; intro
+ * is the paragraphs before a release's notes, if it has any.
+ * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
+ */
 export const RELEASES = [
   {
     "version": "2026.10.26.001",
+    "intro": [
+      "Lots of Model Poser updates!"
+    ],
     "notes": [
-      "Poser: drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.",
+      "Drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.",
       "Tap the number beside any slider to type an exact value. Numbers outside the slider's range are kept to its nearest end. Tap ▲ and ▼ beside its number to nudge it by one.",
       "Save your own body and arms positions: choose \"Save this body as a preset…\" or \"Save these arms as a preset…\" in the Body… and Arms… menus. They're listed under \"My presets\" in every pose, and \"Manage my presets…\" renames and deletes them. Their names are encrypted; the positions aren't, like poses.",
       "Bamboo: set its length (90 to 215 cm) and how far in from each end its two lines hang. The lines holding up the ring and bamboo now look like jute rope.",
       "Pencil: tap the pencil beside Rope to draw over the view, in the same colors and widths as ropes, with its own eraser. The marks go into the picture \"Add to visuals\" and download make, but aren't saved with the pose, and they hide when you turn the view.",
-      "Tap a rope in Rope mode to choose it. - A rope that goes from the body over the ring or bamboo and back is a see-saw: raise one end and the other drops to keep its length (untick See-saw if yours is tied off). - \"Cinch from here\", then tapping another upline, a rope or the body, ties a cinch: shorten it to draw the uplines together, and with \"Move the body\" ticked the body is drawn in with them. - On a bamboo, \"Move along bamboo\" slides where an upline is tied.",
+      {
+        "text": "Tap a rope in Rope mode to choose it.",
+        "sub": [
+          "A rope that goes from the body over the ring or bamboo and back is a see-saw: raise one end and the other drops to keep its length (untick See-saw if yours is tied off).",
+          "\"Cinch from here\", then tapping another upline, a rope or the body, ties a cinch: shorten it to draw the uplines together, and with \"Move the body\" ticked the body is drawn in with them.",
+          "On a bamboo, \"Move along bamboo\" slides where an upline is tied."
+        ]
+      },
       "Uplines now hang straight from the body to the ring or bamboo, and are easier to tap. Finish rope is outlined while a rope is being laid, as a reminder to finish it."
     ]
   },

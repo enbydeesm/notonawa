@@ -8,10 +8,19 @@ import { APP_VERSION, RELEASES } from "./releases.js";
 import { unseenReleases, MAX_SHOWN } from "./release-notes.js";
 import { loadSettings, saveSeenRelease } from "./settings.js";
 
+/** @typedef {typeof RELEASES[number]} Release */
+
+/**
+ * A note as a list item: its words, and its sub-bullets in a list of their own.
+ * @param {Release["notes"][number]} note
+ */
+const noteItem = (note) => (typeof note === "string" ? h("li", {}, note)
+  : h("li", {}, note.text, h("ul", {}, note.sub.map((s) => h("li", {}, s)))));
+
 /**
  * Opens the dialog with these releases (all the recent ones, from the menu).
  * Resolves when it's closed.
- * @param {{ version: string, notes: string[] }[]} [releases] newest first
+ * @param {Release[]} [releases] newest first
  * @returns {Promise<void>}
  */
 export function openWhatsNew(releases = RELEASES.slice(0, MAX_SHOWN)) {
@@ -20,7 +29,8 @@ export function openWhatsNew(releases = RELEASES.slice(0, MAX_SHOWN)) {
       h("h2", { id: "whats-new-heading" }, "What's new"),
       releases.map((release) => h("section", { className: "release" },
         h("h3", {}, release.version),
-        h("ul", {}, release.notes.map((note) => h("li", {}, note))))),
+        (release.intro ?? []).map((words) => h("p", { className: "release-intro" }, words)),
+        h("ul", {}, release.notes.map(noteItem)))),
       h("div", { className: "dialog-footer" },
         h("button", { type: "button", className: "primary", id: "whats-new-ok", onclick: () => dialog.close() }, "OK")));
     dialog.addEventListener("close", () => {

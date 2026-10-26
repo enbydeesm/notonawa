@@ -164,8 +164,7 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 
 Build plan
-Each phase leaves the app working and shippable. The times are rough estimates in working cccccdgdfuitkgthkbeuicecjnlnbihfvdcenennfltv
-days, including tests and the walkthrough.
+Each phase leaves the app working and shippable. The times are rough estimates in working days, including tests and the walkthrough.
 
 #	Phase	Migration	Days	Why it's its own phase
 <!-- 1	Two notes fields on people	0021 people.about	~1	Small, and profile invites need it

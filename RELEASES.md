@@ -3,8 +3,10 @@
 The app's release notes, newest first: the "What's new" dialog shows them.
 Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 001, 002… for each release that day), then its notes as `- ` bullets, in
-plain words for the people using the app. The newest heading is the app's
-version. After editing, run `node scripts/releases.mjs`.
+plain words for the people using the app. Lines under a heading before its
+first bullet are an intro (a blank line between paragraphs), and a `- `
+indented under a bullet is a sub-bullet of it. The newest heading is the
+app's version. After editing, run `node scripts/releases.mjs`.
 
 ## 2026.10.26.001
 Lots of Model Poser updates!

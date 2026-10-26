@@ -67,14 +67,16 @@ export default async function () {
   check("…which scripts/feedback.mjs lists", script("feedback.mjs").includes(`bug  from ${await run(`return (await (await fetch("/api/keys")).json()).user_id;`)}  (version ${APP_VERSION})\n  Smoke test report`), true);
   check("Cancel closes it", await run(`
     await openMenu(); $(".menu-feedback").click(); await wait(300); $("#feedback-cancel").click(); await wait(300); return $("dialog") === null;`), true);
-  check("What's new shows the release notes, newest first, in place of the menu", await run(`
+  check("What's new shows the release notes, newest first, with intros and sub-bullets, in place of the menu", await run(`
     await openMenu(); $(".menu-whats-new").click(); await wait(400);
     const d = $("dialog.whats-new[open]");
     const shown = [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, [...d.querySelectorAll("h3")].map((h) => h.textContent),
-      [...d.querySelectorAll(".release")[0].querySelectorAll("li")].length];
+      d.querySelectorAll(".release")[0].querySelectorAll(":scope > ul > li").length,
+      d.querySelectorAll(".release")[0].querySelectorAll(".release-intro").length, d.querySelectorAll(".release")[0].querySelectorAll("li li").length];
     $("#whats-new-ok").click(); await wait(300);
     return [...shown, $("dialog") === null];`),
-    [true, "What's new", RELEASES.slice(0, 10).map((r) => r.version), RELEASES[0].notes.length, true]);
+    [true, "What's new", RELEASES.slice(0, 10).map((r) => r.version), RELEASES[0].notes.length, RELEASES[0].intro?.length ?? 0,
+      RELEASES[0].notes.reduce((n, note) => n + (typeof note === "string" ? 0 : note.sub.length), 0), true]);
   await run(`await openMenu();`);
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();

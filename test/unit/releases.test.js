@@ -28,12 +28,35 @@ describe("RELEASES.md", () => {
     ]);
   });
 
+  it("reads an intro before the notes, in paragraphs, and sub-bullets under a note", () => {
+    const md = `## 2026.10.26.002
+Lots of updates!
+On two lines.
+
+A second paragraph.
+- A note.
+- Tap a rope to choose it.
+  - A see-saw.
+  - A cinch that goes on
+    over two lines.
+- Last.
+`;
+    expect(parseReleases(md)).toEqual([{
+      version: "2026.10.26.002", intro: ["Lots of updates! On two lines.", "A second paragraph."],
+      notes: ["A note.", { text: "Tap a rope to choose it.", sub: ["A see-saw.", "A cinch that goes on over two lines."] }, "Last."],
+    }]);
+    expect(pageFile(parseReleases(md))).toContain('"intro": [');
+    expect(pageFile(parseReleases(MD))).not.toContain('"intro"');
+    // Words after the notes have begun aren't an intro.
+    expect(() => parseReleases("## 2026.10.20.001\n\n- x\n\nStray words.\n")).toThrow('"- " bullet');
+  });
+
   it("refuses versions in the wrong form or order, and releases without notes", () => {
     expect(() => parseReleases("## 2026.10.20.01\n\n- x\n")).toThrow("YYYY.MM.DD.NNN");
     expect(() => parseReleases("## 2026.10.20.001\n\n- x\n\n## 2026.10.20.002\n\n- y\n")).toThrow("newest first");
     expect(() => parseReleases("## 2026.10.20.001\n\n- x\n\n## 2026.10.20.001\n\n- y\n")).toThrow("each once");
     expect(() => parseReleases("## 2026.10.20.001\n\n")).toThrow("no notes");
-    expect(() => parseReleases("## 2026.10.20.001\n\nNot a bullet.\n")).toThrow('"- " bullet');
+    expect(() => parseReleases("## 2026.10.20.001\n\nAn intro, but no notes.\n")).toThrow("no notes");
     expect(() => parseReleases("# Nothing yet\n")).toThrow("at least one release");
   });
 
