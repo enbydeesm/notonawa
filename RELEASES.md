@@ -7,8 +7,8 @@ plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
 ## 2026.10.26.001
-
-- Poser: drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.
+Lots of Model Poser updates!
+- Drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.
 - Tap the number beside any slider to type an exact value. Numbers outside the slider's range are kept to its nearest end. Tap ▲ and ▼ beside its number to nudge it by one.
 - Save your own body and arms positions: choose "Save this body as a preset…" or "Save these arms as a preset…" in the Body… and Arms… menus. They're listed under "My presets" in every pose, and "Manage my presets…" renames and deletes them. Their names are encrypted; the positions aren't, like poses.
 - Bamboo: set its length (90 to 215 cm) and how far in from each end its two lines hang. The lines holding up the ring and bamboo now look like jute rope.
