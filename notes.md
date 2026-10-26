@@ -1,3 +1,25 @@
+# git commands
+Commit your work on it first (git add -A && git commit -m "…"), then:
+
+Merge locally and push:
+git checkout main
+git pull                      # get main up to date
+git merge ik-time             # bring the branch in
+git push                      # send main to GitHub
+git branch -d ik-time         # delete the local branch
+git push origin --delete ik-time   # delete it on GitHub (only if you pushed it there)
+git branch -d refuses to delete a branch that hasn't been merged, so it won't throw work away. -D forces the delete; avoid it unless you mean it.
+
+Or through a pull request, like PR #1:
+git push -u origin ik-time
+gh pr create --base main --fill
+gh pr merge --merge --delete-branch   # merges, then deletes the branch on GitHub and locally
+git checkout main && git pull
+
+
+
+
+
 the walkthrough into independent chunks:
 
 scripts/ui-smoke.mjs becomes a small runner. It takes --only people,plans or --changed, and runs everything when given neither.
