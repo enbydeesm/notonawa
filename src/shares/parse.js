@@ -7,7 +7,7 @@
 // "Sharing between accounts".
 
 import { BadInput } from "../http.js";
-import { encryptedText } from "../parse.js";
+import { encryptedText, toFlag } from "../parse.js";
 import { MAX_ACCOUNT_BYTES } from "../media/parse.js";
 
 export const SHARE_KINDS = /** @type {const} */ (["profile", "tie", "plan", "workshop"]);
@@ -41,7 +41,7 @@ const BASE64URL = /^[A-Za-z0-9_-]*$/;
 /**
  * @typedef {{
  *   id: string, kind: ShareKind, label: string | null, linkKey: string,
- *   expires: string | null, maxUses: number | null, snapshot: Uint8Array,
+ *   expires: string | null, maxUses: number | null, snapshot: Uint8Array, connect: 0 | 1,
  * }} NewShare
  */
 
@@ -56,8 +56,9 @@ export function parseShareId(value) {
 
 /**
  * A new share: POST /api/shares with { id, kind, label, link_key, expires,
- * max_uses, snapshot } (the snapshot sealed, as base64url; the label and
- * link key sealed with the owner's data key).
+ * max_uses, snapshot, connect } (the snapshot sealed, as base64url; the
+ * label and link key sealed with the owner's data key; connect: a profile
+ * invite that offers to connect our accounts).
  * @param {Record<string, any>} body
  * @returns {NewShare}
  */
@@ -69,9 +70,11 @@ export function parseNewShare(body) {
   if (maxUses !== null && !(Number.isInteger(maxUses) && maxUses >= 1 && maxUses <= MAX_USES)) {
     throw new BadInput(`A share can be opened between 1 and ${MAX_USES} times, or any number.`);
   }
+  const connect = toFlag(body.connect);
+  if (connect && body.kind !== "profile") throw new BadInput("Only a profile invite can offer to connect accounts.");
   return {
     id, kind: body.kind, label: parseLabel(body.label), linkKey: parseLinkKey(body.link_key),
-    expires: EXPIRY[/** @type {keyof typeof EXPIRY} */ (body.expires)], maxUses, snapshot: parseSnapshot(body.snapshot),
+    expires: EXPIRY[/** @type {keyof typeof EXPIRY} */ (body.expires)], maxUses, snapshot: parseSnapshot(body.snapshot), connect,
   };
 }
 

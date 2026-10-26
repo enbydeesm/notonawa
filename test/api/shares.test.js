@@ -56,7 +56,7 @@ describe("making a share", () => {
     expect(list.map((/** @type {any} */ s) => s.id).slice(0, 2)).toEqual([second.id, first.id]);
     const listed = list.find((/** @type {any} */ s) => s.id === first.id);
     expect(listed).toEqual({
-      id: first.id, kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), bytes: 64, expires_at: null, max_uses: null, use_count: 0,
+      id: first.id, kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), bytes: 64, expires_at: null, max_uses: null, use_count: 0, connect: 0,
       created_at: expect.stringMatching(/Z$/),
     });
     // A day from now, as an ISO timestamp.
@@ -123,7 +123,7 @@ describe("opening a share", () => {
     const { id, bytes } = await share({ max_uses: 2 });
     const sam = await otherUser();
     const res = await open(id, sam.cookie);
-    expect(res).toEqual({ status: 200, body: { kind: "tie", created_at: expect.any(String), own: false, snapshot: expect.any(String) } });
+    expect(res).toEqual({ status: 200, body: { kind: "tie", created_at: expect.any(String), own: false, snapshot: expect.any(String), connection_id: null, offer: null } });
     expect(fromBase64url(res.body.snapshot)).toEqual(bytes);
     expect(await sql("SELECT use_count FROM shares WHERE id = ?", id).first()).toEqual({ use_count: 1 });
 

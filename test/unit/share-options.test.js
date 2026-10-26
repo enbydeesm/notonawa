@@ -19,6 +19,12 @@ describe("the share's choices", () => {
     expect(shareWarning("never", "any")).toMatch("Anyone who ever sees this code");
     expect([shareWarning("never", "one"), shareWarning("30d", "any"), shareWarning("1d", "one")]).toEqual([null, null, null]);
   });
+
+  it("says so when that code would also connect anyone to my account", () => {
+    expect(shareWarning("never", "any", true)).toMatch("use it to connect to your account");
+    expect(shareWarning("never", "any", false)).not.toMatch("connect");
+    expect([shareWarning("never", "one", true), shareWarning("7d", "any", true)]).toEqual([null, null]);
+  });
 });
 
 describe("Shared by me's words", () => {

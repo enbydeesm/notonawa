@@ -88,7 +88,10 @@ export const RESOURCES = {
       // When their About was last shared by them (migration 0024): plain.
       about_shared_on: { parse: toDateOrNull },
     },
-    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on, archived_at, created_at, updated_at",
+    // connection_id (migration 0026): my side of a connection to their
+    // account, if it's on this card. Shown, never edited here: only the
+    // connections routes set it.
+    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on, connection_id, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",
     // "Add & archive" in the tie form's people picker: someone tied with once.
     archiveOnCreate: true,

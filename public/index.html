@@ -229,11 +229,15 @@
       <!-- "This is me" shows only when editing my own profile, ticked and
            greyed out: it can't be changed (people.js). It's outside the form,
            so form="form" keeps it in the form's fields. Share my profile, in
-           the middle, also shows only on my own: an invite to add it. -->
+           the middle, also shows only on my own: an invite to add it. In the
+           same place on someone linked to their account (connections.js):
+           the link icon, "Linked to their account" and Remove link. -->
       <div class="name-row heading-row">
         <h2 id="person-form-heading">Add a person</h2>
         <button type="button" class="heading-action" id="person-share" hidden>Share my profile</button>
         <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" form="form" disabled> This is me</label>
+        <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Linked to their account
+          <button type="button" class="link" id="person-unlink">Remove link</button></span>
       </div>
       <form id="form">
         <div class="name-row">
@@ -643,6 +647,14 @@
       <p class="hint">Invites you've made that can still be used. Revoke one to stop its code working.</p>
       <div id="shared-by-me"><p class="empty">Loading…</p></div>
       <p class="message" id="shared-by-me-message"></p>
+    </section>
+
+    <!-- My connections to other accounts: shared-by-me.js. -->
+    <section class="card">
+      <h2>Connections</h2>
+      <p class="hint">Accounts connected to yours. NotoNawa's server can see that you know each other, never what's in either journal. Removing one ends it for both of you.</p>
+      <div id="connections"><p class="empty">Loading…</p></div>
+      <p class="message" id="connections-message"></p>
     </section>
   </template>
 

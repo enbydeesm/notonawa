@@ -13,7 +13,7 @@ import { MAX_ACCOUNT_BYTES } from "../media/parse.js";
  * sealed.
  * @typedef {{
  *   id: string, kind: string, label: string | null, link_key: string | null, bytes: number, expires_at: string | null,
- *   max_uses: number | null, use_count: number, created_at: string,
+ *   max_uses: number | null, use_count: number, connect: number, created_at: string,
  * }} ShareRow
  */
 
@@ -48,14 +48,14 @@ export async function shareCheck(db, ownerId, id) {
  */
 export async function insertShare(db, ownerId, share, bytes) {
   const row = await db.prepare(
-    `INSERT INTO shares (id, owner_id, kind, label, bytes, expires_at, max_uses, link_key)
+    `INSERT INTO shares (id, owner_id, kind, label, bytes, expires_at, max_uses, link_key, connect)
      SELECT ?1, ?2, ?3, ?4, ?5,
-            CASE WHEN ?6 IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?6) END, ?7, ?10
+            CASE WHEN ?6 IS NULL THEN NULL ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?6) END, ?7, ?10, ?11
       WHERE (SELECT COUNT(*) FROM shares WHERE owner_id = ?2 AND ${LIVE}) < ?8
         AND ${accountBytes("?2")} + ?5 <= ?9
      RETURNING id`
   ).bind(share.id, ownerId, share.kind, share.label, bytes, share.expires, share.maxUses, MAX_LIVE_SHARES, MAX_ACCOUNT_BYTES,
-    share.linkKey).first();
+    share.linkKey, share.connect).first();
   return row !== null;
 }
 
@@ -67,7 +67,7 @@ export async function insertShare(db, ownerId, share, bytes) {
  */
 export async function listShares(db, ownerId) {
   const { results } = await db.prepare(
-    `SELECT id, kind, label, link_key, bytes, expires_at, max_uses, use_count, created_at
+    `SELECT id, kind, label, link_key, bytes, expires_at, max_uses, use_count, connect, created_at
        FROM shares WHERE owner_id = ? AND ${LIVE} ORDER BY created_at DESC, rowid DESC`
   ).bind(ownerId).all();
   return /** @type {ShareRow[]} */ (results);
@@ -90,27 +90,33 @@ export async function deleteShare(db, ownerId, id) {
  * looking at what I sent). Anyone else's counts one, in the same statement
  * that checks there's one left, so two people can't both take a share
  * that has one use left. null if it's ended or doesn't exist: which, isn't
- * said.
+ * said. connect and label are for an offer to connect (the label sealed
+ * with the owner's key, copied to the offer).
  * @param {D1Database} db
  * @param {string} userId who is opening it
  * @param {string} id
- * @returns {Promise<{ owner_id: string, kind: string, created_at: string, own: boolean, used_up: boolean } | null>}
+ * @returns {Promise<{
+ *   owner_id: string, kind: string, created_at: string, own: boolean, used_up: boolean, connect: boolean, label: string | null,
+ * } | null>}
  */
 export async function takeShare(db, userId, id) {
   const [mine, theirs] = /** @type {D1Result<any>[]} */ (await db.batch([
-    db.prepare(`SELECT owner_id, kind, created_at FROM shares WHERE id = ?1 AND owner_id = ?2 AND ${LIVE}`).bind(id, userId),
+    db.prepare(`SELECT owner_id, kind, created_at, connect, label FROM shares WHERE id = ?1 AND owner_id = ?2 AND ${LIVE}`).bind(id, userId),
     db.prepare(
       `UPDATE shares SET use_count = use_count + 1
         WHERE id = ?1 AND owner_id <> ?2 AND ${LIVE} AND (max_uses IS NULL OR use_count < max_uses)
-       RETURNING owner_id, kind, created_at, use_count, max_uses`
+       RETURNING owner_id, kind, created_at, use_count, max_uses, connect, label`
     ).bind(id, userId),
   ]));
-  if (mine.results.length > 0) return { ...mine.results[0], own: true, used_up: false };
+  if (mine.results.length > 0) {
+    const row = mine.results[0];
+    return { ...row, connect: !!row.connect, own: true, used_up: false };
+  }
   if (theirs.results.length === 0) return null;
   const row = theirs.results[0];
   return {
     owner_id: row.owner_id, kind: row.kind, created_at: row.created_at, own: false,
-    used_up: row.max_uses !== null && row.use_count >= row.max_uses,
+    used_up: row.max_uses !== null && row.use_count >= row.max_uses, connect: !!row.connect, label: row.label,
   };
 }
 

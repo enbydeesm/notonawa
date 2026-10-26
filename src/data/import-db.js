@@ -69,11 +69,16 @@ const SQL = {
   tags: `INSERT INTO tags (id, owner_id, name)
          SELECT ${j("id")}, ?1, ${j("name")} FROM json_each(?2) j WHERE true
          ON CONFLICT (owner_id, name) DO NOTHING`,
+  // A link to a connection is checked again here (import-plan.js chose
+  // it): one of mine, and on no one yet, or the person comes in unlinked.
   people: `INSERT INTO people (id, owner_id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about,
-                              about_shared_on, archived_at, created_at, updated_at)
+                              about_shared_on, archived_at, created_at, updated_at, connection_id)
            SELECT ${j("id")}, ?1, ${j("name")}, ${j("pronouns")}, ${j("notes")}, ${j("is_self")}, ${j("default_role")},
                   ${j("is_educator")}, ${j("based_in")}, ${j("aliases")}, ${j("about")}, ${j("about_shared_on")},
-                  ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")}
+                  ${j("archived_at")}, ${time("created_at")}, ${time("updated_at")},
+                  (SELECT c.id FROM connections c
+                    WHERE c.id = ${j("connection_id")} AND c.owner_id = ?1 AND ${j("is_self")} = 0
+                      AND NOT EXISTS (SELECT 1 FROM people x WHERE x.connection_id = c.id))
              FROM json_each(?2) j`,
   // The people are new rows of mine (?1 isn't needed: profile notes have no owner).
   profileNotes: `INSERT INTO profile_notes (id, person_id, type, description, noted_on, is_current, created_at, updated_at)
@@ -143,20 +148,24 @@ const SQL = {
 };
 
 /**
- * My people, locations, plans (title as name) and tags, for matching.
+ * My people, locations, plans (title as name) and tags, for matching, and
+ * my connections, for keeping people's links to them.
  * @param {D1Database} db
  * @param {string} ownerId
  * @returns {Promise<Existing>}
  */
 export async function existingItems(db, ownerId) {
   const q = (/** @type {string} */ sql) => db.prepare(sql).bind(ownerId);
-  const [people, locations, plans, tags] = /** @type {D1Result<any>[]} */ (await db.batch([
+  const [people, locations, plans, tags, connections] = /** @type {D1Result<any>[]} */ (await db.batch([
     q("SELECT id, name, is_self, archived_at FROM people WHERE owner_id = ?"),
     q("SELECT id, name, is_default, archived_at FROM locations WHERE owner_id = ?"),
     q("SELECT id, title AS name, archived_at FROM plans WHERE owner_id = ?"),
     q("SELECT id, name FROM tags WHERE owner_id = ?"),
+    q("SELECT c.id, EXISTS (SELECT 1 FROM people p WHERE p.connection_id = c.id) AS linked FROM connections c WHERE c.owner_id = ?"),
   ]));
-  return { people: people.results, locations: locations.results, plans: plans.results, tags: tags.results };
+  return {
+    people: people.results, locations: locations.results, plans: plans.results, tags: tags.results, connections: connections.results,
+  };
 }
 
 /**

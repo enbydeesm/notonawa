@@ -19,7 +19,7 @@ export async function readAccount(db, userId) {
          FROM users WHERE id = ?`),
     q("SELECT name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at"),
     q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on,
-              archived_at, created_at, updated_at
+              connection_id, archived_at, created_at, updated_at
          FROM people WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT n.person_id, n.type, n.description, n.noted_on, n.is_current, n.created_at, n.updated_at
          FROM profile_notes n JOIN people p ON p.id = n.person_id
@@ -73,13 +73,16 @@ export async function readAccount(db, userId) {
     // My saved poser presets (their names sealed; their angles plain JSON).
     q(`SELECT kind, name, data, created_at, updated_at
          FROM pose_presets WHERE owner_id = ? ORDER BY created_at, rowid`),
+    // My side of each connection (never the other account's id).
+    q(`SELECT id, invited, label, answered, created_at
+         FROM connections WHERE owner_id = ? ORDER BY created_at, rowid`),
   ]);
   const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags,
-    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback, shares, posePresets] =
+    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback, shares, posePresets, connections] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
     ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback,
-    shares, posePresets,
+    shares, posePresets, connections,
   };
 }

@@ -7,6 +7,9 @@ import { BadInput, json, notFound, noContent, readJson } from "../http.js";
 import { parseNewShare, parseShareId, shareProblem, toBase64url } from "./parse.js";
 import { shareCheck, insertShare, listShares, deleteShare, takeShare, deleteUsedUp } from "./db.js";
 import { putSnapshot, getSnapshot, deleteShareFiles } from "./storage.js";
+import { sha256Hex } from "../auth/session.js";
+import { newOfferToken } from "../connections/parse.js";
+import { connectionWith, insertOffer } from "../connections/db.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -30,16 +33,18 @@ export async function handleShares(request, env, user, url) {
 
   if (url.pathname === "/api/shares") {
     // GET /api/shares -> [{ id, kind, label, link_key, bytes, expires_at,
-    //   max_uses, use_count, created_at }]: my live shares, newest first
+    //   max_uses, use_count, connect, created_at }]: my live shares, newest first
     //   (labels and link keys sealed with my data key)
     if (method === "GET") return json(await listShares(db, user.id));
 
     // POST /api/shares  body { id, kind, label, link_key, expires, max_uses,
-    //   snapshot } -> { id } (201): a new share. The browser chose the id,
-    //   sealed the snapshot (base64url) with the link's key, and sealed the
-    //   label and that key with my data key, so I can show the code again. expires: 10m, 1h, 1d, 7d, 30d or
-    //   never (until revoked); max_uses: 1 to 100, or null for any number.
-    //   At most 50 live an account, counted in its 1 GB.
+    //   snapshot, connect } -> { id } (201): a new share. The browser chose
+    //   the id, sealed the snapshot (base64url) with the link's key, and
+    //   sealed the label and that key with my data key, so I can show the
+    //   code again. expires: 10m, 1h, 1d, 7d, 30d or never (until revoked);
+    //   max_uses: 1 to 100, or null for any number; connect: a profile
+    //   invite offering to connect our accounts. At most 50 live an
+    //   account, counted in its 1 GB.
     if (method === "POST") {
       const share = parseNewShare(await readJson(request));
       const check = await shareCheck(db, user.id, share.id);
@@ -66,10 +71,14 @@ export async function handleShares(request, env, user, url) {
     return null;
   }
 
-  // POST /api/shares/open  body { id } -> { kind, created_at, own, snapshot }:
-  //   a live share's sealed snapshot (base64url), for the browser to open
-  //   with the link's key. Opening someone else's counts a use, and the last
-  //   allowed use deletes the share; opening my own doesn't count. 404 for
+  // POST /api/shares/open  body { id } -> { kind, created_at, own, snapshot,
+  //   connection_id, offer }: a live share's sealed snapshot (base64url),
+  //   for the browser to open with the link's key. Opening someone else's
+  //   counts a use, and the last allowed use deletes the share; opening my
+  //   own doesn't count. connection_id: my row of our connection, if its
+  //   owner and I are connected already. offer: when they aren't and it's
+  //   an invite offering to connect, a token for POST /api/connections
+  //   (lasting a day; only its hash is kept, not who opened it). 404 for
   //   any share that's ended or never was. The id is in the body, never the
   //   address. Limited per account (SHARE_RATE_LIMIT).
   if (url.pathname === "/api/shares/open") {
@@ -85,7 +94,17 @@ export async function handleShares(request, env, user, url) {
       await deleteShareFiles(env.PHOTOS, [{ owner_id: share.owner_id, id }]);
     }
     if (!snapshot) return json({ error: ENDED }, 404);
-    return json({ kind: share.kind, created_at: share.created_at, own: share.own, snapshot: toBase64url(snapshot) });
+    const connectionId = share.own ? null : await connectionWith(db, user.id, share.owner_id);
+    /** @type {string | null} */
+    let offer = null;
+    if (share.connect && !share.own && !connectionId) {
+      offer = newOfferToken();
+      await insertOffer(db, await sha256Hex(offer), share.owner_id, share.label);
+    }
+    return json({
+      kind: share.kind, created_at: share.created_at, own: share.own, snapshot: toBase64url(snapshot),
+      connection_id: connectionId, offer,
+    });
   }
 
   // DELETE /api/shares/:id -> revokes one of my shares: its row and files

@@ -3,13 +3,18 @@
 // invite (ties, plans and workshops come later): added as a new person, or
 // onto a card I already have for them, choosing what to take.
 //
+// An invite can also offer to connect our accounts: ticking Connect our
+// accounts accepts it once the card is saved, linking that card. If we're
+// connected already, the card linked to them is suggested, and whichever
+// card I choose is linked.
+//
 // The link's key never reaches the server (pending-share.js takes it out of
 // the address on load). What was shared comes from another account, so it's
 // read strictly (profile-share.js) and shown as text.
 
 import { api, ApiError, errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
-import { openShare, open, sealOne, CantOpen } from "../vault.js";
+import { openShare, sealOne, CantOpen } from "../vault.js";
 import { toBase64url, fromBase64url } from "../crypto/keys.js";
 import { pendingShare, keepOpened, forget } from "../pending-share.js";
 import { readProfile } from "../profile-share.js";
@@ -17,8 +22,17 @@ import { fieldChoices, newAliases, mergedPerson, newPerson } from "../contact-me
 import { akaText } from "../aliases.js";
 import { roleName } from "../roles.js";
 import { capitalise, today } from "../format.js";
+import { linkablePeople, linkConnection, connectionsChanged } from "../connections.js";
+import { ACCEPT_DISCLOSURE } from "../connection-text.js";
 
 /** @typedef {import("../profile-share.js").SharedProfile} SharedProfile */
+/** @typedef {import("../pending-share.js").OpenedShare} OpenedShare */
+
+/**
+ * What the screens of adding it share: what was shared, its preview, and
+ * whether I've ticked Connect our accounts (kept as I go back and forth).
+ * @typedef {{ body: HTMLElement, profile: SharedProfile, preview: HTMLElement, opened: OpenedShare, connect: boolean }} Adding
+ */
 
 /**
  * @param {HTMLElement} root
@@ -38,7 +52,7 @@ export async function mount(root, { signal }) {
     try {
       const res = await api("/api/shares/open", { method: "POST", body: { id: link.id } });
       const data = await openShare(link.id, res.kind, toBase64url(link.key), fromBase64url(res.snapshot).buffer);
-      opened = { kind: res.kind, own: res.own, data };
+      opened = { kind: res.kind, own: res.own, data, offer: res.offer ?? null, connectionId: res.connection_id ?? null };
       keepOpened(opened);
     } catch (err) {
       if (signal.aborted) return;
@@ -62,7 +76,7 @@ export async function mount(root, { signal }) {
       h("p", { id: "open-own" }, "This is your own invite. Share its code with someone else to let them add you."));
     return;
   }
-  showChoice(body, profile, preview);
+  showChoice({ body, profile, preview, opened, connect: false });
 }
 
 /**
@@ -83,12 +97,29 @@ function profileCard(profile) {
 }
 
 /**
- * Add as a new person, or to someone I have.
- * @param {HTMLElement} body
- * @param {SharedProfile} profile
- * @param {HTMLElement} preview
+ * Connect our accounts, when the invite offers it: unticked, with what it
+ * means. Or, if we're connected already, a note saying so.
+ * @param {Adding} adding
  */
-function showChoice(body, profile, preview) {
+function connectChoice(adding) {
+  if (adding.opened.connectionId) {
+    return h("p", { className: "hint", id: "open-connected" }, "Your accounts are connected: the card you add them to will be linked to theirs.");
+  }
+  if (!adding.opened.offer) return null;
+  const tick = h("input", { type: "checkbox", id: "open-connect", checked: adding.connect,
+    onchange: () => { adding.connect = tick.checked; } });
+  return h("div", { className: "open-connect" },
+    h("label", { className: "inline" }, tick, " Connect our accounts"),
+    h("p", { className: "hint", id: "open-connect-note" }, ACCEPT_DISCLOSURE));
+}
+
+/**
+ * Add as a new person, or to someone I have (the card already linked to
+ * them first, if there is one).
+ * @param {Adding} adding
+ */
+async function showChoice(adding) {
+  const { body, profile, preview } = adding;
   const message = h("p", { className: "message", id: "open-message" });
   const addNew = h("button", {
     type: "button", className: "primary", id: "open-add-new",
@@ -96,8 +127,8 @@ function showChoice(body, profile, preview) {
       addNew.disabled = true;
       showMessage(message, "Adding…");
       try {
-        await api("/api/people", { method: "POST", body: await sealOne("person", newPerson(profile, today())) });
-        done(body, profile.name);
+        const { id } = await api("/api/people", { method: "POST", body: await sealOne("person", newPerson(profile, today())) });
+        done(adding, profile.name, await connectTo(adding, id));
       } catch (err) {
         showMessage(message, "Couldn't add them: " + errorMessage(err), true);
         addNew.disabled = false;
@@ -106,37 +137,54 @@ function showChoice(body, profile, preview) {
   }, "Add as a new person");
   const addExisting = h("button", {
     type: "button", id: "open-add-existing",
-    onclick: () => pickPerson(body, profile, preview),
+    onclick: () => pickPerson(adding),
   }, "Add to someone in my People");
-  body.replaceChildren(
+  body.replaceChildren(...[
     h("p", { className: "hint" }, "Shared with you:"),
     preview,
     h("p", { className: "hint", id: "open-once" }, "Add it before you leave: the link may not work again."),
-    addNew, addExisting, message);
+    connectChoice(adding),
+    addNew, addExisting, message].filter((el) => el !== null));
+
+  // Connected already: the card linked to them is the likely one.
+  if (!adding.opened.connectionId) return;
+  try {
+    const linked = (await linkablePeople()).find((p) => p.connection_id === adding.opened.connectionId);
+    if (!linked || !body.contains(addNew)) return;
+    addNew.classList.remove("primary");
+    addNew.before(h("button", {
+      type: "button", className: "primary", id: "open-add-linked", onclick: () => showMerge(adding, linked),
+    }, `Add to ${linked.name}, linked to their account`));
+  } catch {
+    // The other buttons still work.
+  }
 }
 
 /**
  * Choosing which of my people this is.
- * @param {HTMLElement} body
- * @param {SharedProfile} profile
- * @param {HTMLElement} preview
+ * @param {Adding} adding
  */
-async function pickPerson(body, profile, preview) {
+async function pickPerson(adding) {
+  const { body, profile, preview } = adding;
   const message = h("p", { className: "message", id: "open-message" });
   let people;
   try {
-    people = (await open("person", await api("/api/people?archived=false"))).filter((p) => !p.is_self);
+    people = await linkablePeople();
   } catch (err) {
     body.append(message);
     return showMessage(message, "Couldn't load your People: " + errorMessage(err), true);
   }
   if (people.length === 0) {
     body.replaceChildren(preview, h("p", { id: "open-no-people" }, "There's no one in your People yet."),
-      h("button", { type: "button", onclick: () => showChoice(body, profile, preview) }, "Back"));
+      h("button", { type: "button", onclick: () => showChoice(adding) }, "Back"));
     return;
   }
+  const linked = adding.opened.connectionId;
   const select = h("select", { id: "open-person" },
-    people.map((p) => h("option", { value: p.id, selected: p.name.toLowerCase() === profile.name.toLowerCase() }, p.name)));
+    people.map((p) => h("option", {
+      value: p.id,
+      selected: linked ? p.connection_id === linked : p.name.toLowerCase() === profile.name.toLowerCase(),
+    }, p.name)));
   body.replaceChildren(preview,
     h("label", { htmlFor: "open-person" }, "Who is this?"),
     select,
@@ -144,20 +192,19 @@ async function pickPerson(body, profile, preview) {
       h("button", { type: "button", className: "primary", id: "open-next",
         onclick: () => {
           const person = people.find((p) => p.id === select.value);
-          if (person) showMerge(body, profile, preview, person);
+          if (person) showMerge(adding, person);
         } }, "Next"),
-      h("button", { type: "button", onclick: () => showChoice(body, profile, preview) }, "Back")),
+      h("button", { type: "button", onclick: () => showChoice(adding) }, "Back")),
     message);
 }
 
 /**
  * Field by field: theirs or mine. Then saving the card.
- * @param {HTMLElement} body
- * @param {SharedProfile} profile
- * @param {HTMLElement} preview
+ * @param {Adding} adding
  * @param {any} person mine, opened
  */
-function showMerge(body, profile, preview, person) {
+function showMerge(adding, person) {
+  const { body, profile, preview } = adding;
   const choices = fieldChoices(person, profile, (role) => capitalise(roleName(role)));
   const message = h("p", { className: "message", id: "open-message" });
   /**
@@ -196,7 +243,7 @@ function showMerge(body, profile, preview, person) {
         const aliases = /** @type {import("../contact-merge.js").AliasChoice} */ (chosen("open-aliases") ?? "keep");
         const record = mergedPerson(person, profile, picked, aliases, today());
         await api(`/api/people/${person.id}`, { method: "PUT", body: await sealOne("person", record) });
-        done(body, record.name);
+        done(adding, record.name, await connectTo(adding, person.id));
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
         save.disabled = false;
@@ -212,17 +259,46 @@ function showMerge(body, profile, preview, person) {
       : h("p", { className: "hint", id: "open-about-note" }, "They didn't share an About: the card's stays as it is."),
     h("p", { className: "hint" }, "Your private notes about them stay as they are."),
     h("div", { className: "button-row" }, save,
-      h("button", { type: "button", onclick: () => pickPerson(body, profile, preview) }, "Back")),
+      h("button", { type: "button", onclick: () => pickPerson(adding) }, "Back")),
     message].filter((el) => el !== null));
 }
 
 /**
- * Added: the share's done with.
- * @param {HTMLElement} body
- * @param {string} name
+ * Once the card is saved: links it to their account, if I ticked Connect
+ * our accounts (accepting the offer) or we're connected already. The card
+ * is saved either way, so a failure here is only said.
+ * @param {Adding} adding
+ * @param {string} personId
+ * @returns {Promise<"linked" | "not linked" | string>} what happened, or why it couldn't connect
  */
-function done(body, name) {
+async function connectTo(adding, personId) {
+  const { opened, profile } = adding;
+  try {
+    if (opened.connectionId) {
+      await linkConnection(opened.connectionId, personId);
+      return "linked";
+    }
+    if (!opened.offer || !adding.connect) return "not linked";
+    const { label } = await sealOne("connection", { label: profile.name });
+    await api("/api/connections", { method: "POST", body: { offer: opened.offer, person_id: personId, label } });
+    connectionsChanged();
+    return "linked";
+  } catch (err) {
+    return errorMessage(err);
+  }
+}
+
+/**
+ * Added: the share's done with.
+ * @param {Adding} adding
+ * @param {string} name
+ * @param {string} connected what connectTo said
+ */
+function done(adding, name, connected) {
   forget();
-  body.replaceChildren(h("p", { id: "open-done" }, `${name} is in your People.`),
-    h("a", { href: "/people", id: "open-to-people" }, "Go to People"));
+  const note = connected === "linked" ? h("p", { id: "open-linked" }, "Their card is linked to their account.")
+    : connected === "not linked" ? null
+    : h("p", { className: "message error", id: "open-link-failed" }, `They're added, but your accounts couldn't be connected: ${connected}`);
+  adding.body.replaceChildren(...[h("p", { id: "open-done" }, `${name} is in your People.`), note,
+    h("a", { href: "/people", id: "open-to-people" }, "Go to People")].filter((el) => el !== null));
 }

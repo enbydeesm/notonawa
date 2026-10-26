@@ -9,7 +9,8 @@
 /**
  * The file with every person, profile note, location, plan, tie,
  * participant and workshop converted, and the names of the account's
- * shares and saved poser presets. Other parts are kept as they are.
+ * shares, saved poser presets and connections. Other parts are kept as
+ * they are.
  * @template {{ people?: any[], locations?: any[], plans?: any[], ties?: any[], workshops?: any[], account?: any }} T
  * @param {T} doc
  * @param {Convert} convert
@@ -44,7 +45,24 @@ async function convertAccount(account, convert) {
   for (const [key, kind] of ACCOUNT_LISTS) {
     if (Array.isArray(account[key])) out[key] = await convert(kind, account[key]);
   }
+  if (Array.isArray(account.connections)) out.connections = await convertConnections(account.connections, convert);
   return out;
+}
+
+/**
+ * Connections' names: on the side that invited, the invite's own name,
+ * sealed as a share's label; on the other, sealed as a connection's.
+ * Converted in two calls and put back in order.
+ * @param {any[]} connections
+ * @param {Convert} convert
+ */
+export async function convertConnections(connections, convert) {
+  const invited = connections.filter((c) => c?.invited);
+  const accepted = connections.filter((c) => !c?.invited);
+  const [openedInvited, openedAccepted] = await Promise.all([convert("share", invited), convert("connection", accepted)]);
+  let i = 0;
+  let a = 0;
+  return connections.map((c) => (c?.invited ? openedInvited[i++] : openedAccepted[a++]));
 }
 
 /**
@@ -95,7 +113,7 @@ export function withoutUnreadableMarks(doc) {
       workshops: (doc.workshops ?? []).map(clean),
       ...(doc.account ? {
         account: Object.fromEntries(Object.entries(doc.account).map(([key, value]) =>
-          [key, ACCOUNT_LISTS.some(([k]) => k === key) && Array.isArray(value) ? value.map(clean) : value])),
+          [key, (key === "connections" || ACCOUNT_LISTS.some(([k]) => k === key)) && Array.isArray(value) ? value.map(clean) : value])),
       } : {}),
     },
     unreadable,

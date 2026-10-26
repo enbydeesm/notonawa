@@ -45,7 +45,8 @@ import { uploadPhoto } from "../photo-upload.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
-import { showSharedByMe } from "../shared-by-me.js";
+import { showSharedByMe, showConnections } from "../shared-by-me.js";
+import { linksDroppedText } from "../connection-text.js";
 
 /** @typedef {import("../import-steps.js").ImportDoc} ImportDoc */
 /** @typedef {import("../import-photos.js").PhotoEntry} PhotoEntry */
@@ -180,8 +181,13 @@ async function buildExport(progress) {
   return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable: unreadable + unreadableCaptions, missing };
 }
 
-export function mount() {
+/**
+ * @param {HTMLElement} _root
+ * @param {{ signal: AbortSignal }} options
+ */
+export function mount(_root, { signal }) {
   showSharedByMe($("#shared-by-me"), $("#shared-by-me-message"));
+  showConnections($("#connections"), $("#connections-message"), signal);
 
   const fileInput = /** @type {HTMLInputElement} */ ($("#import-file"));
   const preview = $("#import-preview");
@@ -316,11 +322,13 @@ export function mount() {
       go.hidden = true;
       fileInput.value = "";
       pending = null;
+      const unlinked = linksDroppedText(items.links_dropped);
       showMessage(importMessage, `Imported ${ties(added)}.` +
         (skipped ? ` Skipped ${ties(skipped)} already in your journal.` : "") +
         (workshopsAdded ? ` Imported ${workshops(workshopsAdded)}.` : "") +
         (workshopsSkipped ? ` Skipped ${workshops(workshopsSkipped)} already in your journal.` : "") +
         (extras ? ` ${extras}` : "") +
+        (unlinked ? ` ${unlinked}` : "") +
         (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!extras && /couldn't/.test(extras));
     } catch (err) {
       // Batches already saved stay saved; running it again skips them.
@@ -568,7 +576,7 @@ export function mount() {
         `${workshopsToAdd.toLocaleString()} to add`,
         workshopDuplicates ? `${workshopDuplicates.toLocaleString()} already in your journal (skipped)` : null,
       ]) : null,
-      itemSection("People", items.people),
+      section("People", [...Object.values(describeItems(items.people)), linksDroppedText(items.links_dropped)]),
       itemSection("Locations", items.locations),
       itemSection("Plans", items.plans),
       newTags.size ? section("Tags", [`${newTags.size} new: ${[...newTags].join(", ")}`]) : null,

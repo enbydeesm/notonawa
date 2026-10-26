@@ -21,6 +21,11 @@
   filter it, such as names, titles, dates and ratings, and the drawings and
   poses you add to ties, plans and workshops (but not their captions). See
   [What we can and can't read](#what-we-can-and-cant-read).
+- **You can share your profile with someone** through a link or QR code.
+  It's encrypted on your device with a key that's only in the link, so we
+  can't read it. **Connecting your account to theirs is optional**: it lets
+  our server see that the two accounts know each other, never what's in
+  either journal. See [Sharing with other people](#sharing-with-other-people).
 - You can export everything, import entries from a file, or delete your
   account and everything in it, at any time.
 
@@ -101,18 +106,22 @@ analytics, advertising or tracking tools of any kind.
 (on ties, people, locations, plans and workshops, including plan and
 workshop descriptions), the photo album links on ties, plans and
 workshops, where people are based and their
-social and scene names, your photos and videos, their thumbnails and
-captions, the captions of your drawings and poses, and the names of the
-poser presets you save.
+social and scene names, the About on your own profile and the About someone
+shared with you on theirs, your photos and videos, their thumbnails and
+captions, the captions of your drawings and poses, the names of the
+poser presets you save, and everything you share with someone else
+(encrypted with the share's own key, see
+[Sharing with other people](#sharing-with-other-people)), with the names
+you give your shares and connections.
 
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, workshops,
 people and locations (such as names, pronouns, titles, dates, types,
 ratings, who took part, a workshop's educators and how many attended,
 whether someone is an educator, and a location's city, state or province
-and country),
+and country, and the date someone last shared their About with you),
 your tags, when things were created, changed or archived and how they link
-together, and for each photo or video which tie, plan or workshop it's on, its size,
+together, which of your people is linked to a connected account, and for each photo or video which tie, plan or workshop it's on, its size,
 whether it's a photo or a video, its file type and when it was added (not
 what it shows). **Drawings are not encrypted**: the lines you draw, their
 colors, and which tie, plan or workshop each is on are readable by our
@@ -247,13 +256,66 @@ allow on this site, protects you further.
   away, and poses made from it stay as they are. Presets are in your export
   and deleted with your account.
 
+## Sharing with other people
+
+### Sharing your profile
+
+- From your own profile in People, you can make an invite: a link (and a
+  QR code of it) that lets someone add your profile to their People. You
+  choose what goes in it (the name to share, and any of your pronouns,
+  usual role, social and scene names, where you're based, whether you're
+  an educator, and your About). Your private notes are never shared.
+- What you share is encrypted on your device with a new key that's only in
+  the link, after the "#", which browsers never send to us. We store the
+  encrypted copy and can't open it. Anyone who has the link can open it
+  while it lasts, so send it only to the person it's for.
+- For each share we also store: what kind it is, the name you give it
+  (encrypted), the link's key (encrypted with your own key, so you can show
+  the code again; we can't use it), how big it is, when it ends, how many
+  times it can be and has been opened (not by whom), and whether it offers
+  to connect accounts. Shares count toward your 1 GB.
+- You choose how long a share lasts (from 10 minutes, to until you revoke
+  it) and whether one person or anyone with the link can use it. It's
+  deleted, with its encrypted copy, when it expires, when its last allowed
+  use is opened, or as soon as you revoke it. A daily clean-up removes any
+  left over.
+- When someone opens a share, we don't record who they are. What they add
+  to their journal is theirs: revoking a share doesn't take back what was
+  already added.
+
+### Connecting accounts
+
+- An invite can also offer to connect your accounts. It's off unless you
+  tick it, and the person opening it chooses too. If either of you
+  doesn't, they still get your profile, just not a connection.
+- A connection is the only way NōtoNawa's server learns that two accounts
+  know each other. We store, for each of you: the two accounts, when you
+  connected, your own name for the connection (encrypted: the invite's
+  name for whoever made it, the shared name for whoever accepted it),
+  which of your people it's on, and whether the inviter has answered
+  "Which of your People is it?". We still can't read anything in either
+  journal, and neither of you ever sees the other's account details.
+- When someone opens an invite that offers to connect, we keep a one-time
+  token for it (scrambled) for a day, so they can accept it. It records
+  whose invite it was, not who opened it, and is deleted once used or
+  expired.
+- When it's accepted, the inviter is told that someone accepted their
+  invite (not who, as an invite anyone can use could have been opened by
+  anyone), and chooses which of their people it is.
+- Either of you can remove a connection at any time, from your Connections
+  in Your data or from their card. It's removed for both of you, and both
+  cards stay, just unlinked. When you remove one, you can also choose to
+  clear the About you shared from their card for you; nothing else in
+  their journal is changed. A connection is deleted with either account.
+
 ## Information about other people
 
 Your journal may hold information about the people you tie with. Please only
 record what they would be comfortable with, and remove it if they ask.
 Entries about someone stay in your account. If that person also uses
 NōtoNawa, they can't see your entries, and we don't tell them you've written
-about them.
+about them. If someone shares their profile with you, what you add is in
+your journal, and its About shows as theirs.
 
 ## Where your data is stored
 
@@ -291,8 +353,13 @@ leaves your device. Your mode itself is saved with your account (see
   away. Deleted photos and videos are removed from storage straight away
   (deleting a tie, plan or workshop deletes its photos and videos too). If that's ever interrupted, a daily
   clean-up removes what was left within a day or two.
+- **Shares** are deleted when they end (see
+  [Sharing with other people](#sharing-with-other-people)), and **offers
+  to connect** a day after the invite was opened, if not accepted.
 - **When you delete your account**, everything in it (journal, photos, videos,
-  passkeys, sessions, recovery email and locked keys) is deleted straight away. Your device
+  passkeys, sessions, recovery email, locked keys, shares and connections) is
+  deleted straight away. Your connections are removed from the other
+  person's side too. Your device
   or password manager may still list your passkey for NōtoNawa; where the
   browser supports it, the app tells it the passkey no longer works.
 - **Backups.** Our database provider keeps a rolling history for disaster
@@ -316,13 +383,16 @@ Wherever you live, you can:
   .zip when you have photos or videos). It contains your
   whole journal, plus when you created your account and agreed to this
   policy, your passkeys' names and dates, whether you've set a recovery
-  email (not the address, which we don't have), and any bug reports and
-  ideas you've sent us. The file isn't encrypted, so keep it somewhere
+  email (not the address, which we don't have), any bug reports and
+  ideas you've sent us, the shares you've made (not what's in them) and
+  your connections (never the other person's account). The file isn't encrypted, so keep it somewhere
   safe.
 - **Import** entries from an export, or ties from a spreadsheet (a CSV file).
   The file is read in your browser, and only the entries in it are sent to
   us, just as if you'd typed them in. Photos and videos in an export are
-  prepared and encrypted on your device first, as when you add one.
+  prepared and encrypted on your device first, as when you add one. A
+  person's link to a connected account is kept only if that connection is
+  still yours.
 - **Correct** anything by editing it in the app.
 - **Delete** individual entries, or your whole account, from the app.
 - **End sessions** on any device, or remove passkeys, from your account
@@ -387,7 +457,7 @@ recovery email), and notify regulators where the law requires.
 - show ads or use your data for advertising
 - use analytics, tracking pixels or third-party scripts
 - train AI models on your data or send it to AI services
-- let anyone else see your journal
+- let anyone else see your journal, except what you choose to share
 
 ## Messages from us
 

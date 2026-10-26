@@ -12,6 +12,7 @@ import { readAliases, PLATFORMS } from "./aliases.js";
 import { buildProfile, suggestedName } from "./profile-share.js";
 import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, maxUsesFor, shareWarning } from "./share-options.js";
 import { showShareCode } from "./share-code.js";
+import { CONNECT_DISCLOSURE } from "./connection-text.js";
 import { roleName } from "./roles.js";
 import { capitalise } from "./format.js";
 
@@ -50,14 +51,19 @@ export function openShareProfile(me) {
     const expires = h("select", { id: "share-profile-expires" },
       EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_EXPIRY }, c.label)));
     const uses = h("select", { id: "share-profile-uses" }, USE_CHOICES.map((c) => h("option", { value: c.value }, c.label)));
+    // Connect our accounts: unticked, with what it means shown once it's ticked.
+    const connect = h("input", { type: "checkbox", id: "share-profile-connect" });
+    const disclosure = h("p", { className: "hint connect-disclosure", id: "share-profile-connect-note", hidden: true }, CONNECT_DISCLOSURE);
     const warning = h("p", { className: "warning-note", id: "share-profile-warning", hidden: true });
     const showWarning = () => {
-      const text = shareWarning(expires.value, uses.value);
+      const text = shareWarning(expires.value, uses.value, connect.checked);
       warning.hidden = !text;
       warning.textContent = text ?? "";
+      disclosure.hidden = !connect.checked;
     };
     expires.addEventListener("change", showWarning);
     uses.addEventListener("change", showWarning);
+    connect.addEventListener("change", showWarning);
     const label = privateField(h("input", { id: "share-profile-label", name: "label", maxLength: 100 }));
     const message = h("p", { className: "message", id: "share-profile-status" });
     const submit = h("button", { type: "submit", className: "primary", id: "share-profile-make" }, "Make invite");
@@ -73,6 +79,8 @@ export function openShareProfile(me) {
       h("div", { className: "row" },
         h("div", {}, h("label", { htmlFor: "share-profile-expires" }, "Lasts"), expires),
         h("div", {}, h("label", { htmlFor: "share-profile-uses" }, "Who can use it"), uses)),
+      h("label", { className: "inline share-connect" }, connect, " Connect our accounts"),
+      disclosure,
       warning,
       h("label", { htmlFor: "share-profile-label" }, "Name for this invite (optional)"),
       label,
@@ -114,10 +122,10 @@ export function openShareProfile(me) {
         const sealed = await sealOne("share", { label: label.value, link_key: key });
         await api("/api/shares", { method: "POST", body: {
           id, kind: "profile", label: sealed.label, link_key: sealed.link_key,
-          expires: expires.value, max_uses: maxUsesFor(uses.value), snapshot: toBase64url(body),
+          expires: expires.value, max_uses: maxUsesFor(uses.value), snapshot: toBase64url(body), connect: connect.checked,
         } });
         dialog.close();
-        await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value) ?? undefined });
+        await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value, connect.checked) ?? undefined });
       } catch (err) {
         showMessage(message, "Couldn't make the invite: " + errorMessage(err), true);
         submit.disabled = false;

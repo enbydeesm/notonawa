@@ -33,15 +33,18 @@ export function maxUsesFor(uses) {
 
 /**
  * A warning for a share anyone could use for good, or null. A code that
- * never ends and works for anyone works for whoever ever sees it.
+ * never ends and works for anyone works for whoever ever sees it; one that
+ * also connects accounts lets them all connect to mine.
  * @param {string} expires
  * @param {string} uses
+ * @param {boolean} [connect] it offers to connect our accounts
  * @returns {string | null}
  */
-export function shareWarning(expires, uses) {
-  return expires === "never" && uses === "any"
-    ? "Anyone who ever sees this code can use it, until you revoke it. Don't post it anywhere public."
-    : null;
+export function shareWarning(expires, uses, connect = false) {
+  if (expires !== "never" || uses !== "any") return null;
+  return connect
+    ? "Anyone who ever sees this code can use it to connect to your account, until you revoke it. Don't post it anywhere public."
+    : "Anyone who ever sees this code can use it, until you revoke it. Don't post it anywhere public.";
 }
 
 /**

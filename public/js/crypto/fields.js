@@ -34,6 +34,10 @@ export const ENCRYPTED = /** @type {const} */ ({
   // The sender's own name for a share (src/shares/), and its link's key,
   // so they can show its code again.
   share: { table: "shares", fields: ["label", "link_key"] },
+  // My name for a connection (src/connections/): the name a profile was
+  // shared as, on the side that accepted it. (The inviter's side holds the
+  // invite's own label, sealed as a share's: open it as "share".)
+  connection: { table: "connections", fields: ["label"] },
 });
 
 /** @typedef {keyof typeof ENCRYPTED} RecordKind */

@@ -33,6 +33,8 @@ const OWNED_ROWS = {
   notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
   feedback: "SELECT count(*) AS n FROM feedback WHERE user_id = ?",
   shares: "SELECT count(*) AS n FROM shares WHERE owner_id = ?",
+  connections: "SELECT count(*) AS n FROM connections WHERE owner_id = ?1 OR peer_id = ?1",
+  connection_offers: "SELECT count(*) AS n FROM connection_offers WHERE owner_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -113,6 +115,13 @@ async function userWithEverything() {
   // A share (its file is tested in shares.test.js).
   await post("/api/shares", { id: `share-${id.slice(0, 16)}`, kind: "tie", label: null, link_key: sealed("key"), expires: "1d", max_uses: 1,
     snapshot: btoa("x".repeat(40)).replace(/=+$/, "") });
+  // A connection to another account, on Sam, and an offer to connect.
+  const connection = crypto.randomUUID();
+  const peer = await createOtherUser();
+  await sql("INSERT INTO connections (id, owner_id, peer_id, invited) VALUES (?, ?, ?, 1), (?, ?, ?, 0)",
+    connection, id, peer, crypto.randomUUID(), peer, id).run();
+  await sql("UPDATE people SET connection_id = ? WHERE id = ?", connection, sam).run();
+  await sql("INSERT INTO connection_offers (token_hash, owner_id, expires_at) VALUES (?, ?, '2999-01-01T00:00:00Z')", `offer-${id}`, id).run();
   return { id, cookie };
 }
 
@@ -143,16 +152,23 @@ describe("DELETE /api/account", () => {
     expect(res.headers.get("set-cookie")).toMatch(/^__Host-session=; .*Max-Age=0/);
   });
 
-  it("leaves other users' journals alone, clearing only their links to me", async () => {
+  it("leaves other users' journals alone, clearing only their links to me and our connection", async () => {
     const user = await userWithEverything();
     const other = await userWithEverything();
     const linked = crypto.randomUUID();
     await sql("INSERT INTO people (id, owner_id, name, linked_user_id) VALUES (?, ?, 'Them', ?)", linked, other.id, user.id).run();
+    // Connected to each other, on Them.
+    const theirs = crypto.randomUUID();
+    await sql("INSERT INTO connections (id, owner_id, peer_id, invited) VALUES (?, ?, ?, 1), (?, ?, ?, 0)",
+      theirs, other.id, user.id, crypto.randomUUID(), user.id, other.id).run();
+    await sql("UPDATE people SET connection_id = ? WHERE id = ?", theirs, linked).run();
     const before = await countRows(other.id);
 
     await call("/api/account", { method: "DELETE", cookie: user.cookie });
-    expect(await countRows(other.id)).toEqual(before);
-    expect(await sql("SELECT linked_user_id FROM people WHERE id = ?", linked).first()).toEqual({ linked_user_id: null });
+    // Their connection to me is gone (both sides: 2 rows); the rest is theirs as it was.
+    expect(await countRows(other.id)).toEqual({ ...before, connections: before.connections - 2 });
+    expect(await sql("SELECT linked_user_id, connection_id FROM people WHERE id = ?", linked).first())
+      .toEqual({ linked_user_id: null, connection_id: null });
   });
 
   it("needs a recent sign-in", async () => {

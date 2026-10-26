@@ -22,6 +22,7 @@ import { watchForLock } from "./lock.js";
 import { api } from "./api.js";
 import { consentState, setConsentState, onConsentRequired } from "./consent-state.js";
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
+import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { showUnseenReleases } from "./whats-new.js";
@@ -57,6 +58,7 @@ takeShareLink();
 const root = $("#view");
 renderNav();
 noticeBox();
+connectionBox();
 installBox();
 
 /** @type {import("./router.js").ViewName | null} */
@@ -100,6 +102,8 @@ async function show({ fresh, scroll, focus }) {
   showNav(route.nav);
   // Messages from us, over the journal (not over Unlock, Consent or sign-in).
   showNotices(route === addressed && route.needsKey);
+  // Then my invites someone accepted, to put on a Person.
+  showConnectionBanners(route === addressed && route.needsKey);
   // And the offer to install the app, in the same places.
   showInstallOffer(route === addressed && route.needsKey);
   setCurrent(addressed.path);
@@ -190,6 +194,7 @@ onLock(() => {
   // Asked again after the next unlock (it may be someone else signing in).
   setConsentState(null);
   forgetNotices();
+  forgetConnectionBanners();
   show({ fresh: true, scroll: 0, focus: true });
 });
 

@@ -9,6 +9,11 @@
 // - The file's "this is me" person matches my own, whatever its name.
 // - A matched item is used as it is: its details in the file aren't imported,
 //   so an import never changes what's already there.
+// - A new person keeps their link to a connection (connection_id) only if
+//   it's one of my live connections, not already on someone, and they
+//   aren't me: an edited file can't link to anyone, and a link agreed with
+//   another account doesn't come into a new one. The rest come in unlinked
+//   (linksDropped).
 // - Tags match as they do when saving a tie (tags/parse.js matchTags).
 
 import { tagKey, matchTags } from "../tags/parse.js";
@@ -22,6 +27,7 @@ import { tagKey, matchTags } from "../tags/parse.js";
  * @typedef {{
  *   people: ExistingItem[], locations: ExistingItem[], plans: ExistingItem[],
  *   tags: { id: string, name: string }[],
+ *   connections?: { id: string, linked: number }[],
  * }} Existing
  * @typedef {{ file_id: string, name: string, id: string, matched: boolean }} ItemResult
  * @typedef {Record<string, unknown>} Row
@@ -51,6 +57,19 @@ export function planItems(items, existing, newId) {
   const newPlans = items.plans.filter((_, i) => !plans[i].matched);
   const tags = planTags(existing.tags, [...items.tags, ...newPlans.flatMap((p) => p.tags)], newId);
 
+  // My connections not yet on anyone, each for one new person at most.
+  const free = new Set((existing.connections ?? []).filter((c) => !c.linked).map((c) => c.id));
+  let linksDropped = 0;
+  /** @param {import("./import-parse.js").PersonInput} p @param {0 | 1} isSelf */
+  const keepLink = (p, isSelf) => {
+    if (p.connection_id === null) return null;
+    if (isSelf || !free.delete(p.connection_id)) {
+      linksDropped++;
+      return null;
+    }
+    return p.connection_id;
+  };
+
   const rows = {
     people: items.people.flatMap((p, i) => people[i].matched ? [] : [{
       id: people[i].id, name: p.name, pronouns: p.pronouns, notes: p.notes,
@@ -59,6 +78,7 @@ export function planItems(items, existing, newId) {
       default_role: p.default_role,
       is_educator: p.is_educator, based_in: p.based_in, aliases: p.aliases, about: p.about, about_shared_on: p.about_shared_on,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
+      connection_id: keepLink(p, p.is_self && !mySelf ? 1 : 0),
     }]),
     profileNotes: items.people.flatMap((p, i) => people[i].matched ? [] : p.profile_notes.map((n) => ({
       id: newId(), person_id: people[i].id, ...n,
@@ -86,7 +106,7 @@ export function planItems(items, existing, newId) {
     tags: tags.rows,
   };
 
-  return { people, locations, plans, newTags: tags.rows.map((t) => t.name), rows };
+  return { people, locations, plans, newTags: tags.rows.map((t) => t.name), linksDropped, rows };
 }
 
 /**

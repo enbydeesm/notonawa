@@ -949,3 +949,20 @@ dialog.form-dialog {
 .shared-profile { margin: 8px 0 12px; }
 .shared-about { white-space: pre-wrap; overflow-wrap: anywhere; }
 #open-body > button { margin: 4px 8px 4px 0; }
+
+/* Connections between accounts (connections.js): the link icon on a linked
+   person's card (right of the Educator cap, if there is one) and in their
+   dialog's heading, the inviter's banner, Shared by me's Connections, and
+   the tickboxes that offer connecting. */
+.link-icon { width: 20px; height: 20px; flex: none; stroke: var(--accent-ink); }
+.name-title .link-icon { margin-left: auto; }
+.name-title .educator-icon + .link-icon { margin-left: 0; }
+.linked-flag { flex-wrap: wrap; justify-content: flex-end; font-size: 0.9rem; }
+.linked-flag .link-icon { width: 18px; height: 18px; }
+.linked-flag button.link { font-size: 0.85rem; }
+.notice.connection-notice { flex-wrap: wrap; }
+.connection-title { display: flex; align-items: center; gap: 8px; }
+.share-connect, .open-connect { margin: 12px 0 4px; }
+.open-connect .hint, .connect-disclosure { margin-top: 4px; }
+.remove-connection { margin: 8px 0 12px; }
+.remove-connection .hint { margin: 4px 0 0; }

@@ -15,7 +15,7 @@ export function needsConsent(agreed, oldestAccepted) {
 /**
  * What someone who hasn't agreed to the new version may still do: read
  * (their journal, its export and its photos), agree, delete their account
- * or change its settings, unlock (which can update their passkey's locked
+ * or change its settings, remove a connection to another account, unlock (which can update their passkey's locked
  * key, or encrypt older notes), and dismiss notices. Nothing new goes into
  * their journal until they agree.
  * @param {string} method
@@ -27,5 +27,6 @@ export function allowedWithoutConsent(method, path) {
     || path === "/api/account" || path.startsWith("/api/account/")
     || path.startsWith("/api/keys/")
     || path === "/api/encryption/seal"
-    || path.startsWith("/api/notices/");
+    || path.startsWith("/api/notices/")
+    || (method === "DELETE" && path.startsWith("/api/connections/"));
 }

@@ -1,16 +1,20 @@
 // The walkthrough's shares chunk: one account makes profile invites (Share
 // my profile, the code, Shared by me, Show code, Revoke), and a second opens
 // them (/open): as a new person, merged into a card it has, after signing in,
-// and links that have ended or are damaged.
+// and links that have ended or are damaged. Then connecting accounts: an
+// invite offering it, accepted by the second account (the link icon,
+// Connections in Shared by me, Remove link), and the inviter's banner,
+// seeded in the database (a chunk can't sign back in to its first account).
 
-import { check, freshAccount, go, loadPage, run, sleep } from "../harness.mjs";
+import { randomUUID } from "node:crypto";
+import { check, freshAccount, go, loadPage, run, sleep, sql } from "../harness.mjs";
 
 // Makes an invite from my own profile's dialog and returns its link (the
 // path from /open on), and what the dialogs showed.
-const MAKE_INVITE = (/** @type {Record<string, string>} */ choices) => `
+const MAKE_INVITE = (/** @type {Record<string, string | boolean>} */ choices, name = "Jude") => `
   await openPerson("Me"); $("#person-share").click();
   for (let i = 0; i < 30 && !$("#share-profile-name"); i++) await wait(100);
-  set("#share-profile-name", "Jude");
+  set("#share-profile-name", ${JSON.stringify(name)});
   ${Object.entries(choices).map(([sel, v]) => `set(${JSON.stringify(sel)}, ${JSON.stringify(v)});`).join(" ")}
   $("#share-profile-make").click();
   for (let i = 0; i < 50 && !$("#share-code-link"); i++) await wait(100);
@@ -58,6 +62,17 @@ export default async function () {
   [["", true, [["Pronouns: they/them", true], ["Usual role: Top", true], ["Instagram: @jude", true], ["Based in: Seattle, WA", true],
     ["About me: Rigger, mostly floor", true]], "1d", "one", true, false, []], [false, true]]);
 
+  check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
+    await openPerson("Me"); $("#person-share").click(); await wait(300);
+    const before = [$("#share-profile-connect").checked, $("#share-profile-connect-note").hidden];
+    set("#share-profile-connect", true);
+    const note = $("#share-profile-connect-note");
+    const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
+    set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
+    const warned = $("#share-profile-warning").textContent.includes("connect to your account");
+    $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
+    return [before, after, warned];`), [[false, true], [false, true], true]);
+
   const [once, onceShown] = await run(MAKE_INVITE({}));
   check("making an invite shows its QR code and link, with the key after #", [onceShown, /^\/open#[\w-]{22}\.[\w-]{43}$/.test(once)],
     [[true, true, []], true]);
@@ -78,6 +93,17 @@ export default async function () {
     await wait(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
     return [asked, [...document.querySelectorAll(".share-item .item-title")].map((t) => t.textContent)];`),
   ['Revoke "Oops"?', ["Class", "Profile invite"]]);
+
+  await go("/people");
+  const [connecting] = await run(MAKE_INVITE({ "#share-profile-connect": true, "#share-profile-label": "Munch" }, "Jude C"));
+  await go("/data");
+  check("Shared by me says which invite connects accounts, and there are no connections yet", await run(`
+    for (let i = 0; i < 30 && !$(".share-item"); i++) await wait(100);
+    for (let i = 0; i < 30 && $("#connections .empty")?.textContent === "Loading…"; i++) await wait(100);
+    const munch = [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Munch"));
+    const others = [...document.querySelectorAll(".share-item")].filter((i) => i !== munch).map((i) => !!i.querySelector(".share-connects"));
+    return [munch?.querySelector(".share-connects")?.textContent, others, $("#connections .empty")?.textContent];`),
+  ["Connects accounts", [false, false], "No connections. You can offer one when you share your profile, from your own card in People."]);
 
   // Someone else opens them.
   await freshAccount();
@@ -127,6 +153,87 @@ export default async function () {
     ["Based in", ["Use theirs: Seattle, WA*", "Keep yours (empty)"]],
     ["Social & scene names", ["Add their 1 new one to yours*", "Replace yours with theirs", "Keep yours only"]]],
   "Jude is in your People.", ["Jude", "Seattle, WA", "Rigger, mostly floor", [{ platform: "instagram", alias: "@jude" }]]]);
+
+  // Connecting accounts.
+  await openLink(connecting);
+  check("an invite offering to connect asks, unticked, saying what connecting means", await run(`
+    for (let i = 0; i < 50 && !$("#open-connect"); i++) await wait(100);
+    return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Connecting lets NotoNawa's server see")];`),
+  [false, true]);
+  check("ticked, adding them links their card to their account", await run(`
+    set("#open-connect", true); $("#open-add-new").click();
+    for (let i = 0; i < 50 && !$("#open-done"); i++) await wait(100);
+    return [$("#open-done").textContent, $("#open-linked")?.textContent];`),
+  ["Jude C is in your People.", "Their card is linked to their account."]);
+  await go("/people");
+  /** Whether each named card shows the link icon. */
+  const ICONS = `return [...document.querySelectorAll(".name-button")].map((b) => [b.textContent, !!b.closest(".item").querySelector(".link-icon")]).sort();`;
+  check("a linked card shows the link icon, and its dialog says so, with Remove link", await run(`
+    const icons = (() => { ${ICONS} })();
+    await openPerson("Jude C");
+    const flag = $("#person-linked");
+    const shown = [flag.hidden, flag.innerText.includes("Linked to their account"), $("#person-unlink").textContent];
+    $("[data-cancel-edit]").click(); await wait(200);
+    await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await wait(200);
+    return [icons, shown, onMe];`),
+  [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Remove link"], true]);
+
+  // The inviter's side, seeded: two of my invites someone accepted.
+  const myId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
+  const labels = await run(`
+    const { sealOne } = await import("/js/vault.js");
+    await post("/api/people", await sealOne("person", { name: "Sky" }));
+    return [(await sealOne("share", { label: "Class QR" })).label, (await sealOne("share", { label: "Munch 2" })).label];`);
+  for (const label of labels) {
+    const peer = randomUUID();
+    sql(`INSERT INTO users (id, email) VALUES ('${peer}', '${peer}')`);
+    sql(`INSERT INTO connections (id, owner_id, peer_id, invited, label, answered) VALUES
+      ('${randomUUID()}', '${myId}', '${peer}', 1, '${label}', 0), ('${randomUUID()}', '${peer}', '${myId}', 0, NULL, 1)`);
+  }
+  await go("/people");
+  check("someone accepting my invite brings a banner asking which of my People it is", await run(`
+    for (let i = 0; i < 50 && !$(".connection-notice"); i++) await wait(100);
+    return [...document.querySelectorAll(".connection-notice")].map((n) => [n.querySelector("p").textContent.split(",")[0],
+      [...n.querySelectorAll("button")].map((b) => b.textContent)]);`),
+  [['Someone accepted your invite "Munch 2"', ["Add to a Person", "New Person", "Not now"]],
+    ['Someone accepted your invite "Class QR"', ["Add to a Person", "New Person", "Not now"]]]);
+  check("New Person asks their name, adds them linked, and the banner goes", await run(`
+    const banner = () => [...document.querySelectorAll(".connection-notice")].find((n) => n.innerText.includes("Class QR"));
+    banner().querySelector(".connection-new").click();
+    for (let i = 0; i < 30 && !$("#connect-name"); i++) await wait(100);
+    set("#connect-name", "Pat"); $("#connect-save").click();
+    for (let i = 0; i < 50 && banner(); i++) await wait(100);
+    for (let i = 0; i < 50 && ![...document.querySelectorAll(".name-button")].some((b) => b.textContent === "Pat"); i++) await wait(100);
+    const icons = (() => { ${ICONS} })();
+    return [!!banner(), document.querySelectorAll(".connection-notice").length, icons.find(([name]) => name === "Pat")];`),
+  [false, 1, ["Pat", true]]);
+  check("Not now puts it away; it waits in Connections as on no one, through which invite", await run(`
+    $(".connection-later").click(); await wait(300);
+    return [document.querySelectorAll(".connection-notice").length, $("#connection-banners").hidden];`), [0, true]);
+  await go("/data");
+  check("Connections lists each, with who it's on and how it was made", await run(`
+    for (let i = 0; i < 50 && !$(".connection-item"); i++) await wait(100);
+    return [...document.querySelectorAll(".connection-item")].map((i) => [i.querySelector(".item-title").textContent,
+      i.querySelector(".item-meta").textContent.split(" · ")[0], [...i.querySelectorAll("button")].map((b) => b.textContent)]);`),
+  [["Not on any Person", 'through "Munch 2"', ["Add to Person", "Remove"]], ["Linked to Pat", 'through "Class QR"', ["Remove"]],
+    ["Linked to Jude C", 'shared as "Jude C"', ["Remove"]]]);
+  check("Add to Person links it to the one chosen", await run(`
+    $(".connection-add").click(); for (let i = 0; i < 50 && !$("#connect-person option"); i++) await wait(100);
+    set("#connect-person", optionValue($("#connect-person"), "Sky")); $("#connect-save").click();
+    for (let i = 0; i < 50 && ![...document.querySelectorAll(".connection-item .item-title")].some((t) => t.textContent === "Linked to Sky"); i++) await wait(100);
+    return [...document.querySelectorAll(".connection-item .item-title")].map((t) => t.textContent);`),
+  ["Linked to Sky", "Linked to Pat", "Linked to Jude C"]);
+  await go("/people");
+  check("Remove link asks, offering to clear my About from their card, then unlinks it", await run(`
+    await openPerson("Jude C"); $("#person-unlink").click(); await wait(300);
+    const asked = [[...document.querySelectorAll("dialog[open]")].pop().querySelector("h2").textContent, !!$("#connection-remove-about"), $("#connection-remove-about").checked,
+      $(".remove-connection .hint").textContent.startsWith("This only clears the About you shared")];
+    set("#connection-remove-about", true); await clickDialog("Remove connection");
+    for (let i = 0; i < 50 && $("#person-dialog").open; i++) await wait(100);
+    await wait(500);
+    const icons = (() => { ${ICONS} })();
+    return [asked, icons.find(([name]) => name === "Jude C")];`),
+  [["Remove your connection with Jude C?", true, false, true], ["Jude C", false]]);
 
   // Signed out: the link survives signing in.
   await run(`await fetch("/api/auth/logout", { method: "POST" });`);

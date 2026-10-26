@@ -202,10 +202,27 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`GET`/`POST /api/shares`, `DELETE /api/shares/:id` (revoking deletes it
   at once), `POST /api/shares/open` with `{ id }`: someone else's counts a
   use, and the last allowed one deletes it; ended or unknown is the same
-  404). The label and `link_key` (the link's key, kept so its owner can
+  404; it also says `connection_id`, my side of a connection with the
+  owner if there is one, and, for an invite with `connect` (migration
+  0026, profile invites only) from someone I'm not connected to, an
+  `offer` token for `POST /api/connections`). The label and `link_key` (the link's key, kept so its owner can
   show the code again; never exported) are encrypted columns; the snapshot
   is sealed with the link's own key, which the server only ever has sealed
   with the owner's.
+- `src/connections/`: connections between accounts, made by accepting a
+  profile invite that offers one (migration 0026; see considerations.md,
+  "Connecting accounts as built"). Each account has its own row of a
+  connection (`owner_id`, `peer_id`, `invited`, its own sealed `label`,
+  `answered`), so pages only ever see their own row's id; deleting one
+  deletes the other (a trigger). `connection_offers` (a token's hash, the
+  inviter, the invite's sealed label, a day's expiry; deleted by the share
+  clean-up). `parse.js` (pure), `db.js`, `routes.js` (`GET
+  /api/connections`; `POST /api/connections` with `{ offer, person_id,
+  label }`; `PUT /api/connections/:id/person`; `POST
+  /api/connections/:id/answered`, the inviter's Not now; `DELETE
+  /api/connections/:id?about=remove|keep`, required, the first clearing my
+  About from their card for me; allowed before agreeing to a changed
+  policy).
 - `src/notices/`: messages from us (migration 0012), written only with
   `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
   now, not dismissed), `POST /api/notices/:id/dismiss`.
@@ -277,7 +294,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `crypto/share.js` (pure: a share's id and key, sealing and opening its
   snapshot, bound to its id and kind, and the link's `#<id>.<key>`),
   `share-options.js` (pure: a share's expiry and use choices, the warning
-  for one anyone can use for good, Shared by me's words, the link),
+  for one anyone can use for good (and connect to me with), Shared by me's
+  words, the link), `connection-text.js` (pure: the connecting
+  disclosures, a connection's words in Shared by me, the inviter's banner),
+  `connections.js` (loading mine, their names opened: an inviter's is
+  sealed as a share's label, `convertConnections` in `journal-fields.js`;
+  Add to a Person, removing one, the link icon, `CONNECTIONS_CHANGED`),
+  `connection-banner.js` (the inviter's banner, after the notices: Add to a
+  Person, New Person, Not now),
   `profile-share.js` (pure: a profile invite's contents, built from the
   ticked fields and the name typed in, and read strictly, as it comes from
   another account), `contact-merge.js` (pure: a shared profile as a new
@@ -289,8 +313,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   link's QR code as one SVG path, from `vendor/uqr.js`), `share-code.js`
   (a share's code, link, Copy link and share sheet), `share-profile-dialog.js`
   ("Share my profile", from my own profile in People), `shared-by-me.js`
-  (Your data's list: Show code, Revoke), `views/open.js` (`/open`: opening
-  a share and adding it),
+  (Your data's list: Show code, Revoke; and Connections: Add to Person,
+  Remove), `views/open.js` (`/open`: opening a share and adding it; Connect
+  our accounts when it offers to),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -570,6 +595,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   it from ties) or `linked_ties=keep` (ties show "(plan deleted)"). The UI asks
   with a confirmation dialog: remove from linked ties / just delete the plan /
   cancel. The API rejects a delete without the choice.
+- **A person's `connection_id`** (migration 0026) is my side of a
+  connection, and only the connections routes set it (it isn't a People
+  field). Triggers allow it only for my own row of a live connection and
+  never on "this is me"; a unique index puts each on one person; it's
+  cleared when the connection goes. Import keeps it only for one of my
+  connections not already on someone (`links_dropped` counts the rest).
 - **Every journal has a "this is me" profile**, named "Me" when the account
   is made (`newUserStatements`; migration 0005 added one to older accounts).
   It can be renamed, but not archived or deleted (the API refuses: the tie
@@ -607,7 +638,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `workshops.notes`, `workshops.album_url` (migration 0018),
   `drawings.caption` (migration 0019; a drawing's lines aren't),
   `poses.caption` (migration 0020; a pose's numbers aren't),
-  `pose_presets.name` (migration 0025; a preset's angles aren't)): parse them with
+  `pose_presets.name` (migration 0025; a preset's angles aren't),
+  `connections.label` (migration 0026)): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,
   searches or sorts by them. The page seals before sending (`vault.seal`,
   `sealOne`) and opens what it shows (`vault.open`). A new encrypted field

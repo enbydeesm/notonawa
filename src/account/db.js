@@ -108,8 +108,10 @@ export async function setRecoveryEmail(db, userId, email) {
  * Deletes my account and everything in it. Every table hangs off users with
  * ON DELETE CASCADE (directly, or through a parent row), so one DELETE takes
  * the journal, passkeys, sessions and challenges with it. An invite I used
- * stays marked used, with used_by cleared; other people's links to me
- * (people.linked_user_id) are cleared too.
+ * stays marked used, with used_by cleared. My connections go from both
+ * sides (connections cascade on owner and peer), which takes them off
+ * other people's cards (people.connection_id), as are the old, unused
+ * people.linked_user_id links.
  * @param {D1Database} db
  * @param {string} userId
  * @returns {Promise<string[]>} my passkeys' ids, so the browser can be told

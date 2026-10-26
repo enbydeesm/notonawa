@@ -16,7 +16,23 @@ gh pr create --base main --fill
 gh pr merge --merge --delete-branch   # merges, then deletes the branch on GitHub and locally
 git checkout main && git pull
 
+for rebase. Commit your work on the branch first (or stash it), then:
+git fetch origin
+git rebase origin/main
+This replays your branch's commits on top of the latest main.
 
+If there are conflicts: fix the files git lists, then
+git add <fixed files>
+git rebase --continue
+git rebase --abort puts everything back as it was before you started.
+
+If the branch was already pushed to GitHub, the rebase rewrote its history, so push with:
+git push --force-with-lease
+--force-with-lease refuses to overwrite anything on GitHub you haven't fetched yet, so it's safer than --force.
+
+With uncommitted changes you'd rather not commit yet, add --autostash:
+git rebase --autostash origin/main
+It sets them aside, rebases, and puts them back afterwards.
 
 
 

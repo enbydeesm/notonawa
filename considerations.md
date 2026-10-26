@@ -1700,7 +1700,8 @@ about 6 minutes, too slow to run after every change.
 built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
 server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
 (profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
-deployed; the rest isn't built.
+deployed. Phase 4 (connecting accounts) built 2026-10-26, migration 0026,
+not yet deployed; the rest isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -1948,6 +1949,63 @@ below).
   accounts must agree again is a decision for when it's written: nothing
   new is collected unless someone chooses to share, so a notice may do.
 
+### Connecting accounts as built
+
+Built 2026-10-26 (migration 0026). What changed from the plan above, and why:
+
+- **A connection is two rows, one for each account** (`connections`:
+  `owner_id`, `peer_id`, `invited`, `label`, `answered`), made in one
+  batch; deleting either deletes the other (`trg_connections_pair`). So
+  every query is scoped to `owner_id` as everywhere else, each side's
+  sealed label fits the encrypted-columns lists (scoped to its owner), and
+  a page only ever sees its own row's id: even the connection's id means
+  nothing to the other account. `people.connection_id` holds my row's id;
+  the triggers just check the row is mine (and the card isn't "Me").
+- **The invite says it offers to connect, in plain** (`shares.connect`,
+  profile invites only). The server can't read the invite, and without the
+  flag anyone who opened any profile invite could connect to its owner.
+- **Opening it makes an offer, accepting spends it.** A one-use invite is
+  deleted as it's opened, but the recipient decides after the preview. So
+  opening someone else's connectable invite (when we aren't connected
+  already) returns a random token; `connection_offers` keeps its hash, the
+  inviter and the invite's sealed name for a day, not who opened it.
+  Accepting (`POST /api/connections`, after the card is saved) makes both
+  rows, links the card and deletes the offer, all in one batch; if we're
+  connected already, that connection is used and the link moves to the
+  card chosen.
+- **The inviter answers "Which of your People is it?"** with a banner
+  after the notices: Add to a Person, New Person (a name typed in: nothing
+  of the accepter's comes with it) or Not now (`answered`). It says
+  "Someone accepted your invite": with an invite anyone can use, the
+  inviter can't know who. Their own details come later, if they share a
+  profile back: opening an invite from someone I'm connected to says so
+  (`connection_id`), suggests the card linked to them, and links the card
+  I choose.
+- **Names on both sides.** The inviter's row holds the invite's name,
+  copied (it's sealed as a share's label, so it's opened as one); the
+  accepter's, the name the profile was shared as, sealed with their own
+  key. Shared by me's Connections list uses them for a connection on no
+  one: "Not on any Person · through "Munch"" or "shared as "Rin"", with
+  Add to Person and Remove.
+- **A connection outlives its card.** Deleting a linked card leaves the
+  connection (in Connections, on no one), so restoring the card from an
+  export links it again.
+- **Remove link removes the connection for both**, from the card or from
+  Connections, and can also clear the About I shared from their card for
+  me (`DELETE /api/connections/:id?about=remove|keep`, the choice
+  required, like deleting a plan's). About on someone else's card only
+  ever comes from their invites, so the server can clear exactly that
+  without reading it. Removing is allowed before agreeing to a changed
+  privacy policy, as deleting the account is.
+- **Import keeps a link** only to one of my connections not already on
+  someone, and not on "Me"; the rest come in unlinked, counted as
+  `links_dropped` in the preview and the result. The export lists my rows
+  (`account.connections`: id, invited, label, answered, created_at).
+- **PRIVACY.md** now covers sharing and connections (and the About fields
+  from phase 1), as a wording change with a new version, not one people
+  must agree to again: nothing new is collected unless someone shares or
+  connects. A notice should go out before deploying.
+
 ### Later: Connections (Option B)
 
 Planned once Option A is in use; built on its `connections`.
@@ -2001,6 +2059,21 @@ Planned once Option A is in use; built on its `connections`.
 - **A QR scanner in the app**: the phone's camera already opens links.
 - **QR codes made by the server or an online QR service**: the share's key
   would leave the device.
+- **"Request share"** (an inviter asking a connected person for their
+  profile, as a banner on their side, weighed 2026-10-26): without Option
+  B, all it could do is ask them to make a link and send it outside the
+  app. It fits Option B's sending in the app.
+- **Replies sealed with the invite's own key** (both sides have it; the
+  server never did): it would let the accepter send their profile back in
+  the app, but anyone else who saw the link would also have that key, so
+  someone with the link and the server's data could read the reply (worse
+  for an invite anyone can use). Identity keys (Option B) do it properly.
+- **Clearing the social names I shared from their card** when removing a
+  connection: they're one sealed list per card, mixing what I shared with
+  what they typed, so the server can't take out just mine. Marking each
+  shared one inside the list would work, but only for names shared after
+  the change, applied by their page on their next unlock. Only About is
+  offered.
 
 ### Build plan
 
@@ -2074,7 +2147,9 @@ tests and the walkthrough included.
    a walkthrough chunk where one account makes an invite and a second
    opens it (two accounts in one chunk, new to the harness). *The smallest
    piece people can use.*
-4. **Connecting accounts** (2 days). Migration 0023: `connections`,
+4. **Connecting accounts** (2 days). *Built 2026-10-26, migration 0026;
+   see "Connecting accounts as built" for what changed.* As first planned:
+   Migration 0023: `connections`,
    `people.connection_id`, triggers allowing it only for a live
    connection the card's owner is in and clearing it with one, the
    one-card-per-connection index. Import keeping or refusing links. Routes to accept

@@ -36,10 +36,12 @@ export async function handleData(request, env, user, url) {
   }
 
   // POST /api/data/import/items  body { preview, people, locations, plans, tags }
-  //   -> { people, locations, plans: [{ file_id, name, id, matched }], new_tags }
+  //   -> { people, locations, plans: [{ file_id, name, id, matched }], new_tags,
+  //   links_dropped }
   //   Matches the file's people, locations and plans to mine by name and adds
   //   the rest (see import-plan.js). id is the item's id in my journal (null
-  //   for a new one in a preview). With preview: true, nothing is saved.
+  //   for a new one in a preview). links_dropped: new people whose link to a
+  //   connection couldn't be kept. With preview: true, nothing is saved.
   if (url.pathname === "/api/data/import/items" && request.method === "POST") {
     const body = await readImport(request);
     const items = parseImportItems(body);
@@ -50,6 +52,7 @@ export async function handleData(request, env, user, url) {
       list.map((r) => ({ ...r, id: preview && !r.matched ? null : r.id }));
     return json({
       people: shown(plan.people), locations: shown(plan.locations), plans: shown(plan.plans), new_tags: plan.newTags,
+      links_dropped: plan.linksDropped,
     });
   }
 

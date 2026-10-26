@@ -19,7 +19,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 40,
+  shares: 65,
 };
 
 /**
@@ -243,14 +243,17 @@ export const AREAS = [
     generated: ["vendor"],
   },
   {
-    // Shares: profile invites, their codes, Shared by me, and opening one.
+    // Shares: profile invites, their codes, Shared by me, opening one, and
+    // the connections between accounts they can make.
     name: "shares",
-    files: ["src/shares/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
+    files: ["src/shares/", "src/connections/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
       "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
-      "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js"],
+      "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js",
+      "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js"],
     tests: ["test/api/shares.test.js", "test/unit/shares-parse.test.js", "test/unit/crypto-share.test.js",
       "test/unit/vault-core.test.js", "test/unit/share-options.test.js", "test/unit/profile-share.test.js",
-      "test/unit/contact-merge.test.js", "test/unit/qr.test.js"],
+      "test/unit/contact-merge.test.js", "test/unit/qr.test.js", "test/api/connections.test.js", "test/db/connections.test.js",
+      "test/unit/connections-parse.test.js", "test/unit/connection-text.test.js"],
     ui: ["shares"],
   },
   {

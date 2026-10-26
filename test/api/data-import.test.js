@@ -250,7 +250,7 @@ describe("importing an export", () => {
         { file_id: "a", name: "Sam", id: expect.any(String), matched: true },
         { file_id: "b", name: "Alex", id: null, matched: false },
       ],
-      locations: [], plans: [], new_tags: ["new tag"],
+      locations: [], plans: [], new_tags: ["new tag"], links_dropped: 0,
     });
     const ties = await call("/api/data/import/ties", { method: "POST", cookie: user.cookie, body: {
       preview: true, ties: [{ title: "New", tie_type: "floor", tie_date: "2026-10-02" }, { title: "Floor", tie_type: "floor", tie_date: "2026-10-01" }, { title: "x", tie_type: "floor", tie_date: "2026-10-03", tags: ["t"] }],
@@ -403,6 +403,40 @@ describe("importing an export", () => {
     }, user.cookie);
     expect(await sql("SELECT plan_version FROM tie_plans WHERE plan_id = ?", items.items.plans[0].id).first())
       .toEqual({ plan_version: 3 });
+  });
+
+  it("keeps a new person's link only to a connection of mine on no one else, saying how many it dropped", async () => {
+    const user = await newUser();
+    /** Both sides of a connection between two accounts; returns the first's. */
+    const connect = async (/** @type {string} */ owner, /** @type {string} */ peer) => {
+      const id = crypto.randomUUID();
+      await sql("INSERT INTO connections (id, owner_id, peer_id, invited) VALUES (?, ?, ?, 0), (?, ?, ?, 1)",
+        id, owner, peer, crypto.randomUUID(), peer, owner).run();
+      return id;
+    };
+    const mine = await connect(user.id, await createOtherUser());
+    const taken = await connect(user.id, await createOtherUser());
+    await sql("INSERT INTO people (id, owner_id, name, connection_id) VALUES (?, ?, 'Linked', ?)", crypto.randomUUID(), user.id, taken).run();
+    const stranger = await createOtherUser();
+    const theirs = await connect(stranger, await createOtherUser());
+    const people = [
+      // Restoring a deleted card: its connection is still mine.
+      { id: "a", name: "Sam", connection_id: mine },
+      // The same connection twice: only the first keeps it.
+      { id: "b", name: "Sam again", connection_id: mine },
+      { id: "c", name: "Rin", connection_id: theirs },
+      { id: "d", name: "Kit", connection_id: "made-up" },
+      { id: "e", name: "Lee", connection_id: taken },
+    ];
+    const preview = await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body: { preview: true, people } });
+    expect(preview.body.links_dropped).toBe(4);
+    const res = await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body: { people } });
+    expect(res.body.links_dropped).toBe(4);
+    const links = await sql("SELECT name, connection_id FROM people WHERE owner_id = ? ORDER BY name", user.id).all();
+    expect(links.results).toEqual([
+      { name: "Kit", connection_id: null }, { name: "Lee", connection_id: null }, { name: "Linked", connection_id: taken },
+      { name: "Rin", connection_id: null }, { name: "Sam", connection_id: mine }, { name: "Sam again", connection_id: null },
+    ]);
   });
 
   it("saves nothing from a batch with a link to someone else's item", async () => {

@@ -43,6 +43,7 @@ describe("encrypting older notes", () => {
       // there's never any plain.
       shares: [],
       pose_presets: [],
+      connections: [],
     });
   });
 

@@ -12,7 +12,10 @@ import { onLock } from "./vault.js";
 
 /**
  * @typedef {{ id: string, key: Uint8Array<ArrayBuffer> }} ShareLink
- * @typedef {{ kind: string, own: boolean, data: unknown }} OpenedShare
+ * @typedef {{ kind: string, own: boolean, data: unknown, offer: string | null, connectionId: string | null }} OpenedShare
+ *   offer: a token to accept its offer to connect our accounts (POST
+ *   /api/connections); connectionId: my side of our connection, if we're
+ *   connected already.
  */
 
 /** @type {ShareLink | null} */

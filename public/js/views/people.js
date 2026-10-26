@@ -2,7 +2,7 @@
 // a name does), a search over them, and the list. The dialog holds Archive
 // (or Restore) and Delete; the cards have no buttons.
 
-import { h, $, privateField } from "../dom.js";
+import { h, $, privateField, showMessage } from "../dom.js";
 import { confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
 import { roleName, roleOptions } from "../roles.js";
@@ -11,6 +11,8 @@ import { PLATFORMS, readAliases, aliasesText, akaText } from "../aliases.js";
 import { CAP_PATHS } from "../nav.js";
 import { aboutField } from "../person-about.js";
 import { openShareProfile } from "../share-profile-dialog.js";
+import { linkIcon, removeConnection, CONNECTIONS_CHANGED } from "../connections.js";
+import { errorMessage } from "../api.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -84,6 +86,22 @@ export function mount(_root, { signal }) {
   let sharing = null;
   $("#person-share").addEventListener("click", () => { if (sharing) openShareProfile(sharing); }, { signal });
 
+  // Someone linked to their account, while their dialog is open: Remove link
+  // removes the connection for both of us.
+  /** @type {any} */
+  let linked = null;
+  $("#person-linked-icon").replaceWith(linkIcon(null));
+  $("#person-unlink").addEventListener("click", async () => {
+    if (!linked) return;
+    const message = $(".message", $("#form"));
+    try {
+      if (!(await removeConnection(linked.connection_id, linked.name))) return;
+      /** @type {HTMLDialogElement} */ ($("#person-dialog")).close();
+    } catch (err) {
+      showMessage(message, "Couldn't remove the link: " + errorMessage(err), true);
+    }
+  }, { signal });
+
   /** About me on my own profile; on others', what they shared, read-only (person-about.js). */
   function showAbout(/** @type {any} */ person) {
     const about = aboutField(person);
@@ -114,6 +132,8 @@ export function mount(_root, { signal }) {
       // An invite to add my profile: what's saved, not what's being typed.
       sharing = person?.is_self ? person : null;
       $("#person-share").hidden = !sharing;
+      linked = person?.connection_id ? person : null;
+      $("#person-linked").hidden = !linked;
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
     },
@@ -131,7 +151,8 @@ export function mount(_root, { signal }) {
           person.is_self ? h("span", { className: "badge" }, "You") : null,
           person.pronouns ? h("span", { className: "item-meta" }, person.pronouns) : null,
           person.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(person.default_role))) : null,
-          person.is_educator ? educatorIcon() : null),
+          person.is_educator ? educatorIcon() : null,
+          person.connection_id ? linkIcon() : null),
         person.based_in ? h("div", { className: "item-meta" }, `based in ${person.based_in}`) : null,
         aka ? h("div", { className: "item-meta" }, aka) : null,
       ];
@@ -147,4 +168,6 @@ export function mount(_root, { signal }) {
   });
 
   $("#add-person").addEventListener("click", () => page.add(), { signal });
+  // A connection put on someone, or removed (here, on the banner or in Shared by me).
+  window.addEventListener(CONNECTIONS_CHANGED, () => page.reload(), { signal });
 }

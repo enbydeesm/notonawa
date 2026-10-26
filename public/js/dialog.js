@@ -9,10 +9,12 @@ import { h } from "./dom.js";
 /**
  * Shows a modal with a choice of buttons plus Cancel. Resolves with the chosen
  * button's value, or null if they cancel (Cancel, Esc, or clicking outside).
- * @param {{ title: string, message?: string, choices: Choice[] }} options
+ * content: anything more under the message (e.g. a tickbox, read by the
+ * caller once it resolves).
+ * @param {{ title: string, message?: string, content?: Node, choices: Choice[] }} options
  * @returns {Promise<string | null>}
  */
-export function choose({ title, message, choices }) {
+export function choose({ title, message, content, choices }) {
   return new Promise((resolve) => {
     /** @type {string | null} */
     let result = null;
@@ -21,6 +23,7 @@ export function choose({ title, message, choices }) {
       { onclose: () => { dialog.remove(); resolve(result); } },
       h("h2", {}, title),
       message ? h("p", {}, message) : null,
+      content ?? null,
       h(
         "div",
         { className: "dialog-buttons" },
