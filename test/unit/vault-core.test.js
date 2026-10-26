@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest";
 import { VaultCore } from "../../public/js/crypto/vault-core.js";
 import { WrongSecret } from "../../public/js/crypto/keys.js";
 import { newRecoveryCode, readRecoveryCode } from "../../public/js/recovery.js";
+import { newShareId } from "../../public/js/crypto/share.js";
+import { CantOpen } from "../../public/js/crypto/fields.js";
 
 const USER = "user-1";
 const newPrf = () => crypto.getRandomValues(new Uint8Array(32));
@@ -110,5 +112,18 @@ describe("VaultCore records", () => {
     vault.forgetSearch();
     await vault.searchTies({ q: "x" });
     expect(loads).toBe(2);
+  });
+
+  it("seals a share with a new key of its own, which opens it in someone else's vault, only once unlocked", async () => {
+    const { vault } = await setUp();
+    const id = newShareId();
+    const { key, body } = await vault.sealShare({ id, kind: "tie", data: { title: "Floor session" } });
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const theirs = (await setUp()).vault;
+    expect(await theirs.openShare({ id, kind: "tie", key, sealed: body.slice(0) })).toEqual({ title: "Floor session" });
+    await expect(theirs.openShare({ id, kind: "plan", key, sealed: body.slice(0) })).rejects.toThrow(CantOpen);
+    theirs.lock();
+    await expect(theirs.openShare({ id, kind: "tie", key, sealed: body.slice(0) })).rejects.toThrow("locked");
+    await expect(new VaultCore().sealShare({ id, kind: "tie", data: {} })).rejects.toThrow("locked");
   });
 });

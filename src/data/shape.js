@@ -38,6 +38,7 @@ export const EXPORT_VERSION = 1;
  *   poses: Row[],
  *   notices: Row[],
  *   feedback: Row[],
+ *   shares: Row[],
  * }} AccountRows
  */
 
@@ -92,10 +93,16 @@ export function exportDocument(rows, exportedAt) {
       feedback: rows.feedback.map((f) => ({
         kind: f.kind, message: f.message, app_version: f.app_version, created_at: f.created_at,
       })),
+      // Shares I've made (not imported: a share belongs to its link).
+      // Their names are opened on the device, like notes.
+      shares: rows.shares.map((s) => ({
+        kind: s.kind, label: s.label, expires_at: s.expires_at, max_uses: s.max_uses, use_count: s.use_count,
+        created_at: s.created_at,
+      })),
     },
     people: rows.people.map((p) => ({
       id: p.id, name: p.name, pronouns: p.pronouns, notes: p.notes, is_self: !!p.is_self, default_role: p.default_role,
-      is_educator: !!p.is_educator, based_in: p.based_in, aliases: p.aliases,
+      is_educator: !!p.is_educator, based_in: p.based_in, aliases: p.aliases, about: p.about, about_shared_on: p.about_shared_on,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
       profile_notes: (notesByPerson.get(p.id) ?? []).map((n) => ({
         type: n.type, description: n.description, noted_on: n.noted_on, is_current: !!n.is_current,

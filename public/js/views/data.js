@@ -41,6 +41,7 @@ import { uploadPhoto } from "../photo-upload.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
+import { showSharedByMe } from "../shared-by-me.js";
 
 /** @typedef {import("../import-steps.js").ImportDoc} ImportDoc */
 /** @typedef {import("../import-photos.js").PhotoEntry} PhotoEntry */
@@ -176,6 +177,7 @@ async function buildExport(progress) {
 }
 
 export function mount() {
+  showSharedByMe($("#shared-by-me"), $("#shared-by-me-message"));
 
   const fileInput = /** @type {HTMLInputElement} */ ($("#import-file"));
   const preview = $("#import-preview");

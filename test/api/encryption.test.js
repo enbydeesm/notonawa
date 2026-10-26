@@ -32,13 +32,15 @@ describe("encrypting older notes", () => {
     expect(pending).toEqual({
       ties: [{ id: `t-${me.id}`, notes: "plain tie", album_url: null }],
       tie_participants: [{ id: `tp-${me.id}`, notes: "plain part" }],
-      people: [{ id: `p-${me.id}`, notes: "plain person", based_in: null, aliases: null }],
+      people: [{ id: `p-${me.id}`, notes: "plain person", based_in: null, aliases: null, about: null }],
       profile_notes: [{ id: `n-${me.id}`, description: "plain like" }],
       locations: [{ id: `l-${me.id}`, notes: "plain location" }],
       plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed"), album_url: null }],
       workshops: [{ id: `w-${me.id}`, description: "plain class", notes: null, album_url: null }],
       drawings: [{ id: `d-${me.id}`, caption: "plain caption" }],
       poses: [{ id: `po-${me.id}`, caption: "plain pose" }],
+      // A share's name is sealed when it's made, so there's never any plain.
+      shares: [],
     });
   });
 

@@ -50,7 +50,8 @@ building live in [roadmap.md](roadmap.md).
   `RP_ID` and `ORIGIN` in `wrangler.jsonc` (localhost values in `.dev.vars`):
   passkeys are tied to `RP_ID` for good, so changing domain means everyone
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
-  `/api/auth/` routes per IP.
+  `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
+  account.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -150,8 +151,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   kind: "media" | "drawing" | "pose", id }] }`: every visual, or it's
   refused). The kinds have no order routes of their own.
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
-  challenges; `index.js` also runs the photo sweep and the backup, each
-  carrying on if one before it fails).
+  challenges; `index.js` also runs the share clean-up, the photo sweep
+  (which checks share files too) and the backup, each carrying on if one
+  before it fails).
 - `src/backup/`: the daily backup (migration-free). `run.js` reads every
   table in one batch, gzips it as JSON and saves it in the R2 bucket
   `BACKUPS`, deleting ones over 30 days old; `crypto.js` seals it with
@@ -177,6 +179,21 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   the subject and text, a bug report or feedback, with the kind, version
   and time only, never what was written), `notify.js` (sends it; a failure
   is logged, and doesn't fail the request).
+- `src/shares/`: shares, sealed copies of a profile, tie, plan or workshop
+  that someone else opens with a link (migrations 0022 and 0023; see
+  considerations.md, "Sharing between accounts"; only profile invites have
+  pages so far). `parse.js` (pure: kinds,
+  expiries, limits (50 live an account, a 2 MB snapshot, counted in the
+  1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
+  `<owner id>/shares/<share id>/snapshot` in the photos bucket), `db.js`,
+  `storage.js`, `cleanup.js` (the daily job: expired ones), `routes.js`
+  (`GET`/`POST /api/shares`, `DELETE /api/shares/:id` (revoking deletes it
+  at once), `POST /api/shares/open` with `{ id }`: someone else's counts a
+  use, and the last allowed one deletes it; ended or unknown is the same
+  404). The label and `link_key` (the link's key, kept so its owner can
+  show the code again; never exported) are encrypted columns; the snapshot
+  is sealed with the link's own key, which the server only ever has sealed
+  with the owner's.
 - `src/notices/`: messages from us (migration 0012), written only with
   `scripts/notice.mjs`. `GET /api/notices` (for everyone or just me, on
   now, not dismissed), `POST /api/notices/:id/dismiss`.
@@ -245,6 +262,23 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `crypto/fields.js` (pure: sealing and opening notes fields),
   `crypto/media.js` (pure: sealing and opening photos, videos (their full
   size in 1 MB pieces, format v2) and captions, bound to the photo's id),
+  `crypto/share.js` (pure: a share's id and key, sealing and opening its
+  snapshot, bound to its id and kind, and the link's `#<id>.<key>`),
+  `share-options.js` (pure: a share's expiry and use choices, the warning
+  for one anyone can use for good, Shared by me's words, the link),
+  `profile-share.js` (pure: a profile invite's contents, built from the
+  ticked fields and the name typed in, and read strictly, as it comes from
+  another account), `contact-merge.js` (pure: a shared profile as a new
+  person, or merged field by field into one I have; their About, when they
+  shared one, replaces the card's, dated in `people.about_shared_on`
+  (migration 0024); my notes are never touched), `pending-share.js` (the link
+  being opened, its key taken out of the address on load and kept in
+  memory through sign-in and unlock; forgotten on lock), `qr.js` (pure: a
+  link's QR code as one SVG path, from `vendor/uqr.js`), `share-code.js`
+  (a share's code, link, Copy link and share sheet), `share-profile-dialog.js`
+  ("Share my profile", from my own profile in People), `shared-by-me.js`
+  (Your data's list: Show code, Revoke), `views/open.js` (`/open`: opening
+  a share and adding it),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -427,7 +461,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   rebuild `public/js/world-shapes.js`, the Analytics map's country
   outlines, from Natural Earth's 1:110m countries (downloaded; not kept).
 - `node scripts/vendor.mjs`: copy `public/js/vendor/` again from
-  node_modules after updating a vendored package (mediabunny, three), or
+  node_modules after updating a vendored package (mediabunny, three, uqr), or
   after changing `scripts/vendor/three-entry.mjs` or `three.d.ts`; `--check`
   (in `npm run check`) fails if a copy differs.
 - `node scripts/feedback.mjs [--since YYYY-MM-DD] [--kind bug|idea]
@@ -464,7 +498,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   page load there locks and unlocks): every chunk, or the ones named, 3 at
   a time (`--jobs 1`: one at a time, with output as it happens; use it to
   tell whether a failure only happens when the machine is busy).
-- `npm run dev`: local app. `npm run types`: regenerate
+- `npm run dev`: the app on localhost, with the dev environment's remote
+  database and photos bucket (`--env dev`; apply new migrations there
+  first; accounts made locally sign in only on localhost). `npm run types`: regenerate
   `worker-configuration.d.ts` after changing `wrangler.jsonc`.
 
 ### Data rules
@@ -553,7 +589,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   deletes `media` rows (directly or by cascade: a tie, a plan, the account,
   a new key) must then delete their files (`media/storage.js`); read the
   photo ids in the same batch as the delete. The daily sweep only catches
-  what a crash left behind.
+  what a crash left behind. Shares' files are there too, in their owner's
+  folder: deleting a share's row deletes its files (`shares/storage.js`).
 - **Photos and videos are prepared and sealed before they leave the
   device** (`preparePhoto`/`prepareVideo`, then `vault.sealPhoto`/
   `sealVideo`) and shown only from `photoUrl()` (`photo-urls.js`), whose

@@ -145,3 +145,36 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 - Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons.
 
 - on model poser multiple hardpoints at once
+
+- collapse the search forms to just the text box keyword search, and advanced >. expanding advanced shows the rest of the search form
+
+- update the rope hank icon
+
+- update the logo
+
+
+- ** see considerations.md for details on this implemenation** linking other users to People: scan a qr code that user generates. asks if you want to link to existing people entry. maybe appends their 'me' info they've saved if they check that box when generating a qr code
+- educators sharing handouts and other materials: they can generate a qr code that shares a workshop entry with attachments. or allows attendees to share their nots and append to each others workshop entry
+
+- allow ties to be linked to workshops, or to be created from the workshop (and automatically linked). both entries should show the link to the other and allow clicking to view. 
+
+- update login screen text to put the 'contact...' on new line
+
+- on video upload failure, reccomend cropping video or using an app like snapseed to reduce quality/increase compression
+
+- make deploying to prod require --env prod
+
+
+Build plan
+Each phase leaves the app working and shippable. The times are rough estimates in working cccccdgdfuitkgthkbeuicecjnlnbihfvdcenennfltv
+days, including tests and the walkthrough.
+
+#	Phase	Migration	Days	Why it's its own phase
+<!-- 1	Two notes fields on people	0021 people.about	~1	Small, and profile invites need it
+2	Shares on the server (no pages)	0022 shares, share_claims	2–3	The security-critical part, worth reviewing without page code around it
+3	Profile invites + QR + /open + merge dialog	none	2–3	Smallest piece people can use; needs the QR library -->
+4	Account ids and connections, link icon	0023 connections + triggers	2	Database-enforced rules, disclosures, PRIVACY.md
+5	Ties, plans, workshops (drawings and poses included)	none	3	Reuses import; "Which of these is you?"
+6	Photos and videos in shares	none	2	R2, sizes and video carry their own risk
+7	Passphrase and verification code	none	2–3	Both only change creating and opening a share
+8	View-only	none	2–3	Separate path: shown but never added to the journal

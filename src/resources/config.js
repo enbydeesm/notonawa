@@ -6,7 +6,7 @@
 import { BadInput } from "../http.js";
 import { toRoleOrNull, TIE_TYPES } from "../ties/parse.js";
 import {
-  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, encryptedText,
+  cleanText, toIntOrNull, toNumberOrNull, toFlag, toChoiceOrNull, toUrlOrNull, encryptedText, toDateOrNull,
 } from "../parse.js";
 
 export const PLAN_STAGES = ["idea", "developing", "ready", "retired"];
@@ -81,8 +81,14 @@ export const RESOURCES = {
       // { platform, alias } (public/js/aliases.js).
       based_in: { parse: encryptedText },
       aliases: { parse: encryptedText },
+      // "About me" on my own profile, what a profile invite can share; on
+      // anyone else's, what they shared (migration 0021). Encrypted; notes
+      // stay private.
+      about: { parse: encryptedText },
+      // When their About was last shared by them (migration 0024): plain.
+      about_shared_on: { parse: toDateOrNull },
     },
-    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at",
+    columns: "id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on, archived_at, created_at, updated_at",
     orderBy: "is_self DESC, name COLLATE NOCASE",
     // "Add & archive" in the tie form's people picker: someone tied with once.
     archiveOnCreate: true,

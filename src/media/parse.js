@@ -20,7 +20,7 @@ export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 export const MAX_PER_ITEM = 30;
 /** Of those, videos. */
 export const MAX_VIDEOS_PER_ITEM = 5;
-/** All of an account's photos together. */
+/** All of an account's photos, videos and shares together. */
 export const MAX_ACCOUNT_BYTES = 1024 * 1024 * 1024;
 /** A sealed caption (a caption is up to 200 characters; sealing adds a third and more). */
 export const MAX_SEALED_CAPTION = 2000;
@@ -136,7 +136,7 @@ export function limitProblem({ count, videoCount, accountBytes }, { kind, bytes 
   if (kind === "video" && videoCount >= MAX_VIDEOS_PER_ITEM) {
     return `There can be at most ${MAX_VIDEOS_PER_ITEM} videos on a tie or plan.`;
   }
-  if (accountBytes + bytes > MAX_ACCOUNT_BYTES) return "Your photos and videos have filled your 1 GB. Delete some to make room.";
+  if (accountBytes + bytes > MAX_ACCOUNT_BYTES) return "Your photos, videos and shares have filled your 1 GB. Delete some to make room.";
   return null;
 }
 

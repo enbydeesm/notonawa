@@ -228,9 +228,11 @@
     <dialog class="form-dialog" id="person-dialog" aria-labelledby="person-form-heading">
       <!-- "This is me" shows only when editing my own profile, ticked and
            greyed out: it can't be changed (people.js). It's outside the form,
-           so form="form" keeps it in the form's fields. -->
+           so form="form" keeps it in the form's fields. Share my profile, in
+           the middle, also shows only on my own: an invite to add it. -->
       <div class="name-row heading-row">
         <h2 id="person-form-heading">Add a person</h2>
+        <button type="button" class="heading-action" id="person-share" hidden>Share my profile</button>
         <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" form="form" disabled> This is me</label>
       </div>
       <form id="form">
@@ -265,7 +267,23 @@
         </div>
         <div id="person-aliases" role="group" aria-labelledby="person-aliases-label"></div>
 
-        <label for="person-notes">Notes</label>
+        <!-- About: "About me" on my own profile, what a profile invite can
+             share; on anyone else's, what they shared, shown only when there
+             is some and not edited here (people.js). Encrypted. -->
+        <div id="person-about-field" hidden>
+          <div class="label-row">
+            <label for="person-about" id="person-about-label">About me</label>
+            <span class="hint" id="person-about-hint"></span>
+          </div>
+          <textarea id="person-about" name="about" autocomplete="off" spellcheck="false"></textarea>
+          <!-- When they last shared it: kept as it is through edits here. -->
+          <input type="hidden" id="person-about_shared_on" name="about_shared_on" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="label-row">
+          <label for="person-notes">Private notes</label>
+          <span class="hint" id="person-notes-hint">These are never shared.</span>
+        </div>
         <textarea id="person-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <button type="submit" class="primary">Add person</button>
@@ -618,6 +636,20 @@
       <button type="button" class="primary" id="import-go" hidden>Import</button>
       <p class="message" id="import-message"></p>
     </section>
+
+    <!-- My live shares: shared-by-me.js. -->
+    <section class="card">
+      <h2>Shared by me</h2>
+      <p class="hint">Invites you've made that can still be used. Revoke one to stop its code working.</p>
+      <div id="shared-by-me"><p class="empty">Loading…</p></div>
+      <p class="message" id="shared-by-me-message"></p>
+    </section>
+  </template>
+
+  <!-- Shared with you (/open#<id>.<key>): views/open.js -->
+  <template id="view-open">
+    <h1>Shared with you</h1>
+    <section class="card" id="open-body"></section>
   </template>
 
   <!-- Sign in (/signin) -->

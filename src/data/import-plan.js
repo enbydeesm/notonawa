@@ -57,7 +57,7 @@ export function planItems(items, existing, newId) {
       // Only one "this is me" per journal: if I have one, it was matched above.
       is_self: p.is_self && !mySelf ? 1 : 0,
       default_role: p.default_role,
-      is_educator: p.is_educator, based_in: p.based_in, aliases: p.aliases,
+      is_educator: p.is_educator, based_in: p.based_in, aliases: p.aliases, about: p.about, about_shared_on: p.about_shared_on,
       archived_at: p.archived_at, created_at: p.created_at, updated_at: p.updated_at,
     }]),
     profileNotes: items.people.flatMap((p, i) => people[i].matched ? [] : p.profile_notes.map((n) => ({

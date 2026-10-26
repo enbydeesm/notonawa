@@ -18,7 +18,8 @@ export async function readAccount(db, userId) {
               top_label, bottom_label, theme, seen_release, hide_welcome
          FROM users WHERE id = ?`),
     q("SELECT name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at"),
-    q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, archived_at, created_at, updated_at
+    q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on,
+              archived_at, created_at, updated_at
          FROM people WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT n.person_id, n.type, n.description, n.noted_on, n.is_current, n.created_at, n.updated_at
          FROM profile_notes n JOIN people p ON p.id = n.person_id
@@ -65,12 +66,17 @@ export async function readAccount(db, userId) {
         WHERE n.user_id = ?1 OR d.user_id = ?1 ORDER BY n.created_at, n.id`),
     // Bug reports and ideas I've sent.
     q("SELECT kind, message, app_version, created_at FROM feedback WHERE user_id = ? ORDER BY created_at, id"),
+    // My shares (their names sealed; the sealed copies themselves aren't
+    // exported: only whoever has the link can open them).
+    q(`SELECT kind, label, expires_at, max_uses, use_count, created_at
+         FROM shares WHERE owner_id = ? ORDER BY created_at, id`),
   ]);
   const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags,
-    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback] =
+    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback, shares] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
     ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback,
+    shares,
   };
 }

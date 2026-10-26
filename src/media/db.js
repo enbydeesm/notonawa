@@ -2,6 +2,7 @@
 // (storage.js); every query here is kept to one owner's rows.
 
 import { nextPosition } from "../visuals/db.js";
+import { accountBytes } from "../sql.js";
 import { MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, MAX_ACCOUNT_BYTES } from "./parse.js";
 
 /** @typedef {import("./parse.js").Item} Item */
@@ -49,7 +50,7 @@ export async function uploadCheck(db, ownerId, upload) {
             EXISTS(SELECT 1 FROM media WHERE id = ?3) AS taken,
             (SELECT COUNT(*) FROM media WHERE owner_id = ?1 AND ${upload.item.column} = ?2) AS count,
             (SELECT COUNT(*) FROM media WHERE owner_id = ?1 AND ${upload.item.column} = ?2 AND kind = 'video') AS video_count,
-            (SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ?1) AS account_bytes`
+            ${accountBytes("?1")} AS account_bytes`
   ).bind(ownerId, upload.item.id, upload.id).first());
   return { item: !!row.item, taken: !!row.taken, count: row.count, videoCount: row.video_count, accountBytes: row.account_bytes };
 }
@@ -71,7 +72,7 @@ export async function insertMedia(db, ownerId, upload) {
             ${nextPosition(item.column, "?2", "?7")},
             ?8, ?9
       WHERE (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7) < ?10
-        AND (SELECT COALESCE(SUM(bytes), 0) FROM media WHERE owner_id = ?2) + ?9 <= ?11
+        AND ${accountBytes("?2")} + ?9 <= ?11
         AND (?5 <> 'video'
              OR (SELECT COUNT(*) FROM media WHERE owner_id = ?2 AND ${item.column} = ?7 AND kind = 'video') < ?12)
      RETURNING position`

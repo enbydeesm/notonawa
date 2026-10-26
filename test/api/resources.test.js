@@ -19,17 +19,24 @@ describe("plans, people and locations", () => {
     expect(plan?.updated_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
   });
 
-  it("keeps a person's educator flag, and their sealed city and other names", async () => {
+  it("keeps a person's educator flag, and their sealed city, other names and About", async () => {
     const id = await create("/api/people", {
       name: "Kit", is_educator: true, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"kit"}]'),
+      about: sealed("Rigger, mostly floor"),
     });
     const found = (await call("/api/people?archived=false")).body.find((/** @type {any} */ p) => p.id === id);
     expect(found).toEqual(expect.objectContaining({
       is_educator: 1, based_in: sealed("Seattle, WA"), aliases: sealed('[{"platform":"scene","alias":"kit"}]'),
+      about: sealed("Rigger, mostly floor"),
     }));
     expect((await call(`/api/people/${id}`, { method: "PUT", body: { name: "Kit" } })).status).toBe(200);
-    expect(await sql("SELECT is_educator, based_in, aliases FROM people WHERE id = ?", id).first())
-      .toEqual({ is_educator: 0, based_in: null, aliases: null });
+    expect(await sql("SELECT is_educator, based_in, aliases, about FROM people WHERE id = ?", id).first())
+      .toEqual({ is_educator: 0, based_in: null, aliases: null, about: null });
+    expect((await call("/api/people", { method: "POST", body: { name: "Plain", about: "Rigger" } })).status).toBe(400);
+    // When their About was shared: a plain date.
+    const shared = await create("/api/people", { name: "Lee", about: sealed("Hi"), about_shared_on: "2026-10-24" });
+    expect(await sql("SELECT about_shared_on FROM people WHERE id = ?", shared).first()).toEqual({ about_shared_on: "2026-10-24" });
+    expect((await call("/api/people", { method: "POST", body: { name: "Lee", about_shared_on: "yesterday" } })).status).toBe(400);
     expect((await call("/api/people", { method: "POST", body: { name: "Plain", based_in: "Seattle, WA" } })).status).toBe(400);
     expect((await call("/api/people", { method: "POST", body: { name: "Plain", aliases: "[]" } })).status).toBe(400);
   });

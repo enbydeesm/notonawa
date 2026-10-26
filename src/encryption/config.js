@@ -6,13 +6,14 @@
 export const ENCRYPTED_COLUMNS = {
   ties: ["notes", "album_url"],
   tie_participants: ["notes"],
-  people: ["notes", "based_in", "aliases"],
+  people: ["notes", "based_in", "aliases", "about"],
   profile_notes: ["description"],
   locations: ["notes"],
   plans: ["description", "notes", "album_url"],
   workshops: ["description", "notes", "album_url"],
   drawings: ["caption"],
   poses: ["caption"],
+  shares: ["label", "link_key"],
 };
 
 /**
@@ -30,6 +31,7 @@ export const OWNER_SCOPE = {
   workshops: "owner_id = ?1",
   drawings: "owner_id = ?1",
   poses: "owner_id = ?1",
+  shares: "owner_id = ?1",
 };
 
 // A value that's still plain text: not empty, and not sealed. (LIKE ignores

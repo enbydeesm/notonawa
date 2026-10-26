@@ -1566,3 +1566,420 @@ about 6 minutes, too slow to run after every change.
   doesn't put its keyboard over the picture. A drawing's and a pose's Edit
   is outlined in the accent above the caption, with Duplicate and Copy to…
   side by side.
+
+## Sharing between accounts (October 2026)
+
+**Status:** planned (2026-10-24). Phase 1 (two notes fields on people)
+built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
+server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
+(profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
+deployed; the rest isn't built.
+The build plan is at the end of this section.
+
+Goal: let people send each other copies of ties, plans and workshops, and
+add each other's profiles to People, without the server ever being able to
+read what's shared. Messaging and shared plans come later (Connections,
+below).
+
+### What decides the design
+
+- **Everything is sealed with one person's key.** Each account has one data
+  key that only its own devices can unlock, and the server can't read
+  notes, descriptions, aliases, captions or photos. So anything shared is
+  opened on the sender's device and sealed again under a key meant for
+  someone else. The server only ever passes along what it can't open.
+- **Some things can't be prevented, and the app mustn't promise them.**
+  Once something is open on the recipient's screen, they have it: a
+  screenshot, a screen recording or another phone gets around any block.
+  "Can't be downloaded" would be untrue. What we can do:
+  - **View-only**: never added to their journal or their export, no save
+    button, photos drawn on a canvas, not as saveable images. This stops
+    casual saving, not someone determined.
+  - **Can't be forwarded**: a verification code at the moment it's opened
+    (below) makes a forwarded link useless. Sealing a share so only one
+    account can ever open it needs Connections' identity keys.
+  - **Expiry and Revoke**: the sender can end a share, and the server
+    deletes its sealed copy.
+  - **A watermark** with the recipient's name on view-only photos, to
+    discourage passing them on.
+- **Connections between accounts are new information for the server.**
+  Today it sees separate journals. Knowing that two accounts know each
+  other is information about people, even with everything else sealed. So
+  it's only ever created when someone chooses it, after a disclosure, and
+  either side can remove it (see "Connecting accounts").
+
+### Two ways to share, and the one chosen first
+
+- **Option A, "send a copy" links (chosen first).** A share is a sealed
+  snapshot behind a link, and a QR code is just that link. No long-lived
+  new keys, nothing about who shares with whom kept on the server unless
+  someone chooses to connect accounts, and the recipient's side reuses
+  import. Anyone who has the link (and passphrase, if one is set) can open
+  it, unless the sender also asks for a verification code.
+- **Option B, Connections (later).** Each account gets an identity key
+  pair. Things sent between connected accounts are sealed to the
+  recipient's own key, so only they can open them. Shared plans with
+  messages, sending in the app and profiles that keep themselves up to
+  date need it. It's a much bigger piece of work, and builds on the
+  connections table Option A adds (see "Later: Connections").
+
+### Share links
+
+- **The link is `/open#<share id>.<key>`.** Both are after the `#`, which
+  the browser never sends to the server, puts in a Referer header or in a
+  request log. The key is 32 random bytes, not anything typed (the rule
+  against user-entered text in addresses still holds). The page reads it,
+  removes it from the address (`history.replaceState`) and keeps it only in
+  memory. As the app is one page, it survives the Sign in and Unlock steps
+  without being written anywhere. `/open` is an ordinary route
+  (`needsKey`), so the router needs no pattern matching.
+- **A snapshot, not a live copy.** What's shared is what the item was when
+  the share was made. Editing the original later doesn't change it.
+- **Sealed on the device with a fresh share key**: AES-256-GCM, bound to
+  the share's id, kind and format version, like wraps and captions are.
+  The share key isn't the data key, and the crypto Worker never returns or
+  wraps the data key for it. Sealing and opening shares are new Worker
+  operations, so photos are opened and sealed again there, as now.
+- **Opening one**: the recipient must be signed in and unlocked (Sign-up is
+  still invite-only, so the page says so if they have no account). The
+  page fetches the share by its id in a POST body, opens it and shows a
+  preview. **Add to my journal** saves it through the import code that
+  exists already (`import-plan.js`, `import-dedupe.js`, the photos and
+  drawings imports), so new ids, tags and duplicates work as they do for
+  an import. Opening your own share shows it, but there's nothing to add.
+- **The sender chooses** for every share: how long it lasts (10 minutes,
+  1 hour, 1 day, 7 days, 30 days, or until revoked) and how many people
+  can open it (one, or any number), plus optionally a passphrase, a
+  verification code and view-only. The Share screen warns about one
+  combination: a profile invite that never expires, can be used by
+  anyone and offers to connect accounts lets anyone who ever sees that QR
+  code connect to you (on social media, say).
+- **Shared by me** (in Your data) lists every share that hasn't ended: its
+  kind, the name the sender gave it (sealed with their own key), when it
+  ends and how many times it's been opened (counts only, never by whom),
+  with **Revoke**. It also lists connections made from profile invites.
+- **Where it's kept**: a `shares` row in D1 (owner, kind, the sealed name,
+  expiry, uses allowed and used, revoked, which locks are on) and the
+  sealed snapshot and photos in R2. They count toward the sender's 1 GB.
+  The daily job deletes shares that have expired, been used up or been
+  revoked, and their files. A deleted account's shares go with it, files
+  read in the same batch as the delete (the photos rule).
+- **The QR code** is drawn as SVG elements with `h()` (no `innerHTML`),
+  and there's a Copy link button and the phone's share sheet
+  (`navigator.share`) for sending it over Signal and the like. **No
+  scanner in the app**: a phone's own camera opens the link. That keeps
+  `camera=()` in Permissions-Policy, and Safari still has no
+  `BarcodeDetector`, so a scanner would need a decoding library too.
+  Making QR codes needs a small library, vendored like mediabunny and
+  three.js (needs permission to install). It sees every share's key, as
+  the key is in the link it encodes, so: one with no dependencies, read
+  before it's vendored and pinned there (`vendor.mjs --check`); only its
+  grid of squares is used (no SVG strings or `data:` images, which Trusted
+  Types and the CSP refuse anyway); loaded only when the Share screen
+  opens; and tested against known codes, so a change to what it draws
+  shows up. Writing our own encoder is the fallback if none passes that
+  reading.
+- **Installed app**: on iPhone a scanned link opens in Safari, not the
+  installed app, so the recipient signs in there. That works, it's just a
+  second place they're signed in.
+
+### Locks on opening
+
+- **Passphrase**: a second factor, never the only one. Sealed only by a
+  passphrase, the server's copy could be guessed offline as fast as a
+  computer can go. Instead the key that opens it comes from both the
+  link's key and the passphrase (PBKDF2, many rounds, then HKDF with the
+  link's key), so neither works alone. From the passphrase the page also
+  makes a separate proof; the server stores only a hash of it and sends
+  the sealed share only after the right proof, with a limited number of
+  wrong tries (then the share is cancelled). Suits a class: one
+  passphrase said out loud.
+- **Verification code**: the sender has to be there when it's opened.
+  1. The sender ticks "Require a code when opened". Their screen shows the
+     QR code and "Waiting for them to open it…", asking the server every
+     few seconds.
+  2. The recipient opens the link. Their page makes a random one-time
+     claim id and sends it. The server keeps `(share, claim id)`, not who
+     the recipient is.
+  3. The sender's screen shows a 6-digit code; the server stores only its
+     hash.
+  4. The recipient types it. Right, and the server sends that claim the
+     share and deletes the claim; 5 wrong tries cancel the share.
+
+  A forwarded or photographed link is then useless without the sender,
+  there or on a call. It's a check by the server, not sealing to one
+  account (that needs Connections), but it covers the worry. Not for
+  classes (20 people, 20 codes): that's what the passphrase is for.
+- **The server knows who's opening at that moment**, as with every request
+  from a signed-in person, but doesn't store it: claims hold a random id,
+  and there are no request logs.
+
+### What can be shared
+
+- **Ties, plans and workshops: every field can be shared**, each ticked on
+  the Share screen: title, date, type, rating, location (its name and
+  place, not its notes), plans, tags, people with their roles and notes,
+  notes, description, album link, and visuals. **People go as names only**:
+  never their account ids or anything from their profile.
+- **Who's who on the recipient's side: "Who is this?" for every person.**
+  A shared name can be spelled differently from the recipient's card for
+  the same person, or match a card for someone else entirely, so names
+  are never matched silently. The preview lists each person on the item
+  with their role, and for each one the recipient picks **Me**, one of
+  their people, or **New person** (named as shared, which they can
+  change). Choosing Me keeps their role, so Calendar, Analytics and
+  Education count it right. The preview suggests a choice for each one,
+  and the recipient confirms them all before anything is added:
+  - the sender (the snapshot marks which name is theirs, not their
+    account) is suggested as the recipient's linked card for them when the
+    two are connected: the server can tell the recipient's page which of
+    its own cards that is without telling it the sender's account id;
+  - a name that matches one of their people exactly (ignoring capitals) is
+    suggested as that person;
+  - anyone else is suggested as New person.
+
+  Two shared names can't both become the same person (one person is on an
+  item once), and two people with the same name in a share stay two. The
+  choices are pure (`share-people.js`: the suggestions and whether a set
+  of choices can be saved), then the import code adds the new people and
+  links everyone by id.
+- **A profile (a "me" invite)**: name, pronouns, each social or scene name
+  on its own, based in, Educator, About me, and Connect our accounts
+  (see "Connecting accounts"). Private notes are never offered.
+- **Visuals**: photos and videos are opened and sealed again under the
+  share key and uploaded with it; drawings and poses go in the snapshot as
+  their lines and numbers, captions included.
+
+### Two notes fields on people
+
+- **`people.notes` stays private** and never leaves the journal. On every
+  card it's "Private notes".
+- **A new encrypted `people.about`.** On my own profile it's **About me**,
+  the part a profile invite can share. On someone else's card it's
+  **About them, shared by them**: shown but not edited there, and replaced
+  only by their next share. Hidden on others' cards while empty.
+- **Adding a shared profile**: **New person**, or **Add to an existing
+  card** (active people, not me). For an existing card a merge dialog asks,
+  field by field, whether to replace or keep the name, pronouns, usual
+  role, based in and Educator, and whether to add the new social names to
+  the list or replace it. About is replaced when they shared one (it's
+  theirs), with the date; private notes are never touched. The rules are
+  pure (`contact-merge.js`).
+
+### Connecting accounts
+
+- **Optional**, unticked, on profile invites only, as **Connect our
+  accounts**. Ticking it shows: "Connecting your accounts lets NotoNawa's
+  server see that the two accounts know each other. It still can't read
+  anything in either journal. You can remove the connection at any time
+  from Shared by me, and it's deleted if either of you deletes your
+  account. Without it, these won't be possible with this person: sending
+  them ties, plans and workshops inside the app (sharing by link or QR
+  code still works), shared plans with messages, offering them a copy of
+  ties you log with them, and their profile card updating when they
+  change it."
+- **The recipient confirms too**, with a shorter version: the connection
+  reveals their account as well. If they say no, the card is still added,
+  just not linked.
+- **Account ids never leave the server.** The invite carries no account
+  id: accepting it makes a row in a `connections` table (its own random
+  id, the two accounts, when) between the share's owner and whoever
+  accepted. Either side can delete it. A table rather than an account id
+  on the recipient's card, as that card belongs to the recipient and the
+  sender couldn't remove it.
+- **The card holds the connection's id, not the person's account id**: a
+  new `people.connection_id` (`linked_user_id`, there since migration 0001,
+  stays unused). The database allows it only while that connection exists
+  and the card's owner is one of its two accounts, clears it when the
+  connection goes, and allows one card per connection in a journal.
+  Linking to yourself is refused. Deleting either account deletes the
+  connection. Everything that needs the other account (the sender's card
+  on a shared tie; later, sending in the app) goes through the connection
+  on the server, so no page ever learns another person's account id.
+- **The sender doesn't learn who connected** unless they share back. Shared
+  by me shows "Connected through *the invite's name*, 2 Nov", the sealed
+  name copied from the share, with Remove.
+- **The link icon**: a linked card shows a yellow link icon top right
+  (right of the Educator cap, if there is one), and its dialog shows it
+  where "This is me" is on my own profile, with "Linked to their account"
+  as its label and Remove link beside it. Color isn't the only clue: it
+  has its own icon and words.
+- **Export and import**: a card's `connection_id` is exported with it, and
+  my connections are listed (their ids and dates, no account ids), as
+  notices are. Import keeps a card's `connection_id` only if that
+  connection still exists and the importing account is one of its two;
+  otherwise the card comes in unlinked and the import says how many
+  links couldn't be kept. So restoring a deleted card, or the journal
+  after being locked out and recovered into the same account, keeps its
+  links; importing into a new account doesn't, as the other person agreed
+  to connect with the old one (they can send a new invite). An edited
+  file can't link to anyone: an id that isn't one of my live connections
+  is refused like any other. Shares by me are listed but not imported.
+  The round-trip test covers both a kept and a refused link.
+- **PRIVACY.md** must say what the server holds: sealed shares until they
+  end, their counts, and connections that people chose. Whether existing
+  accounts must agree again is a decision for when it's written: nothing
+  new is collected unless someone chooses to share, so a notice may do.
+
+### Later: Connections (Option B)
+
+Planned once Option A is in use; built on its `connections`.
+
+- An identity key pair (ECDH P-256) per account: the public half on the
+  server, the private half sealed with the data key, so it unlocks with
+  the journal. Connecting through a QR code compares a fingerprint of the
+  key, so the server can't swap in its own and read along.
+- **Sending in the app**: ties, plans and workshops sealed to the
+  recipient's key, into a "Shared with me" inbox. Logging a tie with a
+  connected person offers "Send [name] a copy?", each time, never
+  automatically: a tie can hold notes nobody meant to send.
+- **Shared plans with messages**: a shared plan is a space with its own
+  key, wrapped to each member's key, outside `plans` (whose ownership
+  triggers allow one owner a row). Its content and message thread are
+  sealed with that key; removing someone makes a new key. Messages are
+  fetched when the plan is opened, with an unread count; no push. Leaving,
+  deleting your own messages and blocking from the start.
+- **Profiles that keep up**: a connected person's changed pronouns or
+  socials show as "Updated info available", never overwriting by
+  themselves.
+- **View-only for one person**: an educator's handout sealed to one
+  account, so it can't be forwarded at all.
+
+### Weighed and not adopted
+
+- **Shares the server can read**: simplest, and the end of end-to-end
+  encryption.
+- **Sealed by a passphrase alone**: guessable offline from the server's
+  copy (see "Locks on opening").
+- **The key in the query string** (`?key=`): sent to the server and into
+  logs. After `#` it isn't.
+- **Leaving people's names off shared ties by default**: every field is the
+  sender's choice instead, but never their account ids or profiles.
+- **A fixed 10-minute profile invite**: the sender chooses how long, with
+  the warning above.
+- **The account id kept only inside the recipient's sealed card**: the
+  server couldn't see the link, but the sender could never remove it, and
+  Connections would need a real connection anyway.
+- **The other person's account id on the card** (`linked_user_id`): it
+  would go into exports, and an edited file could name any account. The
+  connection's id means nothing outside its two accounts.
+- **An "Approve" button for the sender** in place of the code: it doesn't
+  show who is opening it; someone else could open it at the same time.
+- **A plain table of shares I've received**: it would show the server who
+  receives from whom. View-only shares I keep are listed inside my own
+  sealed data instead.
+- **Promising "can't be downloaded"**: untrue (see above).
+- **Automatically sending every new tie to a connected person**: too easy
+  to send notes nobody meant to.
+- **A QR scanner in the app**: the phone's camera already opens links.
+- **QR codes made by the server or an online QR service**: the share's key
+  would leave the device.
+
+### Build plan
+
+Each phase leaves the app working and shippable, with tests for its new
+behavior, `npm run check:changed -- --ui` after each change and the full
+checks before a release. Times are rough, in working days with Claude,
+tests and the walkthrough included.
+
+1. **Two notes fields on people** (about 1 day). *Built 2026-10-24.* The
+   About field's label and whether it's shown come from `person-about.js`
+   (pure). PRIVACY.md isn't changed yet: it's folded into phase 4's update,
+   so people see one new policy version when sharing arrives (until then it
+   names fewer encrypted fields than there are, never more). Migration 0021:
+   `people.about`, encrypted. `src/encryption/config.js` and
+   `crypto/fields.js`, `src/resources/config.js`, the People dialog (About
+   me on my profile, Private notes on every card, About them shown and
+   not editable on others' when filled), export and import
+   (`src/data/shape.js`, `import-parse.js`, `journal-fields.js`), PRIVACY.md
+   (one more encrypted field). Tests: the encrypted-columns unit test, the
+   export round trip, the People walkthrough chunk. *First: small, no new
+   ideas, and invites need it.*
+2. **Shares on the server** (2–3 days). *Built 2026-10-24.* Changed from
+   the plan: revoking deletes the row and files at once (no `revoked_at`);
+   the last allowed open deletes the share in the same request (a use
+   counts when the sealed copy is sent, since that's when it can be
+   read); an ended share and one that never was get the same 404; the
+   passphrase, claims and view-only get their own migrations in phases 7
+   and 8. Snapshots are in the photos bucket under
+   `<owner id>/shares/<share id>/`, so deleting the account's files takes
+   them; the photo sweep checks them against `shares`. Starting a new key
+   deletes the account's shares (their names couldn't be opened). The
+   link's key goes into HKDF before sealing, so phase 7 can mix in a
+   passphrase. As first planned: Migration 0022: `shares` and
+   `share_claims`. A new `src/shares/` (`parse.js`: kinds, expiry choices,
+   uses, limits; `db.js`; `storage.js`: R2 under `shares/`; `routes.js`:
+   create, upload files, list mine, revoke, open). Cleanup in
+   `src/cleanup.js`, account deletion, a rate limit for opening (a new
+   binding in both environments in `wrangler.jsonc`, `npm run types`), the
+   export lists shares by me. `crypto/share.js` (pure: the share key,
+   sealing a snapshot bound to its id, kind and version) and its Worker
+   operations. No pages yet, so nothing for users changes. Tests: unit for
+   parse and crypto; API for expiry, uses, revoke, ownership, the daily
+   cleanup, account deletion (`account-delete.test.js`). *Alone because
+   it's the security-critical part, worth reviewing without UI around it.*
+3. **Profile invites** (2–3 days). *Built 2026-10-24.* Changed from the
+   plan: the name to share is typed in (suggested from my profile's, or
+   empty while it's still "Me", which would mean nothing in someone else's
+   People), not ticked; and each share keeps its link's key, sealed with
+   the owner's data key (`shares.link_key`, migration 0023), so Shared by
+   me can show the code again. The cost: anyone who could unlock my journal
+   could open my live shares, a small step past having the journal itself.
+   The key isn't exported (it opens the share, so it stays with the
+   account, as wraps do). uqr 0.1.3 was read in full and vendored; only its
+   `encode()` is used, with medium error correction and a 4-square border,
+   and a test pins its output. A share arriving from another account is
+   read strictly (`profile-share.js`). Opening a share spends a use, so the
+   opened contents are kept in memory until added or locked, and coming
+   back to `/open` shows them again. After trying it: Share my profile
+   sits in the middle of the dialog's title row; the usual role can be
+   shared too (stored as the role, so it reads in each account's own role
+   names; a merge keeps the role I'd set for them unless I choose theirs);
+   and About them says when it was shared (`people.about_shared_on`,
+   migration 0024, a plain date: the server sees the save anyway). An
+   invite without an About leaves the card's About and its date as they
+   were, rather than emptying them. As first planned: Needs the QR library (vendored, with
+   permission). The Share screen (what to include, how long, how many
+   people, the QR code, Copy link, the share sheet), the `/open` route,
+   view and template, opening and the preview, New person or Add to an
+   existing card, `contact-merge.js` (pure), Shared by me in Your data.
+   No connecting accounts yet. Tests: unit for the merge rules and expiry choices;
+   a walkthrough chunk where one account makes an invite and a second
+   opens it (two accounts in one chunk, new to the harness). *The smallest
+   piece people can use.*
+4. **Connecting accounts** (2 days). Migration 0023: `connections`,
+   `people.connection_id`, triggers allowing it only for a live
+   connection the card's owner is in and clearing it with one, the
+   one-card-per-connection index. Import keeping or refusing links. Routes to accept
+   one (inside opening an invite) and remove one; the two disclosures; the
+   link icon on cards and in the dialog; Remove link; connections in Shared
+   by me and the export; PRIVACY.md, and a notice. Tests: `test/db/` for
+   the triggers and index, API for accept, remove, account deletion
+   from either side and import (kept, refused, another account's), the walkthrough for the disclosures and the icon.
+5. **Ties, plans and workshops** (3 days). A Share button on each dialog,
+   choosing fields; the snapshot built from what the page already has
+   open; the preview with "Who is this?" for each person
+   (`share-people.js`, pure); adding through the import code. Drawings and
+   poses go in the snapshot. Tests: unit for building and reading
+   snapshots and for the people choices (suggestions, a name matching
+   someone else, two people of the same name, two names chosen as one
+   person); an API check that a share round-trips into the second journal
+   with people chosen; and the walkthrough for one of each kind.
+6. **Photos and videos in shares** (2 days). Opening and sealing again
+   under the share key in the crypto Worker, uploading with the share,
+   counting toward 1 GB, the recipient's import of them
+   (`import-photos.js`). Tests: crypto unit tests, an API test of the
+   files' limits and cleanup, the walkthrough with one photo. *Apart from
+   phase 5 because R2, sizes and video make it its own risk.*
+7. **Locks on opening: passphrase and verification code** (2–3 days).
+   Both change only creating and opening a share: the passphrase proof and
+   key, claims and codes, the sender's waiting screen, wrong-try limits.
+   Tests: unit for deriving the keys and proof; API for wrong tries,
+   cancelling, a claim used twice; the walkthrough with two accounts and
+   a code.
+8. **View-only** (2–3 days). Opening without adding, a sealed "Shared with
+   me" list in my own data, photos drawn on a canvas with the watermark,
+   nothing in the export (it isn't mine). Tests: that view-only shares
+   never reach the journal or the export, the walkthrough.
+
+Then Connections (Option B), planned separately when the time comes.

@@ -146,7 +146,7 @@ describe("uploading a photo", () => {
     await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
                VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, ?)`, crypto.randomUUID(), id, tie, MAX_ACCOUNT_BYTES - 30).run();
     const res = await upload({ tie_id: tie }, { cookie, thumb: 10, full: 30 });
-    expect(res).toMatchObject({ status: 400, body: { error: "Your photos and videos have filled your 1 GB. Delete some to make room." } });
+    expect(res).toMatchObject({ status: 400, body: { error: "Your photos, videos and shares have filled your 1 GB. Delete some to make room." } });
     expect(await stored(id, res.id)).toBeNull();
     expect((await upload({ tie_id: tie }, { cookie, thumb: 10, full: 20 })).status).toBe(201);
   });
