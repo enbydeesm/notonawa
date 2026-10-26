@@ -17,8 +17,10 @@ import {
   Scene, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
 import { SHAPES } from "./figure-rig.js";
-import { ROPE_RADIUS, BAMBOO_LENGTH, HASHIRA_SIZE } from "./pose-format.js";
+import { ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
 import { makeSkeleton, posed, ropePoint, toBone, toHardpoint, RING_RADIUS, BAMBOO_RADIUS } from "./pose-skeleton.js";
+import { bends, ropeRuns } from "./pose-cinch.js";
+import { segmentDistance } from "./drawing-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./vendor/three.js").Object3D} Object3D */
@@ -26,13 +28,42 @@ import { makeSkeleton, posed, ropePoint, toBone, toHardpoint, RING_RADIUS, BAMBO
 /**
  * What's under a point on the view (on the body, `point` is where in the room).
  * @typedef {{ kind: "body", bone: string, mm: [number, number, number], point: Vector3 } | { kind: "ring" }
- *   | { kind: "bamboo", along: number } | { kind: "hashira", mm: [number, number, number] } | { kind: "rope", index: number }} Hit
+ *   | { kind: "bamboo", along: number } | { kind: "hashira", mm: [number, number, number] }
+ *   | { kind: "rope", index: number, point: Vector3 }} Hit
  */
+
+/**
+ * How near a tap (CSS px) has to be to a rope to choose it: a finger's
+ * width, as the ropes themselves are only a centimetre or two across.
+ */
+const ROPE_REACH = 18;
+/** How far behind what's under a tap (cm) a rope can be and still be chosen (one lying on the body, not behind it). */
+const ROPE_DEPTH = 3;
 
 /** How square a block shape is (figure-rig.js): 1 is an ellipsoid, smaller is boxier. */
 const BLOCKINESS = 0.6;
-/** How high the lines a ring or bamboo hangs from go (out of sight), cm. */
-const HANG_TOP = 900;
+/** How long the lines a ring or bamboo hangs from are (up out of sight), cm. */
+const HANG_LENGTH = 900;
+/** The hanging lines' look, as a jute rope: three strands twisted round, one turn every PITCH cm. */
+const STRAND = { count: 3, radius: 0.3, out: 0.32, pitch: 3.5, steps: 6 };
+
+/**
+ * The strands of a hanging line, from 0 up to HANG_LENGTH: three thin
+ * tubes, twisted round each other.
+ * @returns {TubeGeometry[]}
+ */
+function strands() {
+  const { count, radius, out, pitch, steps } = STRAND;
+  const points = Math.round(HANG_LENGTH / pitch * steps);
+  return Array.from({ length: count }, (_, k) => {
+    const curve = new CatmullRomCurve3(Array.from({ length: points + 1 }, (_, i) => {
+      const y = i * HANG_LENGTH / points;
+      const a = 2 * Math.PI * (y / pitch + k / count);
+      return new Vector3(Math.cos(a) * out, y, Math.sin(a) * out);
+    }));
+    return new TubeGeometry(curve, points, radius, 5, false);
+  });
+}
 
 /**
  * A sphere of radius 1 squared off into a block with rounded edges (a
@@ -134,29 +165,35 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   // --- the hardpoints: a ring, a bamboo or a hashira --------------------------
 
   const ringMaterial = new MeshStandardMaterial({ color: cssColor("pose-ring"), metalness: 0.6, roughness: 0.35 });
-  const line = new CylinderGeometry(0.35, 0.35, 1, 8);
+  const juteMaterial = new MeshStandardMaterial({ color: cssColor("pose-jute"), roughness: 0.95 });
+  const line = strands();
+  /** A jute line hanging from out of sight: moved by its foot (hang). */
+  const hanger = () => {
+    const group = new Group();
+    group.add(...line.map((g) => new Mesh(g, juteMaterial)));
+    return group;
+  };
   /**
    * A line hanging something from out of sight, down to (x, y, z).
-   * @param {Mesh} hanger @param {number} x @param {number} y @param {number} z
+   * @param {Group} rope @param {number} x @param {number} y @param {number} z
    */
-  const hang = (hanger, x, y, z) => {
-    hanger.position.set(x, (y + HANG_TOP) / 2, z);
-    hanger.scale.set(1, Math.max(1, HANG_TOP - y), 1);
-  };
+  const hang = (rope, x, y, z) => rope.position.set(x, y, z);
 
   const ring = new Group();
   const hoop = new Mesh(new TorusGeometry(RING_RADIUS, 0.9, 12, 40), ringMaterial);
   hoop.userData.hardpoint = "ring";
-  const ringHanger = new Mesh(line, ringMaterial);
-  ring.add(hoop, ringHanger);
+  const ringHanger = hanger();
+  ring.add(hoop);
+  scene.add(ringHanger);
 
-  // A pole lying along its x, hung from both ends.
+  // A pole lying along its x (1 cm long, stretched to the bamboo's
+  // length), hung from two lines in from its ends.
   const bambooMaterial = new MeshStandardMaterial({ color: cssColor("pose-bamboo"), roughness: 0.6 });
   const bamboo = new Group();
-  const pole = new Mesh(new CylinderGeometry(BAMBOO_RADIUS, BAMBOO_RADIUS, BAMBOO_LENGTH, 16), bambooMaterial);
+  const pole = new Mesh(new CylinderGeometry(BAMBOO_RADIUS, BAMBOO_RADIUS, 1, 16), bambooMaterial);
   pole.rotation.set(0, 0, Math.PI / 2);
   pole.userData.hardpoint = "bamboo";
-  const bambooHangers = [new Mesh(line, ringMaterial), new Mesh(line, ringMaterial)];
+  const bambooHangers = [hanger(), hanger()];
   bamboo.add(pole);
   scene.add(...bambooHangers);
 
@@ -184,12 +221,18 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     return material;
   };
   const marker = new MeshBasicMaterial({ color: cssColor("ink-black") });
+  // The rope chosen (to change a cinch or a see-saw) shows in the
+  // selected part's color.
+  const chosenInk = new MeshStandardMaterial({ color: cssColor("pose-selected"), roughness: 0.6 });
 
   /** The pose drawn last, so the view can be drawn again at a new size. @type {Pose | null} */
   let shown = null;
+  /** Each rope's line in the room, as many points along it, for choosing one with a tap. @type {{ index: number, points: Vector3[] }[]} */
+  let ropeLines = [];
 
   /** Takes the old ropes off, freeing what they held. */
   function clearRopes() {
+    ropeLines = [];
     for (const child of [...ropes.children]) {
       ropes.remove(child);
       if (child instanceof Mesh && child.geometry !== sphere) child.geometry.dispose();
@@ -198,21 +241,32 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   /**
    * @param {Rope} rope
-   * @param {Pose} pose
+   * @param {Vector3[][]} runs its line in the room, in runs (pose-cinch.js)
    * @param {number} index its place in pose.ropes, or -1 for the one being laid
+   * @param {boolean} chosen
    */
-  function addRope(rope, pose, index) {
-    const points = rope.p.map((p) => ropePoint(skeleton, p, pose));
+  function addRope(rope, runs, index, chosen) {
     const radius = ROPE_RADIUS[rope.w];
-    if (points.length >= 2) {
+    const material = chosen ? chosenInk : ink(rope.c);
+    for (const [i, points] of runs.entries()) {
+      if (points.length < 2) continue;
       const curve = new CatmullRomCurve3(points, false, "centripetal");
-      const tube = new Mesh(new TubeGeometry(curve, Math.max(12, points.length * 12), radius, 8, false), ink(rope.c));
+      const steps = Math.max(12, points.length * 12);
+      const tube = new Mesh(new TubeGeometry(curve, steps, radius, 8, false), material);
       tube.userData.rope = index;
       ropes.add(tube);
+      if (index >= 0) ropeLines.push({ index, points: Array.from({ length: steps + 1 }, (_, k) => curve.getPoint(k / steps)) });
+      // A knot where one run meets the next, so the turn has no gap.
+      if (i > 0) {
+        const knot = new Mesh(sphere, material);
+        knot.position.copy(points[0]);
+        knot.scale.setScalar(radius);
+        ropes.add(knot);
+      }
     }
     // The rope being laid shows where each tap landed.
     if (index === -1) {
-      for (const point of points) {
+      for (const point of runs.flat()) {
         const dot = new Mesh(sphere, marker);
         dot.position.copy(point);
         dot.scale.setScalar(radius * 1.8);
@@ -222,11 +276,12 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   }
 
   /**
-   * Shows a pose (and the rope being laid, and the part being posed).
+   * Shows a pose (and the rope being laid, the part being posed, and the
+   * rope chosen).
    * @param {Pose} pose
-   * @param {{ laying?: Rope | null, selected?: string | null }} [extras]
+   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number }} [extras]
    */
-  function show(pose, { laying = null, selected = null } = {}) {
+  function show(pose, { laying = null, selected = null, rope = -1 } = {}) {
     shown = pose;
     posed(skeleton, pose);
     for (const mesh of parts) mesh.material = mesh.userData.bone === selected ? selectedSkin : skin;
@@ -237,16 +292,18 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       hoop.position.set(x, y, z);
       hang(ringHanger, x, y + RING_RADIUS, z);
     }
+    ringHanger.visible = ring.visible;
     bamboo.visible = !!pose.bamboo;
-    for (const hanger of bambooHangers) hanger.visible = bamboo.visible;
+    for (const hanging of bambooHangers) hanging.visible = bamboo.visible;
     if (pose.bamboo) {
-      const [x, y, z, turn] = pose.bamboo;
+      const [x, y, z, turn, length, inset] = pose.bamboo;
       bamboo.position.set(x, y, z);
       bamboo.rotation.set(0, turn * Math.PI / 180, 0);
-      const t = turn * Math.PI / 180, half = BAMBOO_LENGTH / 2 - 8;
-      for (const [i, hanger] of bambooHangers.entries()) {
+      pole.scale.set(1, length, 1);
+      const t = turn * Math.PI / 180, half = length / 2 - inset;
+      for (const [i, hanging] of bambooHangers.entries()) {
         const s = i ? 1 : -1;
-        hang(hanger, x + s * half * Math.cos(t), y + BAMBOO_RADIUS, z - s * half * Math.sin(t));
+        hang(hanging, x + s * half * Math.cos(t), y + BAMBOO_RADIUS, z - s * half * Math.sin(t));
       }
     }
     hashira.visible = !!pose.hashira;
@@ -257,8 +314,9 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     }
 
     clearRopes();
-    pose.ropes.forEach((rope, i) => addRope(rope, pose, i));
-    if (laying) addRope(laying, pose, -1);
+    const bent = bends(skeleton, pose);
+    pose.ropes.forEach((r, i) => addRope(r, ropeRuns(skeleton, pose, i, bent), i, i === rope));
+    if (laying) addRope(laying, [laying.p.map((p) => ropePoint(skeleton, p, pose))], -1, false);
 
     // The camera circles a point above the floor, looking at it.
     const [yaw, pitch, distance, height, tx, tz] = pose.camera;
@@ -304,11 +362,45 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   }
 
   /**
+   * The rope nearest a point on the canvas (CSS px), within a finger's
+   * reach on the screen and not hidden behind what's under the point.
+   * @param {number} x
+   * @param {number} y
+   * @param {number} behind how far from the camera what's under the point is (cm), Infinity for nothing
+   * @returns {{ kind: "rope", index: number, point: Vector3 } | null}
+   */
+  function nearestRope(x, y, behind) {
+    const box = canvas.getBoundingClientRect();
+    /** @param {Vector3} v @returns {[number, number] | null} on the screen, or null if behind the camera */
+    const onScreen = (v) => {
+      const p = v.clone().project(camera);
+      return p.z > 1 ? null : [(p.x + 1) / 2 * box.width, (1 - p.y) / 2 * box.height];
+    };
+    /** @type {{ kind: "rope", index: number, point: Vector3, away: number } | null} */
+    let best = null;
+    for (const { index, points } of ropeLines) {
+      const screen = points.map(onScreen);
+      for (let k = 0; k + 1 < points.length; k++) {
+        const [a, b] = [screen[k], screen[k + 1]];
+        if (!a || !b) continue;
+        const away = segmentDistance(x, y, a[0], a[1], b[0], b[1]);
+        if (away > ROPE_REACH || (best && away >= best.away)) continue;
+        const length = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+        const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / length));
+        const point = points[k].clone().lerp(points[k + 1], t);
+        if (point.distanceTo(camera.position) > behind + ROPE_DEPTH) continue;
+        best = { kind: "rope", index, point, away };
+      }
+    }
+    return best && { kind: "rope", index: best.index, point: best.point };
+  }
+
+  /**
    * What's under a point on the canvas (in CSS pixels from its corner).
    * @param {number} x
    * @param {number} y
-   * @param {{ ropes?: boolean }} [options] ropes: also look for ropes (to
-   *   delete one); otherwise ropes are looked through
+   * @param {{ ropes?: boolean }} [options] ropes: a rope within a finger's
+   *   reach comes first (to choose or erase one); otherwise ropes are looked through
    * @returns {Hit | null}
    */
   function pick(x, y, { ropes: withRopes = false } = {}) {
@@ -318,10 +410,12 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     if (ring.visible) targets.push(hoop);
     if (bamboo.visible) targets.push(pole);
     if (hashira.visible) targets.push(post);
-    if (withRopes) targets.push(...ropes.children.filter((c) => c.userData.rope !== undefined && c.userData.rope >= 0));
     const [hit] = raycaster.intersectObjects(targets, false);
+    if (withRopes) {
+      const rope = nearestRope(x, y, hit ? hit.distance : Infinity);
+      if (rope) return rope;
+    }
     if (!hit || !shown) return null;
-    if (hit.object.userData.rope !== undefined) return { kind: "rope", index: hit.object.userData.rope };
     // Just off the surface, so the rope lies on it, not in it.
     const normal = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new Vector3();
     const onSurface = hit.point.clone().addScaledVector(normal, 0.6);
@@ -340,10 +434,12 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   function dispose() {
     clearRopes();
     scene.traverse((o) => {
-      if (o instanceof Mesh && o.geometry !== sphere && o.geometry !== block && o.geometry !== line) o.geometry.dispose();
+      if (o instanceof Mesh && o.geometry !== sphere && o.geometry !== block && !line.includes(o.geometry)) o.geometry.dispose();
     });
-    for (const g of [sphere, block, line]) g.dispose();
-    for (const m of [skin, selectedSkin, ringMaterial, bambooMaterial, woodMaterial, marker, ...inks.values(), floor.material]) m.dispose();
+    for (const g of [sphere, block, ...line]) g.dispose();
+    for (const m of [skin, selectedSkin, ringMaterial, juteMaterial, bambooMaterial, woodMaterial, marker, chosenInk, ...inks.values(), floor.material]) {
+      m.dispose();
+    }
     renderer.dispose();
     renderer.forceContextLoss();
   }

@@ -58,6 +58,24 @@ describe("adding a pose", () => {
     expect(Object.keys(stored.joints)).toEqual(Object.keys(JOINTS));
   });
 
+  it("keeps a bamboo's length and inset, a cinch and a see-saw, and an older bamboo as long as it was", async () => {
+    const tie = await newTie();
+    const data = {
+      ...pose(), ring: null, bamboo: [0, 195, 0, 10, 120, 25],
+      ropes: [
+        { c: "red", w: 2, p: [["l_wrist", 0, 0, 0], ["bamboo", -400, 0, 0], ["r_wrist", 0, 0, 0]], s: true },
+        { c: "blue", w: 2, p: [["chest", 0, 0, 0], ["bamboo", 300, 0, 0]] },
+        { c: "green", w: 1, p: [["rope", 0, 0, 500], ["rope", 1, 0, 400]], l: 30 },
+      ],
+    };
+    expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data } })).status).toBe(201);
+    const older = { ...pose(), ring: null, bamboo: [0, 195, 0, 10], ropes: [] };
+    expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data: older } })).status).toBe(201);
+    expect((await listOf({ tie_id: tie })).map((/** @type {any} */ d) => d.data)).toEqual([data, { ...older, bamboo: [0, 195, 0, 10, 150, 8] }]);
+    const twice = { ...data, ropes: [...data.ropes, data.ropes[2]] };
+    expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data: twice } })).status).toBe(400);
+  });
+
   it("refuses poses that aren't in the format, and a caption that isn't encrypted", async () => {
     const tie = await newTie();
     const bad = [

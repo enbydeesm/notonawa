@@ -36,7 +36,7 @@ import { viewerParts } from "./visual-viewer.js";
 
 /** A thumbnail's size, 3:4 like a photo's. */
 const THUMB = { width: 300, height: 400, type: "image/jpeg", quality: 0.85 };
-/** The viewer's picture, and a photo made from a pose ("Add to visuals"). */
+/** The viewer's picture (the poser's "Add to visuals" picture is the same size). */
 const FULL = { width: 900, height: 1200, type: "image/png" };
 
 /**
@@ -147,12 +147,11 @@ export function poseKind(ctx) {
   }
 
   /**
-   * "Add to visuals" in the poser: a picture of the pose, added last as a photo.
-   * @param {Pose} pose
+   * "Add to visuals" in the poser: its picture of the pose (with any pencil
+   * marks on it), added last as a photo.
+   * @param {Blob} blob a PNG
    */
-  async function addPicture(pose) {
-    const blob = await picture(pose, FULL);
-    if (!blob) throw new Error("This browser can't draw the pose.");
+  async function addPicture(blob) {
     const problems = await ctx.addPhotos([new File([blob], "Pose.png", { type: "image/png" })]);
     if (problems.length) throw new Error(problems.join(" "));
   }

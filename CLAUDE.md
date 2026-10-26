@@ -139,7 +139,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   caption is). `parse.js` (pure: the format `{ v: 1, joints, body, lift,
   camera, ring, bamboo, hashira, ropes }`: a camera of six numbers (four
   in older poses, read as not panned sideways), at most one hardpoint
-  (ring, bamboo or hashira; older poses have no bamboo or hashira),
+  (ring, bamboo or hashira; older poses have no bamboo or hashira; a
+  bamboo is `[x, y, z, turn, length, inset]`, four numbers in older
+  poses), ropes with `l` (cinches: tied to spots on other ropes,
+  `["rope", index, segment, along]`) or `s` (see-saws),
   `JOINTS` and their limits, the same as `public/js/figure-rig.js`'s and
   `pose-format.js`'s, kept in step by a unit test; 20 an item), `db.js`,
   `routes.js` (the same routes as drawings, under `/api/poses`).
@@ -330,15 +333,25 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and the body and arms presets, each leaving the other's joints alone;
   `bodyPresetFrom`/`armsPresetFrom` make a saved one from the figure),
   `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
-  undo/redo, `typedNumber`: a number typed into a slider's box),
+  cinches and see-saws, `relink` when ropes go, undo/redo, `typedNumber`:
+  a number typed into a slider's box, `forSaving`: without the poser's
+  own pencil marks and `still`),
   `pose-ik.js` (dragging an arm or leg: the joints above the part held
   turn so it follows the finger, on a flat surface facing the camera,
   within the joints' limits; damped least squares with three.js's math,
   tested like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
-  only: where a joint or rope point is; tested), `pose-scene.js` (the 3D
-  view, with `vendor/three.js`; pictures of poses), `pose-editor.js` (the
-  poser: a full-screen dialog like the drawing pad; "Add to visuals" puts
-  a picture of the pose in the item's visuals as a photo), `poses-ui.js`
+  only: where a joint or rope point is; tested), `pose-cinch.js` (a
+  cinch's ends and the upline's bend, ropes drawn in runs, hanging
+  stretches straight; three.js's math only, tested), `pose-constraints.js`
+  (moving the body to keep uplines' lengths: a cinch's "Move the body",
+  see-saw ropes; the drag solver's method, tested), `pose-marks.js` (pure:
+  the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
+  (their layer over the view, and drawing them onto a picture),
+  `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging
+  lines; pictures of poses), `pose-editor.js` (the poser: a full-screen
+  dialog like the drawing pad, with Pose, Rope and pencil modes and ▲▼
+  beside each slider; "Add to visuals" puts a picture of the pose, with
+  any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer), `import-poses.js`
   (pure: an import's poses), `pose-presets.js` (my saved presets: read
   once, names opened, dropped on lock; saving, renaming, deleting) and

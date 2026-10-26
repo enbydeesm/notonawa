@@ -31,6 +31,11 @@ export class Vector3 {
   clone(): Vector3;
   add(v: Vector3): this;
   addScaledVector(v: Vector3, s: number): this;
+  sub(v: Vector3): this;
+  lerp(v: Vector3, alpha: number): this;
+  dot(v: Vector3): number;
+  lengthSq(): number;
+  project(camera: Camera): this;
   transformDirection(m: Matrix4): this;
   distanceTo(v: Vector3): number;
 }

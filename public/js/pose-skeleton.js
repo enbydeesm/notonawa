@@ -5,7 +5,7 @@
 
 import { Object3D, Vector3 } from "./vendor/three.js";
 import { JOINTS, jointRotation, bodyRotation } from "./figure-rig.js";
-import { RING, BAMBOO, HASHIRA } from "./pose-format.js";
+import { RING, BAMBOO, HASHIRA, ROPE } from "./pose-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
@@ -91,12 +91,19 @@ export const onBone = ({ bones }, bone, cm = [0, 0, 0]) =>
   /** @type {Object3D} */ (bones.get(bone)).localToWorld(new Vector3(...cm));
 
 /**
- * Where a rope point is in the room (cm), the skeleton posed.
+ * Where a rope point is in the room (cm), the skeleton posed. A cinch's
+ * spot on another rope is on the straight line between that rope's two
+ * points, before the cinch pulls it (pose-cinch.js).
  * @param {Skeleton} skeleton
  * @param {RopePoint} point
  * @param {Pose} pose
+ * @returns {Vector3}
  */
 export function ropePoint(skeleton, [bone, x, y, z], pose) {
+  if (bone === ROPE) {
+    const { p } = pose.ropes[x];
+    return ropePoint(skeleton, p[y], pose).lerp(ropePoint(skeleton, p[y + 1], pose), z / 1000);
+  }
   if (bone === RING) {
     const [rx, ry, rz] = /** @type {number[]} */ (pose.ring);
     return new Vector3(rx, ry - RING_RADIUS, rz);

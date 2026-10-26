@@ -61,7 +61,8 @@ describe("the page and the server", () => {
     expect(page.CAMERA).toEqual(server.CAMERA);
     expect(page.RING_RANGE).toEqual(server.RING_RANGE);
     expect([page.BAMBOO, page.HASHIRA]).toEqual([server.BAMBOO, server.HASHIRA]);
-    expect([page.BAMBOO_RANGE, page.BAMBOO_LENGTH]).toEqual([server.BAMBOO_RANGE, server.BAMBOO_LENGTH]);
+    expect([page.BAMBOO_RANGE, page.OLDER_BAMBOO, page.BAMBOO_MIDDLE]).toEqual([server.BAMBOO_RANGE, server.OLDER_BAMBOO, server.BAMBOO_MIDDLE]);
+    expect([page.ROPE, page.CINCH_RANGE]).toEqual([server.ROPE, server.CINCH_RANGE]);
     expect([page.HASHIRA_RANGE, page.HASHIRA_SIZE]).toEqual([server.HASHIRA_RANGE, server.HASHIRA_SIZE]);
     expect(page.SHIFT_RANGE).toEqual(server.SHIFT_RANGE);
   });
@@ -97,8 +98,11 @@ describe("parsePose", () => {
   });
 
   it("takes rope points on a bamboo or a hashira", () => {
-    const onBamboo = pose({ bamboo: [0, 195, 0, 30], ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["bamboo", -750, 0, 0]] }] });
+    const onBamboo = pose({ bamboo: [0, 195, 0, 30, 150, 8], ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["bamboo", -750, 0, 0]] }] });
     expect(server.parsePose(onBamboo)).toEqual(onBamboo);
+    // An older bamboo, of four numbers, is as long as it was then.
+    expect(server.parsePose({ ...onBamboo, bamboo: [0, 195, 0, 30] })).toEqual(onBamboo);
+    expect(page.readPose({ ...onBamboo, bamboo: [0, 195, 0, 30] }).bamboo).toEqual([0, 195, 0, 30, 150, 8]);
     const onPost = pose({ hashira: [0, -27, 0], ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["hashira", 0, 1200, 50]] }] });
     expect(server.parsePose(onPost)).toEqual(onPost);
   });
@@ -137,10 +141,15 @@ describe("parsePose", () => {
     bad({ ...ok, bamboo: [0, 195, 0, 0] }, /only have one/);
     bad({ ...ok, ring: null, hashira: [0, 0, 0], bamboo: [0, 195, 0, 0] }, /only have one/);
     bad({ ...ok, ring: null, bamboo: [0, 195, 0, 91] }, /bamboo is out of reach/);
+    bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0, 89, 0] }, /bamboo is out of reach/);
+    bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0, 216, 0] }, /bamboo is out of reach/);
+    bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0, 150] }, /bamboo is out of reach/);
+    bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0, 90, 41] }, /past its middle/);
     bad({ ...ok, ring: null, hashira: [0, 0, 46] }, /hashira is out of reach/);
     const bambooRope = (/** @type {any[]} */ point) => [{ c: "red", w: 1, p: [point, ["chest", 0, 0, 0]] }];
     bad({ ...ok, ring: null, ropes: bambooRope(["bamboo", 0, 0, 0]) }, /bamboo that isn't there/);
     bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0], ropes: bambooRope(["bamboo", 751, 0, 0]) }, /off the bamboo/);
+    bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0, 100, 8], ropes: bambooRope(["bamboo", 501, 0, 0]) }, /off the bamboo/);
     bad({ ...ok, ring: null, bamboo: [0, 195, 0, 0], ropes: bambooRope(["bamboo", 0, 5, 0]) }, /off the bamboo/);
     bad({ ...ok, ring: null, ropes: bambooRope(["hashira", 0, 0, 0]) }, /hashira that isn't there/);
     bad({ ...ok, ring: null, hashira: [0, 0, 0], ropes: bambooRope(["hashira", 0, 4501, 0]) }, /off the hashira/);
@@ -443,7 +452,8 @@ describe("changing a pose", () => {
       const p = page.setHardpoint(page.newPose(), "ring");
       expect([p.ring, p.bamboo, p.hashira]).toEqual([[0, 195, 0], null, null]);
       const b = page.setHardpoint(p, "bamboo");
-      expect([b.ring, b.bamboo, b.hashira]).toEqual([null, [0, 195, 0, 0], null]);
+      // A new bamboo is 152 cm long, hung 30 cm in from each end.
+      expect([b.ring, b.bamboo, b.hashira]).toEqual([null, [0, 195, 0, 0, 152, 30], null]);
       expect(page.hardpointOf(page.setHardpoint(b, "hashira"))).toBe("hashira");
       expect(page.setHardpoint(b, "bamboo")).toBe(b);
     });
@@ -467,12 +477,23 @@ describe("changing a pose", () => {
 
     it("moves the one there within its limits", () => {
       expect(page.moveHardpoint(ringed, [500, 9, -1]).ring).toEqual([300, 9, -1]);
-      expect(page.moveHardpoint(page.setHardpoint(ringed, "bamboo"), [0, 195, 0, 100]).bamboo).toEqual([0, 195, 0, 90]);
+      expect(page.moveHardpoint(page.setHardpoint(ringed, "bamboo"), [0, 195, 0, 100, 300, 30]).bamboo).toEqual([0, 195, 0, 90, 215, 30]);
       expect(page.moveHardpoint(page.newPose(), [1, 2, 3])).toEqual(page.newPose());
     });
 
+    it("keeps the bamboo's hangers on their own sides, and its rope points on it as it gets shorter", () => {
+      const b = page.setHardpoint(ringed, "bamboo");
+      const out = page.moveHardpoint({ ...b, ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["bamboo", -700, 0, 0]] }] }, [0, 195, 0, 0, 100, 60]);
+      expect(out.bamboo).toEqual([0, 195, 0, 0, 100, 45]);
+      expect(out.ropes[0].p[1]).toEqual(["bamboo", -500, 0, 0]);
+      expect(page.maxInset(90)).toBe(40);
+      expect(page.maxInset(215)).toBe(page.BAMBOO_RANGE[5][1]);
+      expect(server.parsePose(out)).toEqual(out);
+    });
+
     it("keeps rope points on the bamboo and hashira", () => {
-      expect(page.bambooPoint(9000)).toEqual(["bamboo", 750, 0, 0]);
+      expect(page.bambooPoint(9000, 150)).toEqual(["bamboo", 750, 0, 0]);
+      expect(page.bambooPoint(-9000, 90)).toEqual(["bamboo", -450, 0, 0]);
       expect(page.hashiraPoint([10, -5, 700])).toEqual(["hashira", 10, 0, 600]);
     });
   });

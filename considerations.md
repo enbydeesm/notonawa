@@ -1611,6 +1611,89 @@ about 6 minutes, too slow to run after every change.
   In the export (account.pose_presets, names opened); an import adds the
   ones not already there by kind and name.
 
+## Poser: cinches, see-saws, the bamboo, the pencil (October 2026)
+
+**Status:** built (2026-10-26)
+
+- **▲ and ▼ beside every slider's box**, one step each, each tap one
+  change to undo. Holding to repeat was offered and not wanted.
+- **The preset menus' own sheet: not now.** Body… and Arms… are the
+  phone's own `<select>` picker, whose popup can't be given a ✕ or a
+  Cancel. A sheet of our own (title, ✕, presets, Cancel) would do it, and
+  was put off by choice: the native pickers stay.
+- **A bamboo's length and hanger inset** are in the pose
+  (`[x, y, z, turn, length, inset]`), 90–215 cm long (about 3 to 7 ft), the
+  inset keeping both hangers on their own side of the middle. A new one is
+  152 cm, hung 30 cm in. Older four-number bamboos read as 150 cm hung 8 cm
+  in, as they were drawn, so no migration (poses are JSON). Shortening it
+  slides rope points in to stay on it, rather than taking ropes off. The
+  ring's and bamboo's lines are a twisted three-strand jute rope, a fixed
+  9 m long from the hardpoint up out of sight, so moving the hardpoint
+  doesn't stretch the twist or rebuild the geometry.
+- **Hanging stretches are drawn straight**: a rope from the body to the
+  ring or bamboo is taut, so it's a straight run; the rest of a rope,
+  round the body, still curves through its points. One curve through
+  everything bowed a rope over the ring outward.
+- **Cinches** are ropes tied between two spots: at least one on an
+  upline's hanging stretch, the other on another upline, another rope or
+  the body. A spot is `["rope", index, segment, along]` (thousandths along
+  that segment's straight line). The cinch's length is saved, capped at
+  taut: shorter, the gap between its ends closes, an upline end moving
+  toward the other (half each when both are uplines) and bending the
+  upline in two straight runs; an end on the body or a body rope stays
+  put (bending a rope away from the body it's wrapped on would look
+  wrong). Slack (a cinch longer than the gap, sagging) was weighed and
+  left out: it stops at taut. One cinch per rope for now, and none on a
+  cinch, so ropes don't chain; erasing a rope takes its cinch, and the
+  rest are renumbered. Ropes reference each other by index, so anything
+  that removes ropes or changes a rope's points in number goes through
+  `relink` (pose-format.js).
+- **"Move the body"** (ticked for a new cinch) keeps each cinched
+  upline as long as it was before the slider moved, by turning the joints
+  between the body and the upline's end (an arm's or leg's, as dragging
+  it would; the waist and chest; the whole body's tilt and height for the
+  hips), so cinching a chest upline to a thigh upline draws the chest and
+  thigh together. It's the drag solver's method (`pose-constraints.js`),
+  not physics: nothing weighs anything, so it finds a fold that keeps the
+  lengths, not necessarily the one a body would hang in, and gets as near
+  as it can when the joints' limits stop it. It runs only while the cinch
+  slider moves, so the body can be posed freely afterwards. Whether it's
+  ticked is the poser's own (`still` on the rope, dropped on saving).
+- **See-saw ropes**: a rope from the body over the ring or bamboo and
+  back to the body keeps its length, so when a joint moved (slider, ▲▼,
+  typing, or dragging a limb) brings one end closer, the other end's joints
+  (not the ones moved) take it up. Optional per rope (`s: true`, saved),
+  ticked for a new one, since some uplines are tied off at the ring.
+  Skipped when nothing can balance it: moving the whole body or the
+  hardpoint, the other end on the hips, or on the joints moved.
+- **Choosing a rope is by distance on the screen**, not by hitting its
+  1–2 cm tube: a tap chooses the nearest rope within 18 px (a finger's
+  width), unless it's hidden behind the body or hardpoint there
+  (`pose-scene.js`). Hitting the tube exactly was too hard, even zoomed
+  in. The trade-off, accepted: while no rope is being laid, a tap on the
+  body right beside a rope chooses the rope rather than starting a new
+  one; once one is being laid, taps go to the body.
+- **"Move along bamboo"**, for a chosen upline on the bamboo, swaps the
+  bamboo's sliders for one, where along it that end is tied (cm from the
+  middle), with Done to go back. It moves the bamboo end of the stretch
+  tapped.
+- **The poser's tools stay in one row** from 375px wide (Add to visuals at
+  the end; narrower, it gets a row of its own rather than going off the
+  edge), and the sliders' panel, 37% of the screen's height, fades at the
+  bottom while there's more to scroll; its message line takes no room when
+  empty.
+- **The pencil draws flat on the screen**, not in 3D: marks are in view
+  units (1000 down the view's height, x from its middle), so they stay on
+  what they were drawn over whatever shape the view or picture is (the 3D
+  view's field of view is up and down). They aren't saved with the pose,
+  only drawn onto "Add to visuals" and the download's picture, and show
+  only on the view they were drawn on: turning it hides them, and drawing
+  on a new view starts afresh. In pencil mode fingers only draw, so the
+  view can't be knocked out of line. Marks attached to the 3D scene, so
+  they'd turn with it, were weighed and left for later (much more work,
+  and marks in empty air need a rule). Saving them with the pose was
+  weighed too: it would change the format, the limits and the export.
+
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)

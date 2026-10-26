@@ -1,7 +1,7 @@
 // Icons for the drawing pad's and the poser's buttons, drawn in
 // currentColor as the visuals' icons are (visual-icons.js): undo and redo
-// (an arrow curling back left or on right) and download (an arrow down
-// into a tray). Each button using one says what it does in its aria-label
+// (an arrow curling back left or on right), download (an arrow down into
+// a tray) and a pencil (the poser's drawing). Each button using one says what it does in its aria-label
 // and title.
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -21,7 +21,7 @@ function icon(paths) {
   return el;
 }
 
-/** @typedef {"undo" | "redo" | "download"} ToolIcon */
+/** @typedef {"undo" | "redo" | "download" | "pencil"} ToolIcon */
 
 /** @type {Record<ToolIcon, () => SVGSVGElement>} */
 export const TOOL_ICONS = {
@@ -29,4 +29,6 @@ export const TOOL_ICONS = {
   undo: () => icon(["M9 4L4 9l5 5", "M4 9h11a5 5 0 0 1 0 10h-4"]),
   redo: () => icon(["M15 4l5 5-5 5", "M20 9H9a5 5 0 0 0 0 10h4"]),
   download: () => icon(["M12 3v11", "M7.5 9.5L12 14l4.5-4.5", "M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"]),
+  // As the visuals' drawing icon: a pencil pointing down to the left.
+  pencil: () => icon(["M15.5 4.5l4 4L9 19H5v-4z", "M13.5 6.5l4 4"]),
 };

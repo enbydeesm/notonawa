@@ -1,7 +1,9 @@
 // The walkthrough's poses chunk. Poses on ties: the poser (body and arms
 // presets, saving my own and managing them, posing a part with a slider, the head and hips moving the whole
-// figure, typing a slider's number, dragging a leg, undo, downloading a picture, laying a rope with taps, the ring,
-// bamboo and hashira, "Add to visuals"), saving with the tie,
+// figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
+// rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
+// a see-saw rope, a cinch and moving an upline along the bamboo, tapped on a pose made through the API, and the
+// tools in one row on a phone), saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
 
@@ -9,6 +11,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
+import { readPose, setHardpoint } from "../../../public/js/pose-format.js";
 
 /**
  * The PNG downloaded into an empty folder: whether its name is as given, and
@@ -85,9 +88,28 @@ export default async function () {
     ["Body…", "Standing", "Kneeling (seiza)", "Kneeling up"], ["Arms…", "At sides", "Boxtie", "Bunny ears", "Tengu", "Tenshi", "Crossed (hug)",
       "Save these arms as a preset…", "Manage my presets…"],
     "Add to visuals"]);
-  check("undo, redo and download are icons, named for screen readers", await run(`
-    return ["#pose-undo", "#pose-redo", "#pose-download"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]);`),
-  [["Undo", true, ""], ["Redo", true, ""], ["Download picture", true, ""]]);
+  check("undo, redo and download are icons, named for screen readers, and the pencil is a mode after Rope", await run(`
+    const modes = [...$("#pose-mode-draw").parentElement.children].map((b) => b.id);
+    return [["#pose-undo", "#pose-redo", "#pose-download", "#pose-mode-draw"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]),
+      modes];`),
+  [[["Undo", true, ""], ["Redo", true, ""], ["Download picture", true, ""], ["Draw over the view", true, ""]],
+    ["pose-mode-pose", "pose-mode-rope", "pose-mode-draw"]]);
+  // A phone 390px wide: the tools in one row, and the panel below cut part-way through a row, fading out.
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(500);
+  check("on a phone, the tools fit one row, and the panel fades where there's more to scroll, with no empty band above Cancel", await run(`
+    const middle = (id) => { const b = $(id).getBoundingClientRect(); return Math.round((b.top + b.bottom) / 2); };
+    const row = [middle("#pose-mode-pose"), middle("#pose-mode-draw"), middle("#pose-download"), middle("#pose-add-visual")];
+    const fits = $("#pose-add-visual").getBoundingClientRect().right <= innerWidth;
+    $("#pose-mode-rope").click(); await wait(200); $("#pose-bamboo").click(); await wait(500);
+    const panels = $("#pose-panels"), box = panels.getBoundingClientRect();
+    const cut = [...document.querySelectorAll("#pose-hardpoint-sliders .pose-slider")]
+      .some((r) => { const b = r.getBoundingClientRect(); return b.top < box.bottom && b.bottom > box.bottom; });
+    const result = [new Set(row).size, fits, panels.classList.contains("more-below"), cut, getComputedStyle($("#pose-message")).display];
+    $("#pose-undo").click(); await wait(200); $("#pose-mode-pose").click(); await wait(200);
+    return result;`), [1, true, true, true, "none"]);
+  await send("Emulation.clearDeviceMetricsOverride");
+  await sleep(500);
   const pictures = path.join(workDir, "downloads-pose-picture");
   await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: pictures });
   await run(`$("#pose-download").click();`);
@@ -180,6 +202,16 @@ export default async function () {
     $("#pose-undo").click(); await wait(200);
     return [undone, $("#pose-body-1").value, leakyFields()];`)],
   [["Turn, typed", "number"], [["-45", "-45"], ["-180", "-180"], ["-180", "-180"]], ["-45", "20", []]]);
+  check("▲ and ▼ left of a slider's box step it by one, each a change", await run(`
+    const steps = $("#pose-body-1-up").parentElement;
+    const placed = steps.nextElementSibling === $("#pose-body-1-typed") && steps.previousElementSibling === $("#pose-body-1");
+    $("#pose-body-1-up").click(); await wait(200);
+    const up = $("#pose-body-1-typed").value;
+    $("#pose-body-1-down").click(); await wait(200); $("#pose-body-1-down").click(); await wait(200);
+    const down = $("#pose-body-1").value;
+    for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
+    return [placed, $("#pose-body-1-up").getAttribute("aria-label"), $("#pose-body-1-down").textContent, up, down, $("#pose-body-1").value];`),
+  [true, "Turn: up one", "▼", "21", "19", "20"]);
 
   // The left shin is low on the view's right, with the hips selected (the
   // view's size, and so the figure's place on it, changes with the
@@ -229,17 +261,57 @@ export default async function () {
   [["Rope thickness", "Rope color"], true, [["ring", "false"], ["bamboo", "false"], ["hashira", "false"]], "Hardpoint:", true, true,
     [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]], "Remove ring", "rgb(254, 199, 98)",
     ["Across (cm)", "Height (cm)", "Front to back (cm)"], []]);
+  check("a bamboo has a length and a hanger inset, 152 and 30 cm to begin with, the inset short of the middle", await run(`
+    $("#pose-bamboo").click(); await wait(200);
+    const labels = ${hardpointLabels}.slice(4);
+    const start = [$("#pose-bamboo-4").value, $("#pose-bamboo-5").value, $("#pose-bamboo-5").max];
+    ${slide("pose-bamboo-4", 90)}
+    const shorter = [$("#pose-bamboo-5").value, $("#pose-bamboo-5").max];
+    ${slide("pose-bamboo-5", 60)}
+    const inset = $("#pose-bamboo-5").value;
+    $("#pose-bamboo-5-up").click(); await wait(200);
+    const stepped = $("#pose-bamboo-5").value;
+    for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
+    return [labels, start, shorter, inset, stepped, ${hardpoints}];`),
+  [["Length (cm)", "Hanger inset (cm)"], ["152", "30", "71"], ["30", "40"], "40", "40",
+    [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]]]);
 
   await tap(0.5, 0.5);
   await tap(0.5, 0.38);
-  check("tapping the body lays a rope, point by point", await run(`
-    return [$("#pose-rope-hint").textContent, $("#pose-finish-rope").disabled];`),
-  ["Rope: 2 points. Keep tapping, then Finish rope.", false]);
+  check("tapping the body lays a rope, point by point, Finish rope outlined as a reminder to end it", await run(`
+    return [$("#pose-rope-hint").textContent, $("#pose-finish-rope").disabled, getComputedStyle($("#pose-finish-rope")).borderTopWidth];`),
+  ["Rope: 2 points. Keep tapping, then Finish rope.", false, "2px"]);
   check("Undo takes back the last point first", await run(`
     $("#pose-undo").click(); await wait(200); const one = $("#pose-rope-hint").textContent;
     return one;`), "Rope: 1 point. Keep tapping, then Finish rope.");
   await tap(0.5, 0.4);
   await run(`$("#pose-finish-rope").click(); await wait(200);`);
+
+  const marks = `document.querySelectorAll("#pose-marks path").length`;
+  check("the pencil: its own panel of widths, an eraser and colors, and marks only it can draw", await run(`
+    $("#pose-mode-draw").click(); await wait(200);
+    return [$("#pose-mode-draw").getAttribute("aria-pressed"), $("#pose-panel-draw").hidden, $("#pose-panel-rope").hidden,
+      [...$("#pose-panel-draw").children].map((c) => c.getAttribute("aria-label") ?? c.id),
+      $("#pose-mark-color-red").getAttribute("aria-pressed"), $("#pose-marks").classList.contains("drawing"), ${marks}];`),
+  ["true", false, true, ["Line width", "Line color", "pose-draw-hint"], "true", true, 0]);
+  await drag(0.3, 0.7, 0.2, 0.3);
+  check("drawing over the view adds a mark, as one change, and the view doesn't turn", await run(`
+    return [${marks}, $("#pose-undo").disabled, $("#pose-marks path").getAttribute("class")];`), [1, false, "ink-red"]);
+  await run(`$("#pose-mark-eraser").click(); await wait(100);`);
+  await tap(0.5, 0.25);
+  check("the eraser takes a mark out, and undo brings it back", await run(`
+    const erased = ${marks};
+    $("#pose-undo").click(); await wait(300);
+    return [erased, ${marks}];`), [0, 1]);
+  await run(`$("#pose-mode-pose").click(); await wait(200);`);
+  check("the marks show in the other modes, but don't take their taps", await run(`
+    return [${marks}, $("#pose-marks").classList.contains("drawing"), getComputedStyle($("#pose-marks")).pointerEvents];`), [1, false, "none"]);
+  await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: path.join(workDir, "downloads-pose-marks") });
+  await run(`$("#pose-download").click();`);
+  check("download still saves the picture, with the marks on it", await pngDownloaded(path.join(workDir, "downloads-pose-marks"), /\.png$/),
+    [true, 900, 1200]);
+  await drag(0.1, 0.2, 0.9);
+  check("turning the view hides the marks", await run(`return ${marks};`), 0);
 
   check("Add to visuals puts a picture of the pose into the form's visuals, as a photo", await run(`
     $("#pose-add-visual").click();
@@ -290,8 +362,9 @@ export default async function () {
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
     const [p] = await ${tiePoses};
     return [saved, bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
-  [["My presets", ["TK arms"]], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]], "Tap the body to lay a rope, point by point. Tap the bamboo for an upline.",
-    ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn"]],
+  [["My presets", ["TK arms"]], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]],
+    "Tap the body to lay a rope, point by point. Tap the bamboo for an upline. Tap a rope to choose it.",
+    ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn", "Length (cm)", "Hanger inset (cm)"]],
   true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`
     $("#tie-pose-duplicate").click(); await wait(1000);
@@ -339,4 +412,147 @@ export default async function () {
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete pose").click(); await wait(800);
     return [asked, document.querySelectorAll("#tie-visuals .visual-pose").length, (await ${tiePoses}).length];`),
   ["Delete this pose?", 1, 1]);
+  await run(`${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);`);
+
+  await ropes({ tap, slide, topDialog });
+}
+
+/**
+ * A see-saw rope and a cinch, tapped on a pose made through the API (so
+ * where its ropes are on the view is known): arms out to the sides under a
+ * ring, a see-saw from wrist to wrist over it, and uplines from each elbow.
+ * @param {{ tap: (fx: number, fy: number) => Promise<void>, slide: (id: string, value: number) => string, topDialog: string }} helpers
+ */
+async function ropes({ tap, slide, topDialog }) {
+  const RING = ["ring", 0, 0, 0];
+  const joints = { l_shoulder: [0, 90, 0], r_shoulder: [0, 90, 0] };
+  const seeded = {
+    v: 1, joints, body: [0, 0, 0], lift: 99, shift: [0, 0], camera: [0, 8, 380, 150, 0, 0], ring: [0, 250, 0], bamboo: null, hashira: null,
+    ropes: [
+      { c: "red", w: 3, p: [["l_wrist", 0, -80, 0], RING, ["r_wrist", 0, -80, 0]], s: true },
+      { c: "blue", w: 3, p: [["l_elbow", 0, 0, 0], RING] },
+      { c: "green", w: 3, p: [["r_elbow", 0, 0, 0], RING] },
+    ],
+  };
+  const tiePose = `(async () => {
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Rope test");
+    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+  })()`;
+  await run(`
+    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+    const tie = await postJson("/api/ties", { tie_type: "suspension", tie_date: "2026-10-02", title: "Rope test" });
+    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+  // As stored, every joint listed.
+  const stored = await run(`return (await ${tiePose}).data;`);
+  await go("/");
+  // Where a spot on a rope is on the view, as fractions of its width and
+  // height: the pose posed as the view poses it, through its camera.
+  const spot = async (data, rope, segment, t) => run(`
+    const three = await import("/js/vendor/three.js");
+    const { makeSkeleton, posed } = await import("/js/pose-skeleton.js");
+    const { ropeLine } = await import("/js/pose-cinch.js");
+    const data = ${JSON.stringify(data)};
+    const skeleton = makeSkeleton(); posed(skeleton, data);
+    const line = ropeLine(skeleton, data, ${rope});
+    const point = line[${segment}].clone().lerp(line[${segment + 1}], ${t});
+    const r = $("#pose-view").getBoundingClientRect();
+    const camera = new three.PerspectiveCamera(38, r.width / r.height, 5, 5000);
+    const [yaw, pitch, distance, height, tx, tz] = data.camera;
+    const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+    camera.position.set(tx + Math.sin(y) * Math.cos(p) * distance, height + Math.sin(p) * distance, tz + Math.cos(y) * Math.cos(p) * distance);
+    camera.lookAt(tx, height, tz);
+    camera.updateMatrixWorld();
+    const at = point.project(camera);
+    return [(at.x + 1) / 2, (1 - at.y) / 2];`);
+  const tapRope = async (data, rope, segment, t) => {
+    await sleep(300);
+    const [fx, fy] = await spot(data, rope, segment, t);
+    await tap(fx, fy);
+  };
+  const editPose = `$("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await wait(500);`;
+  const savePose = `$("#pose-save").click();
+    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);`;
+
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Rope test").click(); await wait(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
+    $("#pose-mode-rope").click(); await wait(300);`);
+  await tapRope(stored, 0, 0, 0.5);
+  check("tapping a rope chooses it: one over the ring and back is a see-saw, ticked; and Cinch from here", await run(`
+    const seesaw = $("#pose-seesaw");
+    return [seesaw?.checked, seesaw?.parentElement.textContent, !!$("#pose-cinch-start"), $("#pose-rope-hint").textContent.startsWith("Rope chosen"),
+      leakyFields()];`),
+  [true, "See-saw: runs over the ring", true, true, []]);
+
+  // The left upper arm, halfway along: where to tap to pose it.
+  const upperArm = await run(`
+    const three = await import("/js/vendor/three.js");
+    const { makeSkeleton, posed, onBone } = await import("/js/pose-skeleton.js");
+    const data = ${JSON.stringify(stored)};
+    const skeleton = makeSkeleton(); posed(skeleton, data);
+    $("#pose-mode-pose").click(); await wait(400);
+    const point = onBone(skeleton, "l_shoulder", [0, -14, 0]);
+    const r = $("#pose-view").getBoundingClientRect();
+    const camera = new three.PerspectiveCamera(38, r.width / r.height, 5, 5000);
+    const [yaw, pitch, distance, height] = data.camera;
+    const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+    camera.position.set(Math.sin(y) * Math.cos(p) * distance, height + Math.sin(p) * distance, Math.cos(y) * Math.cos(p) * distance);
+    camera.lookAt(0, height, 0);
+    camera.updateMatrixWorld();
+    const at = point.project(camera);
+    return [(at.x + 1) / 2, (1 - at.y) / 2];`);
+  await tap(upperArm[0], upperArm[1]);
+  check("raising one arm of a see-saw lowers the other, as one change", await run(`
+    const part = $("#pose-part").textContent;
+    ${slide("pose-l_shoulder-1", 110)}
+    ${savePose}
+    const saved = (await ${tiePose}).data;
+    return [part, saved.joints.l_shoulder[1], saved.joints.r_shoulder[1] < 90, saved.ropes[0].s];`), ["Left shoulder", 110, true, true]);
+
+  const afterSeesaw = await run(`return (await ${tiePose}).data;`);
+  await run(`${editPose} $("#pose-mode-rope").click(); await wait(300);`);
+  await tapRope(afterSeesaw, 1, 0, 0.5);
+  await run(`$("#pose-cinch-start").click(); await wait(200);`);
+  const cinchHint = await run(`return $("#pose-rope-hint").textContent;`);
+  await tapRope(afterSeesaw, 2, 0, 0.5);
+  check("Cinch from here, then another upline, ties a cinch, taut, with Move the body ticked", [cinchHint, await run(`
+    const length = $("#pose-cinch-length");
+    return [$("#pose-message").textContent, length.value === length.max, Number(length.max) > 10, $("#pose-cinch-body").checked];`)],
+  ["Now tap another upline, a rope or the body to tie the cinch to.", ["Cinch tied. Shorten it to pull the upline aside.", true, true, true]]);
+  check("shortening it pulls the uplines together, and the arms with them; saved with the pose", await run(`
+    const max = Number($("#pose-cinch-length").max);
+    { const el = $("#pose-cinch-length"); el.value = String(max - 10); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(500); }
+    ${savePose}
+    const saved = (await ${tiePose}).data;
+    const cinch = saved.ropes[3];
+    return [cinch.l === max - 10, cinch.p.map((p) => [p[0], p[1], p[2]]), "still" in cinch,
+      saved.joints.l_shoulder.join() !== ${JSON.stringify(afterSeesaw.joints.l_shoulder.join())}];`),
+  [true, [["rope", 1, 0], ["rope", 2, 0]], false, true]);
+
+  // On a bamboo in place of the ring (the uplines move to its middle).
+  const onBamboo = setHardpoint(readPose(await run(`return (await ${tiePose}).data;`)), "bamboo");
+  await run(`${editPose} $("#pose-mode-rope").click(); await wait(300); $("#pose-bamboo").click(); await wait(500);`);
+  await sleep(300);
+  const [fx, fy] = await spot(onBamboo, 1, 0, 0.3);
+  const across = await run(`return $("#pose-view").getBoundingClientRect().width;`);
+  // A finger's width to one side of the upline, not on it.
+  await tap(fx + 12 / across, fy);
+  check("a tap beside an upline still chooses it; tied to a bamboo, it has Move along bamboo beside Cinch from here", await run(`
+    return [!!$("#pose-cinch-start"), $("#pose-along-start")?.textContent, $("#pose-along-start")?.parentElement === $("#pose-cinch-start")?.parentElement];`),
+  [true, "Move along bamboo", true]);
+  check("Move along bamboo swaps the bamboo's sliders for one, sliding the upline along it; Done brings them back", await run(`
+    $("#pose-along-start").click(); await wait(300);
+    const labels = [...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent);
+    const range = [$("#pose-along-bamboo").min, $("#pose-along-bamboo").max];
+    ${slide("pose-along-bamboo", -40)}
+    $("#pose-along-bamboo-down").click(); await wait(200);
+    const value = $("#pose-along-bamboo").value;
+    $("#pose-along-done").click(); await wait(200);
+    const back = document.querySelectorAll("#pose-hardpoint-sliders label").length;
+    ${savePose}
+    const saved = (await ${tiePose}).data;
+    return [labels, range, value, back, saved.ropes[1].p.at(-1), saved.ropes[2].p.at(-1), saved.ropes[3].l > 0];`),
+  [["Along the bamboo (cm)"], ["-76", "76"], "-41", 6, ["bamboo", -410, 0, 0], ["bamboo", 0, 0, 0], true]);
 }

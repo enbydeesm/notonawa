@@ -11,15 +11,23 @@
 //     shift: [across, front to back],
 //     camera: [yaw, pitch, distance, target height, target x, target z],
 //     ring: [x, y, z] | null,
-//     bamboo: [x, y, z, turn] | null,
+//     bamboo: [x, y, z, turn, length, inset] | null,
 //     hashira: [x, z, turn] | null,
 //     ropes: [{ c: "red", w: 2, p: [["l_elbow", x, y, z] | ["ring", 0, 0, 0]
-//       | ["bamboo", along, 0, 0] | ["hashira", x, y, z], …] }, …],
+//       | ["bamboo", along, 0, 0] | ["hashira", x, y, z]
+//       | ["rope", rope, segment, along], …], l?: length, s?: true }, …],
 //   }
 // At most one of ring, bamboo and hashira (the hardpoint) is there. Older
 // poses have a camera of four numbers (no sideways pan) and no bamboo or
 // hashira, and no shift (where the whole figure stands); they're read as
-// having none.
+// having none. An older bamboo has four numbers, read as OLDER_BAMBOO's
+// length and inset (how far in from its ends it hangs).
+// A rope with `l` (cm) is a cinch: two points, at least one a spot on
+// another rope (its index, a segment of it, and thousandths along it)
+// where it hangs from the ring or bamboo, the other on another rope or
+// the body; a rope has one cinch at most, and a cinch isn't on a cinch.
+// `s` marks a see-saw: a rope over the ring or bamboo once, from the body
+// and back to it (public/js/pose-format.js says more).
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
 // a unit test). Lengths are whole centimetres, except a rope point's
@@ -76,10 +84,16 @@ export const SHIFT_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300]]);
 export const CAMERA = /** @type {const} */ ([[-180, 180], [-89, 89], [60, 900], [0, 350], [-300, 300], [-300, 300]]);
 /** The ring (a hardpoint): x, y, z in cm. */
 export const RING_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300]]);
-/** The bamboo: its middle's x, y, z in cm, and how far it's turned. */
-export const BAMBOO_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300], [-90, 90]]);
-/** The bamboo's length, in cm. */
-export const BAMBOO_LENGTH = 150;
+/** The bamboo: its middle's x, y, z in cm, how far it's turned, its length and its hangers' inset, cm. */
+export const BAMBOO_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300, 300], [-90, 90], [90, 215], [0, 102]]);
+/** An older bamboo's length and inset, from before they could change. */
+export const OLDER_BAMBOO = /** @type {const} */ ([150, 8]);
+/** How near the middle a bamboo's hangers can come, each side, cm. */
+export const BAMBOO_MIDDLE = 5;
+/** A cinch's length, cm. */
+export const CINCH_RANGE = /** @type {const} */ ([0, 1000]);
+/** A cinch's point on another rope. */
+export const ROPE = "rope";
 /** The hashira (a post from the floor up): its x and z in cm, and its turn. */
 export const HASHIRA_RANGE = /** @type {const} */ ([[-300, 300], [-300, 300], [-45, 45]]);
 /** The hashira's width and height, in cm. */
@@ -100,7 +114,7 @@ export const MAX_BODY_BYTES = 256 * 1024;
 
 /**
  * @typedef {[string, number, number, number]} RopePoint
- * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[] }} Rope
+ * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true }} Rope
  * @typedef {{
  *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
@@ -170,13 +184,14 @@ export function parsePose(value) {
   const camera = Array.isArray(doc.camera) && doc.camera.length === 4 ? [...doc.camera, 0, 0] : doc.camera;
   if (!fits(camera, CAMERA)) throw bad("the view isn't in the right format.");
   const ring = doc.ring ?? null;
-  const bamboo = doc.bamboo ?? null;
+  const bamboo = Array.isArray(doc.bamboo) && doc.bamboo.length === 4 ? [...doc.bamboo, ...OLDER_BAMBOO] : doc.bamboo ?? null;
   const hashira = doc.hashira ?? null;
   if (ring !== null && !fits(ring, RING_RANGE)) throw bad("the ring is out of reach.");
   if (bamboo !== null && !fits(bamboo, BAMBOO_RANGE)) throw bad("the bamboo is out of reach.");
+  if (bamboo !== null && bamboo[5] > Math.floor(bamboo[4] / 2) - BAMBOO_MIDDLE) throw bad("the bamboo's hangers are past its middle.");
   if (hashira !== null && !fits(hashira, HASHIRA_RANGE)) throw bad("the hashira is out of reach.");
   if ([ring, bamboo, hashira].filter((x) => x !== null).length > 1) throw bad("it can only have one of a ring, bamboo or hashira.");
-  const along = /** @type {[number, number]} */ ([-BAMBOO_LENGTH * 5, BAMBOO_LENGTH * 5]);
+  const along = /** @type {[number, number]} */ (bamboo === null ? [0, 0] : [-bamboo[4] * 5, bamboo[4] * 5]);
   const up = /** @type {[number, number]} */ ([0, HASHIRA_SIZE.height * 10]);
 
   if (!Array.isArray(doc.ropes)) throw bad("it has no rope list.");
@@ -200,15 +215,31 @@ export function parsePose(value) {
       } else if (bone === HASHIRA) {
         if (hashira === null) throw bad("a rope goes to a hashira that isn't there.");
         if (!fits(xyz, [offset, up, offset])) throw bad("a rope point is off the hashira.");
+      } else if (bone === ROPE) {
+        // Checked against the other ropes once they're all read.
+        if (!fits(xyz, [[0, MAX_ROPES - 1], [0, MAX_ROPE_POINTS - 2], [1, 999]])) throw bad("a cinch isn't in the right format.");
       } else if (!BONES.includes(bone) || !fits(xyz, [offset, offset, offset])) {
         throw bad("a rope point is off the figure.");
       }
       return /** @type {RopePoint} */ ([bone, ...xyz]);
     });
     points += p.length;
-    return { c: r.c, w: r.w, p };
+    /** @type {Rope} */
+    const rope = { c: r.c, w: r.w, p };
+    if (r.l !== undefined) {
+      if (!within(r.l, CINCH_RANGE[0], CINCH_RANGE[1]) || p.length !== 2) throw bad("a cinch isn't in the right format.");
+      rope.l = r.l;
+    } else if (p.some((point) => point[0] === ROPE)) {
+      throw bad("a cinch isn't in the right format.");
+    }
+    if (r.s !== undefined) {
+      if (r.s !== true) throw bad("a rope isn't in the right format.");
+      rope.s = true;
+    }
+    return rope;
   });
   if (points > MAX_POINTS) throw bad("it's too detailed to store.");
+  checkLinks(ropes, bad);
 
   const [pitch, yaw, roll] = doc.body;
   /** @param {number[] | null} list */
@@ -217,6 +248,40 @@ export function parsePose(value) {
     v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]], camera: [...camera],
     ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };
+}
+
+/**
+ * Checks what the cinches are on, and the see-saws: a cinch on another rope
+ * (not a cinch), one of its ends where that rope hangs from the ring or
+ * bamboo, the other on the body or another rope; a rope with one cinch at
+ * most; a see-saw over the ring or bamboo once, between two points on the
+ * body.
+ * @param {Rope[]} ropes
+ * @param {(why: string) => BadInput} bad
+ */
+function checkLinks(ropes, bad) {
+  const top = (/** @type {RopePoint} */ p) => p[0] === RING || p[0] === BAMBOO;
+  /** @param {Rope} rope @param {number} segment */
+  const hangs = (rope, segment) => top(rope.p[segment]) !== top(rope.p[segment + 1]);
+  const cinched = new Set();
+  for (const rope of ropes) {
+    if (rope.s) {
+      const tops = rope.p.flatMap((p, i) => (top(p) ? [i] : []));
+      if (rope.l !== undefined || tops.length !== 1 || tops[0] === 0 || tops[0] === rope.p.length - 1) {
+        throw bad("a see-saw rope doesn't go over the ring or bamboo.");
+      }
+    }
+    if (rope.l === undefined) continue;
+    const on = rope.p.filter((p) => p[0] === ROPE);
+    if (rope.p.some((p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA)) throw bad("a cinch isn't in the right format.");
+    for (const [, i, segment] of on) {
+      const target = ropes[i];
+      if (!target || target.l !== undefined || segment + 1 >= target.p.length) throw bad("a cinch is on a rope that isn't there.");
+      if (cinched.has(i)) throw bad("a rope has more than one cinch.");
+      cinched.add(i);
+    }
+    if (!on.some(([, i, segment]) => hangs(ropes[i], segment))) throw bad("a cinch isn't on an upline.");
+  }
 }
 
 /**
