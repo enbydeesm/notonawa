@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 23, 2026
+**Last updated:** October 26, 2026
 
 ## The short version
 
@@ -102,7 +102,8 @@ analytics, advertising or tracking tools of any kind.
 workshop descriptions), the photo album links on ties, plans and
 workshops, where people are based and their
 social and scene names, your photos and videos, their thumbnails and
-captions, and the captions of your drawings and poses.
+captions, the captions of your drawings and poses, and the names of the
+poser presets you save.
 
 **Everything else in your journal is readable by our server**, so the app
 can list, sort and filter it: the details of your ties, plans, workshops,
@@ -120,7 +121,8 @@ other identifying details in a drawing itself. **Poses are not encrypted
 either**: the figure's position, the view, the ropes and the ring, bamboo
 or hashira they're tied to, and
 which tie, plan or workshop each pose is on, are readable by our server
-(only a pose's caption is encrypted).
+(only a pose's caption is encrypted), and so are the positions in the
+poser presets you save (only their names are encrypted).
 
 This readable information is still private to your account: the app never shows it to
 anyone else, and we don't look at it (see [Our own access](#our-own-access)).
@@ -238,6 +240,12 @@ allow on this site, protects you further.
   copying one stores a new pose with the same numbers.
 - Deleting a pose, or the tie, plan or workshop it's on, deletes it straight
   away. Photos made from it are kept until you delete them.
+- You can save up to 50 body and arms positions of your own as presets, to
+  start any pose from. A preset is stored like a pose: the joint angles
+  (and for a body, how it's turned and how high) are **not encrypted**; its
+  name is encrypted on your device. Deleting a preset deletes it straight
+  away, and poses made from it stay as they are. Presets are in your export
+  and deleted with your account.
 
 ## Information about other people
 

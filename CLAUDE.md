@@ -143,6 +143,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `JOINTS` and their limits, the same as `public/js/figure-rig.js`'s and
   `pose-format.js`'s, kept in step by a unit test; 20 an item), `db.js`,
   `routes.js` (the same routes as drawings, under `/api/poses`).
+- `src/pose-presets/`: saved poser presets, each account's own body and
+  arms positions for any pose (migration 0025). `parse.js` (pure: kind
+  `body` (every joint but the arms', the body's turn and lift) or `arms`
+  (the shoulders, elbows and wrists, `ARM_JOINTS`), checked against
+  `src/poses/parse.js`'s `JOINTS`; a sealed name; 50 an account), `db.js`,
+  `routes.js` (`GET`/`POST /api/pose-presets`, `PUT
+  /api/pose-presets/:id` with `{ name }`, `DELETE
+  /api/pose-presets/:id`). The name is an encrypted column (NULL after a
+  new key, shown unnamed); the angles are plain JSON, as poses' are.
 - `src/visuals/`: an item's photos and videos, drawings and poses share
   one order (no migration: each table's `position` counts across all
   three). `db.js` (`nextPosition`: the SQL each insert uses to go last
@@ -318,15 +327,23 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and the viewer, which plays videos with speed buttons), `tile-drag.js`
   (dragging the Visuals section's tiles into order),
   `figure-rig.js` (pure: the poser's figure, its joints and limits, shapes,
-  and the body and arms presets, each leaving the other's joints alone),
+  and the body and arms presets, each leaving the other's joints alone;
+  `bodyPresetFrom`/`armsPresetFrom` make a saved one from the figure),
   `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
-  undo/redo), `pose-skeleton.js` (the bones posed, with three.js's math
+  undo/redo, `typedNumber`: a number typed into a slider's box),
+  `pose-ik.js` (dragging an arm or leg: the joints above the part held
+  turn so it follows the finger, on a flat surface facing the camera,
+  within the joints' limits; damped least squares with three.js's math,
+  tested like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
   only: where a joint or rope point is; tested), `pose-scene.js` (the 3D
   view, with `vendor/three.js`; pictures of poses), `pose-editor.js` (the
   poser: a full-screen dialog like the drawing pad; "Add to visuals" puts
   a picture of the pose in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer), `import-poses.js`
-  (pure: an import's poses),
+  (pure: an import's poses), `pose-presets.js` (my saved presets: read
+  once, names opened, dropped on lock; saving, renaming, deleting) and
+  `pose-presets-ui.js` (naming one, and "Manage my presets"),
+  `import-presets.js` (pure: an import's presets to add, by kind and name),
   `drawing-format.js` (pure: the drawing format, simplifying a line, SVG
   paths and the export's SVG file), `drawing-edit.js` (pure: undo/redo and
   which line the eraser touches), `drawing-svg.js` (a drawing as SVG on
@@ -514,7 +531,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - **Always check whether a code path should set `updated_at`.** Nothing updates
   it automatically (we chose not to use triggers, to avoid a second write per
   UPDATE; see considerations.md). Any UPDATE to a table with an `updated_at`
-  column (people, profile_notes, locations, plans, ties, workshops, drawings, poses) should normally include
+  column (people, profile_notes, locations, plans, ties, workshops, drawings, poses, pose_presets) should normally include
   `updated_at = ${NOW}`.
 - **Timestamps are ISO text**, e.g. `2026-10-11T21:51:00Z`. In SQL, use the
   `NOW` constant from `src/lib.js` (`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
@@ -576,7 +593,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `plans.notes`, `plans.album_url`, `workshops.description`,
   `workshops.notes`, `workshops.album_url` (migration 0018),
   `drawings.caption` (migration 0019; a drawing's lines aren't),
-  `poses.caption` (migration 0020; a pose's numbers aren't)): parse them with
+  `poses.caption` (migration 0020; a pose's numbers aren't),
+  `pose_presets.name` (migration 0025; a preset's angles aren't)): parse them with
   `encryptedText`, never `cleanText`; the server never reads, compares,
   searches or sorts by them. The page seals before sending (`vault.seal`,
   `sealOne`) and opens what it shows (`vault.open`). A new encrypted field

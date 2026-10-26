@@ -148,7 +148,13 @@ export interface Intersection {
   face?: { normal: Vector3 } | null;
 }
 
+export class Ray {
+  origin: Vector3;
+  direction: Vector3;
+}
+
 export class Raycaster {
+  ray: Ray;
   setFromCamera(coords: Vector2, camera: Camera): void;
   intersectObjects(objects: Object3D[], recursive?: boolean): Intersection[];
 }

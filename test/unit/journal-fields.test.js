@@ -34,11 +34,16 @@ describe("convertJournal", () => {
     expect(calls).toEqual([["person", 0], ["profileNote", 0], ["tie", 2], ["participant", 3], ["location", 0], ["plan", 0], ["workshop", 0]]);
   });
 
-  it("converts the names of the account's shares, keeping the rest of the account", async () => {
-    const out = await convertJournal({ account: { notices: [{ message: "Hi" }], shares: [{ label: "x" }] } }, mark);
-    expect(out.account).toEqual({ notices: [{ message: "Hi" }], shares: [{ label: "x", kind: "share" }] });
-    const { doc, unreadable } = withoutUnreadableMarks({ account: { shares: [{ label: null, unreadable: ["label"] }] } });
-    expect([doc.account.shares, unreadable]).toEqual([[{ label: null }], 1]);
+  it("converts the names of the account's shares and saved presets, keeping the rest of the account", async () => {
+    const out = await convertJournal({ account: { notices: [{ message: "Hi" }], shares: [{ label: "x" }], pose_presets: [{ name: "y" }] } }, mark);
+    expect(out.account).toEqual({
+      notices: [{ message: "Hi" }], shares: [{ label: "x", kind: "share" }], pose_presets: [{ name: "y", kind: "posePreset" }],
+    });
+    expect((await convertJournal({ account: { notices: [] } }, mark)).account).toEqual({ notices: [] });
+    const { doc, unreadable } = withoutUnreadableMarks({
+      account: { notices: [{ unreadable: "kept" }], shares: [{ label: null, unreadable: ["label"] }], pose_presets: [{ name: null, unreadable: ["name"] }] },
+    });
+    expect([doc.account, unreadable]).toEqual([{ notices: [{ unreadable: "kept" }], shares: [{ label: null }], pose_presets: [{ name: null }] }, 2]);
   });
 });
 

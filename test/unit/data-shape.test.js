@@ -6,7 +6,7 @@ const EMPTY = {
   user: { created_at: "2026-01-01T00:00:00Z", accepted_at: "2026-01-01T00:00:00Z", terms_version: "1" },
   passkeys: [], people: [], profileNotes: [], locations: [], plans: [], planTags: [], tags: [],
   ties: [], participants: [], tiePlans: [], tieTags: [], workshops: [], workshopPeople: [], workshopTags: [],
-  media: [], drawings: [], poses: [], notices: [], feedback: [], shares: [],
+  media: [], drawings: [], poses: [], notices: [], feedback: [], shares: [], posePresets: [],
 };
 
 describe("exportDocument", () => {

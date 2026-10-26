@@ -13,6 +13,7 @@ export const ENCRYPTED_COLUMNS = {
   workshops: ["description", "notes", "album_url"],
   drawings: ["caption"],
   poses: ["caption"],
+  pose_presets: ["name"],
   shares: ["label", "link_key"],
 };
 
@@ -31,6 +32,7 @@ export const OWNER_SCOPE = {
   workshops: "owner_id = ?1",
   drawings: "owner_id = ?1",
   poses: "owner_id = ?1",
+  pose_presets: "owner_id = ?1",
   shares: "owner_id = ?1",
 };
 

@@ -2,20 +2,24 @@
 // (a separate view would close that form), as the drawing pad is. It shows
 // the figure in 3D (pose-scene.js) with two ways of working:
 //
-//   Pose  tap a body part, then move it with the sliders below; the hips
+//   Pose  tap a body part, then move it with the sliders below, or drag
+//         an arm or a leg by any part of it (pose-ik.js: the joints above
+//         the part held turn to follow the finger); the hips
 //         move the whole body (tipping it over, turning it, lifting it,
 //         moving it across and front to back), and the head has the
 //         lifting and moving too.
 //         A starting position for the body, and one for the arms (each
 //         keeping the other), or a quick turn of the whole body, from the
-//         menus.
+//         menus. The body and arms menus also have my saved presets, and
+//         save the position now as one (pose-presets.js: the account's own,
+//         for every pose).
 //   Rope  tap the body, point after point, to lay a rope; tap the
 //         hardpoint (a ring or bamboo for uplines, or a hashira to tie
 //         to). "Finish rope" ends one. The eraser takes out the rope
 //         tapped. One hardpoint at a time can be added, moved and taken
 //         away.
 //
-// One finger dragging turns the view round the figure; two pinch to zoom
+// One finger dragging anywhere else turns the view round the figure; two pinch to zoom
 // and drag to pan. Sliders work as a phone's touch would want, with a
 // finger, rather than dragging handles in 3D. "Add to visuals" puts a
 // picture of the view so far into the item's visuals, as a photo; the
@@ -29,15 +33,19 @@ import { h, showMessage, privateField } from "./dom.js";
 import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
-  PART_LABELS, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withBodyPreset, withArmsPreset,
+  PART_LABELS, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, MAX_PRESETS, jointNamed, withBodyPreset, withArmsPreset,
+  bodyPresetFrom, armsPresetFrom,
 } from "./figure-rig.js";
+import { savedPresets, savePreset, presetLabel } from "./pose-presets.js";
+import { askPresetName, managePresets } from "./pose-presets-ui.js";
 import {
   COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
-  setCamera, panCamera,
+  setCamera, panCamera, typedNumber,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
+import { canDrag, dragTo, onPlane } from "./pose-ik.js";
 import { TOOL_ICONS } from "./tool-icons.js";
 import { saveFile } from "./download.js";
 
@@ -45,6 +53,8 @@ import { saveFile } from "./download.js";
 /** @typedef {import("./pose-format.js").Rope} Rope */
 /** @typedef {import("./drawing-format.js").Color} Color */
 /** @typedef {import("./drawing-format.js").Width} Width */
+/** @typedef {import("./figure-rig.js").BodyPreset} BodyPreset */
+/** @typedef {import("./figure-rig.js").ArmsPreset} ArmsPreset */
 
 const WIDTH_NAMES = /** @type {const} */ ({ 1: "Thin", 2: "Medium", 3: "Thick" });
 /** Quick views: [yaw, pitch], keeping the distance and height. */
@@ -148,16 +158,77 @@ export function editPose(start, { addToVisuals } = {}) {
 
     // --- the Pose panel ----------------------------------------------------------
 
+    // The built-in presets, then my saved ones (once read), then saving
+    // this position as one and managing them.
+    /** @type {import("./pose-presets.js").SavedPreset[]} */
+    let saved = [];
     const bodyMenu = h("select", { id: "pose-body-preset", "aria-label": "Body position", onchange: () => {
-      const preset = BODY_PRESETS[Number(bodyMenu.value)];
+      const value = bodyMenu.value;
       bodyMenu.value = "";
-      if (preset) commit(withPosture(history.pose, withBodyPreset(history.pose, preset)));
-    } }, h("option", { value: "" }, "Body…"), BODY_PRESETS.map((p, i) => h("option", { value: String(i) }, p.name)));
+      if (value === "save") saveAsPreset("body");
+      else if (value === "manage") manage();
+      else {
+        const preset = value.startsWith("s:") ? saved.find((p) => p.id === value.slice(2))?.data : BODY_PRESETS[Number(value.slice(2))];
+        if (preset) commit(withPosture(history.pose, withBodyPreset(history.pose, /** @type {BodyPreset} */ (preset))));
+      }
+    } });
     const armsMenu = h("select", { id: "pose-arms-preset", "aria-label": "Arms position", onchange: () => {
-      const preset = ARMS_PRESETS[Number(armsMenu.value)];
+      const value = armsMenu.value;
       armsMenu.value = "";
-      if (preset) commit(withPosture(history.pose, withArmsPreset(history.pose, preset)));
-    } }, h("option", { value: "" }, "Arms…"), ARMS_PRESETS.map((p, i) => h("option", { value: String(i) }, p.name)));
+      if (value === "save") saveAsPreset("arms");
+      else if (value === "manage") manage();
+      else {
+        const preset = value.startsWith("s:") ? saved.find((p) => p.id === value.slice(2))?.data : ARMS_PRESETS[Number(value.slice(2))];
+        if (preset) commit(withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset))));
+      }
+    } });
+
+    /** Fills the Body… and Arms… menus. */
+    function fillPresetMenus() {
+      for (const [menu, kind, first, builtIn] of /** @type {const} */ ([
+        [bodyMenu, "body", "Body…", BODY_PRESETS], [armsMenu, "arms", "Arms…", ARMS_PRESETS],
+      ])) {
+        const mine = saved.filter((p) => p.kind === kind);
+        menu.replaceChildren(
+          h("option", { value: "" }, first),
+          ...builtIn.map((p, i) => h("option", { value: `b:${i}` }, p.name)),
+          ...(mine.length ? [h("optgroup", { label: "My presets" }, mine.map((p) => h("option", { value: `s:${p.id}` }, presetLabel(p))))] : []),
+          h("optgroup", { label: "Presets" },
+            h("option", { value: "save" }, `Save ${kind === "body" ? "this body" : "these arms"} as a preset…`),
+            h("option", { value: "manage" }, "Manage my presets…")));
+      }
+    }
+    fillPresetMenus();
+    savedPresets().then((list) => {
+      saved = list;
+      fillPresetMenus();
+    }, () => say("Couldn't load your saved presets. The built-in ones are there.", true));
+
+    /**
+     * Saves the body or arms as they are now, as a new preset, after asking
+     * for its name.
+     * @param {"body" | "arms"} kind
+     */
+    async function saveAsPreset(kind) {
+      if (saved.length >= MAX_PRESETS) {
+        say(`You can keep up to ${MAX_PRESETS} presets. Delete one (Manage my presets…) to save another.`, true);
+        return;
+      }
+      const { name: _name, ...data } = kind === "body" ? bodyPresetFrom(history.pose, "") : armsPresetFrom(history.pose, "");
+      const done = await askPresetName({
+        title: kind === "body" ? "Save this body position" : "Save these arms", action: "Save preset",
+        save: async (name) => { await savePreset(kind, name, data); },
+      });
+      if (done) {
+        fillPresetMenus();
+        say(`Saved. It's in the ${kind === "body" ? "Body…" : "Arms…"} menu, for any pose.`);
+      }
+    }
+
+    async function manage() {
+      await managePresets(fillPresetMenus);
+      fillPresetMenus();
+    }
     const turnMenu = h("select", { id: "pose-orientation", "aria-label": "Turn the whole body", onchange: () => {
       const choice = ORIENTATIONS[Number(turnMenu.value)];
       turnMenu.value = "";
@@ -289,19 +360,39 @@ export function editPose(start, { addToVisuals } = {}) {
 
     /**
      * A row with a slider: dragging it shows the pose at once, and letting
-     * go makes it one change.
+     * go makes it one change. The number beside it is a box to type a value
+     * into (Enter or leaving the box makes it one change), kept within the
+     * slider's range; anything but a number puts the old value back.
      * @param {{ id: string, label: string, min: number, max: number, value: number, apply: (pose: Pose, value: number) => Pose }} row
      */
     function slider({ id, label, min, max, value, apply }) {
-      const shown = h("output", { htmlFor: id, className: "pose-value" }, String(value));
+      // type="number" (not an inputmode) so an iPhone's keyboard has a minus sign.
+      const typed = privateField(h("input", {
+        type: "number", id: `${id}-typed`, className: "pose-value", min: String(min), max: String(max), step: "1",
+        value: String(value), "aria-label": `${label}, typed`,
+      }));
       const input = privateField(h("input", { type: "range", id, min: String(min), max: String(max), step: "1", value: String(value) }));
       input.addEventListener("input", () => {
         draft = apply(history.pose, Number(input.value));
-        shown.textContent = input.value;
+        typed.value = input.value;
         drawSoon();
       });
       input.addEventListener("change", () => commit(apply(history.pose, Number(input.value))));
-      return h("div", { className: "pose-slider" }, h("label", { htmlFor: id }, label), input, shown);
+      typed.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          typed.blur();
+        }
+      });
+      typed.addEventListener("change", () => {
+        const number = typedNumber(typed.value, [min, max]);
+        if (number === null || number === Number(input.value)) {
+          typed.value = input.value;
+          return;
+        }
+        commit(apply(history.pose, number));
+      });
+      return h("div", { className: "pose-slider" }, h("label", { htmlFor: id }, label), input, typed);
     }
 
     function drawPosePanel() {
@@ -515,8 +606,28 @@ export function editPose(start, { addToVisuals } = {}) {
     /** The pointers down on the view, where each started and is now. @type {Map<number, { x0: number, y0: number, x: number, y: number }>} */
     const pointers = new Map();
     let dragged = false;
+    /**
+     * A limb being dragged (Pose mode, one finger that started on an arm or
+     * a leg): the part held, the point held on it, and the flat surface
+     * facing the camera it moves on.
+     * @type {{ bone: string, cm: [number, number, number], through: import("./vendor/three.js").Vector3,
+     *   normal: import("./vendor/three.js").Vector3 } | null}
+     */
+    let limb = null;
     /** The two-finger gesture's last spread and middle. @type {{ spread: number, x: number, y: number } | null} */
     let pinch = null;
+
+    /**
+     * The limb under a finger put down, to drag (and it's selected, so its
+     * sliders show), or null for anything else, which turns the view.
+     * @param {number} x @param {number} y CSS px from the canvas's corner
+     */
+    function grab(x, y) {
+      const hit = view.pick(x, y);
+      if (hit?.kind !== "body" || !canDrag(hit.bone)) return null;
+      const cm = /** @type {[number, number, number]} */ (hit.mm.map((n) => n / 10));
+      return { bone: hit.bone, cm, through: hit.point, normal: view.ray(x, y).direction };
+    }
 
     /** @param {PointerEvent} event */
     const local = (event) => {
@@ -534,8 +645,17 @@ export function editPose(start, { addToVisuals } = {}) {
       view.canvas.setPointerCapture(event.pointerId);
       const { x, y } = local(event);
       pointers.set(event.pointerId, { x0: x, y0: y, x, y });
-      if (pointers.size === 1) dragged = false;
+      if (pointers.size === 1) {
+        dragged = false;
+        limb = mode === "pose" ? grab(x, y) : null;
+      }
       if (pointers.size === 2) {
+        // A second finger turns a limb's drag into a pinch, putting it back.
+        if (limb) {
+          limb = null;
+          draft = null;
+          drawAll();
+        }
         dragged = true;
         pinch = twoFingers();
       }
@@ -562,6 +682,16 @@ export function editPose(start, { addToVisuals } = {}) {
       }
       if (!dragged && Math.hypot(x - p.x0, y - p.y0) < DRAG_START) return;
       dragged = true;
+      if (limb) {
+        // The part dragged is selected, so its sliders show the angles after.
+        selected = limb.bone;
+        const target = onPlane(view.ray(x, y), limb.through, limb.normal);
+        if (target) {
+          draft = dragTo(draft ?? history.pose, limb.bone, limb.cm, target);
+          drawSoon();
+        }
+        return;
+      }
       lookAt([yaw - dx * 0.45, pitch + dy * 0.35, distance, height, tx, tz]);
     });
     /** @param {PointerEvent} event */
@@ -570,6 +700,15 @@ export function editPose(start, { addToVisuals } = {}) {
       if (!p) return;
       pointers.delete(event.pointerId);
       if (pointers.size < 2) pinch = null;
+      if (limb) {
+        limb = null;
+        // A limb dragged is one change; let go of with a cancel, it's put back.
+        if (draft && event.type === "pointerup") commit(draft);
+        else if (draft) {
+          draft = null;
+          drawAll();
+        }
+      }
       if (event.type === "pointerup" && !dragged && pointers.size === 0) tap(p.x, p.y);
     };
     view.canvas.addEventListener("pointerup", lift);

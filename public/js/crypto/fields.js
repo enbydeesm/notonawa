@@ -29,6 +29,8 @@ export const ENCRYPTED = /** @type {const} */ ({
   workshop: { table: "workshops", fields: ["description", "notes", "album_url"] },
   drawing: { table: "drawings", fields: ["caption"] },
   pose: { table: "poses", fields: ["caption"] },
+  // A saved poser preset's name (src/pose-presets/).
+  posePreset: { table: "pose_presets", fields: ["name"] },
   // The sender's own name for a share (src/shares/), and its link's key,
   // so they can show its code again.
   share: { table: "shares", fields: ["label", "link_key"] },

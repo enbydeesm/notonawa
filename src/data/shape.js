@@ -39,6 +39,7 @@ export const EXPORT_VERSION = 1;
  *   notices: Row[],
  *   feedback: Row[],
  *   shares: Row[],
+ *   posePresets: Row[],
  * }} AccountRows
  */
 
@@ -98,6 +99,12 @@ export function exportDocument(rows, exportedAt) {
       shares: rows.shares.map((s) => ({
         kind: s.kind, label: s.label, expires_at: s.expires_at, max_uses: s.max_uses, use_count: s.use_count,
         created_at: s.created_at,
+      })),
+      // Body and arms positions saved in the poser, for any pose. Their
+      // names are opened on the device, like notes; an import adds the
+      // ones not already there by name.
+      pose_presets: rows.posePresets.map((p) => ({
+        kind: p.kind, name: p.name, data: JSON.parse(p.data), created_at: p.created_at, updated_at: p.updated_at,
       })),
     },
     people: rows.people.map((p) => ({

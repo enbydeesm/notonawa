@@ -15,7 +15,9 @@
 // the lines, and saves them once the journal is saved (import-drawings.js).
 // Poses are in notonawa.json too, as their numbers (no pictures: those take
 // the 3D view, which the export doesn't load); importing saves them as it
-// does drawings (import-poses.js).
+// does drawings (import-poses.js). Saved poser presets are in the
+// account part, names opened; importing adds the ones not already there by
+// name (import-presets.js).
 
 import { api, errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
@@ -33,6 +35,8 @@ import { takeDrawings } from "../import-drawings.js";
 import { saveDrawing } from "../drawings-ui.js";
 import { takePoses } from "../import-poses.js";
 import { savePose } from "../poses-ui.js";
+import { presetsToAdd } from "../import-presets.js";
+import { MAX_PRESETS } from "../figure-rig.js";
 import { svgFile } from "../drawing-format.js";
 import { drawingColors } from "../drawing-svg.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
@@ -188,6 +192,8 @@ export function mount() {
   let pending = null;
   /** The role names in the file being imported (an export's), if any. */
   let fileRoleNames = /** @type {ReturnType<typeof exportRoleNames>} */ (null);
+  /** The file's saved poser presets (account.pose_presets), names in plain text. @type {unknown[]} */
+  let filePresets = [];
 
   $("#export").addEventListener("click", async () => {
     const message = $("#export-message");
@@ -302,7 +308,8 @@ export function mount() {
         ? await importSaved(poseTargets, { path: "/api/poses", save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
       const photoResult = files && targets.length ? await importPhotos(targets, files, placed) : null;
       await putBackOrder(placed);
-      const extras = [drawingResult, poseResult, photoResult].filter(Boolean).join(" ") || null;
+      const presetResult = filePresets.length ? await importPresets(filePresets) : null;
+      const extras = [drawingResult, poseResult, photoResult, presetResult].filter(Boolean).join(" ") || null;
       // The file's role names, if mine are still the defaults.
       const tookNames = await adoptRoleNames(fileRoleNames).catch(() => false);
       preview.hidden = true;
@@ -480,6 +487,7 @@ export function mount() {
       if (!name) throw new Error("This zip file isn't a NotoNawa export.");
       const data = parseJson(new TextDecoder().decode(files.get(name)));
       fileRoleNames = exportRoleNames(data);
+      filePresets = presetsIn(data);
       return { doc: readExport(data), files };
     }
     const text = new TextDecoder().decode(buffer);
@@ -487,11 +495,19 @@ export function mount() {
       const { doc, errors } = csvToImport(parseCsv(text));
       if (errors.length) throw new Error(`Fix these in the file, then choose it again:\n${errors.join("\n")}`);
       fileRoleNames = null;
+      filePresets = [];
       return { doc, files: null };
     }
     const data = parseJson(text);
     fileRoleNames = exportRoleNames(data);
+    filePresets = presetsIn(data);
     return { doc: readExport(data), files: null };
+  }
+
+  /** @param {any} data an export, read as JSON */
+  function presetsIn(data) {
+    const list = data?.account?.pose_presets;
+    return Array.isArray(list) ? list : [];
   }
 
   /** @param {string} text */
@@ -520,6 +536,7 @@ export function mount() {
       for (const tag of found.newTags) newTags.add(tag);
     }
     const toAdd = plain.ties.length - duplicates;
+    const presets = filePresets.length ? presetsToAdd(filePresets, ...(await myPresets())) : null;
     let workshopDuplicates = 0;
     const plainWorkshops = batches(plain.workshops);
     for (const [n, batch] of batches(sealed.workshops).entries()) {
@@ -565,13 +582,19 @@ export function mount() {
       poses.count ? section("Poses", [
         `${poses.count.toLocaleString()} in the file (added to ties, plans and workshops that don't already have poses)`,
       ]) : null,
+      presets ? section("Poser presets", [
+        `${presets.add.length.toLocaleString()} to add`,
+        presets.skipped ? `${presets.skipped.toLocaleString()} you already have by name (skipped)` : null,
+        presets.full ? `${presets.full.toLocaleString()} more than you have room for (you can keep up to ${MAX_PRESETS})` : null,
+      ]) : null,
     ].filter((el) => el !== null));
     preview.hidden = false;
 
     showMessage(importMessage, "");
     const newItems = [items.people, items.locations, items.plans].some((list) => list.some((/** @type {any} */ r) => !r.matched));
     // Photos, drawings and poses may still need adding (an import run again to finish).
-    if (toAdd === 0 && workshopsToAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files) && !drawings.count && !poses.count) {
+    if (toAdd === 0 && workshopsToAdd === 0 && !newItems && newTags.size === 0 && !(photos.count && files) && !drawings.count && !poses.count
+      && !presets?.add.length) {
       showMessage(importMessage, "Everything in this file is already in your journal.");
       return;
     }
@@ -579,6 +602,37 @@ export function mount() {
     go.textContent = toAdd && workshopsToAdd ? `Import ${ties(toAdd)} and ${workshops(workshopsToAdd)}`
       : toAdd ? `Import ${ties(toAdd)}` : workshopsToAdd ? `Import ${workshops(workshopsToAdd)}` : "Import";
     go.hidden = false;
+  }
+
+  /**
+   * My saved poser presets (names opened), and how many more I can keep.
+   * @returns {Promise<[{ kind: string, name: string | null }[], number]>}
+   */
+  async function myPresets() {
+    /** @type {{ kind: string, name: string | null }[]} */
+    const mine = await open("posePreset", await api("/api/pose-presets"));
+    return [mine, MAX_PRESETS - mine.length];
+  }
+
+  /**
+   * Adds the file's saved poser presets that I don't have by name, their
+   * names sealed first.
+   * @param {unknown[]} list
+   * @returns {Promise<string | null>} what happened, for the message
+   */
+  async function importPresets(list) {
+    try {
+      const { add, full } = presetsToAdd(list, ...(await myPresets()));
+      if (!add.length && !full) return null;
+      const names = await seal("posePreset", add.map((p) => ({ name: p.name })));
+      for (const [i, p] of add.entries()) {
+        await api("/api/pose-presets", { method: "POST", body: { kind: p.kind, name: names[i].name, data: p.data } });
+      }
+      return `Added ${add.length.toLocaleString()} poser ${add.length === 1 ? "preset" : "presets"}.` +
+        (full ? ` ${full.toLocaleString()} more didn't fit: you can keep up to ${MAX_PRESETS}.` : "");
+    } catch (err) {
+      return `Couldn't add the poser presets: ${errorMessage(err)}`;
+    }
   }
 
   /** "1 tie", "1,200 ties". @param {number} n */

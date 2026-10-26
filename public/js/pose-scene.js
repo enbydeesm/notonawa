@@ -24,8 +24,8 @@ import { makeSkeleton, posed, ropePoint, toBone, toHardpoint, RING_RADIUS, BAMBO
 /** @typedef {import("./vendor/three.js").Object3D} Object3D */
 /** @typedef {import("./pose-format.js").Rope} Rope */
 /**
- * What's under a point on the view.
- * @typedef {{ kind: "body", bone: string, mm: [number, number, number] } | { kind: "ring" }
+ * What's under a point on the view (on the body, `point` is where in the room).
+ * @typedef {{ kind: "body", bone: string, mm: [number, number, number], point: Vector3 } | { kind: "ring" }
  *   | { kind: "bamboo", along: number } | { kind: "hashira", mm: [number, number, number] } | { kind: "rope", index: number }} Hit
  */
 
@@ -286,6 +286,23 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   const raycaster = new Raycaster();
 
+  /** Points the raycaster from the camera through a point on the canvas (CSS px). @param {number} x @param {number} y */
+  function aim(x, y) {
+    const box = canvas.getBoundingClientRect();
+    raycaster.setFromCamera(new Vector2((x / box.width) * 2 - 1, -(y / box.height) * 2 + 1), camera);
+  }
+
+  /**
+   * The line from the camera through a point on the canvas (CSS px), in
+   * the room: where dragging a limb (pose-ik.js) finds the finger.
+   * @param {number} x
+   * @param {number} y
+   */
+  function ray(x, y) {
+    aim(x, y);
+    return { origin: raycaster.ray.origin.clone(), direction: raycaster.ray.direction.clone() };
+  }
+
   /**
    * What's under a point on the canvas (in CSS pixels from its corner).
    * @param {number} x
@@ -295,8 +312,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
    * @returns {Hit | null}
    */
   function pick(x, y, { ropes: withRopes = false } = {}) {
-    const box = canvas.getBoundingClientRect();
-    raycaster.setFromCamera(new Vector2((x / box.width) * 2 - 1, -(y / box.height) * 2 + 1), camera);
+    aim(x, y);
     /** @type {Object3D[]} */
     const targets = [...parts];
     if (ring.visible) targets.push(hoop);
@@ -317,7 +333,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       return { kind: "hashira", mm: [Math.round(x * 10), Math.round(y * 10), Math.round(z * 10)] };
     }
     const bone = /** @type {string} */ (hit.object.userData.bone);
-    return { kind: "body", bone, mm: toBone(skeleton, bone, onSurface) };
+    return { kind: "body", bone, mm: toBone(skeleton, bone, onSurface), point: onSurface };
   }
 
   /** Frees the view (its 3D context and everything drawn with it). */
@@ -332,7 +348,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     renderer.forceContextLoss();
   }
 
-  return { canvas, show, draw, setSize, pick, dispose };
+  return { canvas, show, draw, setSize, pick, ray, dispose };
 }
 
 /** @typedef {ReturnType<typeof poseView>} PoseView */

@@ -28,6 +28,7 @@ const OWNED_ROWS = {
   media: "SELECT count(*) AS n FROM media WHERE owner_id = ?",
   drawings: "SELECT count(*) AS n FROM drawings WHERE owner_id = ?",
   poses: "SELECT count(*) AS n FROM poses WHERE owner_id = ?",
+  pose_presets: "SELECT count(*) AS n FROM pose_presets WHERE owner_id = ?",
   notices: "SELECT count(*) AS n FROM notices WHERE user_id = ?",
   notice_dismissals: "SELECT count(*) AS n FROM notice_dismissals WHERE user_id = ?",
   feedback: "SELECT count(*) AS n FROM feedback WHERE user_id = ?",
@@ -103,6 +104,7 @@ async function userWithEverything() {
   await post("/api/poses", { tie_id: tie, data: pose });
   await post("/api/poses", { plan_id: plan, data: pose });
   await post("/api/poses", { workshop_id: workshop, data: pose });
+  await post("/api/pose-presets", { kind: "arms", name: sealed("Boxtie"), data: { joints: { l_elbow: [90] } } });
   // A notice just for them, dismissed.
   const notice = crypto.randomUUID();
   await sql("INSERT INTO notices (id, user_id, message) VALUES (?, ?, 'Hello')", notice, id).run();

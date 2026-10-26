@@ -2,6 +2,10 @@
 // joint's movements with their limits, and the starting poses offered.
 // Pure, so it's easy to test; pose-scene.js builds the 3D figure from it.
 //
+// Saved presets (the account's own, src/pose-presets/) are made here from
+// the figure (bodyPresetFrom, armsPresetFrom) and put on it as the
+// built-in ones are.
+//
 // Units are centimetres and whole degrees. The figure stands on the floor
 // (y = 0) facing +z, so its left is +x. Every bone's axes start lined up
 // with the world's, so a joint's angles say how far it's turned from
@@ -261,4 +265,29 @@ export function withArmsPreset(posture, preset) {
   const joints = { ...posture.joints };
   for (const name of ARM_JOINTS) joints[name] = clampJoint(name, preset.joints[name] ?? []);
   return { ...posture, joints };
+}
+
+/** Presets one account can save, body and arms together (src/pose-presets/parse.js has the same; a unit test keeps them in step). */
+export const MAX_PRESETS = 50;
+
+/**
+ * The body preset a figure is in: everything but the arms, to save and
+ * start other poses from (withBodyPreset puts it back).
+ * @param {Posture} posture
+ * @param {string} name
+ * @returns {BodyPreset}
+ */
+export function bodyPresetFrom(posture, name) {
+  const joints = Object.fromEntries(JOINTS.filter((j) => !ARM_JOINTS.includes(j.name)).map((j) => [j.name, [...posture.joints[j.name]]]));
+  return { name, joints, body: [...posture.body], lift: posture.lift };
+}
+
+/**
+ * The arms preset a figure is in: the shoulders, elbows and wrists.
+ * @param {Posture} posture
+ * @param {string} name
+ * @returns {ArmsPreset}
+ */
+export function armsPresetFrom(posture, name) {
+  return { name, joints: Object.fromEntries(ARM_JOINTS.map((n) => [n, [...posture.joints[n]]])) };
 }

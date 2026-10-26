@@ -6,6 +6,12 @@ Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
 plain words for the people using the app. The newest heading is the app's
 version. After editing, run `node scripts/releases.mjs`.
 
+## 2026.10.26.001
+
+- Poser: drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.
+- Tap the number beside any slider to type an exact value. Numbers outside the slider's range are kept to its nearest end.
+- Save your own body and arms positions: choose "Save this body as a preset…" or "Save these arms as a preset…" in the Body… and Arms… menus. They're listed under "My presets" in every pose, and "Manage my presets…" renames and deletes them. Their names are encrypted; the positions aren't, like poses.
+
 ## 2026.10.23.001
 
 - Poses: pose a 3D figure. Choose a position for the body (standing, kneeling, face down…) and for the arms (boxtie, tengu, tenshi…) separately, or tap a body part and move it with the sliders. Drag to turn the view, drag with two fingers to pan, and pinch to zoom.

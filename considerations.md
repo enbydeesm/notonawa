@@ -1525,9 +1525,10 @@ about 6 minutes, too slow to run after every change.
   view, which the export doesn't load. Import saves them once the journal
   is in, onto items with none yet, as drawings (`import-poses.js`; the
   data page's `importSaved` does both).
-- **Left out for now** (see roadmap.md): dragging a hand or foot to place
-  the limb (inverse kinematics), ropes that follow the body's surface
-  between points, a second figure, props, and animation.
+- **Left out for now** (see roadmap.md): ropes that follow the body's
+  surface between points, a second figure, props, and animation.
+  (Dragging a limb came next: "Poser: dragging limbs, typed values, saved
+  presets", below.)
 
 ## Visuals: photos, drawings and poses in one order (October 2026)
 
@@ -1566,6 +1567,49 @@ about 6 minutes, too slow to run after every change.
   doesn't put its keyboard over the picture. A drawing's and a pose's Edit
   is outlined in the accent above the caption, with Duplicate and Copy to…
   side by side.
+
+## Poser: dragging limbs, typed values, saved presets (October 2026)
+
+**Status:** built (2026-10-26)
+
+- **Dragging an arm or a leg (inverse kinematics)**, alongside the sliders
+  rather than in place of them. Any part of an arm or leg drags: the
+  upper arm or thigh swings at the shoulder or hip alone; the forearm,
+  hand, shin or foot also bends the elbow or knee (elbows and knees were
+  asked for too, not just hands and feet). A drag that starts anywhere
+  else still turns the view, so no mode switch: the quickest, and tapping
+  first to "arm" a limb was weighed and left for if drags grab limbs by
+  mistake on a phone.
+- **The point held moves on a flat surface facing the camera**, through
+  where it was picked, so it stays at the same depth; to move it nearer or
+  further, turn the view and drag again. A 3D handle with depth was
+  weighed and left out, for the same reason as sliders over gizmos.
+- **The solver** (`pose-ik.js`) is damped least squares over the joint
+  angles, with each angle's effect found by trying a small change (no
+  analytic two-bone solve: the joints' Euler orders and limits differ, and
+  this handles both), moving at most 6 cm toward the target a round so a
+  far target doesn't fold the limb. Only the shoulder's or hip's forward
+  and out turns and the elbow's or knee's bend move: twisting while
+  dragging rolled the limb unexpectedly. Angles stay within the sliders'
+  limits, so a target out of reach gets as near as it can. Each finger
+  move solves from the last, so the limb follows smoothly. One drag is
+  one change to undo, and the part dragged is selected, its sliders
+  showing the result.
+- **Typed values**: the number beside each slider is an input (type
+  number, so an iPhone keyboard has a minus sign; 16px, so it doesn't zoom
+  in) that commits on Enter or leaving it, kept within the slider's range;
+  anything but a number puts the old value back.
+- **Saved presets, per account, for every pose** (migration 0025,
+  `pose_presets`), not per pose or in the browser: they were wanted "over
+  and over in all poses", on any device. Body and arms stay separate, as
+  the built-in ones are. The name is encrypted (it could name a person:
+  "Sam's shoulder-safe boxtie"); the angles aren't, matching poses, so the
+  server checks them against the joint limits. A body preset doesn't keep
+  where the figure is moved across or front to back, as the built-in ones
+  don't. 50 an account. The name column is nullable only so a new key can
+  empty it, as with other encrypted fields; the poser shows it unnamed.
+  In the export (account.pose_presets, names opened); an import adds the
+  ones not already there by kind and name.
 
 ## Sharing between accounts (October 2026)
 

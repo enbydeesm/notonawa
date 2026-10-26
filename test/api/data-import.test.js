@@ -8,6 +8,8 @@ import { parseCsv } from "../../public/js/csv.js";
 import { csvToImport } from "../../public/js/import-csv.js";
 import { takeDrawings } from "../../public/js/import-drawings.js";
 import { takePoses } from "../../public/js/import-poses.js";
+import { presetsToAdd } from "../../public/js/import-presets.js";
+import { MAX_PRESETS } from "../../src/pose-presets/parse.js";
 import template from "../../public/import-template.csv?raw";
 
 /** A new user, signed in. */
@@ -35,7 +37,9 @@ function sealFile(doc) {
  * checked for duplicates first (candidates from the server, notes compared
  * here), sending which to skip; then workshops the same way; then the
  * drawings and poses of the ties, plans and workshops just added (the
- * file's captions are already sealed here, as the export left them).
+ * file's captions are already sealed here, as the export left them); then
+ * the saved poser presets not already there by name (the stand-in seals
+ * equal names equally, so sealed names compare as the page's opened ones).
  * @param {any} file
  * @param {string} cookie
  * @param {number} [batchSize]
@@ -94,6 +98,11 @@ async function importFile(file, cookie, batchSize) {
       expect(res.status, JSON.stringify(res.body)).toBe(201);
     }
   }
+  const mine = (await call("/api/pose-presets", { cookie })).body;
+  for (const preset of presetsToAdd(file.account?.pose_presets, mine, MAX_PRESETS - mine.length).add) {
+    const res = await call("/api/pose-presets", { method: "POST", body: preset, cookie });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+  }
   return { items: items.body, added, skipped, workshopsAdded, workshopsSkipped };
 }
 
@@ -117,6 +126,8 @@ function comparable(doc) {
   // A drawing or pose gets a new id, and is new (created_at, updated_at), in the copy.
   const drawings = (/** @type {any[]} */ list) => list.map(({ data, caption, position }) => ({ data, caption, position }));
   return {
+    // A preset is new (created_at, updated_at) in the copy too.
+    pose_presets: doc.account.pose_presets.map(({ kind, name, data }) => ({ kind, name, data })),
     people: byText(doc.people.map(({ id: _id, ...p }) => p)),
     locations: byText(doc.locations.map(({ id: _id, ...l }) => l)),
     plans: byText(doc.plans.map(({ id: _id, ...p }) => ({
@@ -197,6 +208,9 @@ async function fillJournal() {
   await create("/api/poses", { tie_id: floor, data: posed(90), caption: null });
   await create("/api/poses", { plan_id: tk2, data: posed(45), caption: sealed("Sequence") });
   await create("/api/poses", { workshop_id: intensive, data: posed(120), caption: null });
+  // Saved poser presets, a body one and an arms one.
+  await create("/api/pose-presets", { kind: "body", name: sealed("Seiza"), data: { joints: { l_knee: [155], r_knee: [155] }, body: [0, 0, 0], lift: 29 } });
+  await create("/api/pose-presets", { kind: "arms", name: sealed("Boxtie"), data: { joints: { l_elbow: [105], r_elbow: [90] } } });
   await call(`/api/people/${gone}`, { method: "DELETE" });
   await call(`/api/locations/${old}`, { method: "DELETE" });
   await call(`/api/plans/${dropped}?linked_ties=keep`, { method: "DELETE" });

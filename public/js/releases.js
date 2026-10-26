@@ -1,10 +1,18 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.23.001";
+export const APP_VERSION = "2026.10.26.001";
 
 /** @type {{ version: string, notes: string[] }[]} newest first */
 export const RELEASES = [
+  {
+    "version": "2026.10.26.001",
+    "notes": [
+      "Poser: drag an arm or a leg to move it. Put your finger on a hand, forearm, foot or shin and drag, and the shoulder and elbow (or hip and knee) bend to follow; drag an upper arm or thigh to swing it from the shoulder or hip. Joints never bend further than a body can. Dragging anywhere else still turns the view.",
+      "Tap the number beside any slider to type an exact value. Numbers outside the slider's range are kept to its nearest end.",
+      "Save your own body and arms positions: choose \"Save this body as a preset…\" or \"Save these arms as a preset…\" in the Body… and Arms… menus. They're listed under \"My presets\" in every pose, and \"Manage my presets…\" renames and deletes them. Their names are encrypted; the positions aren't, like poses."
+    ]
+  },
   {
     "version": "2026.10.23.001",
     "notes": [

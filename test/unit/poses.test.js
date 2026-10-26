@@ -6,8 +6,10 @@ import { describe, it, expect } from "vitest";
 import * as server from "../../src/poses/parse.js";
 import * as page from "../../public/js/pose-format.js";
 import {
-  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, SHAPES, STANDING_LIFT, withBodyPreset, withArmsPreset, clampJoint, jointRotation,
+  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, SHAPES, STANDING_LIFT, MAX_PRESETS, withBodyPreset, withArmsPreset,
+  bodyPresetFrom, armsPresetFrom, clampJoint, jointRotation,
 } from "../../public/js/figure-rig.js";
+import * as presets from "../../src/pose-presets/parse.js";
 import { makeSkeleton, posed, onBone, ropePoint, toBone, toHardpoint, BAMBOO_RADIUS } from "../../public/js/pose-skeleton.js";
 import { takePoses } from "../../public/js/import-poses.js";
 
@@ -30,6 +32,16 @@ function preset(body, arms = "At sides") {
 }
 
 describe("the page and the server", () => {
+  it("agree on saved presets: the arms' joints, how many, and what the page saves is what the server keeps", () => {
+    expect([...ARM_JOINTS]).toEqual([...presets.ARM_JOINTS]);
+    expect(MAX_PRESETS).toBe(presets.MAX_PRESETS);
+    const posed = preset("Kneeling (seiza)", "Boxtie");
+    const { name: _b, ...body } = bodyPresetFrom(posed, "x");
+    const { name: _a, ...arms } = armsPresetFrom(posed, "x");
+    expect(presets.parsePresetData("body", body)).toEqual(body);
+    expect(presets.parsePresetData("arms", arms)).toEqual(arms);
+  });
+
   it("agree on the joints, their order and their limits", () => {
     expect(JOINTS.map((j) => j.name)).toEqual(Object.keys(server.JOINTS));
     for (const joint of JOINTS) {
@@ -150,6 +162,23 @@ describe("parsePose", () => {
     expect(() => server.parseEdit({})).toThrow(/Nothing to change/);
     expect(() => server.parseEdit({ caption: "plain" })).toThrow(/encrypted/);
     expect(() => server.parsePoseId("x")).toThrow(/pose id/);
+  });
+});
+
+describe("saved presets", () => {
+  it("take the body or the arms from a figure, and put them back on another", () => {
+    const from = preset("Face down", "Tengu");
+    const body = bodyPresetFrom(from, "Mine");
+    const arms = armsPresetFrom(from, "Mine too");
+    expect(body.name).toBe("Mine");
+    expect(Object.keys(body.joints).some((n) => ARM_JOINTS.includes(n))).toBe(false);
+    expect(Object.keys(arms.joints)).toEqual([...ARM_JOINTS]);
+    expect([body.body, body.lift]).toEqual([from.body, from.lift]);
+    const onto = page.withPosture(page.newPose(), withArmsPreset(withBodyPreset(page.newPose(), body), arms));
+    expect([onto.joints, onto.body, onto.lift]).toEqual([from.joints, from.body, from.lift]);
+    // A copy: changing the figure after doesn't change the preset.
+    from.joints.l_elbow[0] = 1;
+    expect(arms.joints.l_elbow[0]).not.toBe(1);
   });
 });
 
@@ -369,6 +398,17 @@ describe("changing a pose", () => {
     expect(page.setShift(page.setShift(p, 0, 400), 1, -12.4).shift).toEqual([300, -12]);
     expect(page.setCamera(p, [190, 100, 10, 400]).camera).toEqual([-170, 89, 60, 350, 0, 0]);
     expect(page.setCamera(p, [-190, 0, 300, 100, -400, 7]).camera).toEqual([170, 0, 300, 100, -300, 7]);
+  });
+
+  it("reads a number typed into a slider's box, kept within its range", () => {
+    expect(page.typedNumber("42", [0, 150])).toBe(42);
+    expect(page.typedNumber(" -30 ", [-70, 180])).toBe(-30);
+    expect(page.typedNumber("−30", [-70, 180])).toBe(-30);
+    expect(page.typedNumber("+12.6", [-70, 180])).toBe(13);
+    expect(page.typedNumber(".4", [-70, 180])).toBe(0);
+    expect(page.typedNumber("200", [0, 150])).toBe(150);
+    expect(page.typedNumber("-5", [0, 150])).toBe(0);
+    for (const text of ["", " ", "-", "abc", "12abc", "1e3", "1,5", "--3"]) expect(page.typedNumber(text, [0, 150]), text).toBeNull();
   });
 
   it("pans the view sideways as the screen sees it, and up", () => {

@@ -78,8 +78,6 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 **Status:** planned, after poses (built 2026-10-23; see considerations.md).
 
-- **Dragging a hand or foot** to place the whole limb (inverse kinematics),
-  alongside the sliders.
 - **Stepping through a sequence**: a plan's poses one after another, with
   the one before shown faintly behind.
 - **A second figure** (the top), and **props** such as bamboo.

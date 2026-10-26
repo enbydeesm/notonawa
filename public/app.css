@@ -244,15 +244,26 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel .hint { margin: 0; }
 .pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
 .pose-menus select { flex: 1 1 6.5rem; min-width: 0; }
+/* "My presets": each saved poser preset, with Rename and Delete. */
+.preset-list { margin-bottom: 12px; }
+.preset-kind { margin: 8px 0 4px; font-size: 0.85rem; color: var(--muted); }
+.preset-row { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 2px 0; }
+.preset-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pose-part-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pose-part { margin: 0; font-size: 1rem; }
 .pose-part-row .tool { flex: none; }
 .pose-row-label { font-size: 0.85rem; margin-right: 4px; }
 .pose-sliders { display: flex; flex-direction: column; gap: 4px; }
-.pose-slider { display: grid; grid-template-columns: 7.5rem 1fr 2.5rem; align-items: center; gap: 8px; }
+.pose-slider { display: grid; grid-template-columns: 7.5rem 1fr 4rem; align-items: center; gap: 8px; }
 .pose-slider label { margin: 0; font-size: 0.85rem; }
 .pose-slider input[type="range"] { width: 100%; margin: 0; padding: 0; }
-.pose-value { font-size: 0.85rem; text-align: right; font-variant-numeric: tabular-nums; }
+/* The value's box, to type a number into: 16px, so an iPhone doesn't zoom
+   in when it's tapped; no spin buttons (the slider does that). */
+.pose-slider .pose-value {
+  width: 100%; margin: 0; padding: 4px 6px; font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums;
+  appearance: textfield; -moz-appearance: textfield;
+}
+.pose-slider .pose-value::-webkit-inner-spin-button, .pose-slider .pose-value::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .pose-editor .message { margin: 0; }
 /* "Copy to…": the ties, plans or workshops to choose from. */
 .copy-targets { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }

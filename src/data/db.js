@@ -70,13 +70,16 @@ export async function readAccount(db, userId) {
     // exported: only whoever has the link can open them).
     q(`SELECT kind, label, expires_at, max_uses, use_count, created_at
          FROM shares WHERE owner_id = ? ORDER BY created_at, id`),
+    // My saved poser presets (their names sealed; their angles plain JSON).
+    q(`SELECT kind, name, data, created_at, updated_at
+         FROM pose_presets WHERE owner_id = ? ORDER BY created_at, rowid`),
   ]);
   const [user, passkeys, people, profileNotes, locations, plans, planTags, tags, ties, participants, tiePlans, tieTags,
-    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback, shares] =
+    workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback, shares, posePresets] =
     /** @type {Record<string, any>[][]} */ (results.map((r) => r.results));
   return {
     user: user[0], passkeys, people, profileNotes, locations, plans, planTags, tags,
     ties, participants, tiePlans, tieTags, workshops, workshopPeople, workshopTags, media, drawings, poses, notices, feedback,
-    shares,
+    shares, posePresets,
   };
 }

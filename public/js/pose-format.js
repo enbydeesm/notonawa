@@ -89,6 +89,19 @@ export const DEFAULT_HARDPOINTS = Object.freeze({ ring: [0, 195, 0], bamboo: [0,
 /** @param {number} n @param {readonly [number, number]} range */
 export const clamp = (n, [min, max]) => Math.min(max, Math.max(min, Math.round(n)));
 
+/**
+ * A number typed into a slider's box, kept within the slider's range as a
+ * whole number; null if it isn't a number (the box then shows the old one).
+ * @param {string} text
+ * @param {readonly [number, number]} range
+ * @returns {number | null}
+ */
+export function typedNumber(text, range) {
+  const trimmed = text.trim().replace(/^\u2212/, "-");
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmed)) return null;
+  return clamp(Number(trimmed), range);
+}
+
 /** @returns {Pose} the figure standing, seen from the front and a little above */
 export function newPose() {
   return {
