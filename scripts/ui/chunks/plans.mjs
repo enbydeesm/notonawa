@@ -139,6 +139,10 @@ export default async function () {
   check("the search: a keyword in the title", await run(`await type("#search-q", "ONE-SIDED"); ${planTitles}`), ["Hip harness, one-sided"]);
   check("…Clear search shows them all again, and hides itself", await run(`
     $("#search-clear").click(); await wait(200); return [titles().length, $("#search-q").value, $("#search-clear").hidden];`), [3, "", true]);
+  check("…the other filters are folded under More options, opened by tapping it", await run(`
+    const fold = () => [$("#search-more").open, $("#search-plan-types").checkVisibility({ contentVisibilityAuto: true })];
+    const closed = fold(); $("#search-more summary").click(); await wait(100);
+    return [closed, $("#search-more summary").textContent.trim(), fold()];`), [[false, false], "More options", [true, true]]);
   check("…any of the plan types chosen", await run(`
     await pick("#search-plan-types", "Harness"); const one = titles(); await pick("#search-plan-types", "Sequence");
     return [filterOptions("#search-plan-types"), one, titles()];`),

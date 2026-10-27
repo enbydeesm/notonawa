@@ -16,6 +16,11 @@ export default async function () {
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
     ["Showing 23 of 23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
+  const foldState = (rest) => `[$("#search-more").open, $("#search-more summary").textContent.trim(), $("#${rest}").checkVisibility({ contentVisibilityAuto: true })]`;
+  check("the filters under the keyword are folded under More options, opened by tapping it", await run(`
+    const closed = ${foldState("people-filter")}; $("#search-more summary").click(); await wait(100);
+    return [closed, ${foldState("people-filter")}, $("#q").checkVisibility()];`),
+    [[false, "More options", false], [true, "More options", true], true]);
   check("every search field is kept out of form history and spellcheck", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await wait(200);
     const leaky = leakyFields();
@@ -69,6 +74,14 @@ export default async function () {
     $("#clear").click(); await wait(800);
     return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
     ["Showing 23 of 23 ties", "", "Anyone", true, ""]);
+  check("…and leaves More options open", await run(`return $("#search-more").open;`), true);
+  await go("/?from=2026-01-05");
+  check("an address with a filter opens More options by itself", await run(`
+    return [$("#search-more").open, $("#from").value];`), [true, "2026-01-05"]);
+  await go("/");
+  check("…and one without starts folded", await run(`
+    const closed = $("#search-more").open; $("#search-more summary").click(); await wait(100);
+    return [closed, $("#search-more").open];`), [false, true]);
   check("Has Tags opens the tag dialog for picking only: no adding or deleting", await run(`
     $("#tags-choose").click(); await wait(600);
     const box = $("#tags-search"); box.value = "nosuchtag";

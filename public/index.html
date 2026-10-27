@@ -30,33 +30,37 @@
       <label for="q">Search</label>
       <input id="q" type="search" placeholder="Title, notes or plan" autocomplete="off" spellcheck="false">
 
-      <label id="people-label">People</label>
-      <div id="people-filter"></div>
-      <p class="hint">Ties with all of the people you choose.</p>
+      <details class="fold search-more" id="search-more">
+        <summary>More options</summary>
 
-      <label id="locations-label">Locations</label>
-      <div id="locations-filter"></div>
+        <label id="people-label">People</label>
+        <div id="people-filter"></div>
+        <p class="hint">Ties with all of the people you choose.</p>
 
-      <div class="row">
-        <div>
-          <label for="from">From</label>
-          <input id="from" type="date" autocomplete="off" spellcheck="false">
-        </div>
-        <div>
-          <label for="to">To</label>
-          <input id="to" type="date" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
+        <label id="locations-label">Locations</label>
+        <div id="locations-filter"></div>
 
-      <div class="label-row">
-        <label id="tags-label">Has Tags</label>
-        <button type="button" class="label-add" id="tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
-        <div class="match-toggle" role="group" aria-label="Match tags">
-          <button type="button" id="tags-any" aria-pressed="true" title="Ties with any of the tags">OR</button>
-          <button type="button" id="tags-all" aria-pressed="false" title="Ties with all of the tags">AND</button>
+        <div class="row">
+          <div>
+            <label for="from">From</label>
+            <input id="from" type="date" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="to">To</label>
+            <input id="to" type="date" autocomplete="off" spellcheck="false">
+          </div>
         </div>
-      </div>
-      <div class="tag-row" id="tag-filter" aria-labelledby="tags-label"></div>
+
+        <div class="label-row">
+          <label id="tags-label">Has Tags</label>
+          <button type="button" class="label-add" id="tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+          <div class="match-toggle" role="group" aria-label="Match tags">
+            <button type="button" id="tags-any" aria-pressed="true" title="Ties with any of the tags">OR</button>
+            <button type="button" id="tags-all" aria-pressed="false" title="Ties with all of the tags">AND</button>
+          </div>
+        </div>
+        <div class="tag-row" id="tag-filter" aria-labelledby="tags-label"></div>
+      </details>
 
       <button type="button" class="link" id="clear" hidden>Clear search</button>
     </section>
@@ -99,21 +103,25 @@
       <label for="search-q">Search</label>
       <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
 
-      <label id="search-plan-types-label">Plan type</label>
-      <div id="search-plan-types"></div>
+      <details class="fold search-more" id="search-more">
+        <summary>More options</summary>
 
-      <label id="search-tie-types-label">Tie type</label>
-      <div id="search-tie-types"></div>
+        <label id="search-plan-types-label">Plan type</label>
+        <div id="search-plan-types"></div>
 
-      <div class="label-row">
-        <label id="search-tags-label">Has Tags</label>
-        <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
-        <div class="match-toggle" role="group" aria-label="Match tags">
-          <button type="button" id="search-tags-any" aria-pressed="true" title="Plans with any of the tags">OR</button>
-          <button type="button" id="search-tags-all" aria-pressed="false" title="Plans with all of the tags">AND</button>
+        <label id="search-tie-types-label">Tie type</label>
+        <div id="search-tie-types"></div>
+
+        <div class="label-row">
+          <label id="search-tags-label">Has Tags</label>
+          <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+          <div class="match-toggle" role="group" aria-label="Match tags">
+            <button type="button" id="search-tags-any" aria-pressed="true" title="Plans with any of the tags">OR</button>
+            <button type="button" id="search-tags-all" aria-pressed="false" title="Plans with all of the tags">AND</button>
+          </div>
         </div>
-      </div>
-      <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+        <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+      </details>
 
       <button type="button" class="link" id="search-clear" hidden>Clear search</button>
     </section>
@@ -194,7 +202,7 @@
 
         <!-- A saved plan's ties, folded away until "Linked ties" is
              tapped: tap one to open it (views/plans.js). -->
-        <details class="linked-ties-fold" id="plan-linked" hidden>
+        <details class="fold" id="plan-linked" hidden>
           <summary id="plan-linked-label">Linked ties <span class="item-meta" id="plan-linked-count"></span></summary>
           <ul class="linked-ties" id="plan-linked-ties" aria-labelledby="plan-linked-label"></ul>
         </details>
@@ -501,36 +509,40 @@
       <label for="search-q">Search</label>
       <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
 
-      <label id="search-people-label">People</label>
-      <div id="search-people"></div>
+      <details class="fold search-more" id="search-more">
+        <summary>More options</summary>
 
-      <label id="search-educators-label">Educator(s)</label>
-      <div id="search-educators"></div>
-      <p class="hint">Workshops with all of the people and educators you choose.</p>
+        <label id="search-people-label">People</label>
+        <div id="search-people"></div>
 
-      <label id="search-locations-label">Locations</label>
-      <div id="search-locations"></div>
+        <label id="search-educators-label">Educator(s)</label>
+        <div id="search-educators"></div>
+        <p class="hint">Workshops with all of the people and educators you choose.</p>
 
-      <div class="row">
-        <div>
-          <label for="search-from">From</label>
-          <input id="search-from" type="date" autocomplete="off" spellcheck="false">
+        <label id="search-locations-label">Locations</label>
+        <div id="search-locations"></div>
+
+        <div class="row">
+          <div>
+            <label for="search-from">From</label>
+            <input id="search-from" type="date" autocomplete="off" spellcheck="false">
+          </div>
+          <div>
+            <label for="search-to">To</label>
+            <input id="search-to" type="date" autocomplete="off" spellcheck="false">
+          </div>
         </div>
-        <div>
-          <label for="search-to">To</label>
-          <input id="search-to" type="date" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
 
-      <div class="label-row">
-        <label id="search-tags-label">Has Tags</label>
-        <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
-        <div class="match-toggle" role="group" aria-label="Match tags">
-          <button type="button" id="search-tags-any" aria-pressed="true" title="Workshops with any of the tags">OR</button>
-          <button type="button" id="search-tags-all" aria-pressed="false" title="Workshops with all of the tags">AND</button>
+        <div class="label-row">
+          <label id="search-tags-label">Has Tags</label>
+          <button type="button" class="label-add" id="search-tags-choose" aria-label="Choose tags" title="Choose tags">+</button>
+          <div class="match-toggle" role="group" aria-label="Match tags">
+            <button type="button" id="search-tags-any" aria-pressed="true" title="Workshops with any of the tags">OR</button>
+            <button type="button" id="search-tags-all" aria-pressed="false" title="Workshops with all of the tags">AND</button>
+          </div>
         </div>
-      </div>
-      <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+        <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
+      </details>
 
       <button type="button" class="link" id="search-clear" hidden>Clear search</button>
     </section>

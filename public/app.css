@@ -923,18 +923,21 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 /* The + first, with its label just after it. */
 .card.add-card.plus-first { justify-content: flex-start; }
 
+/* A fold: a heading with a ▸ that turns down when it's open (a plan's
+   "Linked ties (n)", the searches' "More options"). Only its own summary:
+   a multi-select inside one has a summary too. */
+.fold { margin: 10px 0 4px; }
+.fold[hidden] { display: none; }
+.fold > summary { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-weight: 600; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: "▸"; color: var(--accent-ink); transition: transform 0.15s; }
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary .item-meta { font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { .fold > summary::before { transition: none; } }
+.search-more[open] > summary { margin-bottom: 4px; }
+
 /* A plan's linked ties, in its form: the title (opens the tie), then its
    rating at the end of the row. */
-/* A plan's linked ties, folded under "Linked ties (n)" with a ▸ that
-   turns down when it's open. */
-.linked-ties-fold { margin: 10px 0 4px; }
-.linked-ties-fold[hidden] { display: none; }
-.linked-ties-fold summary { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-weight: 600; cursor: pointer; list-style: none; }
-.linked-ties-fold summary::-webkit-details-marker { display: none; }
-.linked-ties-fold summary::before { content: "▸"; color: var(--accent-ink); transition: transform 0.15s; }
-.linked-ties-fold[open] summary::before { transform: rotate(90deg); }
-.linked-ties-fold summary .item-meta { font-weight: 400; }
-@media (prefers-reduced-motion: reduce) { .linked-ties-fold summary::before { transition: none; } }
 .linked-ties { list-style: none; margin: 4px 0 12px; padding: 0; }
 .linked-tie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .linked-tie:last-child { border-bottom: none; }

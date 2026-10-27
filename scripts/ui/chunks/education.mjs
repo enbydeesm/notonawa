@@ -105,15 +105,17 @@ export default async function () {
     $("#tab-taught").click(); await wait(100);
     return [hint, attended, titles()];`),
     [true, ["Intro to floor"], ["Teaching gote"]]);
-  check("the search narrows every tab: a keyword in the description, and educators", await run(`
+  check("the search narrows every tab: a keyword in the description, and educators (folded under More options)", await run(`
     $("#tab-attended").click(); await wait(100);
     await type("#search-q", "GOTE"); const keyword = [titles(), $("#workshop-count").textContent, $("#search-clear").hidden];
     $("#tab-taught").click(); await wait(100); const taughtToo = titles();
     $("#search-clear").click(); await wait(100);
+    const fold = () => [$("#search-more").open, $("#search-educators").checkVisibility({ contentVisibilityAuto: true })];
+    const folded = fold(); $("#search-more summary").click(); await wait(100); const unfolded = fold();
     await pick("#search-educators", "Sam"); const bySam = titles();
     $("#tab-attended").click(); await wait(100); const attendedBySam = titles();
-    return [keyword, taughtToo, filterOptions("#search-educators"), bySam, attendedBySam];`),
-    [[["Intro to floor"], "Showing 1 of 1 workshop", false], ["Teaching gote"], ["Me", "Sam"], [], ["Intro to floor"]]);
+    return [keyword, taughtToo, folded, unfolded, filterOptions("#search-educators"), bySam, attendedBySam];`),
+    [[["Intro to floor"], "Showing 1 of 1 workshop", false], ["Teaching gote"], [false, false], [true, true], ["Me", "Sam"], [], ["Intro to floor"]]);
   check("Summary shows a card each for Attended and Taught, following the search", await run(`
     $("#search-clear").click(); await wait(100);
     $("#tab-summary").click(); await wait(100);

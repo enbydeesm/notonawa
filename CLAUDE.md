@@ -421,7 +421,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   person, location or workshop, Save changes is muted and does nothing until
   it has (a new one's Save stays on); ✕ and Esc ask "Discard your
   changes?" first, `guardClose`),
-  `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
+  `format.js`, `ties-view.js` and `tie-search.js` (pure; the Ties,
+  Plans and Education searches show only the keyword, the rest folded
+  under "More options", a `details.fold` like a plan's Linked ties; Ties
+  opens it when the address brings a filter), `plans-view.js`
   (pure: the Plans search, done on the device over the loaded plans and
   kept only in memory, and a plan's tie count and average rating),
   `nav.js` (the tabs, as icons with their

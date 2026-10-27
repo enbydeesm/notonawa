@@ -35,6 +35,8 @@ export function mount(_root, { signal }) {
   const toInput = $("#to");
   /** @type {HTMLButtonElement} */
   const clearButton = $("#clear");
+  /** @type {HTMLDetailsElement} the filters below the keyword, folded */
+  const moreOptions = $("#search-more");
   /** @type {HTMLSelectElement} */
   const pageSizeSelect = $("#page-size");
   /** @type {HTMLButtonElement} */
@@ -87,6 +89,9 @@ export function mount(_root, { signal }) {
     showTags();
     showListControls();
     clearButton.hidden = !hasFilters(state);
+    // Filters from the address (Back, a bookmark, an Analytics link) would
+    // otherwise narrow the list out of sight. Clear search leaves it open.
+    if (hasFilters({ ...state, q: "" })) moreOptions.open = true;
   }
 
   /** The page size and the sort button (pressed = oldest first). */
