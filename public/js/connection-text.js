@@ -1,17 +1,23 @@
 // The words for connections between accounts: the disclosures shown before
-// connecting, a connection as Shared by me lists it, and the inviter's
+// connecting, a connection as Your data's Connections lists it, and the inviter's
 // banner. Pure, so it's easy to test. See considerations.md, "Sharing
 // between accounts": "Connecting accounts".
 
 import { formatDate } from "./format.js";
 
-/** Shown when "Connect our accounts" is ticked on a profile invite. */
-export const CONNECT_DISCLOSURE =
-  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other. It still can't read " +
-  "anything in either journal. You can remove the connection at any time from Your data, Shared by me, and it's " +
-  "deleted if either of you deletes your account. Without it, these won't be possible with this person: sending them " +
-  "ties, plans and workshops inside the app (sharing by link or QR code still works), shared plans with messages, " +
-  "offering them a copy of ties you log with them, and their profile card updating when they change it.";
+/**
+ * Shown when "Connect our accounts" is ticked on a profile invite: the first
+ * sentence, and the rest behind a "?".
+ */
+export const CONNECT_DISCLOSURE_SHORT =
+  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other.";
+export const CONNECT_DISCLOSURE_MORE =
+  "It still can't read anything in either journal. You can remove the connection at any time from Your data > " +
+  "Connections, and it's deleted if either of you deletes your account. Without it, some features won't be possible " +
+  "with this person: sending them ties, plans and workshops inside the app (sharing by link or QR code still works), " +
+  "shared plans with messages, offering them a copy of ties you log with them automatically, their profile card " +
+  "updating when they change it, and other similar future capabilities.";
+export const CONNECT_DISCLOSURE = `${CONNECT_DISCLOSURE_SHORT} ${CONNECT_DISCLOSURE_MORE}`;
 
 /** Shown to whoever opens an invite that offers to connect. */
 export const ACCEPT_DISCLOSURE =
@@ -30,7 +36,7 @@ export const REMOVE_ABOUT_NOTE =
  */
 
 /**
- * A connection's title in Shared by me.
+ * A connection's title in Your data's Connections.
  * @param {string | null} personName the name of the person it's on, if any
  */
 export function connectionTitle(personName) {
@@ -38,7 +44,7 @@ export function connectionTitle(personName) {
 }
 
 /**
- * What else Shared by me says about it: how it was made, and when.
+ * What else Connections says about it: how it was made, and when.
  * @param {Connection} connection
  * @param {string} [locale]
  */

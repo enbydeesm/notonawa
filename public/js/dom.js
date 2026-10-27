@@ -71,7 +71,48 @@ export function showMessage(el, text, isError = false) {
  * @param {HTMLButtonElement} button
  */
 export function infoButton(button) {
-  const text = $(`#${button.getAttribute("aria-controls")}`);
+  toggles(button, $(`#${button.getAttribute("aria-controls")}`));
+}
+
+/**
+ * A "?" button and the explanation it shows under its label, for a form
+ * built in code. Tapping it shows or hides the explanation; with a mouse,
+ * hovering shows it too, until the pointer leaves (unless it was clicked
+ * open). Put the button beside the label and the explanation after it.
+ * @param {string} id the explanation's id
+ * @param {string} label what the button is about, for screen readers
+ * @param {string} text
+ * @returns {{ button: HTMLButtonElement, text: HTMLParagraphElement }}
+ */
+export function infoTip(id, label, text) {
+  const note = h("p", { className: "info-text", id, hidden: true }, text);
+  const button = h("button", {
+    type: "button", className: "info-button", "aria-label": label, title: label,
+    "aria-expanded": "false", "aria-controls": id,
+  }, "?");
+  toggles(button, note);
+  let hovering = false;
+  button.addEventListener("pointerenter", (event) => {
+    if (event.pointerType !== "mouse" || button.getAttribute("aria-expanded") === "true") return;
+    hovering = true;
+    note.hidden = false;
+  });
+  button.addEventListener("pointerleave", () => {
+    if (!hovering) return;
+    hovering = false;
+    if (button.getAttribute("aria-expanded") !== "true") note.hidden = true;
+  });
+  // A click while hovering keeps it open (it's showing already).
+  button.addEventListener("click", () => { hovering = false; }, { capture: true });
+  return { button, text: note };
+}
+
+/**
+ * Makes a button show and hide an element, keeping aria-expanded up to date.
+ * @param {HTMLButtonElement} button
+ * @param {HTMLElement} text
+ */
+function toggles(button, text) {
   button.addEventListener("click", () => {
     const open = button.getAttribute("aria-expanded") !== "true";
     button.setAttribute("aria-expanded", String(open));

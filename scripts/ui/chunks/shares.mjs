@@ -60,20 +60,44 @@ export default async function () {
     $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
     return [state, warned];`),
   [["", true, [["Pronouns: they/them", true], ["Usual role: Top", true], ["Instagram: @jude", true], ["Based in: Seattle, WA", true],
-    ["About me: Rigger, mostly floor", true]], "1d", "one", true, false, []], [false, true]]);
+    ["Educator: No", true], ["About me: Your shareable notes about yourself. Your private notes are never shared.", true]],
+  "1d", "one", true, false, []], [false, true]]);
 
   check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
     await openPerson("Me"); $("#person-share").click(); await wait(300);
-    const before = [$("#share-profile-connect").checked, $("#share-profile-connect-note").hidden];
+    const box = $("#share-profile-connect");
+    const before = [box.checked, $("#share-profile-connect-note").hidden,
+      // At the top, above the name to share, in bold.
+      !!(box.compareDocumentPosition($("#share-profile-name")) & Node.DOCUMENT_POSITION_FOLLOWING),
+      getComputedStyle(box.closest("label").querySelector("strong")).fontWeight >= 600];
     set("#share-profile-connect", true);
     const note = $("#share-profile-connect-note");
     const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = $("#share-profile-warning").textContent.includes("connect to your account");
     $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
-    return [before, after, warned];`), [[false, true], [false, true], true]);
+    return [before, after, warned];`), [[false, true, true, true], [false, true], true]);
 
-  const [once, onceShown] = await run(MAKE_INVITE({}));
+  check("the invite tag is required; it, the profile name and connecting each have a ? that shows more, and hides it again", await run(`
+    await openPerson("Me"); $("#person-share").click(); await wait(300);
+    const required = $("#share-profile-label").required;
+    const labels = [...document.querySelectorAll(".share-profile .label-row label")].map((l) => l.textContent);
+    set("#share-profile-connect", true);
+    const tips = [];
+    for (const id of ["share-profile-name-info", "share-profile-label-info", "share-profile-connect-more"]) {
+      const button = document.querySelector('[aria-controls="' + id + '"]'), text = document.getElementById(id);
+      const before = text.hidden; button.click(); const open = [text.hidden, text.textContent.slice(0, 30)]; button.click();
+      tips.push([button.textContent, before, open, text.hidden]);
+    }
+    const short = $("#share-profile-connect-note .connect-disclosure").textContent;
+    $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
+    return [required, labels, tips, short];`),
+  [true, ["Profile name", "Invite tag"], [
+    ["?", true, [false, "The suggested name for your pr"], true],
+    ["?", true, [false, "Provides context for you in Yo"], true],
+    ["?", true, [false, "It still can't read anything i"], true]],
+  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other. ?"]);
+  const [once, onceShown] = await run(MAKE_INVITE({ "#share-profile-label": "First" }));
   check("making an invite shows its QR code and link, with the key after #", [onceShown, /^\/open#[\w-]{22}\.[\w-]{43}$/.test(once)],
     [[true, true, []], true]);
   const [forAnyone] = await run(MAKE_INVITE({ "#share-profile-expires": "never", "#share-profile-uses": "any", "#share-profile-label": "Class" }));
@@ -87,12 +111,12 @@ export default async function () {
     const again = $("#share-code-link").value; $("#share-code-done").click(); await wait(200);
     return [list, again.slice(again.indexOf("/open"))];`),
   [[["Oops", "Profile · ends in 24 hours · not opened yet"], ["Class", "Profile · until you revoke it · not opened yet"],
-    ["Profile invite", "Profile · ends in 24 hours · not opened yet"]], forAnyone]);
+    ["First", "Profile · ends in 24 hours · not opened yet"]], forAnyone]);
   check("revoking asks first, then takes it off the list", await run(`
     [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Oops")).querySelector(".share-revoke").click();
     await wait(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
     return [asked, [...document.querySelectorAll(".share-item .item-title")].map((t) => t.textContent)];`),
-  ['Revoke "Oops"?', ["Class", "Profile invite"]]);
+  ['Revoke "Oops"?', ["Class", "First"]]);
 
   await go("/people");
   const [connecting] = await run(MAKE_INVITE({ "#share-profile-connect": true, "#share-profile-label": "Munch" }, "Jude C"));
