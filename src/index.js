@@ -8,6 +8,7 @@ import { needsConsent, allowedWithoutConsent } from "./consent/parse.js";
 import { CONSENT_VERSION } from "./policy-version.js";
 import { handleConsent } from "./consent/routes.js";
 import { handleNotices } from "./notices/routes.js";
+import { handleVersion } from "./version/routes.js";
 import { json, notFound } from "./http.js";
 import { errorResponse } from "./errors.js";
 import { withSecurityHeaders } from "./security-headers.js";
@@ -101,6 +102,10 @@ async function respond(request, env) {
   if (!isAllowedOrigin(request, env.ORIGIN)) {
     return json({ error: "Not allowed" }, 403);
   }
+
+  // The version, for pages left open over a deploy: no session needed.
+  const version = handleVersion(request, url);
+  if (version) return version;
 
   // Signing up, in and out: no session needed, but a limit on attempts.
   if (url.pathname.startsWith("/api/auth/")) {

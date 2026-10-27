@@ -10,13 +10,18 @@ import { signInAndUnlock, signUp, finishRecovery } from "../key-flows.js";
 import { navigate } from "../navigate.js";
 import { pendingShare } from "../pending-share.js";
 import { APP_VERSION } from "../releases.js";
+import { reloadIfOutdated, watchVersion } from "../version-check.js";
 
 // Into the journal. Replacing this entry, so Back doesn't return here (it
 // would only send you on again).
 const toJournal = () => navigate(pendingShare().link || pendingShare().damaged ? "/open" : "/", { replace: true });
 
-export async function mount() {
+/** @param {HTMLElement} _root @param {{ signal: AbortSignal }} context */
+export async function mount(_root, { signal }) {
   const VIEWS = ["choose", "signup", "recover", "add-passkey"];
+  // A deploy while the page was open: reload into the new version (see
+  // version-check.js), and once more before signing in.
+  watchVersion(signal);
   $("#signin-version").textContent = `Version ${APP_VERSION}`;
 
   /** @param {string} name */
@@ -43,6 +48,7 @@ export async function mount() {
   }
 
   $("#sign-in").addEventListener("click", () => attempt($("#sign-in-message"), async () => {
+    if (await reloadIfOutdated()) return;
     await signInAndUnlock();
     toJournal();
   }));

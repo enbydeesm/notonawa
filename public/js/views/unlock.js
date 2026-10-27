@@ -9,6 +9,7 @@ import { $, showMessage } from "../dom.js";
 import { choose } from "../dialog.js";
 import { navigate } from "../navigate.js";
 import { WrongSecret } from "../vault.js";
+import { reloadIfOutdated, watchVersion } from "../version-check.js";
 import {
   signInAndUnlock, takeSignInResult, unlockWithCode, recoveryCodeWasReplaced, setUpKey, forgetPending,
 } from "../key-flows.js";
@@ -25,9 +26,14 @@ const WHY_CODE = {
 
 /**
  * @param {HTMLElement} _root the view's element
- * @param {{ unlocked: () => void }} context unlocked: draws the view the address is for
+ * @param {{ unlocked: () => void, signal: AbortSignal }} context unlocked: draws the view the address
+ *   is for; signal: aborts when the view is left
  */
-export async function mount(_root, { unlocked }) {
+export async function mount(_root, { unlocked, signal }) {
+  // A deploy while the page was open: reload into the new version now,
+  // while there's nothing unlocked to lose.
+  watchVersion(signal);
+
   /** @param {string} name */
   function show(name) {
     for (const card of CARDS) $(`#unlock-${card}`).hidden = card !== name;
@@ -69,8 +75,13 @@ export async function mount(_root, { unlocked }) {
     });
   }
 
+  // Asked once more before unlocking: unlocking the old version would only
+  // be lost to the reload later. Reloading instead, Unlock is tapped again.
   $("#unlock-passkey").addEventListener("click", () =>
-    attempt($("#unlock-passkey-message"), async () => next(await signInAndUnlock())));
+    attempt($("#unlock-passkey-message"), async () => {
+      if (await reloadIfOutdated()) return;
+      next(await signInAndUnlock());
+    }));
 
   $("#unlock-code-form").addEventListener("submit", (e) => {
     e.preventDefault();

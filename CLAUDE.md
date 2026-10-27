@@ -275,6 +275,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `clearTagsStatement` save a tie's or plan's tags; `routes.js`: `GET
   /api/tags` most recently used on a tie first, with `tie_count`,
   `plan_count` and `workshop_count`, `DELETE /api/tags/:id`).
+- `src/version/routes.js`: `GET /api/version` (`{ version }`, no
+  session needed), for pages left open over a deploy (`version-check.js`).
 - `src/app-version.js`: generated from RELEASES.md by
   `scripts/releases.mjs` (never edit it): `APP_VERSION`, whose release
   notes new accounts start as having seen.
@@ -339,6 +341,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `seal-leftovers.js` (encrypting older plain text), `links.js` (pure: album
   links, checked before sealing and again before being made clickable),
   `releases.js` (generated from RELEASES.md: `APP_VERSION`, `RELEASES`),
+  `version-rules.js` (pure: whether to reload) and `version-check.js`
+  (a page left open over a deploy: the sign-in and Unlock views ask
+  `/api/version` on showing, on coming back into view and before signing
+  in or unlocking, and reload into a newer version; not while a share
+  link is waiting to be opened),
   `release-notes.js` (pure: the releases I haven't seen) and `whats-new.js`
   (the "What's new" dialog: from the menu, and once after an update),
   `welcome-text.js` (generated from WELCOME.md by `scripts/welcome.mjs`)

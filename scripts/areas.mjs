@@ -109,6 +109,12 @@ export const AREAS = [
     ui: ["basics", "lock", "account"],
   },
   {
+    name: "version",
+    files: ["src/version/", "public/js/version-check.js", "public/js/version-rules.js"],
+    tests: ["test/unit/version-rules.test.js", "test/api/version.test.js"],
+    ui: ["lock"],
+  },
+  {
     name: "lock",
     files: ["public/js/lock.js", "public/js/lock-rules.js"],
     tests: ["test/unit/lock-rules.test.js"],

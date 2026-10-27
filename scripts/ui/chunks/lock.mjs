@@ -1,6 +1,6 @@
 // The walkthrough's lock chunk. Locking and unlocking: the passkey, the recovery code, setting up a key, and after the operator's reset.
 
-import { HELP_LINE, account, check, freshAccount, go, run, script, sql } from "../harness.mjs";
+import { HELP_LINE, account, check, freshAccount, go, run, script, sleep, sql } from "../harness.mjs";
 
 export default async function () {
   const recoveryCode = await freshAccount();
@@ -65,4 +65,28 @@ export default async function () {
     [true, "Your recovery code was replaced, so here's a new one that also unlocks your journal.", true]);
   check("…and the recovery wrap matches again", await keysNow(), [true, true, true]);
   account.currentCode = afterReset[0] ?? "";
+
+  // A deploy while the page was open: the server's version is faked newer
+  // by answering /api/version for it. A mark on the page tells whether it
+  // was reloaded (a reload loses it).
+  console.log("Reloading after a deploy");
+  const fakeNewer = (then) => run(`
+    window.oldPage = true; const realFetch = window.fetch;
+    window.fetch = (url, options) => String(url).endsWith("/api/version")
+      ? Promise.resolve(new Response(JSON.stringify({ version: "9999.01.01.001" }), { headers: { "content-type": "application/json" } }))
+      : realFetch(url, options);
+    ${then}`);
+  const afterwards = async () => { await sleep(2500); return run(`return [window.oldPage === true, location.pathname, $("#unlock-choose") !== null];`); };
+  await go("/plans", { unlock: false });
+  check("Unlock doesn't reload when the server is on this page's version", await run(`
+    window.oldPage = true; document.dispatchEvent(new Event("visibilitychange")); await wait(800);
+    return window.oldPage === true;`), true);
+  await fakeNewer(`document.dispatchEvent(new Event("visibilitychange"));`);
+  check("…but on a newer one, coming back to the page reloads it, still locked at the same address", await afterwards(), [false, "/plans", true]);
+  await fakeNewer(`$("#unlock-passkey").click();`);
+  check("…and tapping Unlock reloads it rather than unlocking the old version", await afterwards(), [false, "/plans", true]);
+  await run(`await fetch("/api/auth/logout", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });`);
+  await go("/signin", { unlock: false });
+  await fakeNewer(`document.dispatchEvent(new Event("visibilitychange"));`);
+  check("…and the sign-in page reloads too", await afterwards(), [false, "/signin", false]);
 }

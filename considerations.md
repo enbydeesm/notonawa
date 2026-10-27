@@ -2228,3 +2228,28 @@ tests and the walkthrough included.
    never reach the journal or the export, the walkthrough.
 
 Then Connections (Option B), planned separately when the time comes.
+
+## Reloading a page left open over a deploy (October 2026)
+
+A page keeps running the code it loaded, so after a deploy an open tab
+(often on a phone) unlocked into the old version, with no new features and
+no "What's new", until it was reloaded by hand. The files were never cached
+(`no-store`); it was only the open page.
+
+- **Checked while locked, on the sign-in and Unlock views** (`GET
+  /api/version`, compared with the page's `APP_VERSION`): nothing unlocked
+  is lost and no form is open. On showing, on coming back into view (phones
+  lock after 5 minutes in the background, so that's usually when), and once
+  more when Unlock or Sign in is tapped, which then reloads instead, and is
+  tapped again on the new page.
+- **Only a newer version reloads**, not just a different one: a reloaded
+  page is on the server's version, so it can't reload over and over (say,
+  if the files were briefly out of step), and nothing needs remembering in
+  the browser's storage. Rolling back a deploy doesn't reload open pages.
+- **Not while a share link is waiting to be opened**: its key is only in
+  memory. It's forgotten at the next lock, and the check after reloads.
+- **Not adopted (for now): a "new version, Reload" banner while
+  unlocked.** It would mean reading the version off every API response.
+  A tab in use the whole time catches up at its next lock (at most 15
+  minutes idle) instead.
+
