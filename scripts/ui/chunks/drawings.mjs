@@ -118,7 +118,7 @@ export default async function () {
   check("Duplicate adds a copy last, with the same lines and caption", await run(`
     $("#tie-drawing-duplicate").click(); await wait(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
-    ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     const [a, b] = await ${tieDrawings};
     return [message, [...document.querySelectorAll("#tie-visuals .visual-drawing figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
@@ -130,7 +130,7 @@ export default async function () {
   check("editing the copy changes only the copy", await run(`
     $("#drawing-save").click(); await wait(1000);
     const shown = $("dialog.photo-viewer[open] .drawing-full").querySelectorAll("path").length;
-    ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     const [a, b] = await ${tieDrawings};
     return [shown, a.data.strokes.map((s) => s.c), b.data.strokes.map((s) => s.c)];`),
   [3, ["red", "blue"], ["red", "blue", "green"]]);
@@ -165,8 +165,8 @@ export default async function () {
     const [copy] = await (await fetch("/api/drawings?plan_id=" + plan.id)).json();
     const [opened] = await (await import("/js/vault.js")).open("drawing", [copy]);
     const [original] = await ${tieDrawings};
-    ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     return [message, opened.caption, JSON.stringify(copy.data) === JSON.stringify(original.data)];`),
   ['Copied to "Harness plan".', "Front view", true]);
   await go("/plans");

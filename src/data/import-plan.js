@@ -7,6 +7,8 @@
 // - A name matches an existing item with the same name, ignoring capitals
 //   (an exact spelling first), active items before archived ones.
 // - The file's "this is me" person matches my own, whatever its name.
+// - An item marked always_new (`match: false`: a share's "New person") is
+//   added whatever its name.
 // - A matched item is used as it is: its details in the file aren't imported,
 //   so an import never changes what's already there.
 // - A new person keeps their link to a connection (connection_id) only if
@@ -42,15 +44,17 @@ export function planItems(items, existing, newId) {
   const mySelf = existing.people.find((p) => p.is_self);
 
   const people = items.people.map((p) => {
-    const match = p.is_self && mySelf ? mySelf : findByName(existing.people, p.name);
+    const match = p.always_new ? undefined : p.is_self && mySelf ? mySelf : findByName(existing.people, p.name);
     return result(p.file_id, p.name, match, newId);
   });
-  const locations = items.locations.map((l) => result(l.file_id, l.name, findByName(existing.locations, l.name), newId));
+  const locations = items.locations.map((l) =>
+    result(l.file_id, l.name, l.always_new ? undefined : findByName(existing.locations, l.name), newId));
   // One default location at most: the file's (its first new, unarchived
   // one), and only if I don't have one already.
   const defaultLocation = existing.locations.some((l) => l.is_default) ? null
     : items.locations.find((l, i) => l.is_default && !l.archived_at && !locations[i].matched)?.file_id ?? null;
-  const plans = items.plans.map((p) => result(p.file_id, p.title, findByName(existing.plans, p.title), newId));
+  const plans = items.plans.map((p) =>
+    result(p.file_id, p.title, p.always_new ? undefined : findByName(existing.plans, p.title), newId));
   const planIds = new Map(plans.map((p) => [p.file_id, p.id]));
 
   // New plans' tags and the file's own list of tags, matched to mine.

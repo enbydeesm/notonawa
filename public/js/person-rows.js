@@ -3,7 +3,7 @@
 // someone since deleted shows "(person deleted)" and can be removed but not
 // changed (kept() lists the ones left, for keep_deleted).
 
-import { h, $ } from "./dom.js";
+import { h, $, removeX } from "./dom.js";
 import { participantLabel } from "./ties-view.js";
 import { roleName, roleOptions } from "./roles.js";
 import { searchPicker } from "./search-picker.js";
@@ -35,7 +35,7 @@ export function personRows({ id, idPrefix, source, onError, startWithMe = false,
   let addedPerson = !startWithMe;
 
   /** @param {HTMLElement} row */
-  const removeButton = (row) => h("button", { type: "button", "aria-label": "Remove", onclick: () => row.remove() }, "✕");
+  const removeButton = (row) => removeX("Remove", () => row.remove());
 
   /**
    * Adds a row, empty or with one of the item's people in it.
@@ -44,13 +44,13 @@ export function personRows({ id, idPrefix, source, onError, startWithMe = false,
   function add(existing) {
     if (existing && !existing.person_id) {
       const { name, role } = participantLabel(existing);
-      const row = h("div", { className: "picker-row kept-deleted", "data-link-id": existing.id },
+      const row = h("div", { className: "picker-row removable kept-deleted", "data-link-id": existing.id },
         h("span", {}, h("span", { className: "deleted" }, name.text), ` (${roleName(role)})`));
       row.append(removeButton(row));
       element.append(row);
       return;
     }
-    const row = h("div", { className: "picker-row person-row" });
+    const row = h("div", { className: "picker-row removable person-row" });
     const role = h("select", { className: "role", "aria-label": "Role" },
       h("option", { value: "" }, "Choose Role"),
       roleOptions().map((r) => h("option", { value: r.value }, r.label)));

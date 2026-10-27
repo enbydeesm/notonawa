@@ -31,13 +31,13 @@ export default async function () {
     return [opened, types, closed, $("#stage"), parts(cardOf("Hip harness")), parts(cardOf("Hip harness, one-sided"))];`),
     [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
       ["Harness", "", 3, "0 ties", 1], ["Idea", "variation of Hip harness", 0, "0 ties", 1]]);
-  check("tapping a plan's card opens it, with Archive and Delete in the dialog", await run(`
+  check("tapping a plan's card opens it, with Delete, Archive and Share icons on the heading's row", await run(`
     ${planCard}
     cardOf("Hip harness").querySelector(".plan-ties").click(); await wait(400);
-    const opened = [$("#plan-dialog").open, $("#plan-title").value, [...$("#plan-dialog [data-item-actions]").children].map((b) => b.textContent),
+    const opened = [$("#plan-dialog").open, $("#plan-title").value, headerIcons("#plan-dialog"),
       getComputedStyle(cardOf("Hip harness")).cursor];
     $("[data-cancel-edit]").click(); await wait(200);
-    return opened;`), [true, "Hip harness", ["Archive", "Delete"], "pointer"]);
+    return opened;`), [true, "Hip harness", ["Delete plan", "Archive plan", "Share plan", "Close"], "pointer"]);
   check("difficulty is rope hanks: the list shows them, Edit opens the dialog filled in, and Cancel closes it; + then starts empty", await run(`
     const filled = () => document.querySelectorAll("#plan-est_difficulty-picker .hank-button.filled").length;
     const listed = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness")
@@ -104,13 +104,15 @@ export default async function () {
     const typeBox = c.querySelector(".plan-type").getBoundingClientRect(), tags = c.querySelector(".tie-tags").getBoundingClientRect();
     return [parts(c), box.right - ties.right < 16, box.right - typeBox.right < 16, typeBox.top - box.top < 20, tags.top >= ties.bottom - 1,
       tagChips(".plan-card .tie-tags")];`), [["Sequence", "Suspension", 0, "2 ties", 1], true, true, true, true, ["search-tag"]]);
-  check("its form lists the linked ties, newest first, each with its rating at the end of the row", await run(`
+  check("its form lists the linked ties, folded under 'Linked ties (2)' until tapped, newest first, each with its rating at the end of the row", await run(`
     await clickIn("Linked plan", "Edit");
+    const folded = [$("#plan-linked").open, $("#plan-linked summary").textContent.trim(), $("#plan-linked-ties").checkVisibility({ contentVisibilityAuto: true })];
+    $("#plan-linked summary").click(); await wait(100);
     const rows = [...document.querySelectorAll("#plan-linked-ties li")];
     const row = rows[0].getBoundingClientRect(), hanks = rows[0].querySelector(".hank-rating").getBoundingClientRect();
-    return [$("#plan-linked").hidden, rows.map((li) => [li.querySelector("button").textContent, li.querySelectorAll(".hank.filled").length]),
+    return [folded, $("#plan-linked").hidden, rows.map((li) => [li.querySelector("button").textContent, li.querySelectorAll(".hank.filled").length]),
       Math.abs(row.right - hanks.right) < 2, row.top < hanks.bottom && hanks.top < row.bottom];`),
-    [false, [["Linked again", 3], ["Linked try", 4]], true, true]);
+    [[false, "Linked ties (2)", false], false, [["Linked again", 3], ["Linked try", 4]], true, true]);
   check("tapping one opens the tie over the plan; saving it updates both", await run(`
     $("#plan-linked-ties button").click(); await wait(1500);
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, $("#plan-dialog").open];
@@ -119,6 +121,20 @@ export default async function () {
     $("[data-cancel-edit]").click(); await wait(300);
     return [opened, rows, $("#plan-dialog").open];`),
     [["Edit tie", "Linked again", true], [5, 4], false]);
+  check("a saved plan opens on its heading, its Save changes muted until something changes (and changed back, muted again)", await run(`
+    await clickIn("Linked plan", "Edit");
+    const save = $("#plan-dialog button[type=submit]");
+    const before = [document.activeElement === $("#plan-form-heading"), save.textContent, save.getAttribute("aria-disabled") === "true", getComputedStyle(save).backgroundColor];
+    set("#plan-notes", "A note"); await wait(50); const changed = [save.getAttribute("aria-disabled") === "true", getComputedStyle(save).backgroundColor !== before[3]];
+    set("#plan-notes", ""); await wait(50); const undone = save.getAttribute("aria-disabled") === "true";
+    $("[data-cancel-edit]").click(); await wait(300);
+    return [before.slice(0, 3), changed, undone, $("#plan-dialog").open];`),
+    [[true, "Save changes", true], [false, true], true, false]);
+  check("a new plan's Add plan is ready to tap, with focus on its title", await run(`
+    $("#add-plan").click(); await wait(300);
+    const state = [document.activeElement === $("#plan-title"), $("#plan-dialog button[type=submit]").textContent, $("#plan-dialog button[type=submit]").getAttribute("aria-disabled") === "true"];
+    $("[data-cancel-edit]").click(); await wait(300);
+    return [state, $("#plan-dialog").open];`), [[true, "Add plan", false], false]);
   const planTitles = `await wait(100); return titles();`;
   check("the search: a keyword in the title", await run(`await type("#search-q", "ONE-SIDED"); ${planTitles}`), ["Hip harness, one-sided"]);
   check("…Clear search shows them all again, and hides itself", await run(`
@@ -146,10 +162,10 @@ export default async function () {
     set("#show-archived", true); await wait(600);
     ${planCard}
     cardOf("Linked plan").querySelector(".tie-place").click(); await wait(400);
-    const opened = [$("#plan-dialog").open, $("#plan-title").value, [...$("#plan-dialog [data-item-actions]").children].map((b) => b.textContent)];
-    [...$("#plan-dialog [data-item-actions]").children].find((b) => b.textContent === "Restore").click(); await wait(600);
+    const opened = [$("#plan-dialog").open, $("#plan-title").value, headerIcons("#plan-dialog")];
+    $("#plan-dialog [aria-label='Restore plan']").click(); await wait(600);
     const archived = titles();
     set("#show-archived", false); await wait(600);
     return [opened, $("#plan-dialog").open, archived, titles().includes("Linked plan")];`),
-    [[true, "Linked plan", ["Restore", "Delete"]], false, [], true]);
+    [[true, "Linked plan", ["Delete plan", "Restore plan", "Share plan", "Close"]], false, [], true]);
 }

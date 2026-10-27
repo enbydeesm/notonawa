@@ -155,8 +155,13 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
   /** @param {PickerItem | null} item */
   function choose(item) {
     chosen = item;
-    hidden.value = item?.id ?? "";
+    const value = item?.id ?? "";
+    const changed = hidden.value !== value;
+    hidden.value = value;
     box.value = shownName(item);
+    // Code setting a value fires no event: this tells the form (whether it
+    // has changes, form-changes.js), as a pick after adding one comes late.
+    if (changed) hidden.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   // Nothing picked from the list: an empty box means none; anything else

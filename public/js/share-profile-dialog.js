@@ -3,14 +3,12 @@
 // key that's only in its link) and showing its code. See
 // considerations.md, "Sharing between accounts".
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
-import { sealShare, sealOne } from "./vault.js";
-import { newShareId } from "./crypto/share.js";
-import { toBase64url } from "./crypto/keys.js";
 import { readAliases, PLATFORMS } from "./aliases.js";
 import { buildProfile, suggestedName } from "./profile-share.js";
-import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, maxUsesFor, shareWarning } from "./share-options.js";
+import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
+import { saveShare } from "./share-save.js";
 import { showShareCode } from "./share-code.js";
 import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
 import { roleName } from "./roles.js";
@@ -78,8 +76,10 @@ export function openShareProfile(me) {
     const message = h("p", { className: "message", id: "share-profile-status" });
     const submit = h("button", { type: "submit", className: "primary", id: "share-profile-make" }, "Make invite");
 
+    const aboutInfo = infoTip("share-profile-intro", "About sharing your profile",
+      "Someone you invite can add your profile to their People. Your private notes are never shared.");
     const form = h("form", { onsubmit: make },
-      h("p", { className: "hint" }, "Someone you invite can add your profile to their People. Your private notes are never shared."),
+      aboutInfo.text,
       h("label", { className: "inline share-connect" }, connect, " ", h("strong", {}, "Connect our accounts")),
       disclosure,
       h("div", { className: "label-row" }, h("label", { htmlFor: "share-profile-name" }, "Profile name"), nameInfo.button),
@@ -98,7 +98,7 @@ export function openShareProfile(me) {
       message);
 
     const dialog = h("dialog", { className: "form-dialog share-profile", "aria-labelledby": "share-profile-heading" },
-      h("h2", { id: "share-profile-heading" }, "Share my profile"),
+      h("div", { className: "label-row heading-tip" }, h("h2", { id: "share-profile-heading" }, "Share my profile"), aboutInfo.button),
       form);
     dialog.addEventListener("close", () => {
       dialog.remove();
@@ -123,15 +123,9 @@ export function openShareProfile(me) {
           is_educator: ticked("is_educator"),
           about: ticked("about"),
         });
-        const id = newShareId();
-        // Sealed with its own key, for the link; that key and my name for
-        // the invite sealed with mine, so I can show the code again.
-        const { key, body } = await sealShare(id, "profile", profile);
-        const sealed = await sealOne("share", { label: label.value, link_key: key });
-        await api("/api/shares", { method: "POST", body: {
-          id, kind: "profile", label: sealed.label, link_key: sealed.link_key,
-          expires: expires.value, max_uses: maxUsesFor(uses.value), snapshot: toBase64url(body), connect: connect.checked,
-        } });
+        const { id, key } = await saveShare({
+          kind: "profile", data: profile, label: label.value, expires: expires.value, uses: uses.value, connect: connect.checked,
+        });
         dialog.close();
         await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value, connect.checked) ?? undefined });
       } catch (err) {

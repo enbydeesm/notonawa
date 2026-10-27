@@ -21,7 +21,7 @@
   <li><strong>Keep a second passkey and your recovery code.</strong> If you lose them all, we can't guarantee to get you back in, and your encrypted notes, photos and videos can't be recovered by anyone.</li>
   <li><strong>No ads, no analytics, no tracking, no selling or sharing your data.</strong> The app loads no scripts or fonts from other companies.</li>
   <li>Some information has to stay readable by our server so the app can sort and filter it, such as names, titles, dates and ratings, and the drawings and poses you add to ties, plans and workshops (but not their captions). See <a href="#what-we-can-and-cant-read">What we can and can't read</a>.</li>
-  <li><strong>You can share your profile with someone</strong> through a link or QR code. It's encrypted on your device with a key that's only in the link, so we can't read it. <strong>Connecting your account to theirs is optional</strong>: it lets our server see that the two accounts know each other, never what's in either journal. See <a href="#sharing-with-other-people">Sharing with other people</a>.</li>
+  <li><strong>You can share your profile, or a copy of a tie, plan or workshop, with someone</strong> through a link or QR code. It's encrypted on your device with a key that's only in the link, so we can't read it. <strong>Connecting your account to theirs is optional</strong>: it lets our server see that the two accounts know each other, never what's in either journal. See <a href="#sharing-with-other-people">Sharing with other people</a>.</li>
   <li>You can export everything, import entries from a file, or delete your account and everything in it, at any time.</li>
 </ul>
 <h2 id="who-we-are">Who we are</h2>
@@ -98,6 +98,13 @@
   <li>You choose how long a share lasts (from 10 minutes, to until you revoke it) and whether one person or anyone with the link can use it. It's deleted, with its encrypted copy, when it expires, when its last allowed use is opened, or as soon as you revoke it. A daily clean-up removes any left over.</li>
   <li>When someone opens a share, we don't record who they are. What they add to their journal is theirs: revoking a share doesn't take back what was already added.</li>
 </ul>
+<h3 id="sharing-ties-plans-and-workshops">Sharing ties, plans and workshops</h3>
+<ul>
+  <li>From a saved tie, plan or workshop, you can share a copy of it the same way: encrypted on your device with a key that's only in the link, with the same choices of how long it lasts and who can use it, and stored the same way.</li>
+  <li>You choose what goes in it: its title, location (its name and place, never its notes), plans, tags, notes, description, album link, rating, drawings and poses, and the people on it. Its date and type (or a workshop's title and dates, or a plan's title) always go. Photos and videos can't be shared yet.</li>
+  <li>People on it go as their names and roles only, never anything else from your cards for them. You choose the name shown for you.</li>
+  <li>Whoever opens it chooses who each person is in their own journal (them, someone they have, or someone new), and which of their locations and plans its own are, before anything is added. A copy isn't updated when you change yours later.</li>
+</ul>
 <h3 id="connecting-accounts">Connecting accounts</h3>
 <ul>
   <li>An invite can also offer to connect your accounts. It's off unless you tick it, and the person opening it chooses too. If either of you doesn't, they still get your profile, just not a connection.</li>
@@ -107,7 +114,7 @@
   <li>Either of you can remove a connection at any time, from your Connections in Your data or from their card. It's removed for both of you, and both cards stay, just unlinked. When you remove one, you can also choose to clear the About you shared from their card for you; nothing else in their journal is changed. A connection is deleted with either account.</li>
 </ul>
 <h2 id="information-about-other-people">Information about other people</h2>
-<p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. Entries about someone stay in your account. If that person also uses NōtoNawa, they can't see your entries, and we don't tell them you've written about them. If someone shares their profile with you, what you add is in your journal, and its About shows as theirs.</p>
+<p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. Entries about someone stay in your account. If that person also uses NōtoNawa, they can't see your entries, and we don't tell them you've written about them. If someone shares their profile with you, what you add is in your journal, and its About shows as theirs. A tie, plan or workshop you share can name the people on it and hold your notes about it: share only what they would be comfortable with.</p>
 <h2 id="where-your-data-is-stored">Where your data is stored</h2>
 <p>NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is our only service provider with access to stored data. We ask Cloudflare to store photos and videos in North America [and the database in enam]; Cloudflare doesn't guarantee where data is kept, and its network may handle it in other countries. Everything is encrypted at rest by Cloudflare, in addition to our own encryption of your notes, photos and videos.</p>
 <p>When you paste a short Google Maps link (maps.app.goo.gl) into a location, our server asks Google where the link points, to fill in its coordinates. Google sees that request coming from our server, not from you, and it carries only the link. Full Google Maps links are read on our server without contacting Google.</p>
@@ -158,7 +165,7 @@
 <h2 id="messages-from-us">Messages from us</h2>
 <p>We can show you messages in the app, for example about a change to this policy, a problem with the service, or a legal request about your account. They're written by us, as plain text; a message for everyone is stored once, and a message just for you is stored with your account, included in your export, and deleted with your account. We record which messages you've dismissed, so they don't come back.</p>
 <h2 id="changes-to-this-policy">Changes to this policy</h2>
-<p>If we change this policy, we will update the date at the top and tell you with a message in the app before the change takes effect. If a change would reduce your privacy, we will ask for your agreement in the app. Until you agree, nothing new can be saved to your journal, but you can still export your data or delete your account.</p>
+<p>If we change this policy, we will update the date at the top. If a change would reduce your privacy, we will ask for your agreement in the app. Until you agree, nothing new can be saved to your journal, but you can still export your data or delete your account.</p>
 <h2 id="contact">Contact</h2>
 <p>Mx_Piggie · contact@notonawa.app</p>
   </main>

@@ -1701,7 +1701,8 @@ built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
 server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
 (profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
 deployed. Phase 4 (connecting accounts) built 2026-10-26, migration 0026,
-not yet deployed; the rest isn't built.
+not yet deployed. Phase 5 (sharing ties, plans and workshops) built
+2026-10-26, no migration, not yet deployed; the rest isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -2006,6 +2007,46 @@ Built 2026-10-26 (migration 0026). What changed from the plan above, and why:
   must agree to again: nothing new is collected unless someone shares or
   connects. A notice should go out before deploying.
 
+### Sharing ties, plans and workshops as built
+
+Built 2026-10-26 (no migration). What changed from the plan above, and why:
+
+- **Share is in each saved item's dialog** (tie, workshop, and the plan
+  dialog's actions beside Archive and Delete), and shares the item as last
+  saved, not what's typed. The dialog (`share-item-dialog.js`) loads what
+  the form doesn't have: my profile (to mark me), the location's place and
+  the drawings and poses. Every field is a tickbox, all ticked, except
+  what the item can't do without (a tie's date and type, a workshop's
+  title and dates, a plan's title). The snapshot is built and read by
+  `share-item.js` (pure), strictly, like a shared profile.
+- **People's notes and ratings on a tie aren't offered**: the tie form
+  never loads or shows them (only the export has them), so the sender
+  couldn't see what they'd be sending.
+- **"Your name on it"**: when my profile is on the item, the dialog asks
+  the name to show for me (blank while it's still "Me"), and that person
+  is marked `sender`.
+- **A person is on an item once**, strictly, as the plan says, even though
+  a tie allows someone in two roles: no two shared people can be the same
+  one of mine (`share-people.js`). The suggestions follow the plan; a
+  match already suggested for someone else falls back to New person.
+- **The location and the tie's plans get a choice too** (asked 2026-10-26):
+  the name match or New, so nothing is matched silently. A new location is
+  added active, not as an archived one-off.
+- **Through the import, with one change**: an item sent with `match: false`
+  is always added, never matched by name (`src/data/import-plan.js`), so a
+  New person named like one of mine stays new, and a shared plan isn't
+  swallowed by one of mine with its title. People, locations and plans
+  chosen from my journal aren't sent at all; the page fills in their ids
+  (`share-to-import.js`) before the import swaps the share's ids for mine.
+  Drawings and poses are saved one by one afterwards, in the shared order
+  (each goes last as it's saved, so no reordering is needed).
+- **Already in my journal?** A tie or workshop is checked with the
+  import's duplicate preview (one with anything new can't be a
+  duplicate); a plan, by the same title, description and notes. Either
+  way the page says so and offers **Add another copy** (asked 2026-10-26).
+- **Photos and videos** aren't shared yet (phase 6); the dialog says so
+  when the item has some.
+
 ### Later: Connections (Option B)
 
 Planned once Option A is in use; built on its `connections`.
@@ -2158,7 +2199,9 @@ tests and the walkthrough included.
    by me and the export; PRIVACY.md, and a notice. Tests: `test/db/` for
    the triggers and index, API for accept, remove, account deletion
    from either side and import (kept, refused, another account's), the walkthrough for the disclosures and the icon.
-5. **Ties, plans and workshops** (3 days). A Share button on each dialog,
+5. **Ties, plans and workshops** (3 days). *Built 2026-10-26, no
+   migration; see "Sharing ties, plans and workshops as built" for what
+   changed.* As first planned: A Share button on each dialog,
    choosing fields; the snapshot built from what the page already has
    open; the preview with "Who is this?" for each person
    (`share-people.js`, pure); adding through the import code. Drawings and

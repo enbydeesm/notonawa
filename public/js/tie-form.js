@@ -1,9 +1,9 @@
 // The "Log a tie" form, in a pop-up dialog opened from the + button. The
-// same form edits a tie (opened from its title in the list), with a Delete
-// button too.
+// same form edits a tie (opened from its title in the list), with Delete and
+// Share icons beside its ✕.
 
 import { api, errorMessage } from "./api.js";
-import { h, $, showMessage, privateField } from "./dom.js";
+import { h, $, showMessage, privateField, removeX } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today, capitalise } from "./format.js";
 import { pickTags } from "./tag-picker.js";
@@ -15,6 +15,9 @@ import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, forgetSearch, open } from "./vault.js";
 import { visualSection } from "./visuals-ui.js";
+import { openShareItem } from "./share-item-dialog.js";
+import { dialogHeader, iconButton } from "./dialog-icons.js";
+import { watchChanges, guardClose } from "./form-changes.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -69,17 +72,17 @@ function showTieForm(tie) {
       source: sources.locations, input: { name: "location_id" }, onError,
     });
     const showLocationButton = addButton("tie-location-show", "Add location", showLocation);
-    const locationRow = h("div", { className: "picker-row", hidden: true },
+    const locationRow = h("div", { className: "picker-row removable", hidden: true },
       location.element,
-      h("button", { type: "button", id: "tie-location-remove", "aria-label": "Remove location", onclick: removeLocation }, "✕"));
+      Object.assign(removeX("Remove location", removeLocation), { id: "tie-location-remove" }));
     // Editing a tie whose location was deleted: shown until it's removed.
-    const deletedLocationRow = h("div", { className: "picker-row kept-deleted", id: "tie-location-deleted", hidden: true },
+    const deletedLocationRow = h("div", { className: "picker-row removable kept-deleted", id: "tie-location-deleted", hidden: true },
       h("span", { className: "deleted" }, "(location deleted)"),
-      h("button", { type: "button", "aria-label": "Remove location", onclick: removeDeletedLocation }, "✕"));
+      removeX("Remove location", removeDeletedLocation));
     const addParticipantButton = addButton("tie-add-participant", "Add person", () => participants.add());
     const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
-    const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, "Save tie");
+    const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, tie ? "Save changes" : "Save tie");
     const visuals = visualSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
 
     const form = h("form", { id: "tie-form", onsubmit: save },
@@ -124,16 +127,29 @@ function showTieForm(tie) {
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("tie-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
-      tie ? h("button", { type: "button", className: "danger dialog-delete", id: "tie-delete", onclick: confirmDelete }, "Delete tie") : null,
       message
     );
 
     // Unlike the confirmation dialogs, tapping outside doesn't close this
-    // one, so a stray tap can't throw away a half-written tie. Esc still does.
+    // one, so a stray tap can't throw away a half-written tie. Esc and ✕
+    // do, asking first if anything's changed.
+    const heading = h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie");
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "tie-form-heading" },
-      h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie"),
+      dialogHeader(heading, [
+        tie ? iconButton("delete", { id: "tie-delete", label: "Delete tie", onclick: confirmDelete }) : null,
+        // As last saved: the share is a copy of the tie, not of what's typed.
+        tie ? iconButton("share", { id: "tie-share", label: "Share tie", onclick: () => shareTie() }) : null,
+        iconButton("close", { id: "tie-close", label: "Close", onclick: () => close() }),
+      ]),
       form);
+    // Editing, Save changes waits for a change. Kept rows (deleted links)
+    // have no fields, so they're counted here, with the tags and any
+    // visuals waiting for a new tie to be saved.
+    const changes = watchChanges({
+      form, button: saveButton, editing: () => !!tie, ignore: visuals.element,
+      extra: () => [tags, [...form.querySelectorAll(".kept-deleted:not([hidden])")].length, visuals.waiting],
+    });
+    const close = guardClose(dialog, changes.changed);
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
@@ -152,7 +168,7 @@ function showTieForm(tie) {
 
     /** @param {HTMLElement} row */
     function removeButton(row) {
-      return h("button", { type: "button", "aria-label": "Remove", onclick: () => row.remove() }, "✕");
+      return removeX("Remove", () => row.remove());
     }
 
     function showLocation() {
@@ -182,7 +198,7 @@ function showTieForm(tie) {
      * @param {any[]} text
      */
     function addDeletedRow(rows, linkId, ...text) {
-      const row = h("div", { className: "picker-row kept-deleted", "data-link-id": linkId }, h("span", {}, text));
+      const row = h("div", { className: "picker-row removable kept-deleted", "data-link-id": linkId }, h("span", {}, text));
       row.append(removeButton(row));
       rows.append(row);
     }
@@ -196,7 +212,7 @@ function showTieForm(tie) {
         addDeletedRow(planRows, existing.id, h("span", { className: "deleted" }, planLabel(existing).text));
         return;
       }
-      const row = h("div", { className: "picker-row" });
+      const row = h("div", { className: "picker-row removable" });
       const plan = searchPicker({
         kind: "plans", id: `tie-plan-${++rowCount}`, label: { text: "Plan" },
         source: sources.plans, input: { className: "plan" }, onError,
@@ -249,9 +265,12 @@ function showTieForm(tie) {
       if (tie || savedId || !locationRow.hidden) return;
       const home = sources.locations.active.find((item) => item.isDefault);
       if (!home) return;
+      // Where a new tie starts, not a change (unless something else was).
+      const untouched = !changes.changed();
       location.pick(home);
       locationRow.hidden = false;
       showLocationButton.hidden = true;
+      if (untouched) changes.reset();
     }
 
     function collectTie() {
@@ -270,6 +289,16 @@ function showTieForm(tie) {
         data.keep_deleted = { participants: participants.kept(), plans: kept(planRows), location: !deletedLocationRow.hidden };
       }
       return data;
+    }
+
+    async function shareTie() {
+      if (!tie) return;
+      showMessage(message, "");
+      try {
+        await openShareItem("tie", tie);
+      } catch (err) {
+        showMessage(message, "Couldn't share it: " + errorMessage(err), true);
+      }
     }
 
     async function confirmDelete() {
@@ -329,11 +358,12 @@ function showTieForm(tie) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
+      if (!changes.canSave()) return; // editing, with nothing changed
       if (visuals.busy) {
         showMessage(message, "Wait for the visuals to finish, then save.", true);
         return;
       }
-      saveButton.disabled = true;
+      changes.busy(true);
       showMessage(message, "Saving…");
       try {
         // The notes are sealed here, on the device, before they're sent.
@@ -354,13 +384,17 @@ function showTieForm(tie) {
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
       } finally {
-        saveButton.disabled = false;
+        changes.busy(false);
       }
     }
 
     if (tie) fill(tie);
+    changes.reset();
     document.body.append(dialog);
     dialog.showModal();
+    // A saved tie opens on its heading, not a text box (which would open
+    // the keyboard); a new one, on its title.
+    (tie ? heading : /** @type {HTMLElement} */ ($("#tie-title", form))).focus();
     loadPickers();
   });
 }

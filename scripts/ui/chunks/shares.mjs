@@ -36,15 +36,15 @@ export default async function () {
   await freshAccount();
   console.log("Shares");
   await go("/people");
-  check("my own profile has Share my profile, centered on the title's row, and no one else's does", await run(`
+  check("my own profile has a Share my profile icon on the title's row, left of ✕, and no one else's does", await run(`
     $("#add-person").click(); await wait(300); set("#person-name", "Robin"); await submit();
-    await openPerson("Robin"); const onRobin = $("#person-share").hidden; $("[data-cancel-edit]").click(); await wait(200);
-    await openPerson("Me"); const onMe = $("#person-share").hidden;
-    // On the title's row, in the middle of the dialog.
+    await openPerson("Robin"); const onRobin = !$("#person-share"); $("[data-cancel-edit]").click(); await wait(200);
+    await openPerson("Me"); const onMe = !$("#person-share");
+    // On the title's row, just left of ✕.
     const box = (el) => el.getBoundingClientRect();
-    const mid = (r) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
-    const [x, y] = mid(box($("#person-share"))), [dx] = mid(box($("#person-dialog"))), [, hy] = mid(box($("#person-form-heading")));
-    const placed = [Math.abs(x - dx) < 3, Math.abs(y - hy) < 6];
+    const mid = (r) => (r.top + r.bottom) / 2;
+    const share = box($("#person-share")), close = box($("#person-close"));
+    const placed = [Math.abs(mid(share) - mid(box($("#person-form-heading")))) < 6, share.right <= close.left];
     set("#person-pronouns", "they/them"); set("#person-default_role", "top"); set("#person-based_in", "Seattle, WA"); set("#person-about", "Rigger, mostly floor");
     set("#person-notes", "My private note"); $("#person-add-alias").click();
     const row = $(".alias-row"); row.querySelector("select").value = "instagram"; row.querySelector("input").value = "@jude";
@@ -54,14 +54,15 @@ export default async function () {
     await openPerson("Me"); $("#person-share").click(); await wait(300);
     const fields = [...document.querySelectorAll(".share-field")].map((l) => [l.innerText, l.querySelector("input").checked]);
     const state = [$("#share-profile-name").value, $("#share-profile-name").required, fields, $("#share-profile-expires").value,
-      $("#share-profile-uses").value, $("#share-profile-warning").hidden, document.body.innerText.includes("My private note"), leakyFields()];
+      $("#share-profile-uses").value, $("#share-profile-warning").hidden, document.body.innerText.includes("My private note"), leakyFields(),
+      $("#share-profile-intro").hidden, !!$("#share-profile-heading").parentElement.querySelector("[aria-controls=share-profile-intro]")];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = [$("#share-profile-warning").hidden, $("#share-profile-warning").textContent.startsWith("Anyone who ever sees")];
     $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
     return [state, warned];`),
   [["", true, [["Pronouns: they/them", true], ["Usual role: Top", true], ["Instagram: @jude", true], ["Based in: Seattle, WA", true],
     ["Educator: No", true], ["About me: Your shareable notes about yourself. Your private notes are never shared.", true]],
-  "1d", "one", true, false, []], [false, true]]);
+  "1d", "one", true, false, [], true, true], [false, true]]);
 
   check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
     await openPerson("Me"); $("#person-share").click(); await wait(300);

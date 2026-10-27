@@ -25,17 +25,17 @@ export default async function () {
     return [first, roles, adding, closed, personCard("Sam"), personNames()];`),
     [[["Me"], ["Me", null, null, false, [], 1], true], ["None", "Top", "Bottom", "Self tie", "Spotter", "Photographer"],
       [true, "Add a person", ["Close"], "Add person"], true, ["Sam", "they/them", "Bottom", false, [], 1], ["Me", "Alex", "Sam"]]);
-  check("'This is me' shows only on my own profile, ticked and greyed out, which can't be archived or deleted", await run(`
+  check("'This is me' shows only on my own profile, ticked and greyed out, under the heading's row, which can't be archived or deleted", await run(`
     $("#add-person").click(); await wait(300); const onAdd = $("#person-self-flag").hidden; $("[data-cancel-edit]").click(); await wait(200);
     await openPerson("Sam"); const onSam = [$("#person-self-flag").hidden, personButtons()]; $("[data-cancel-edit]").click(); await wait(200);
     await openPerson("Me"); const box = $("[name=is_self]");
     const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
-    const onMe = [$("#person-self-flag").hidden, box.checked, box.disabled, Math.abs(mid($("#person-self-flag")) - mid($("#person-form-heading"))) < 3, personButtons()];
+    const onMe = [$("#person-self-flag").hidden, box.checked, box.disabled, mid($("#person-self-flag")) > $("#person-form-heading").getBoundingClientRect().bottom, personButtons()];
     $("[data-cancel-edit]").click(); await wait(200);
     const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
     const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
     return [onAdd, onSam, onMe, $("#person-dialog").open, refused];`),
-    [true, [true, ["Close", "Archive", "Delete"]], [false, true, true, true, ["Close"]], false, [400, 400]]);
+    [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false, [400, 400]]);
   check("the + comes first on its card; Educator sits on the Name row and 'This is me' on the heading's, both at the right", await run(`
     const add = $("#add-person"), label = $("#add-person-label"), addCard = add.closest(".card");
     const plusFirst = [addCard.firstElementChild === add, add.getBoundingClientRect().left - addCard.getBoundingClientRect().left < 40,
@@ -104,17 +104,17 @@ export default async function () {
     [[["Me", "Alex", "Sam"], "Sorted newest first", "Sort by name"], [["Me", "Alex", "Sam"], "Sorted A to Z"],
       [["Me", "Sam", "Alex"], "Sorted Z to A"], "Sorted newest first", ["Sam"], ["Sam"], [[], "No matches."], "people-search", true, []]);
   check("archiving from the dialog closes it and hides them from the list", await run(`
-    await openPerson("Alex"); [...document.querySelectorAll("#person-dialog button")].find((b) => b.textContent === "Archive").click(); await wait(800);
+    await openPerson("Alex"); $("#person-dialog [aria-label='Archive person']").click(); await wait(800);
     return [$("#person-dialog").open, personNames()];`), [false, ["Me", "Sam"]]);
   check("an archived person's dialog offers Restore", await run(`
     set("#show-archived", true); await wait(600); const names = personNames();
     await openPerson("Alex"); const buttons = personButtons(); $("[data-cancel-edit]").click(); await wait(200);
-    return [names, buttons];`), [["Alex"], ["Close", "Restore", "Delete"]]);
+    return [names, buttons];`), [["Alex"], ["Delete person", "Restore person", "Close"]]);
   check("tapping a person's row, not just their name, opens them", await run(`
     $("#list .item").click(); await wait(500);
     const opened = [$("#person-dialog").open, $("#person-name").value, personButtons()];
     $("[data-cancel-edit]").click(); await wait(200);
-    return opened;`), [true, "Alex", ["Close", "Restore", "Delete"]]);
+    return opened;`), [true, "Alex", ["Delete person", "Restore person", "Close"]]);
 
   // Until profile invites are built, only an import puts About on someone
   // else's card: this adds one through the API, as an import would.

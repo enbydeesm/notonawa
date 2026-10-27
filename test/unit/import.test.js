@@ -130,6 +130,35 @@ describe("parseImportTies", () => {
   });
 });
 
+describe("planItems: match: false", () => {
+  const mine = {
+    people: [{ id: "me", name: "Me", is_self: 1, archived_at: null }, { id: "sam", name: "Sam", archived_at: null }],
+    locations: [{ id: "studio", name: "Studio", archived_at: null }],
+    plans: [{ id: "tk", name: "TK", archived_at: null }],
+    tags: [],
+  };
+
+  it("adds a person, location or plan marked so even when one of mine has its name; the rest still match", () => {
+    const items = parseImportItems({
+      people: [{ id: "a", name: "sam", match: false }, { id: "b", name: "Sam" }],
+      locations: [{ id: "l", name: "Studio", match: false }],
+      plans: [{ id: "p", title: "TK", match: false, tags: ["box"] }],
+    });
+    expect(items.people.map((p) => p.always_new)).toEqual([true, false]);
+    const plan = planItems(items, mine, counter());
+    expect(plan.people.map((p) => [p.name, p.matched, p.id])).toEqual([["sam", false, "new-1"], ["Sam", true, "sam"]]);
+    expect(plan.locations.map((l) => l.matched)).toEqual([false]);
+    expect(plan.plans.map((p) => p.matched)).toEqual([false]);
+    expect(plan.rows.planTags).toEqual([{ plan_id: plan.plans[0].id, name: "box" }]);
+  });
+
+  it("only takes false: anything else matches by name as before", () => {
+    const items = parseImportItems({ people: [{ id: "a", name: "Sam", match: "false" }, { id: "b", name: "Me", match: 0 }] });
+    expect(items.people.map((p) => p.always_new)).toEqual([false, false]);
+    expect(planItems(items, mine, counter()).people.map((p) => p.matched)).toEqual([true, true]);
+  });
+});
+
 describe("planItems: the default location", () => {
   const file = (/** @type {Record<string, unknown>[]} */ locations) => parseImportItems({ locations });
   const mine = { people: [], plans: [], tags: [] };

@@ -10,6 +10,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
+  "share-items",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -19,7 +20,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65,
+  shares: 65, "share-items": 45,
 };
 
 /**
@@ -54,7 +55,8 @@ export const SHARED = [
   "src/index.js", "src/errors.js", "src/http.js", "src/parse.js", "src/sql.js", "src/security-headers.js",
   "src/encryption/config.js",
   "public/index.html", "public/app.css", "public/_headers",
-  "public/js/app.js", "public/js/api.js", "public/js/dom.js", "public/js/dialog.js", "public/js/router.js",
+  "public/js/app.js", "public/js/api.js", "public/js/dom.js", "public/js/dialog.js", "public/js/dialog-icons.js",
+  "public/js/form-changes.js", "public/js/router.js",
   "public/js/navigate.js", "public/js/nav.js", "public/js/format.js", "public/js/vault.js",
   "public/js/crypto-worker.js", "public/js/crypto/fields.js", "public/js/crypto/keys.js",
   "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc",
@@ -249,12 +251,15 @@ export const AREAS = [
     files: ["src/shares/", "src/connections/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
       "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
       "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js",
-      "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js"],
+      "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js",
+      "public/js/share-save.js", "public/js/open-profile.js", "public/js/share-item.js", "public/js/share-people.js",
+      "public/js/share-to-import.js", "public/js/share-item-dialog.js", "public/js/open-item.js"],
     tests: ["test/api/shares.test.js", "test/unit/shares-parse.test.js", "test/unit/crypto-share.test.js",
       "test/unit/vault-core.test.js", "test/unit/share-options.test.js", "test/unit/profile-share.test.js",
       "test/unit/contact-merge.test.js", "test/unit/qr.test.js", "test/api/connections.test.js", "test/db/connections.test.js",
-      "test/unit/connections-parse.test.js", "test/unit/connection-text.test.js"],
-    ui: ["shares"],
+      "test/unit/connections-parse.test.js", "test/unit/connection-text.test.js", "test/unit/share-item.test.js",
+      "test/unit/share-people.test.js", "test/unit/share-to-import.test.js", "test/api/data-import.test.js"],
+    ui: ["shares", "share-items"],
   },
   {
     name: "drawings",
@@ -292,8 +297,10 @@ export const AREAS = [
       "public/js/import-presets.js"],
     tests: ["test/api/data-export.test.js", "test/api/data-import.test.js", "test/unit/data-shape.test.js",
       "test/unit/import.test.js", "test/unit/csv-import.test.js", "test/unit/journal-fields.test.js",
-      "test/unit/import-photos.test.js", "test/unit/zip.test.js", "test/unit/import-presets.test.js"],
-    ui: ["data"],
+      "test/unit/import-photos.test.js", "test/unit/zip.test.js", "test/unit/import-presets.test.js",
+      "test/unit/share-to-import.test.js"],
+    // Adding a shared tie, plan or workshop goes through the import.
+    ui: ["data", "share-items"],
   },
   {
     name: "insights",

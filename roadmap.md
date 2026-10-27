@@ -171,7 +171,9 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 2	Shares on the server (no pages)	0022 shares, share_claims	2–3	The security-critical part, worth reviewing without page code around it
 3	Profile invites + QR + /open + merge dialog	none	2–3	Smallest piece people can use; needs the QR library -->
 <!-- 4	Account ids and connections, link icon	0023 connections + triggers	2	Database-enforced rules, disclosures, PRIVACY.md -->
-5	Ties, plans, workshops (drawings and poses included)	none	3	Reuses import; "Which of these is you?"
+<!-- 5	Ties, plans, workshops (drawings and poses included)	none	3	Reuses import; "Which of these is you?" -->
 6	Photos and videos in shares	none	2	R2, sizes and video carry their own risk
 7	Passphrase and verification code	none	2–3	Both only change creating and opening a share
 8	View-only	none	2–3	Separate path: shown but never added to the journal
+
+- sick flip simulator 

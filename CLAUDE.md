@@ -114,7 +114,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `import-db.js` (`json_each` inserts) for `POST /api/data/import/items`,
   `/api/data/import/ties` and `/api/data/import/workshops` (all take
   `preview`; workshops are found duplicates as ties are, comparing their
-  description and notes on the device). Drawings are in the export as
+  description and notes on the device). A person, location or plan sent
+  with `match: false` is always added, never matched by name (adding a
+  shared tie, plan or workshop). Drawings are in the export as
   their lines (a zip with an SVG of each), and imported by the page
   through `POST /api/drawings`. See considerations.md,
   "Export, import and deletion as built".
@@ -193,8 +195,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   is logged, and doesn't fail the request).
 - `src/shares/`: shares, sealed copies of a profile, tie, plan or workshop
   that someone else opens with a link (migrations 0022 and 0023; see
-  considerations.md, "Sharing between accounts"; only profile invites have
-  pages so far). `parse.js` (pure: kinds,
+  considerations.md, "Sharing between accounts"; profile invites, ties,
+  plans and workshops have pages, photos in shares come later). `parse.js` (pure: kinds,
   expiries, limits (50 live an account, a 2 MB snapshot, counted in the
   1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
   `<owner id>/shares/<share id>/snapshot` in the photos bucket), `db.js`,
@@ -311,11 +313,23 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   being opened, its key taken out of the address on load and kept in
   memory through sign-in and unlock; forgotten on lock), `qr.js` (pure: a
   link's QR code as one SVG path, from `vendor/uqr.js`), `share-code.js`
-  (a share's code, link, Copy link and share sheet), `share-profile-dialog.js`
-  ("Share my profile", from my own profile in People), `shared-by-me.js`
+  (a share's code, link, Copy link and share sheet), `share-save.js`
+  (sealing and saving a new share, for every Share dialog),
+  `share-profile-dialog.js` ("Share my profile", from my own profile in
+  People), `share-item.js` (pure: a shared tie, plan or workshop, built
+  from the ticked fields and read strictly; people as names and roles, the
+  sender marked), `share-item-dialog.js` (Share in a saved tie's, plan's or
+  workshop's dialog), `share-people.js` (pure: Who is this? suggestions for
+  each person, and the location's and plans' choices; a person is on an
+  item once), `share-to-import.js` (pure: a shared item and the choices as
+  an import, new items with `match: false`, mine filled in by id),
+  `shared-by-me.js`
   (Your data's list: Show code, Revoke; and Connections: Add to Person,
-  Remove), `views/open.js` (`/open`: opening a share and adding it; Connect
-  our accounts when it offers to),
+  Remove), `views/open.js` (`/open`: opening a share, then
+  `open-profile.js` (adding a profile invite; Connect our accounts when it
+  offers to) or `open-item.js` (a tie, plan or workshop: Who is this?,
+  Add to my journal through the import, Add another copy when it looks
+  like it's there already)),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -395,8 +409,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them; three.js
   is bundled there from only the parts in `scripts/vendor/three-entry.mjs`,
   with our own types, `scripts/vendor/three.d.ts`), `lock-rules.js` (pure) and `lock.js`
-  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `opensOnTap`: a list's
+  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
+  the explanation it shows), `removeX` (the small × on a chosen value's
+  corner, like a tag's), `opensOnTap`: a list's
   card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),
+  `dialog-icons.js` (an edit dialog's heading row: the heading, then
+  delete (red), archive or restore, share and ✕ icons; ties and workshops
+  have no archive, people share only "Me"; a saved item's dialog opens on
+  its heading, not a text box, so no keyboard), `form-changes.js` (whether
+  an edit form has changes since it opened: editing a saved tie, plan,
+  person, location or workshop, Save changes is muted and does nothing until
+  it has (a new one's Save stays on); ✕ and Esc ask "Discard your
+  changes?" first, `guardClose`),
   `format.js`, `ties-view.js` and `tie-search.js` (pure), `plans-view.js`
   (pure: the Plans search, done on the device over the loaded plans and
   kept only in memory, and a plan's tie count and average rating),
@@ -433,8 +457,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `resource-page.js` (list/edit pages; with `dialog`, the form is in a
   dialog that + and tapping a row open, as on Plans, People and Locations;
   with `actionsInDialog`, the rows have no buttons, tapping one anywhere
-  opens it, archived ones too, and Archive and Delete are in the dialog,
-  as on all three; `itemClass`: Plans' rows are cards like ties'), `aliases.js` (pure: a person's social and scene
+  opens it, archived ones too, and Delete and Archive (or Restore) are
+  icons on the dialog's heading row, as on all three; `extraActions`:
+  Share after them (a plan's; Share my profile on "Me"); `changeState`:
+  what else counts as a change (a plan's tags); `itemClass`: Plans' rows are cards like ties'), `aliases.js` (pure: a person's social and scene
   names, sealed as one JSON field; `personMatch`, what a people search
   finds and shows), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure

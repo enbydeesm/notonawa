@@ -205,7 +205,8 @@ export async function replaceAuthenticator(options) {
 const PAGE_HELPERS = `
   const $ = (s) => document.querySelector(s);
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change")); };
+  // Bubbling, as typing's are: an edit form watches for changes (form-changes.js).
+  const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change", { bubbles: true })); };
   const optionValue = (select, text) => [...select.options].find((o) => o.text === text).value;
   // The tie form's search pickers: what one lists, and picking from one.
   const pickerList = (box) => [...document.querySelectorAll("#" + box.id + "-list li")].map((li) => li.innerText.replace(/\\n+/g, " | "));
@@ -239,7 +240,7 @@ const PAGE_HELPERS = `
       item.querySelector(".tie-place").click();
       if (label !== "Edit") {
         await wait(300);
-        [...document.querySelectorAll("dialog[open] [data-item-actions] button")].find((b) => b.textContent === label).click();
+        [...document.querySelectorAll("dialog[open] [data-item-actions] button")].find((b) => b.getAttribute("aria-label").startsWith(label)).click();
       }
     }
     await wait(500);
@@ -289,7 +290,15 @@ const PAGE_HELPERS = `
     return [name, item.querySelector(".name-title .item-meta")?.textContent ?? null, item.querySelector(".role-tag")?.textContent ?? null,
       !!item.querySelector(".educator-icon"), [...item.querySelectorAll(":scope > .item-meta")].map((m) => m.textContent), item.querySelectorAll("button").length];
   };
-  const personButtons = () => [...document.querySelectorAll("#person-dialog .dialog-actions button")].map((b) => b.textContent);
+  // An edit dialog's icons on its heading row, by name (dialog-icons.js).
+  const headerIcons = (sel) => [...document.querySelectorAll(sel + " .dialog-header button")].map((b) => b.getAttribute("aria-label"));
+  const personButtons = () => headerIcons("#person-dialog");
+  // An edit dialog's ✕, saying Discard changes if it asks.
+  const closeDiscarding = async (sel) => {
+    $(sel).click(); await wait(300);
+    const discard = [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === "Discard changes");
+    if (discard) { discard.click(); await wait(300); }
+  };
   const clickDialog = async (label) => { [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === label).click(); await wait(800); };
 `;
 

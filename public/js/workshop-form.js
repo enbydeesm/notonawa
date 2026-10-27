@@ -5,7 +5,7 @@
 // educator is one I taught.
 
 import { api, errorMessage } from "./api.js";
-import { h, $, showMessage, privateField } from "./dom.js";
+import { h, $, showMessage, privateField, removeX, infoTip } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today } from "./format.js";
 import { pickTags } from "./tag-picker.js";
@@ -16,6 +16,9 @@ import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, open } from "./vault.js";
 import { visualSection } from "./visuals-ui.js";
+import { openShareItem } from "./share-item-dialog.js";
+import { dialogHeader, iconButton } from "./dialog-icons.js";
+import { watchChanges, guardClose } from "./form-changes.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -86,22 +89,24 @@ function showWorkshopForm(workshop) {
       id: "workshop-participants", idPrefix: "workshop-participant", source: sources.people, onError, exclude: chosen,
       picker: { onAdd: (item) => (sources.educators.elsewhere ??= []).push(item) },
     });
-    const selfHint = h("p", { className: "hint", id: "workshop-self-hint", hidden: true },
+    // Behind a "?" beside Educators, shown once my own profile isn't marked Educator.
+    const selfHint = infoTip("workshop-self-hint", "About logging a workshop you taught",
       "To log a workshop you taught, tick Educator on your own profile in People.");
+    selfHint.button.hidden = true;
 
     const location = searchPicker({
       kind: "locations", id: "workshop-location", label: { labelledBy: "workshop-location-label" },
       source: sources.locations, input: { name: "location_id" }, onError,
     });
     const showLocationButton = addButton("workshop-location-show", "Add location", showLocation);
-    const locationRow = h("div", { className: "picker-row", hidden: true },
+    const locationRow = h("div", { className: "picker-row removable", hidden: true },
       location.element,
-      h("button", { type: "button", id: "workshop-location-remove", "aria-label": "Remove location", onclick: removeLocation }, "✕"));
-    const deletedLocationRow = h("div", { className: "picker-row kept-deleted", id: "workshop-location-deleted", hidden: true },
+      Object.assign(removeX("Remove location", removeLocation), { id: "workshop-location-remove" }));
+    const deletedLocationRow = h("div", { className: "picker-row removable kept-deleted", id: "workshop-location-deleted", hidden: true },
       h("span", { className: "deleted" }, "(location deleted)"),
-      h("button", { type: "button", "aria-label": "Remove location", onclick: removeDeletedLocation }, "✕"));
+      removeX("Remove location", removeDeletedLocation));
     const tagList = h("div", { className: "tag-row", id: "workshop-tags" });
-    const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, "Save workshop");
+    const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, workshop ? "Save changes" : "Save workshop");
     const visuals = visualSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
     const startInput = privateField(h("input", {
       id: "workshop-start_date", name: "start_date", type: "date", value: today(), required: true,
@@ -114,7 +119,7 @@ function showWorkshopForm(workshop) {
       privateField(h("input", { id: "workshop-title", name: "title", required: true, maxLength: 200, placeholder: "e.g. Intro to floor work" })),
       h("div", { className: "row" },
         h("div", { className: "date-field" }, h("label", { htmlFor: "workshop-start_date" }, "Start date"), startInput),
-        h("div", { className: "date-field" }, h("label", { htmlFor: "workshop-end_date" }, "End date"), endInput)),
+        h("div", { className: "date-field" }, h("label", { htmlFor: "workshop-end_date" }, "End date (optional)"), endInput)),
       h("div", { className: "row" },
         h("div", {},
           h("div", { className: "label-row" },
@@ -124,11 +129,12 @@ function showWorkshopForm(workshop) {
           h("label", { htmlFor: "workshop-attendee_count" }, "Attendees"),
           privateField(h("input", {
             id: "workshop-attendee_count", name: "attendee_count", type: "number", min: "0", max: "100000", inputMode: "numeric",
+            placeholder: "10",
           })))),
       h("div", { className: "label-row" },
-        h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add())),
+        h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add()), selfHint.button),
+      selfHint.text,
       educators.element,
-      selfHint,
       h("div", { className: "label-row" },
         h("label", {}, "Participants"), addButton("workshop-add-participant", "Add participant", () => participants.add())),
       participants.element,
@@ -149,16 +155,27 @@ function showWorkshopForm(workshop) {
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("workshop-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
-      workshop ? h("button", { type: "button", className: "danger dialog-delete", id: "workshop-delete", onclick: confirmDelete }, "Delete workshop") : null,
       message
     );
 
     // As with the tie form, tapping outside doesn't close it (a stray tap
-    // can't throw away a half-written workshop); Esc still does.
+    // can't throw away a half-written workshop); Esc and ✕ do, asking
+    // first if anything's changed.
+    const heading = h("h2", { id: "workshop-form-heading" }, workshop ? "Edit workshop" : "Add a workshop");
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "workshop-form-heading" },
-      h("h2", { id: "workshop-form-heading" }, workshop ? "Edit workshop" : "Add a workshop"),
+      dialogHeader(heading, [
+        workshop ? iconButton("delete", { id: "workshop-delete", label: "Delete workshop", onclick: confirmDelete }) : null,
+        // As last saved: the share is a copy of the workshop, not of what's typed.
+        workshop ? iconButton("share", { id: "workshop-share", label: "Share workshop", onclick: () => shareWorkshop() }) : null,
+        iconButton("close", { id: "workshop-close", label: "Close", onclick: () => close() }),
+      ]),
       form);
+    // As on the tie form: kept rows, tags and visuals waiting count too.
+    const changes = watchChanges({
+      form, button: saveButton, editing: () => !!workshop, ignore: visuals.element,
+      extra: () => [tags, [...form.querySelectorAll(".kept-deleted:not([hidden])")].length, visuals.waiting],
+    });
+    const close = guardClose(dialog, changes.changed);
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
@@ -224,7 +241,7 @@ function showWorkshopForm(workshop) {
           ...pickerSource(people.filter((p) => p.is_educator), recentPeople),
           elsewhere: [...others.active, ...others.archived],
         });
-        selfHint.hidden = !people.some((p) => p.is_self && !p.is_educator);
+        selfHint.button.hidden = !people.some((p) => p.is_self && !p.is_educator);
         startAtDefaultLocation();
       } catch (err) {
         showMessage(message, "Couldn't load people and locations: " + errorMessage(err), true);
@@ -236,9 +253,12 @@ function showWorkshopForm(workshop) {
       if (workshop || savedId || !locationRow.hidden) return;
       const home = sources.locations.active.find((item) => item.isDefault);
       if (!home) return;
+      // Where a new workshop starts, not a change (unless something else was).
+      const untouched = !changes.changed();
       location.pick(home);
       locationRow.hidden = false;
       showLocationButton.hidden = true;
+      if (untouched) changes.reset();
     }
 
     function collect() {
@@ -254,6 +274,16 @@ function showWorkshopForm(workshop) {
         data.keep_deleted = { people: [...educators.kept(), ...participants.kept()], location: !deletedLocationRow.hidden };
       }
       return data;
+    }
+
+    async function shareWorkshop() {
+      if (!workshop) return;
+      showMessage(message, "");
+      try {
+        await openShareItem("workshop", workshop);
+      } catch (err) {
+        showMessage(message, "Couldn't share it: " + errorMessage(err), true);
+      }
     }
 
     async function confirmDelete() {
@@ -304,11 +334,12 @@ function showWorkshopForm(workshop) {
     /** @param {SubmitEvent} event */
     async function save(event) {
       event.preventDefault();
+      if (!changes.canSave()) return; // editing, with nothing changed
       if (visuals.busy) {
         showMessage(message, "Wait for the visuals to finish, then save.", true);
         return;
       }
-      saveButton.disabled = true;
+      changes.busy(true);
       showMessage(message, "Saving…");
       try {
         // The description, notes and album link are sealed here, on the device.
@@ -327,13 +358,17 @@ function showWorkshopForm(workshop) {
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
       } finally {
-        saveButton.disabled = false;
+        changes.busy(false);
       }
     }
 
     if (workshop) fill(workshop);
+    changes.reset();
     document.body.append(dialog);
     dialog.showModal();
+    // A saved workshop opens on its heading, not a text box (which would
+    // open the keyboard); a new one, on its title.
+    (workshop ? heading : /** @type {HTMLElement} */ ($("#workshop-title", form))).focus();
     loadPickers();
   });
 }

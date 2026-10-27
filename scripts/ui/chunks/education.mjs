@@ -43,9 +43,11 @@ export default async function () {
     ["+ | Add a Workshop", "Search workshops", ["Attended", "Taught", "Summary"], "Attended", true, false,
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above.", []]);
 
-  check("+ opens the form: educators are only people marked Educator, and it says how to log one I taught", await run(`
+  check("+ opens the form: educators are only people marked Educator, and a ? beside them says how to log one I taught", await run(`
     $("#add-workshop").click(); await wait(800);
-    const opened = [$("#workshop-form-heading").textContent, $("#workshop-start_date").value !== "", $("#workshop-self-hint").hidden];
+    const opened = [$("#workshop-form-heading").textContent, $("#workshop-start_date").value !== "", $("[aria-controls=workshop-self-hint]").hidden,
+      $("#workshop-self-hint").hidden, $("label[for=workshop-end_date]").textContent, $("#workshop-attendee_count").placeholder];
+    $("[aria-controls=workshop-self-hint]").click(); opened.push($("#workshop-self-hint").textContent);
     $("#workshop-add-educator").click(); await wait(50);
     const educator = lastBox("#workshop-educators"); educator.focus(); await wait(50);
     const offered = pickerList(educator); educator.blur();
@@ -54,7 +56,7 @@ export default async function () {
     const participant = lastBox("#workshop-participants"); participant.focus(); await wait(50);
     const participants = pickerList(participant).sort(); participant.blur();
     return [opened, offered, me, participants, leakyFields()];`),
-    [["Add a workshop", true, false], ["Sam"],
+    [["Add a workshop", true, false, true, "End date (optional)", "10", "To log a workshop you taught, tick Educator on your own profile in People."], ["Sam"],
       ["No matches.", '"Me" isn\'t marked as an educator. Tick Educator on them in People to choose them here.'], ["Me (you)", "Sam"], []]);
   check("someone chosen as an educator isn't offered as a participant", await run(`
     // "Sam" also finds their alias knotsam, so they're listed with it.
@@ -93,7 +95,7 @@ export default async function () {
   await go("/education");
   check("once Me is an educator, a workshop with me teaching is under Taught, not Attended", await run(`
     $("#add-workshop").click(); await wait(800);
-    const hint = $("#workshop-self-hint").hidden;
+    const hint = $("[aria-controls=workshop-self-hint]").hidden;
     $("#workshop-add-educator").click(); await wait(50);
     await choosePick(lastBox("#workshop-educators"), "Me", "Me (you)");
     document.querySelector("#workshop-educators .role").value = "top";

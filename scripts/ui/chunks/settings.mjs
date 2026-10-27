@@ -77,6 +77,11 @@ export default async function () {
     return [...shown, $("dialog") === null];`),
     [true, "What's new", RELEASES.slice(0, 10).map((r) => r.version), RELEASES[0].notes.length, RELEASES[0].intro?.length ?? 0,
       RELEASES[0].notes.reduce((n, note) => n + (typeof note === "string" ? 0 : note.sub.length), 0), true]);
+  check("from the menu, What's new opens at the top, the newest, and its ✕ closes it", await run(`
+    await openMenu(); $(".menu-whats-new").click(); await wait(400);
+    const d = $("dialog.whats-new[open]"), top = d.scrollTop, scrolls = d.scrollHeight > d.clientHeight;
+    $("#whats-new-close").click(); await wait(300);
+    return [top, scrolls, $("dialog") === null];`), [0, true, true]);
   await run(`await openMenu();`);
   check("the panel is on the right, full height", await run(`
     const r = $("dialog.menu-panel").getBoundingClientRect();
@@ -131,7 +136,7 @@ export default async function () {
     $("#tie-add-participant").click();
     for (let i = 0; i < 50 && !document.querySelector("dialog[open] .role"); i++) await wait(100);
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
-    $(".dialog-cancel").click(); await wait(300);
+    await closeDiscarding("#tie-close"); await wait(300);
     return [saved, tieRoles];`),
     [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION, hide_welcome: true }],
       ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);

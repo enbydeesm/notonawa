@@ -32,19 +32,19 @@ const MAX_ID_LENGTH = 100;
  *   file_id: string, name: string, pronouns: string | null, notes: string | null, is_self: 0 | 1,
  *   default_role: string | null, is_educator: 0 | 1, based_in: string | null, aliases: string | null,
  *   about: string | null, about_shared_on: string | null, connection_id: string | null,
- *   archived_at: string | null, profile_notes: ProfileNoteInput[],
+ *   archived_at: string | null, profile_notes: ProfileNoteInput[], always_new: boolean,
  * }} PersonInput
  * @typedef {Times & {
  *   file_id: string, name: string, notes: string | null,
  *   maps_url: string | null, city: string | null, state_province: string | null, country: string | null,
  *   latitude: number | null, longitude: number | null, is_default: 0 | 1,
- *   archived_at: string | null,
+ *   archived_at: string | null, always_new: boolean,
  * }} LocationInput
  * @typedef {Times & {
  *   file_id: string, title: string, stage: string, plan_type: string, tie_type: string | null,
  *   description: string | null, notes: string | null, album_url: string | null,
  *   est_difficulty: number | null, variation_of: string | null, version: number,
- *   archived_at: string | null, tags: string[],
+ *   archived_at: string | null, tags: string[], always_new: boolean,
  * }} PlanInput
  * @typedef {{ people: PersonInput[], locations: LocationInput[], plans: PlanInput[], tags: string[] }} ItemsInput
  *
@@ -266,6 +266,7 @@ function parsePerson(p) {
     connection_id: parseId(p.connection_id, true),
     ...archiveAndTimes(p),
     profile_notes: list(p.profile_notes, "Profile notes", MAX_ITEMS).map((n) => parseProfileNote(asObject(n))),
+    always_new: p.match === false,
   };
 }
 
@@ -293,6 +294,7 @@ function parseLocation(l) {
     file_id: /** @type {string} */ (parseId(l.id)),
     name, notes, maps_url: mapsUrl, city, state_province: stateProvince, country, latitude, longitude, is_default: isDefault,
     ...archiveAndTimes(l),
+    always_new: l.match === false,
   };
 }
 
@@ -310,6 +312,7 @@ function parsePlan(p) {
     version: toIntOrNull(p.version, 1, 1_000_000) ?? 1,
     ...archiveAndTimes(p),
     tags: parseTagNames(p.tags),
+    always_new: p.match === false,
   };
 }
 

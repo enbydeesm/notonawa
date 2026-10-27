@@ -11,7 +11,7 @@ export default async function () {
     const plusFirst = [addCard.firstElementChild === add, $("#locations-search").previousElementSibling === addCard];
     add.click(); await wait(300);
     const adding = [$("#location-dialog").open, $("#location-form-heading").textContent, $("#location-dialog button[type=submit]").textContent,
-      [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent)];
+      headerIcons("#location-dialog")];
     set("#location-name", "Studio"); set("#location-maps_url", "https://maps.app.goo.gl/abc");
     set("#location-city", "Seattle"); set("#location-state_province", "WA"); set("#location-country", "USA"); await submit();
     const closed = !$("#location-dialog").open;
@@ -43,16 +43,16 @@ export default async function () {
     const cardButtons = [...document.querySelectorAll("#list .item")].map((i) => i.querySelectorAll("button").length);
     await openItem("Studio");
     const state = [$("#location-form-heading").textContent, $("#location-name").value, $("#location-city").value, $("#location-state_province").value,
-      $("#location-country").value, $("[data-add-only]").hidden, [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent)];
+      $("#location-country").value, $("[data-add-only]").hidden, headerIcons("#location-dialog")];
     set("#location-city", "Tacoma"); await submit();
     const stored = (await (await fetch("/api/locations?archived=false")).json()).find((l) => l.name === "Studio");
     return [cardButtons, state, !$("#location-dialog").open, [stored.city, stored.state_province, stored.country]];`),
-    [[1, 1], ["Edit location", "Studio", "Seattle", "WA", "USA", true, ["Close", "Archive", "Delete"]], true, ["Tacoma", "WA", "USA"]]);
+    [[1, 1], ["Edit location", "Studio", "Seattle", "WA", "USA", true, ["Delete location", "Archive location", "Close"]], true, ["Tacoma", "WA", "USA"]]);
   check("one-off is in the archived list, and Restore is in its dialog", await run(`
     set("#show-archived", true); await wait(600); const archived = personNames();
-    await openItem("Hotel"); const buttons = [...document.querySelectorAll("#location-dialog .dialog-actions button")].map((b) => b.textContent);
+    await openItem("Hotel"); const buttons = headerIcons("#location-dialog");
     $("[data-cancel-edit]").click(); await wait(200); set("#show-archived", false); await wait(600);
-    return [archived, buttons];`), [["Hotel"], ["Close", "Restore", "Delete"]]);
+    return [archived, buttons];`), [["Hotel"], ["Delete location", "Restore location", "Close"]]);
   check("'Default on new ties' sits on the Name row, at the right, and isn't offered when archiving now", await run(`
     $("#add-location").click(); await wait(300);
     const flag = $("#location-default-flag"); const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
@@ -80,12 +80,12 @@ export default async function () {
     const found = [await search("stu"), await search("tacoma"), await search("canada"), await search("zz")];
     await search(""); $(".sort-button[data-sort=name]").click(); await wait(50);
     return [inCard, found, personNames()];`), ["locations-search", [["Studio"], ["Studio"], ["Old flat"], []], ["Old flat", "Studio"]]);
-  check("a new tie starts at the default location; then it's unset again", await run(`
+  check("a new tie starts at the default location (not a change: ✕ closes it without asking); then it's unset again", await run(`
     $("nav .nav-add").click(); await wait(1200);
     const start = [$("#tie-location").offsetParent !== null, $("#tie-location").value, $("#tie-location-show").hidden];
-    $("dialog[open] .dialog-cancel").click(); await wait(300);
+    $("#tie-close").click(); await wait(300); start.push(!document.querySelector("dialog[open]"));
     await openItem("Old flat"); $("#location-is_default").click(); await submit();
-    return [start, !!$("#list .item .badge")];`), [[true, "Old flat", true], false]);
+    return [start, !!$("#list .item .badge")];`), [[true, "Old flat", true, true], false]);
   check("tapping a location's row, not just its name, opens it", await run(`
     const row = [...document.querySelectorAll("#list .item")].find((i) => i.querySelector(".name-button").textContent === "Studio");
     row.click(); await wait(500);

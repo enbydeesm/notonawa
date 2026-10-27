@@ -16,12 +16,16 @@ export default async function () {
     $("#tie-location-show").click(); await wait(100);
     // No ties yet, so the newest added (sorted here: both were added the same second).
     const locations = [...document.querySelectorAll("#tie-location-list .combo-option")].map((o) => o.textContent).sort();
+    // Its × is small, on the box's top-right corner, and the box fills the row.
+    const row = $("#tie-location").closest(".picker-row").getBoundingClientRect(), x = $("#tie-location-remove").getBoundingClientRect();
+    const corner = [x.width <= 24, Math.abs(x.right - row.right) < 12, Math.abs(x.top - row.top) < 12,
+      Math.abs($("#tie-location").getBoundingClientRect().width - row.width) < 2];
     $("#tie-location-remove").click(); await wait(100);
     const hiddenAgain = [$("#tie-location").offsetParent === null, $("#tie-location-show").hidden];
-    return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
+    return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, corner, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
       document.querySelectorAll(".hank-button.filled").length + "/" + document.querySelectorAll(".hank-button").length,
       leakyFields()];`),
-    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, false], ["–", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
+    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, true, true, true], [true, false], ["–", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
   // Sorted: these were all added within the same second, so "newest" ties.
   check("people and plans pickers list the active ones", await run(`
     const person = lastBox("#tie-participants"), plan = lastBox("#tie-plans");
@@ -127,18 +131,28 @@ export default async function () {
     $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await wait(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_date").validity.valueMissing];
-    $("#tie-form .dialog-cancel").click(); await wait(600);
+    await closeDiscarding("#tie-close"); await wait(300);
     return [stayed, titles()];`), [[true, true], ["Floor session"]]);
   check("a tie needs a type: the form won't save on –", await run(`
     $(".nav-add").click(); await wait(600); set("#tie-title", "Typeless");
     $("#tie-save").click(); await wait(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_type").value, $("#tie-tie_type").validity.valueMissing];
-    $("#tie-form .dialog-cancel").click(); await wait(600);
+    await closeDiscarding("#tie-close"); await wait(300);
     return [stayed, titles()];`), [[true, "", true], ["Floor session"]]);
-  check("Cancel closes the dialog without saving", await run(`
+  check("✕ asks before throwing away what's typed: Keep editing stays, Discard changes closes without saving", await run(`
+    $(".nav-add").click(); await wait(600);
+    const top = () => [...document.querySelectorAll("dialog[open]")].pop();
+    $("#tie-close").click(); await wait(300);
+    const untouched = !document.querySelector("dialog[open]");
     $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
-    [...document.querySelectorAll("dialog button")].find((b) => b.textContent === "Cancel").click(); await wait(600);
-    return [!!document.querySelector("dialog"), titles()];`), [false, ["Floor session"]]);
+    $("#tie-close").click(); await wait(300);
+    const asked = [top().querySelector("h2").textContent, [...top().querySelectorAll("button")].map((b) => b.textContent)];
+    [...top().querySelectorAll("button")].find((b) => b.textContent === "Keep editing").click(); await wait(300);
+    const kept = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-title").value];
+    $("#tie-close").click(); await wait(300);
+    [...top().querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(600);
+    return [untouched, asked, kept, !!document.querySelector("dialog"), titles()];`),
+    [true, ["Discard your changes?", ["Discard changes", "Keep editing"]], [true, "Not saved"], false, ["Floor session"]]);
 
   check("saving the tie created and linked its tags", await run(`return tagsJson();`), ["Floor:1", "Futomomo:1"]);
   check("deleting a tag asks first, saying which ties use it", await run(`
@@ -155,7 +169,7 @@ export default async function () {
     document.querySelector("#tags-list .tag-toggle").click();
     $("#tags-search").closest("dialog").close(); await wait(300);
     const kept = tagChips("#tie-tags");
-    $("#tie-form .dialog-cancel").click(); await wait(600);
+    await closeDiscarding("#tie-close"); await wait(300);
     return [kept, !!document.querySelector("dialog")];`), [[], false]);
 
   console.log("+ on other tabs");
@@ -166,6 +180,6 @@ export default async function () {
   check("tapping a tie's card, not just its title, opens it", await run(`
     $(".tie-card .tie-date").click(); await wait(1000);
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, getComputedStyle($(".tie-card")).cursor];
-    $("#tie-form .dialog-cancel").click(); await wait(600);
+    await closeDiscarding("#tie-close"); await wait(300);
     return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged from Plans", "pointer"], false]);
 }

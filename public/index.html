@@ -129,7 +129,13 @@
     <!-- Adding and editing a plan. Ids start with "plan-": the tie form
          opens over it (from a linked tie). -->
     <dialog class="form-dialog" id="plan-dialog" aria-labelledby="plan-form-heading">
-      <h2 id="plan-form-heading">Add a plan</h2>
+      <!-- The heading, then Delete, Archive (or Restore), Share and ✕ as icons
+           (resource-page.js, actionsInDialog). -->
+      <div class="dialog-header">
+        <h2 id="plan-form-heading">Add a plan</h2>
+        <span class="dialog-icons" data-item-actions></span>
+        <button type="button" class="icon-button" id="plan-close" data-cancel-edit aria-label="Close" title="Close"></button>
+      </div>
       <form id="form">
         <label for="plan-title">Title</label>
         <input id="plan-title" name="title" required placeholder="e.g. Hip harness to futomomo" autocomplete="off" spellcheck="false">
@@ -186,19 +192,14 @@
         </div>
         <div class="tag-row" id="plan-tags"></div>
 
-        <!-- A saved plan's ties: tap one to open it (views/plans.js). -->
-        <div id="plan-linked" hidden>
-          <label id="plan-linked-label">Linked ties</label>
+        <!-- A saved plan's ties, folded away until "Linked ties" is
+             tapped: tap one to open it (views/plans.js). -->
+        <details class="linked-ties-fold" id="plan-linked" hidden>
+          <summary id="plan-linked-label">Linked ties <span class="item-meta" id="plan-linked-count"></span></summary>
           <ul class="linked-ties" id="plan-linked-ties" aria-labelledby="plan-linked-label"></ul>
-        </div>
+        </details>
 
         <button type="submit" class="primary">Add plan</button>
-        <!-- Archive (or Restore) and Delete go in data-item-actions while
-             editing (resource-page.js, actionsInDialog). -->
-        <div class="dialog-actions">
-          <button type="button" data-cancel-edit>Close</button>
-          <span class="dialog-item-actions" data-item-actions></span>
-        </div>
         <p class="message"></p>
       </form>
     </dialog>
@@ -226,15 +227,20 @@
     </section>
 
     <dialog class="form-dialog" id="person-dialog" aria-labelledby="person-form-heading">
+      <!-- The heading, then Delete and Archive (or Restore), or on my own
+           profile Share (Share my profile), and ✕ as icons (resource-page.js,
+           actionsInDialog; people.js). -->
+      <div class="dialog-header">
+        <h2 id="person-form-heading">Add a person</h2>
+        <span class="dialog-icons" data-item-actions></span>
+        <button type="button" class="icon-button" id="person-close" data-cancel-edit aria-label="Close" title="Close"></button>
+      </div>
       <!-- "This is me" shows only when editing my own profile, ticked and
            greyed out: it can't be changed (people.js). It's outside the form,
-           so form="form" keeps it in the form's fields. Share my profile, in
-           the middle, also shows only on my own: an invite to add it. In the
-           same place on someone linked to their account (connections.js):
-           the link icon, "Linked to their account" and Remove link. -->
-      <div class="name-row heading-row">
-        <h2 id="person-form-heading">Add a person</h2>
-        <button type="button" class="heading-action" id="person-share" hidden>Share my profile</button>
+           so form="form" keeps it in the form's fields. In the same place on
+           someone linked to their account (connections.js): the link icon,
+           "Linked to their account" and Remove link. -->
+      <div class="person-flags">
         <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" form="form" disabled> This is me</label>
         <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Linked to their account
           <button type="button" class="link" id="person-unlink">Remove link</button></span>
@@ -291,12 +297,6 @@
         <textarea id="person-notes" name="notes" autocomplete="off" spellcheck="false"></textarea>
 
         <button type="submit" class="primary">Add person</button>
-        <!-- Archive (or Restore) and Delete go in data-item-actions while
-             editing (resource-page.js, actionsInDialog). -->
-        <div class="dialog-actions">
-          <button type="button" data-cancel-edit>Close</button>
-          <span class="dialog-item-actions" data-item-actions></span>
-        </div>
         <p class="message"></p>
       </form>
     </dialog>
@@ -324,7 +324,13 @@
     </section>
 
     <dialog class="form-dialog" id="location-dialog" aria-labelledby="location-form-heading">
-      <h2 id="location-form-heading">Add a location</h2>
+      <!-- The heading, then Delete, Archive (or Restore) and ✕ as icons
+           (resource-page.js, actionsInDialog). -->
+      <div class="dialog-header">
+        <h2 id="location-form-heading">Add a location</h2>
+        <span class="dialog-icons" data-item-actions></span>
+        <button type="button" class="icon-button" id="location-close" data-cancel-edit aria-label="Close" title="Close"></button>
+      </div>
       <form id="form">
         <!-- Only one location is the default; ticking another asks whether
              to replace it (locations.js). Not for one archived now. -->
@@ -374,12 +380,6 @@
         </div>
 
         <button type="submit" class="primary">Add location</button>
-        <!-- Archive (or Restore) and Delete go in data-item-actions while
-             editing (resource-page.js, actionsInDialog). -->
-        <div class="dialog-actions">
-          <button type="button" data-cancel-edit>Close</button>
-          <span class="dialog-item-actions" data-item-actions></span>
-        </div>
         <p class="message"></p>
       </form>
     </dialog>

@@ -1,8 +1,10 @@
 // People view: "Add a Person" (the + opens the form in a dialog, as tapping
-// a name does), a search over them, and the list. The dialog holds Archive
-// (or Restore) and Delete; the cards have no buttons.
+// a name does), a search over them, and the list. The dialog's heading row
+// holds Delete and Archive (or Restore), or on my own profile Share; the
+// cards have no buttons.
 
-import { h, $, privateField, showMessage } from "../dom.js";
+import { h, $, privateField, showMessage, removeX } from "../dom.js";
+import { iconButton } from "../dialog-icons.js";
 import { confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
 import { roleName, roleOptions } from "../roles.js";
@@ -66,8 +68,8 @@ export function mount(_root, { signal }) {
       platform.value = alias.platform;
       name.value = alias.alias;
     }
-    const row = h("div", { className: "picker-row alias-row" }, platform, name,
-      h("button", { type: "button", "aria-label": "Remove", onclick: () => row.remove() }, "✕"));
+    const row = h("div", { className: "picker-row removable alias-row" }, platform, name,
+      removeX("Remove", () => row.remove()));
     aliasRows.append(row);
     return platform;
   }
@@ -81,10 +83,6 @@ export function mount(_root, { signal }) {
   }
 
   $("#person-add-alias").addEventListener("click", () => addAliasRow().focus(), { signal });
-
-  /** My own profile, while its dialog is open: what Share my profile shares. @type {any} */
-  let sharing = null;
-  $("#person-share").addEventListener("click", () => { if (sharing) openShareProfile(sharing); }, { signal });
 
   // Someone linked to their account, while their dialog is open: Remove link
   // removes the connection for both of us.
@@ -129,15 +127,17 @@ export function mount(_root, { signal }) {
     onEdit: (person) => {
       $("#person-self-flag").hidden = !person?.is_self;
       showAbout(person);
-      // An invite to add my profile: what's saved, not what's being typed.
-      sharing = person?.is_self ? person : null;
-      $("#person-share").hidden = !sharing;
       linked = person?.connection_id ? person : null;
       $("#person-linked").hidden = !linked;
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
     },
     canRemove: (person) => !person.is_self,
+    // Share my profile, on my own: an invite to add what's saved, not
+    // what's being typed.
+    extraActions: (person) => (person.is_self
+      ? [iconButton("share", { id: "person-share", label: "Share my profile", onclick: () => openShareProfile(/** @type {any} */ (person)) })]
+      : []),
     // Sealed whole, as JSON text (aliases.js).
     prepare: (data) => ({ ...data, aliases: aliasesText(collectAliases()) }),
 

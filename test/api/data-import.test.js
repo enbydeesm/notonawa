@@ -10,6 +10,8 @@ import { takeDrawings } from "../../public/js/import-drawings.js";
 import { takePoses } from "../../public/js/import-poses.js";
 import { presetsToAdd } from "../../public/js/import-presets.js";
 import { MAX_PRESETS } from "../../src/pose-presets/parse.js";
+import { shareToImport, withKnown, addsItems } from "../../public/js/share-to-import.js";
+import { buildItemShare, itemSource, readItemShare, FIELDS } from "../../public/js/share-item.js";
 import template from "../../public/import-template.csv?raw";
 
 /** A new user, signed in. */
@@ -437,6 +439,64 @@ describe("importing an export", () => {
       { name: "Kit", connection_id: null }, { name: "Lee", connection_id: null }, { name: "Linked", connection_id: taken },
       { name: "Rin", connection_id: null }, { name: "Sam", connection_id: mine }, { name: "Sam again", connection_id: null },
     ]);
+  });
+
+  it("adds people, locations and plans sent with match: false, even when the name is one of mine", async () => {
+    const user = await newUser();
+    const post = async (/** @type {string} */ path, /** @type {any} */ body) =>
+      (await call(path, { method: "POST", body, cookie: user.cookie })).body.id;
+    const sam = await post("/api/people", { name: "Sam" });
+    await post("/api/locations", { name: "Studio" });
+    await post("/api/plans", { title: "TK" });
+    const body = {
+      people: [{ id: "a", name: "Sam", match: false }, { id: "b", name: "Sam" }],
+      locations: [{ id: "l", name: "Studio", match: false }],
+      plans: [{ id: "p", title: "TK", match: false }],
+    };
+    const preview = await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body: { ...body, preview: true } });
+    expect(preview.body.people.map((/** @type {any} */ p) => [p.matched, p.id])).toEqual([[false, null], [true, sam]]);
+    const res = await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body });
+    expect([res.body.locations[0].matched, res.body.plans[0].matched]).toEqual([false, false]);
+    const count = async (/** @type {string} */ table) =>
+      (await sql(`SELECT COUNT(*) AS n FROM ${table} WHERE owner_id = ?`, user.id).first())?.n;
+    // Two of each: mine, and the one sent with match: false.
+    expect([await count("people"), await count("locations"), await count("plans")]).toEqual([2, 2, 2]);
+  });
+
+  it("adds a shared tie as the recipient chose: Me, one of their people, and a new person with a name they have", async () => {
+    const user = await newUser();
+    const post = async (/** @type {string} */ path, /** @type {any} */ body) =>
+      (await call(path, { method: "POST", body, cookie: user.cookie })).body.id;
+    const me = await post("/api/people", { name: "Me", is_self: true });
+    const jude = await post("/api/people", { name: "Jude" });
+    const studio = await post("/api/locations", { name: "Studio" });
+    // As the sender's page builds it, and the recipient's reads it.
+    const snapshot = buildItemShare("tie", itemSource("tie", {
+      title: "Floor session", tie_date: "2026-10-12", tie_type: "floor", notes: "Smooth", tags: ["Futomomo"],
+      participants: [{ person_id: "s", person_name: "Me", role: "top" }, { person_id: "x", person_name: "Sam", role: "bottom" },
+        { person_id: "y", person_name: "Jude", role: "spotter" }],
+      plans: [{ plan_id: "p", plan_title: "Hip harness" }],
+    }, { selfId: "s", myName: "Jude", location: { name: "Studio" }, visuals: [] }), FIELDS.tie.map((f) => f.key));
+    const item = /** @type {any} */ (readItemShare("tie", JSON.parse(JSON.stringify(snapshot))));
+    const { doc, known } = shareToImport("tie", item, {
+      people: [{ type: "person", id: jude }, { type: "me" }, { type: "new", name: "Jude" }],
+      location: { type: "existing", id: studio }, plans: [{ type: "new", name: "Hip harness" }],
+    }, me);
+    expect(addsItems(doc)).toBe(true);
+    const sealedDoc = await sealFile(doc);
+    const items = (await call("/api/data/import/items", { method: "POST", cookie: user.cookie, body: itemsBody(sealedDoc, false) })).body;
+    const res = await call("/api/data/import/ties", {
+      method: "POST", cookie: user.cookie, body: { ties: remapTies(sealedDoc.ties, withKnown(items, known)), skip: [] },
+    });
+    expect(res.body.added).toBe(1);
+
+    const [tie] = (await call("/api/ties/search", { method: "POST", body: {}, cookie: user.cookie })).body.ties;
+    const newJude = items.people[0].id;
+    expect(newJude).not.toBe(jude);
+    expect(tie).toMatchObject({ title: "Floor session", location_id: studio, notes: sealed("Smooth"), tags: ["Futomomo"],
+      plans: [{ plan_title: "Hip harness" }] });
+    expect(tie.participants.map((/** @type {any} */ p) => [p.person_id, p.role]).sort()).toEqual(
+      [[jude, "top"], [me, "bottom"], [newJude, "spotter"]].sort());
   });
 
   it("saves nothing from a batch with a link to someone else's item", async () => {

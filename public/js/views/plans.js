@@ -1,7 +1,8 @@
 // Plans view: "Add a Plan" (the + opens the form in a dialog, which tapping
-// a plan's card opens too, with its Archive and Delete), a search over the
-// plans, and the list, as cards like the ties'. A saved plan's form
-// lists the ties it's on; tapping one opens it in the tie form.
+// a plan's card opens too, with its Delete, Archive and Share icons), a
+// search over the plans, and the list, as cards like the ties'. A saved
+// plan's form lists the ties it's on, folded away; tapping one opens it in
+// the tie form.
 
 import { h, $, showMessage } from "../dom.js";
 import { choose } from "../dialog.js";
@@ -12,6 +13,8 @@ import { TIE_TYPES } from "../ties-view.js";
 import { capitalise } from "../format.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "../links.js";
 import { albumLink, editTie } from "../tie-card.js";
+import { openShareItem } from "../share-item-dialog.js";
+import { iconButton } from "../dialog-icons.js";
 import { errorMessage } from "../api.js";
 import { multiSelect } from "../multi-select.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
@@ -57,13 +60,14 @@ export function mount(_root, { signal }) {
   }, { signal });
 
   /**
-   * The ties a saved plan is on, newest first: each title opens the tie,
-   * with its rating at the end of the row. Hidden for a new plan, or one
-   * on no ties.
+   * The ties a saved plan is on, newest first, under "Linked ties (n)",
+   * folded until it's tapped: each title opens the tie, with its rating at
+   * the end of the row. Hidden for a new plan, or one on no ties.
    * @param {LinkedTie[]} ties
    */
   function showLinkedTies(ties) {
     $("#plan-linked").hidden = ties.length === 0;
+    $("#plan-linked-count").textContent = `(${ties.length})`;
     $("#plan-linked-ties").replaceChildren(...ties.map((tie) => h("li", { className: "linked-tie" },
       h("button", { type: "button", className: "link linked-tie-title", onclick: () => openTie(tie.id) },
         tie.title || "Untitled tie"),
@@ -117,12 +121,30 @@ export function mount(_root, { signal }) {
     archivedToggle: $("#show-archived"),
     dialog,
     actionsInDialog: true,
+    // A copy of the plan as last saved, not of what's typed.
+    extraActions: (plan) => [iconButton("share", {
+      id: "plan-share", label: "Share plan",
+      onclick: async () => {
+        showMessage(formMessage, "");
+        try {
+          await openShareItem("plan", plan);
+        } catch (err) {
+          showMessage(formMessage, "Couldn't share it: " + errorMessage(err), true);
+        }
+      },
+    })],
+    changeState: () => tags,
     itemClass: "tie-card plan-card",
     filter: (plans) => filterPlans(plans, search),
 
+    // Reloaded with a plan open (after editing one of its linked ties):
+    // its choice is kept, not reset to N/A.
     onLoad: (plans, archived) => {
       if (!archived) activePlans = plans;
-      fillVariationOptions();
+      const editing = dialog.open ? page.editing() : null;
+      const chosen = variationSelect.value;
+      fillVariationOptions(editing ?? undefined, editing ? chosen || null : null);
+      variationSelect.value = chosen;
     },
     beforeFill: (plan) => fillVariationOptions(plan.id, plan.variation_of),
     // The form's reset empties the hidden input but not the hanks, nor the
@@ -132,6 +154,7 @@ export function mount(_root, { signal }) {
       tags = [...(plan?.tags ?? [])];
       showTags();
       showLinkedTies(plan?.linked_ties ?? []);
+      /** @type {HTMLDetailsElement} */ ($("#plan-linked")).open = false;
     },
     // The album link is sealed before it's sent, so the server can't check it.
     prepare: (data) => ({ ...data, tags, album_url: webLinkOrNull(data.album_url) }),

@@ -63,7 +63,7 @@ export default async function () {
   check("a caption is saved encrypted and shown under the thumbnail", await run(`
     set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await wait(1000);
     const shown = $("#tie-visuals figcaption")?.textContent;
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
@@ -84,14 +84,14 @@ export default async function () {
     const next = await swipe(-120);
     const back = await swipe(120);
     const stays = await swipe(120);
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     return [first, next, back, stays, document.querySelectorAll("dialog.photo-viewer").length];`),
   ["Photo: 1 of 2", "Photo: 2 of 2", "Photo: 1 of 2", "Photo: 1 of 2", 0]);
   check("…moved earlier, the new order is saved", await run(`
     document.querySelectorAll("#tie-visuals .photo-thumb")[1].click(); await wait(1200);
     $("#tie-photo-earlier").click(); await wait(800);
     const shown = [...document.querySelectorAll("#tie-visuals .photo-tile")].map((t) => t.querySelector("figcaption")?.textContent ?? "");
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
@@ -234,7 +234,7 @@ export default async function () {
       $("#tie-photo-delete").textContent, leakyFields()];`),
     [true, true, 2, ["0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×"], 1.5, ["1.5×"], "Delete video", []]);
   check("a phone's upright clip (stored on its side, with a rotation) comes out upright, the rotation drawn in", await run(`
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     return true;`) && await makeClip({ seconds: 1, width: 1280, height: 720, fps: 30, sound: false, rotation: 90 }) && await pickClip()
     && await run(`
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())

@@ -4,6 +4,7 @@
 // haven't seen, one dialog lists them all, newest first.
 
 import { h } from "./dom.js";
+import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { APP_VERSION, RELEASES } from "./releases.js";
 import { unseenReleases, MAX_SHOWN } from "./release-notes.js";
 import { loadSettings, saveSeenRelease } from "./settings.js";
@@ -26,7 +27,9 @@ const noteItem = (note) => (typeof note === "string" ? h("li", {}, note)
 export function openWhatsNew(releases = RELEASES.slice(0, MAX_SHOWN)) {
   return new Promise((resolve) => {
     const dialog = h("dialog", { className: "form-dialog whats-new", "aria-labelledby": "whats-new-heading" },
-      h("h2", { id: "whats-new-heading" }, "What's new"),
+      dialogHeader(h("h2", { id: "whats-new-heading" }, "What's new"), [
+        iconButton("close", { id: "whats-new-close", label: "Close", onclick: () => dialog.close() }),
+      ]),
       releases.map((release) => h("section", { className: "release" },
         h("h3", {}, release.version),
         (release.intro ?? []).map((words) => h("p", { className: "release-intro" }, words)),
@@ -39,6 +42,10 @@ export function openWhatsNew(releases = RELEASES.slice(0, MAX_SHOWN)) {
     });
     document.body.append(dialog);
     dialog.showModal();
+    // Opens at the top, the newest, with focus on its heading rather than
+    // a button (focusing OK scrolled it to the bottom).
+    /** @type {HTMLElement} */ (dialog.querySelector("h2")).focus();
+    dialog.scrollTop = 0;
   });
 }
 

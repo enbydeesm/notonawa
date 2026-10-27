@@ -368,12 +368,12 @@ export default async function () {
   true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`
     $("#tie-pose-duplicate").click(); await wait(1000);
-    ${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
     const [a, b] = await ${tiePoses};
     return [[...document.querySelectorAll("#tie-visuals .visual-pose figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
   [["Lift", "Lift"], true, true]);
-  await run(`${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);`);
+  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);`);
 
   // Export: the poses are in notonawa.json (a zip, as there's a photo now).
   const downloads = path.join(workDir, "downloads-poses");
@@ -412,7 +412,7 @@ export default async function () {
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete pose").click(); await wait(800);
     return [asked, document.querySelectorAll("#tie-visuals .visual-pose").length, (await ${tiePoses}).length];`),
   ["Delete this pose?", 1, 1]);
-  await run(`${topDialog}.querySelector(".dialog-cancel").click(); await wait(300);`);
+  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);`);
 
   await ropes({ tap, slide, topDialog });
 }

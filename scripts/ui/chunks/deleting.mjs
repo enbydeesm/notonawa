@@ -17,12 +17,12 @@ export default async function () {
   check("'Just delete the plan'", await run(`await clickIn("Hip harness", "Delete"); await clickDialog("Just delete the plan"); return titles();`), ["Hip harness, one-sided"]);
   await go("/locations");
   check("location delete, from its dialog, offers archiving instead", await run(`
-    await openItem("Studio"); [...document.querySelectorAll("#location-dialog button")].find((b) => b.textContent === "Delete").click(); await wait(300);
+    await openItem("Studio"); $("#location-dialog [aria-label='Delete location']").click(); await wait(300);
     const b = dialogButtons().slice(-3); await clickDialog("Delete permanently"); return [b, $("#location-dialog").open, personNames()];`),
     [["Archive instead", "Delete permanently", "Cancel"], false, ["Back garden", "Old flat"]]);
   await go("/people");
   check("delete a person from their dialog", await run(`
-    await openPerson("Sam"); [...document.querySelectorAll("#person-dialog button")].find((b) => b.textContent === "Delete").click(); await wait(300);
+    await openPerson("Sam"); $("#person-dialog [aria-label='Delete person']").click(); await wait(300);
     const b = dialogButtons().slice(-3); await clickDialog("Delete permanently"); return [b, $("#person-dialog").open, personNames()];`),
     [["Archive instead", "Delete permanently", "Cancel"], false, ["Me"]]);
   await go("/");
@@ -31,14 +31,14 @@ export default async function () {
   check("tapping a title opens the tie to edit, deleted links shown as kept", await run(`
     $(".tie-title").click(); await wait(1000);
     const d = $("dialog[open]");
-    const kept = (sel) => [...d.querySelectorAll(sel + " .kept-deleted")].map((r) => r.innerText.replace(/\\s*✕$/, ""));
+    const kept = (sel) => [...d.querySelectorAll(sel + " .kept-deleted")].map((r) => r.innerText.replace(/\\s*×$/, ""));
     return [$("#tie-form-heading").textContent, $("#tie-title").value, $("#tie-tie_type").value, $("#tie-duration_minutes").value,
       $("#tie-notes").value, $("#tie-location-deleted").hidden, kept("#tie-participants"),
       [...d.querySelectorAll("#tie-participants .person-row [role=combobox]")].map((b) => b.value),
       kept("#tie-plans"), tagChips("#tie-tags"), d.querySelectorAll(".hank-button.filled").length,
-      [...d.querySelectorAll("button")].filter((b) => ["Save tie", "Cancel", "Delete tie"].includes(b.textContent)).map((b) => b.textContent), leakyFields()];`),
+      [$("#tie-save").textContent, $("#tie-save").getAttribute("aria-disabled")], headerIcons("dialog[open]"), leakyFields()];`),
     ["Edit tie", "Floor session", "floor", "45", "Smooth transitions", false, ["(person deleted) (bottom)"], ["Me"], ["(plan deleted)"], ["Futomomo"], 4,
-      ["Save tie", "Cancel", "Delete tie"], []]);
+      ["Save changes", "true"], ["Delete tie", "Share tie", "Close"], []]);
   check("saving an edit updates the tie, keeping the deleted links left in", await run(`
     set("#tie-title", "Floor session, edited"); $("#tie-save").click(); await wait(600); await settle();
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),

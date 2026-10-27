@@ -21,9 +21,9 @@
   filter it, such as names, titles, dates and ratings, and the drawings and
   poses you add to ties, plans and workshops (but not their captions). See
   [What we can and can't read](#what-we-can-and-cant-read).
-- **You can share your profile with someone** through a link or QR code.
-  It's encrypted on your device with a key that's only in the link, so we
-  can't read it. **Connecting your account to theirs is optional**: it lets
+- **You can share your profile, or a copy of a tie, plan or workshop, with
+  someone** through a link or QR code. It's encrypted on your device with a
+  key that's only in the link, so we can't read it. **Connecting your account to theirs is optional**: it lets
   our server see that the two accounts know each other, never what's in
   either journal. See [Sharing with other people](#sharing-with-other-people).
 - You can export everything, import entries from a file, or delete your
@@ -283,6 +283,24 @@ allow on this site, protects you further.
   to their journal is theirs: revoking a share doesn't take back what was
   already added.
 
+### Sharing ties, plans and workshops
+
+- From a saved tie, plan or workshop, you can share a copy of it the same
+  way: encrypted on your device with a key that's only in the link, with
+  the same choices of how long it lasts and who can use it, and stored the
+  same way.
+- You choose what goes in it: its title, location (its name and place,
+  never its notes), plans, tags, notes, description, album link, rating,
+  drawings and poses, and the people on it. Its date and type (or a
+  workshop's title and dates, or a plan's title) always go. Photos and
+  videos can't be shared yet.
+- People on it go as their names and roles only, never anything else from
+  your cards for them. You choose the name shown for you.
+- Whoever opens it chooses who each person is in their own journal (them,
+  someone they have, or someone new), and which of their locations and
+  plans its own are, before anything is added. A copy isn't updated when
+  you change yours later.
+
 ### Connecting accounts
 
 - An invite can also offer to connect your accounts. It's off unless you
@@ -315,7 +333,9 @@ record what they would be comfortable with, and remove it if they ask.
 Entries about someone stay in your account. If that person also uses
 NōtoNawa, they can't see your entries, and we don't tell them you've written
 about them. If someone shares their profile with you, what you add is in
-your journal, and its About shows as theirs.
+your journal, and its About shows as theirs. A tie, plan or workshop you
+share can name the people on it and hold your notes about it: share only
+what they would be comfortable with.
 
 ## Where your data is stored
 
@@ -470,8 +490,7 @@ dismissed, so they don't come back.
 
 ## Changes to this policy
 
-If we change this policy, we will update the date at the top and tell you
-with a message in the app before the change takes effect. If a change would
+If we change this policy, we will update the date at the top. If a change would
 reduce your privacy, we will ask for your agreement in the app. Until you
 agree, nothing new can be saved to your journal, but you can still export
 your data or delete your account.

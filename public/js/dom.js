@@ -121,6 +121,18 @@ function toggles(button, text) {
 }
 
 /**
+ * The small × on a chosen value's top-right corner that takes it off, like
+ * a tag's: on a picker row (a location, person, plan or alias), which needs
+ * the class "removable".
+ * @param {string} label what it removes, for screen readers and the tooltip
+ * @param {() => void} onclick
+ * @returns {HTMLButtonElement}
+ */
+export function removeX(label, onclick) {
+  return h("button", { type: "button", className: "tag-x", "aria-label": label, title: label, onclick }, "×");
+}
+
+/**
  * Makes a card in a list open when it's tapped anywhere, not just its title
  * (which stays the button keyboards and screen readers use). A tap on a
  * link, button or field on the card does only its own thing, and so does
