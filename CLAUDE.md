@@ -194,17 +194,25 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and time only, never what was written), `notify.js` (sends it; a failure
   is logged, and doesn't fail the request).
 - `src/shares/`: shares, sealed copies of a profile, tie, plan or workshop
-  that someone else opens with a link (migrations 0022 and 0023; see
-  considerations.md, "Sharing between accounts"; profile invites, ties,
-  plans and workshops have pages, photos in shares come later). `parse.js` (pure: kinds,
-  expiries, limits (50 live an account, a 2 MB snapshot, counted in the
-  1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
-  `<owner id>/shares/<share id>/snapshot` in the photos bucket), `db.js`,
-  `storage.js`, `cleanup.js` (the daily job: expired ones), `routes.js`
-  (`GET`/`POST /api/shares`, `DELETE /api/shares/:id` (revoking deletes it
+  that someone else opens with a link (migrations 0022, 0023 and 0027; see
+  considerations.md, "Sharing between accounts" and "Photos and videos in
+  shares as built"). `parse.js` (pure: kinds,
+  expiries, limits (50 an account, live or being uploaded, a 2 MB
+  snapshot, up to 30 photos and videos (5 videos) sized as mine, counted
+  in the 1 GB with photos: `accountBytes` in `src/sql.js`), R2 keys
+  `<owner id>/shares/<share id>/snapshot` and `…/<file id>` in the photos
+  bucket, `FILES_GRACE`), `db.js`,
+  `storage.js`, `cleanup.js` (the daily job: ended ones; with files, an
+  hour after; never made ready, after a day), `routes.js`
+  (`GET`/`POST /api/shares` (`files`: how many photos and videos follow;
+  until then it's not `ready`), `PUT /api/shares/:id/files/:fileId?kind=&
+  thumb_bytes=`, `POST /api/shares/:id/ready` (openable, its expiry
+  counted from now), `POST /api/shares/files` with `{ id, file, part }`
+  (a sealed thumbnail or full size, while it's live or for an hour after
+  it ends), `DELETE /api/shares/:id` (revoking deletes it, files too,
   at once), `POST /api/shares/open` with `{ id }`: someone else's counts a
-  use, and the last allowed one deletes it; ended or unknown is the same
-  404; it also says `connection_id`, my side of a connection with the
+  use, and the last allowed one deletes it (or, with files, ends it); ended
+  or unknown is the same 404; it also says `connection_id`, my side of a connection with the
   owner if there is one, and, for an invite with `connect` (migration
   0026, profile invites only) from someone I'm not connected to, an
   `offer` token for `POST /api/connections`). The label and `link_key` (the link's key, kept so its owner can
@@ -296,7 +304,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `crypto/media.js` (pure: sealing and opening photos, videos (their full
   size in 1 MB pieces, format v2) and captions, bound to the photo's id),
   `crypto/share.js` (pure: a share's id and key, sealing and opening its
-  snapshot, bound to its id and kind, and the link's `#<id>.<key>`),
+  snapshot, bound to its id and kind, its photos and videos (another key
+  from the link's, each bound to the share and the file's id, in
+  `media.js`'s format: `sealObject` takes a binding), and the link's
+  `#<id>.<key>`),
   `share-options.js` (pure: a share's expiry and use choices, the warning
   for one anyone can use for good (and connect to me with), Shared by me's
   words, the link), `connection-text.js` (pure: the connecting
@@ -316,11 +327,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   memory through sign-in and unlock; forgotten on lock), `qr.js` (pure: a
   link's QR code as one SVG path, from `vendor/uqr.js`), `share-code.js`
   (a share's code, link, Copy link and share sheet), `share-save.js`
-  (sealing and saving a new share, for every Share dialog),
+  (sealing and saving a new share, for every Share dialog; its photos
+  sealed again in the crypto Worker (`reshareMedia`) and uploaded, then
+  ready, or revoked if a step fails),
   `share-profile-dialog.js` ("Share my profile", from my own profile in
   People), `share-item.js` (pure: a shared tie, plan or workshop, built
   from the ticked fields and read strictly; people as names and roles, the
-  sender marked), `share-item-dialog.js` (Share in a saved tie's, plan's or
+  sender marked; Drawings and poses and Photos and videos ticked
+  separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
   workshop's dialog), `share-people.js` (pure: Who is this? suggestions for
   each person, and the location's and plans' choices; a person is on an
   item once), `share-to-import.js` (pure: a shared item and the choices as
@@ -331,7 +345,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `open-profile.js` (adding a profile invite; Connect our accounts when it
   offers to) or `open-item.js` (a tie, plan or workshop: Who is this?,
   Add to my journal through the import, Add another copy when it looks
-  like it's there already)),
+  like it's there already; its photos' thumbnails, and each photo sealed
+  as mine in the crypto Worker (`adoptShareFile`) and uploaded with
+  `photo-upload.js`'s `uploadSealed`)),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -689,13 +705,16 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   a new key) must then delete their files (`media/storage.js`); read the
   photo ids in the same batch as the delete. The daily sweep only catches
   what a crash left behind. Shares' files are there too, in their owner's
-  folder: deleting a share's row deletes its files (`shares/storage.js`).
+  folder: deleting a share's row deletes its files (`shares/storage.js`),
+  snapshot, photos and videos alike.
 - **Photos and videos are prepared and sealed before they leave the
   device** (`preparePhoto`/`prepareVideo`, then `vault.sealPhoto`/
   `sealVideo`) and shown only from `photoUrl()` (`photo-urls.js`), whose
   URLs are all revoked on every lock (`onWipe`), emptying the images and
   videos showing them. The crypto Worker fetches photos itself (`openPhoto` takes an
-  id), as it does the search index. Captions are sealed bound to their
+  id), as it does the search index and shares' photos; a photo moving into
+  or out of a share is opened and sealed again there, never on the page.
+  Captions are sealed bound to their
   photo (`sealCaption`), not through `seal`, so they aren't in the
   encrypted-columns lists.
 - **Wrapped keys (`key_wraps`) are never exported** (useless without the

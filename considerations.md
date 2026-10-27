@@ -1702,7 +1702,9 @@ server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
 (profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
 deployed. Phase 4 (connecting accounts) built 2026-10-26, migration 0026,
 not yet deployed. Phase 5 (sharing ties, plans and workshops) built
-2026-10-26, no migration, not yet deployed; the rest isn't built.
+2026-10-26, no migration, not yet deployed. Phase 6 (photos and videos in
+shares) built 2026-10-27, migration 0027, not yet deployed; the rest
+isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -2047,6 +2049,55 @@ Built 2026-10-26 (no migration). What changed from the plan above, and why:
 - **Photos and videos** aren't shared yet (phase 6); the dialog says so
   when the item has some.
 
+### Photos and videos in shares as built
+
+Built 2026-10-27 (migration 0027). What changed from the plan, and why:
+
+- **A migration after all** (the build plan said none). A share was one
+  request; with photos it's its row and snapshot, then each file (up to 30,
+  a video up to 40 MB), so `shares.ready` (0 while uploading: it can't be
+  opened or listed, so nobody gets half of it) and `shares.files` (how many
+  it has). Each file's size is added to `shares.bytes` in the statement
+  that checks the 1 GB, as a photo's row is. `POST /api/shares/:id/ready`
+  checks they're all in R2, and starts the expiry again from then, so
+  uploading doesn't use up a 10-minute share. If any step fails, the page
+  revokes the share. One never made ready is deleted after a day, and
+  counts in the 50 till then. Weighed: uploading the files first and making
+  the row last, with no migration; files with no row count toward no one's
+  1 GB, so the bucket could be filled until the daily sweep.
+- **An hour's grace for the files.** A share's last allowed open deleted it
+  at once, but the recipient fetches the photos after opening it (when
+  they choose Add), and a short expiry could end mid-add. So a share with
+  files is ended, not deleted, by its last use (`expires_at` set to now),
+  and its files can be fetched for an hour after it ends, either way;
+  nobody can open it again, and it's off Shared by me. The daily clean-up
+  deletes it after the hour. Shares without files are deleted at once, as
+  before; revoking still deletes everything at once.
+- **Fetching a file** (`POST /api/shares/files`, the ids in the body as
+  for opening) needs a signed-in account, the share live or in its hour,
+  and the file's id: a random UUID listed only in the sealed snapshot. Not
+  rate-limited (a share has up to 30 files, and the opening that gave out
+  the ids is).
+- **Sealed in the same format as my own photos** (`media.js`: the
+  thumbnail, then the full size, a video's in 1 MB pieces), with a key made
+  from the link's by HKDF ("notonawa share v1 file", not the snapshot's),
+  each part bound to the share's id and the file's. The plan said pieces
+  for photos too; keeping the format means a shared file is the size of
+  mine, so the same limits fit. `media.js` now takes the binding as a
+  parameter; my photos' bytes are unchanged, pinned by a test that spells
+  out the additional data.
+- **Nothing opened leaves the crypto Worker** but a thumbnail for the
+  preview: `reshareMedia` fetches one of mine, opens it and seals it with
+  the link's key; `adoptShareFile` fetches a shared one, opens it and seals
+  it as mine under a new id, for `uploadSealed`. The Worker fetches share
+  files itself, as it does my photos.
+- **Their own tickbox, "Photos and videos"**, apart from "Drawings and
+  poses", saying what they'd take of my 1 GB. Each gets a new random id in
+  the share, so nothing in it names the photo in my journal. Both groups
+  keep the one order of the item's visuals; the recipient adds them in
+  that order, and any that fail (their own 1 GB or 30 an item, or the
+  share revoked) are counted, as drawings' were.
+
 ### Later: Connections (Option B)
 
 Planned once Option A is in use; built on its `connections`.
@@ -2210,7 +2261,9 @@ tests and the walkthrough included.
    someone else, two people of the same name, two names chosen as one
    person); an API check that a share round-trips into the second journal
    with people chosen; and the walkthrough for one of each kind.
-6. **Photos and videos in shares** (2 days). Opening and sealing again
+6. **Photos and videos in shares** (2 days). *Built 2026-10-27, migration
+   0027; see "Photos and videos in shares as built".* As first planned:
+   Opening and sealing again
    under the share key in the crypto Worker, uploading with the share,
    counting toward 1 GB, the recipient's import of them
    (`import-photos.js`). Tests: crypto unit tests, an API test of the

@@ -14,8 +14,8 @@
 import { newDataKey, wrapDataKey, unwrapDataKey, recoveryKeyMaterial } from "./keys.js";
 import { sealRecord, openRecord } from "./fields.js";
 import { matchingTies } from "../search-match.js";
-import { sealPhoto, sealVideo, openPart, openPieces, sealCaption, openCaption } from "./media.js";
-import { newShareKey, sealSnapshot, openSnapshot } from "./share.js";
+import { sealPhoto, sealVideo, openPart, openPieces, sealCaption, openCaption, sealObject, mediaBinding } from "./media.js";
+import { newShareKey, sealSnapshot, openSnapshot, sealShareFile, openShareFile } from "./share.js";
 import { toBase64url, fromBase64url } from "./keys.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
@@ -42,16 +42,21 @@ export class VaultCore {
    * @param {(mediaId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} [loadPart]
    *   fetches a sealed part of a photo: the Worker fetches photos itself
    *   too, so the page only ever asks for one by id
+   * @param {(shareId: string, fileId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} [loadShareFile]
+   *   fetches a sealed part of a share's photo, likewise
    */
-  constructor(loadIndex, loadPart) {
+  constructor(loadIndex, loadPart, loadShareFile) {
     this.#loadIndex = loadIndex ?? (async () => []);
     this.#loadPart = loadPart ?? (async () => { throw new Error("No photos here."); });
+    this.#loadShareFile = loadShareFile ?? (async () => { throw new Error("No shared photos here."); });
   }
 
   /** @type {() => Promise<IndexEntry[]>} */
   #loadIndex;
   /** @type {(mediaId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} */
   #loadPart;
+  /** @type {(shareId: string, fileId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} */
+  #loadShareFile;
 
   get unlocked() {
     return this.#key !== null;
@@ -255,6 +260,63 @@ export class VaultCore {
     const linkKey = fromBase64url(key);
     try {
       return await openSnapshot({ id, kind, key: linkKey, sealed: new Uint8Array(sealed) });
+    } finally {
+      linkKey.fill(0);
+    }
+  }
+
+  /**
+   * One of my photos or videos, fetched, opened and sealed again for a
+   * share with its link's key, as the object to upload: what's opened
+   * never leaves the Worker.
+   * @param {{ shareId: string, key: string, fileId: string, mediaId: string, kind: "photo" | "video" }} args
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async reshareMedia({ shareId, key, fileId, mediaId, kind }) {
+    const thumb = await this.openPhoto({ mediaId, part: "thumb", kind });
+    const full = await this.openPhoto({ mediaId, part: "full", kind });
+    const linkKey = fromBase64url(key);
+    try {
+      return await sealShareFile({ shareId, fileId, key: linkKey, video: kind === "video", thumb, full });
+    } finally {
+      linkKey.fill(0);
+    }
+  }
+
+  /**
+   * A share's photo's or video's thumbnail, fetched and opened with its
+   * link's key, for the preview. Throws CantOpen if it won't open.
+   * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video" }} args
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async openShareThumb({ shareId, key, fileId, kind }) {
+    this.#unlocked();
+    return this.#openShared({ shareId, key, fileId, kind, part: "thumb" });
+  }
+
+  /**
+   * A share's photo or video, fetched, opened with its link's key and
+   * sealed as one of mine (bound to a new id), as the object to upload:
+   * what's opened never leaves the Worker. Throws CantOpen if it won't open.
+   * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", mediaId: string }} args
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async adoptShareFile({ shareId, key, fileId, kind, mediaId }) {
+    const [dataKey, userId] = this.#unlocked();
+    const thumb = await this.#openShared({ shareId, key, fileId, kind, part: "thumb" });
+    const full = await this.#openShared({ shareId, key, fileId, kind, part: "full" });
+    return sealObject(dataKey, mediaBinding(userId, mediaId), { thumb, full, video: kind === "video" });
+  }
+
+  /**
+   * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", part: "thumb" | "full" }} args
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async #openShared({ shareId, key, fileId, kind, part }) {
+    const sealed = await this.#loadShareFile(shareId, fileId, part);
+    const linkKey = fromBase64url(key);
+    try {
+      return await openShareFile({ shareId, fileId, key: linkKey, video: kind === "video", part, sealed });
     } finally {
       linkKey.fill(0);
     }

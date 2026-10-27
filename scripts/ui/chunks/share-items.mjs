@@ -2,8 +2,8 @@
 // a workshop (Share in each one's dialog: what to tick, the name to show
 // for me, the code), and a second adds them (/open): who's who (Me, one of
 // my people, or a new person even when one of mine has the name), which of
-// my locations and plans the tie's are, its drawing, and one that looks
-// like it's already in the journal, added again as another copy.
+// my locations and plans the tie's are, its drawing and photo, and one that
+// looks like it's already in the journal, added again as another copy.
 
 import { check, freshAccount, go, loadPage, run } from "../harness.mjs";
 import { seedJournal, seedTie } from "../seed.mjs";
@@ -40,11 +40,17 @@ export default async function () {
     const { sealOne } = await import("/js/vault.js");
     const { caption } = await sealOne("drawing", { caption: "The wrap" });
     await post("/api/drawings", { tie_id: ${JSON.stringify(tieId)}, data: { v: 1, strokes: [{ c: "red", w: 2, p: [10, 20, 30, 40] }] }, caption });
+    // A photo, drawn here (as photo-prep.js would leave one) and uploaded.
+    const canvas = new OffscreenCanvas(40, 30);
+    const g = canvas.getContext("2d"); g.fillStyle = "#c33"; g.fillRect(0, 0, 40, 30);
+    const full = await (await canvas.convertToBlob({ type: "image/jpeg" })).arrayBuffer();
+    const { uploadPhoto } = await import("/js/photo-upload.js");
+    await uploadPhoto({ item: { tie_id: ${JSON.stringify(tieId)} }, prepared: { thumb: full.slice(0), full, mime: "image/jpeg" }, caption: "Front" });
     await post("/api/workshops", { title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",
       educators: [{ person_id: ${JSON.stringify(ids.sam)}, role: "top" }], participants: [{ person_id: ${JSON.stringify(ids.me)}, role: "bottom" }] });`);
 
   await go("/");
-  check("a saved tie has Share; its dialog ticks everything it has, asks the name to show for me, explains behind ?s, and has no photos note", await run(`
+  check("a saved tie has Share; its dialog ticks everything it has, photos too with what they take of my 1 GB, asks the name to show for me, and explains behind ?s", await run(`
     for (let i = 0; i < 50 && !$(".tie-card"); i++) await wait(100);
     $(".tie-card .tie-date").click();
     for (let i = 0; i < 50 && !$("#tie-share"); i++) await wait(100);
@@ -55,14 +61,15 @@ export default async function () {
     $("[aria-controls=share-item-my-name-info]").click();
     const nameTip = $("#share-item-my-name-info").hidden ? null : $("#share-item-my-name-info").textContent;
     return [fields, $("#share-item-my-name").value, $("label[for=share-item-my-name]").textContent, $("#share-item-always").textContent,
-      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, !!$("#share-item-no-photos"),
+      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, $("#share-item-media-size")?.textContent,
       $("#share-item-expires").value, $("#share-item-uses").value, leakyFields()];`),
   [[["Title: Floor session", true], ["Mins: 45", true], ["Location: Studio", true], ["Plans: Hip harness", true],
     ["People and their roles: you (top), Sam (bottom)", true], ["How did it go?: 4/5", true], ["Notes", true],
-    ["Album link", true], ["Drawings and poses: 1 drawing", true], ["Tags: Futomomo", true]],
+    ["Album link", true], ["Drawings and poses: 1 drawing", true], ["Photos and videos: 1 photo", true], ["Tags: Futomomo", true]],
   "", "Your profile name", "Share date and type and…",
   [["share-item-intro", true], ["share-item-my-name-info", true], ["share-item-label-info", true]],
-  "The name shared for the 'Me' rows on this tie.", 0, false, "1d", "one", []]);
+  "The name shared for the 'Me' rows on this tie.", 1,
+  "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "1d", "one", []]);
   check("it needs a name for me while people are shared", await run(`
     set("#share-item-label", "For Sam"); $("#share-item-make").click(); await wait(500);
     return $("#share-item-status").textContent;`), "Couldn't share it: Type the name to show for you.");
@@ -109,12 +116,15 @@ export default async function () {
     const studio = await post("/api/locations", await sealOne("location", { name: "Studio" }));
     return { jude, studio };`);
   await openLink(tieLink);
-  check("the tie's preview shows what was ticked (not the album link), with the key gone from the address", await run(`
+  check("the tie's preview shows what was ticked (not the album link) with its photo's thumbnail, and the key gone from the address", await run(`
     ${OPENED}
+    for (let i = 0; i < 50 && !$("#open-thumbs img"); i++) await wait(100);
     return [location.pathname + location.hash, $("#open-title")?.textContent, $("#open-place")?.textContent, $("#open-plans")?.textContent,
       $("#open-people")?.textContent, $("#open-notes")?.textContent, $("#open-visuals")?.textContent,
+      $("#open-thumbs img")?.src.startsWith("blob:"), $("#open-thumbs figcaption")?.textContent,
       document.body.innerText.includes("Open album"), leakyFields()];`),
-  ["/open", "Floor session", "At Studio", "Plans: Hip harness", "With: Jude (top), Sam (bottom)", "Smooth transitions", "1 drawing", false, []]);
+  ["/open", "Floor session", "At Studio", "Plans: Hip harness", "With: Jude (top), Sam (bottom)", "Smooth transitions", "1 photo, 1 drawing",
+    true, "Front", false, []]);
   check("each person, the location and the plan start from a suggestion: names that match mine, else new", await run(`
     const label = (i) => $("label[for=open-person-" + i + "]").innerText;
     return [label(0), $("#open-person-0").value, label(1), $("#open-person-1").value, $("#open-person-1-name").hidden,
@@ -123,7 +133,7 @@ export default async function () {
   check("two people can't both be me", await run(`
     set("#open-person-0", "me"); set("#open-person-1", "me"); $("#open-add").click(); await wait(300);
     return $("#open-message").textContent;`), "Jude and Sam can't both be you: someone is on a tie once.");
-  check("adding it with Sam as Me and Jude as a new person saves the tie, linked to my journal, and its drawing", await run(`
+  check("adding it with Sam as Me and Jude as a new person saves the tie, linked to my journal, its photo and its drawing, in order", await run(`
     set("#open-person-0", "new"); set("#open-person-1", "me");
     ${ADD}
     const said = [$("#open-done")?.textContent, $("#open-to-view")?.getAttribute("href")];
@@ -131,13 +141,18 @@ export default async function () {
     const [tie] = await open("tie", (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ties);
     const people = await (await fetch("/api/people?archived=false")).json();
     const drawings = await open("drawing", await (await fetch("/api/drawings?tie_id=" + tie.id)).json());
+    const { openMedia, openPhoto } = await import("/js/vault.js");
+    const media = await openMedia(await (await fetch("/api/media?tie_id=" + tie.id)).json());
+    const photo = media[0] && new Uint8Array(await openPhoto(media[0].id, "full"));
+    const photos = media.map((m) => [m.kind, m.mime, m.caption, m.position < drawings[0].position]);
     const roleOf = (p) => (p.is_self ? "Me" : p.id === ${JSON.stringify(mine.jude)} ? "my Jude" : p.name) + " " ;
     return [said, tie.title, tie.tie_type, tie.duration_minutes, tie.success_rating, tie.notes, tie.album_url, tie.location_id, tie.tags,
       tie.plans.map((p) => p.plan_title),
       tie.participants.map((p) => roleOf(people.find((x) => x.id === p.person_id)) + p.role).sort(),
-      people.filter((p) => p.name === "Jude").length, drawings.map((d) => [d.data.strokes.length, d.caption])];`),
+      people.filter((p) => p.name === "Jude").length, drawings.map((d) => [d.data.strokes.length, d.caption]),
+      photos, photo?.[0] === 0xff && photo?.[1] === 0xd8];`),
   [["The tie is in your journal.", "/"], "Floor session", "floor", 45, 4, "Smooth transitions", null, mine.studio, ["Futomomo"], ["Hip harness"],
-    ["Jude top", "Me bottom"], 2, [[1, "The wrap"]]]);
+    ["Jude top", "Me bottom"], 2, [[1, "The wrap"]], [["photo", "image/jpeg", "Front", false]], true]);
 
   // The same tie again, all from my journal now: it looks like it's there already.
   const newJude = await run(`return (await (await fetch("/api/people?archived=false")).json()).find((p) => p.name === "Jude" && p.id !== ${JSON.stringify(mine.jude)}).id;`);

@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 26, 2026
+**Last updated:** October 27, 2026
 
 ## The short version
 
@@ -277,8 +277,11 @@ allow on this site, protects you further.
 - You choose how long a share lasts (from 10 minutes, to until you revoke
   it) and whether one person or anyone with the link can use it. It's
   deleted, with its encrypted copy, when it expires, when its last allowed
-  use is opened, or as soon as you revoke it. A daily clean-up removes any
-  left over.
+  use is opened, or as soon as you revoke it. One with photos or videos is
+  kept an hour longer after it expires or is used up, only so whoever
+  opened it can finish adding them; nobody can open it again in that hour.
+  One whose photos never finished uploading is deleted after a day. A
+  daily clean-up removes any left over.
 - When someone opens a share, we don't record who they are. What they add
   to their journal is theirs: revoking a share doesn't take back what was
   already added.
@@ -291,9 +294,11 @@ allow on this site, protects you further.
   same way.
 - You choose what goes in it: its title, location (its name and place,
   never its notes), plans, tags, notes, description, album link, rating,
-  drawings and poses, and the people on it. Its date and type (or a
-  workshop's title and dates, or a plan's title) always go. Photos and
-  videos can't be shared yet.
+  drawings and poses, photos and videos, and the people on it. Its date and
+  type (or a workshop's title and dates, or a plan's title) always go.
+- Photos and videos are opened on your device and encrypted again with the
+  share's key, so we can't open them either. They're stored with the
+  share, counting toward your 1 GB until it's deleted.
 - People on it go as their names and roles only, never anything else from
   your cards for them. You choose the name shown for you.
 - Whoever opens it chooses who each person is in their own journal (them,

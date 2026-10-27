@@ -187,3 +187,26 @@ describe("the crypto Worker's photo operations", () => {
     await expect(vault.sealVideo({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2]) })).rejects.toThrow("locked");
   });
 });
+
+describe("the sealed format", () => {
+  // Pinned with the additional data spelled out, so a change to how it's
+  // made (it's shared with shares' files) can't leave photos already
+  // stored unopenable.
+  const open = async (/** @type {CryptoKey} */ key, /** @type {string} */ aad, /** @type {Uint8Array} */ sealed) => new Uint8Array(
+    await crypto.subtle.decrypt({ name: "AES-GCM", iv: sealed.slice(0, 12), additionalData: new TextEncoder().encode(aad) }, key, sealed.slice(12)));
+
+  it("binds a photo's parts and caption as it always has", async () => {
+    const key = await newDataKey();
+    const { body, thumbBytes } = await sealPhoto(key, { userId: USER, mediaId: PHOTO }, { thumb: bytes([1]), full: bytes([2, 3]) });
+    const object = new Uint8Array(body);
+    expect([...await open(key, `notonawa|media|v1|${USER}|${PHOTO}|thumb`, object.slice(0, thumbBytes))]).toEqual([1]);
+    expect([...await open(key, `notonawa|media|v1|${USER}|${PHOTO}|full`, object.slice(thumbBytes))]).toEqual([2, 3]);
+  });
+
+  it("binds a video's pieces as it always has", async () => {
+    const key = await newDataKey();
+    const sealed = await sealPieces(key, { userId: USER, mediaId: PHOTO }, bytes([1, 2, 3]), 2);
+    expect([...await open(key, `notonawa|media|v2|${USER}|${PHOTO}|full|0|more`, sealed.slice(0, 12 + 2 + 16))]).toEqual([1, 2]);
+    expect([...await open(key, `notonawa|media|v2|${USER}|${PHOTO}|full|1|last`, sealed.slice(12 + 2 + 16))]).toEqual([3]);
+  });
+});

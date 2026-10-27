@@ -8,7 +8,8 @@
 // Its operations work on whole records of a known kind (seal or open a
 // tie's notes, search the ties, seal a photo or open one of mine by id),
 // never a general "decrypt this". Shares are sealed and opened with their
-// own link's key, never the data key.
+// own link's key, never the data key; their photos move between the two
+// without leaving the Worker (only a shared thumbnail comes out, to show).
 
 import { VaultCore } from "./crypto/vault-core.js";
 import { WrongSecret } from "./crypto/keys.js";
@@ -33,7 +34,24 @@ async function loadPart(mediaId, part) {
   return res.arrayBuffer();
 }
 
-const vault = new VaultCore(loadIndex, loadPart);
+// A sealed part of a share's photo, fetched here as well (the ids in the
+// body, as when opening a share).
+/**
+ * @param {string} shareId
+ * @param {string} fileId
+ * @param {"thumb" | "full"} part
+ */
+async function loadShareFile(shareId, fileId, part) {
+  const res = await fetch("/api/shares/files", {
+    method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: shareId, file: fileId, part }),
+  });
+  if (res.status === 404) throw new Error("This share's photos have gone: it has ended or been revoked.");
+  if (!res.ok) throw new Error("Couldn't load the shared photo. Try again.");
+  return res.arrayBuffer();
+}
+
+const vault = new VaultCore(loadIndex, loadPart, loadShareFile);
 
 /** @type {Record<string, (args: any) => Promise<unknown>>} */
 const OPERATIONS = {
@@ -52,6 +70,9 @@ const OPERATIONS = {
   openMedia: (args) => vault.openMedia(args),
   sealShare: (args) => vault.sealShare(args),
   openShare: (args) => vault.openShare(args),
+  reshareMedia: (args) => vault.reshareMedia(args),
+  openShareThumb: (args) => vault.openShareThumb(args),
+  adoptShareFile: (args) => vault.adoptShareFile(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied

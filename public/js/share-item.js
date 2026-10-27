@@ -6,8 +6,10 @@
 // choice. People go as names and roles only, never their cards or account
 // ids; the sender's own name is the one they type, and marked `sender`, so
 // the recipient's page can suggest the card linked to them. Drawings and
-// poses go as their lines and numbers, captions included, in the order
-// they have among the item's visuals (photos and videos come later).
+// poses go as their lines and numbers, captions included; photos and
+// videos as a random file id each (the file itself is sealed and uploaded
+// beside the snapshot), their type and caption. All in the order they
+// have among the item's visuals, whichever of the two groups is ticked.
 //
 // A shared item comes from another account, so it's read strictly, like a
 // shared profile (profile-share.js): only these fields, each the right type
@@ -20,6 +22,7 @@ import { MAX_TAGS, MAX_TAG_LENGTH, tagKey } from "./tags.js";
 import { isWebLink } from "./links.js";
 import { MAX_DRAWINGS } from "./drawing-format.js";
 import { MAX_POSES } from "./pose-format.js";
+import { MAX_CAPTION } from "./crypto/media.js";
 
 export const ITEM_VERSION = 1;
 
@@ -33,6 +36,13 @@ export const LIMITS = /** @type {const} */ ({
 
 const MAX_ATTENDEES = 100_000; // as in the workshop form
 const MAX_MINUTES = 1440;
+// Photos and videos an item can have, of them videos (src/media/parse.js),
+// and the types each is stored as.
+const MAX_MEDIA = 30;
+const MAX_VIDEOS = 5;
+const MEDIA_MIMES = { photo: ["image/jpeg", "image/webp"], video: ["video/mp4"] };
+// A file's id: made with crypto.randomUUID(), as the server checks.
+const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 /** @typedef {typeof ITEM_KINDS[number]} ItemKind */
 
@@ -53,6 +63,7 @@ export const FIELDS = /** @type {Record<ItemKind, ShareField[]>} */ ({
     { key: "notes", label: "Notes" },
     { key: "album_url", label: "Album link" },
     { key: "visuals", label: "Drawings and poses" },
+    { key: "media", label: "Photos and videos" },
     { key: "tags", label: "Tags" },
   ],
   plan: [
@@ -63,6 +74,7 @@ export const FIELDS = /** @type {Record<ItemKind, ShareField[]>} */ ({
     { key: "notes", label: "Notes" },
     { key: "album_url", label: "Album link" },
     { key: "visuals", label: "Drawings and poses" },
+    { key: "media", label: "Photos and videos" },
     { key: "tags", label: "Tags" },
   ],
   workshop: [
@@ -74,6 +86,7 @@ export const FIELDS = /** @type {Record<ItemKind, ShareField[]>} */ ({
     { key: "notes", label: "Notes" },
     { key: "album_url", label: "Album link" },
     { key: "visuals", label: "Drawings and poses" },
+    { key: "media", label: "Photos and videos" },
     { key: "tags", label: "Tags" },
   ],
 });
@@ -105,8 +118,26 @@ const ALWAYS = /** @type {Record<ItemKind, string[]>} */ ({
 
 /**
  * A drawing or pose: its lines or numbers, and caption.
- * @typedef {{ kind: "drawing" | "pose", data: Record<string, unknown>, caption: string | null }} SharedVisual
+ * @typedef {{ kind: "drawing" | "pose", data: Record<string, unknown>, caption: string | null }} SharedDrawing
  */
+
+/**
+ * A photo or video: its file's id in the share, its type and caption. On
+ * the sender's side (before sharing) it also has mediaId and bytes, its id
+ * and size in my journal, which never go in the snapshot.
+ * @typedef {{
+ *   kind: "photo" | "video", file: string, mime: string, caption: string | null, mediaId?: string, bytes?: number,
+ * }} SharedMedia
+ */
+
+/** @typedef {SharedDrawing | SharedMedia} SharedVisual */
+
+/**
+ * Whether a visual is a photo or video.
+ * @param {SharedVisual} visual
+ * @returns {visual is SharedMedia}
+ */
+export const isMedia = (visual) => visual.kind === "photo" || visual.kind === "video";
 
 /**
  * @typedef {{ name: string, city: string | null, state_province: string | null, country: string | null }} SharedPlace
@@ -142,7 +173,7 @@ function emptyItem() {
  * @param {Record<string, any>} item
  * @param {{
  *   selfId: string | null, myName: string, location: Record<string, any> | null, visuals: SharedVisual[],
- * }} extras my profile's id and the name to share it under, the item's location (with its place) and its drawings and poses
+ * }} extras my profile's id and the name to share it under, the item's location (with its place) and its visuals
  * @returns {SharedItem}
  */
 export function itemSource(kind, item, { selfId, myName, location, visuals }) {
@@ -182,6 +213,8 @@ export function itemSource(kind, item, { selfId, myName, location, visuals }) {
  * @param {string} key
  */
 export function hasField(source, key) {
+  if (key === "visuals") return source.visuals.some((v) => !isMedia(v));
+  if (key === "media") return source.visuals.some(isMedia);
   const value = /** @type {Record<string, unknown>} */ (source)[key];
   return Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined && value !== "";
 }
@@ -200,14 +233,56 @@ export function buildItemShare(kind, source, ticked) {
   /** @type {Record<string, unknown>} */
   const snapshot = { v: ITEM_VERSION };
   for (const key of keys) {
-    if (hasField(source, key)) snapshot[key] = /** @type {Record<string, unknown>} */ (source)[key];
+    if (key !== "visuals" && key !== "media" && hasField(source, key)) snapshot[key] = /** @type {Record<string, unknown>} */ (source)[key];
   }
+  // Drawings and poses, photos and videos: each ticked separately, in one order.
+  const visuals = source.visuals
+    .filter((v) => keys.includes(isMedia(v) ? "media" : "visuals"))
+    .map((v) => (isMedia(v) ? { kind: v.kind, file: v.file, mime: v.mime, caption: v.caption } : v));
+  if (visuals.length) snapshot.visuals = visuals;
   if (kind === "tie" && !snapshot.tie_date) throw new Error("This tie has no date.");
   if (kind !== "tie" && !snapshot.title) throw new Error("Add a title before sharing it.");
   if (snapshot.people && (/** @type {SharedPerson[]} */ (snapshot.people)).some((p) => p.sender && !p.name)) {
     throw new Error("Type the name to show for you.");
   }
   return snapshot;
+}
+
+/**
+ * How many of each kind of visual, in words: "2 photos, 1 video".
+ * @param {SharedVisual[]} visuals
+ * @param {SharedVisual["kind"][]} kinds which to count, in this order
+ * @returns {string}
+ */
+export function visualCounts(visuals, kinds) {
+  return kinds.map((k) => [visuals.filter((v) => v.kind === k).length, k]).filter(([n]) => n)
+    .map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
+}
+
+/**
+ * What sharing the photos and videos would take of my 1 GB, in words
+ * ("4.2 MB"), from their sizes in my journal; "" if they have none.
+ * @param {SharedVisual[]} visuals
+ * @returns {string}
+ */
+export function mediaSize(visuals) {
+  const bytes = visuals.filter(isMedia).reduce((sum, v) => sum + (v.bytes ?? 0), 0);
+  if (!bytes) return "";
+  const mb = bytes / (1024 * 1024);
+  return mb < 0.1 ? "under 0.1 MB" : `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}
+
+/**
+ * The photos and videos a snapshot has, to seal and upload beside it: each
+ * file's id in the share, and which of mine it is.
+ * @param {SharedItem} source as given to buildItemShare
+ * @param {Record<string, unknown>} snapshot what buildItemShare made
+ * @returns {{ file: string, mediaId: string, kind: "photo" | "video" }[]}
+ */
+export function shareFiles(source, snapshot) {
+  const files = new Set(((/** @type {SharedVisual[] | undefined} */ (snapshot.visuals)) ?? []).filter(isMedia).map((v) => v.file));
+  return source.visuals.filter(isMedia).filter((v) => files.has(v.file) && v.mediaId)
+    .map((v) => ({ file: v.file, mediaId: /** @type {string} */ (v.mediaId), kind: v.kind }));
 }
 
 /**
@@ -311,19 +386,33 @@ function readPeople(value, kind) {
 }
 
 /**
- * Drawings and poses with something in them, at most as many of each as
- * an item can have.
+ * Drawings and poses with something in them, and photos and videos with a
+ * file id and a type they can be stored as, at most as many of each as an
+ * item can have.
  * @param {unknown} value
  * @returns {SharedVisual[]}
  */
 function readVisuals(value) {
   if (!Array.isArray(value)) return [];
-  const counts = { drawing: 0, pose: 0 };
+  const counts = { drawing: 0, pose: 0, media: 0, video: 0 };
   const most = { drawing: MAX_DRAWINGS, pose: MAX_POSES };
+  const files = new Set();
   /** @type {SharedVisual[]} */
   const out = [];
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
+    if (item.kind === "photo" || item.kind === "video") {
+      const mediaKind = /** @type {"photo" | "video"} */ (item.kind);
+      const ok = typeof item.file === "string" && FILE_ID.test(item.file) && !files.has(item.file)
+        && MEDIA_MIMES[mediaKind].includes(item.mime) && counts.media < MAX_MEDIA
+        && (mediaKind === "photo" || counts.video < MAX_VIDEOS);
+      if (!ok) continue;
+      files.add(item.file);
+      counts.media++;
+      if (mediaKind === "video") counts.video++;
+      out.push({ kind: mediaKind, file: item.file, mime: item.mime, caption: text(item.caption, MAX_CAPTION) });
+      continue;
+    }
     const kind = item.kind === "drawing" || item.kind === "pose" ? /** @type {"drawing" | "pose"} */ (item.kind) : null;
     const data = item.data;
     if (!kind || !data || typeof data !== "object" || Array.isArray(data) || counts[kind] >= most[kind]) continue;

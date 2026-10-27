@@ -31,41 +31,45 @@ const TAG_BYTES = 16;
 export const PIECE_BYTES = 1024 * 1024;
 
 /**
- * @param {string} userId
- * @param {string} mediaId
- * @param {MediaPart} part
+ * What a photo's or video's sealed parts are bound to: the additional data
+ * for its thumbnail, full size or caption, and for each piece of a video's
+ * full size. My own photos are bound to me and their id (mediaBinding);
+ * a share's to the share and the file's id (crypto/share.js).
+ * @typedef {{ part: (part: MediaPart) => string, piece: (n: number, last: boolean) => string }} Binding
  */
-function additionalData(userId, mediaId, part) {
-  return new TextEncoder().encode(`notonawa|media|v1|${userId}|${mediaId}|${part}`);
-}
 
 /**
+ * My own photo's or video's binding.
  * @param {string} userId
  * @param {string} mediaId
- * @param {number} piece counted from 0
- * @param {boolean} last
+ * @returns {Binding}
  */
-function pieceData(userId, mediaId, piece, last) {
-  return new TextEncoder().encode(`notonawa|media|v2|${userId}|${mediaId}|full|${piece}|${last ? "last" : "more"}`);
+export function mediaBinding(userId, mediaId) {
+  return {
+    part: (part) => `notonawa|media|v1|${userId}|${mediaId}|${part}`,
+    piece: (n, last) => `notonawa|media|v2|${userId}|${mediaId}|full|${n}|${last ? "last" : "more"}`,
+  };
 }
 
+const encode = (/** @type {string} */ text) => new TextEncoder().encode(text);
+
 /**
- * Seals a video's full size in pieces: each a 12-byte IV and its
- * ciphertext, one after another.
+ * Seals a full size in pieces: each a 12-byte IV and its ciphertext, one
+ * after another.
  * @param {CryptoKey} key
- * @param {{ userId: string, mediaId: string }} where
+ * @param {Binding} binding
  * @param {ArrayBuffer} bytes
- * @param {number} [pieceBytes] only changed by tests
+ * @param {number} pieceBytes
  * @returns {Promise<Uint8Array<ArrayBuffer>>}
  */
-export async function sealPieces(key, { userId, mediaId }, bytes, pieceBytes = PIECE_BYTES) {
+async function sealPiecesBound(key, binding, bytes, pieceBytes) {
   const count = Math.max(1, Math.ceil(bytes.byteLength / pieceBytes));
   const out = new Uint8Array(bytes.byteLength + count * (IV_BYTES + TAG_BYTES));
   let at = 0;
   for (let n = 0; n < count; n++) {
     const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
     const sealed = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: pieceData(userId, mediaId, n, n === count - 1) },
+      { name: "AES-GCM", iv, additionalData: encode(binding.piece(n, n === count - 1)) },
       key, bytes.slice(n * pieceBytes, (n + 1) * pieceBytes)
     );
     out.set(iv, at);
@@ -76,15 +80,15 @@ export async function sealPieces(key, { userId, mediaId }, bytes, pieceBytes = P
 }
 
 /**
- * Opens a video's full size sealed by sealPieces. Throws CantOpen if any
- * piece won't open, or one is missing.
+ * Opens a full size sealed in pieces. Throws CantOpen if any piece won't
+ * open, or one is missing.
  * @param {CryptoKey} key
- * @param {{ userId: string, mediaId: string }} where
+ * @param {Binding} binding
  * @param {ArrayBuffer} sealed
- * @param {number} [pieceBytes] only changed by tests
+ * @param {number} pieceBytes
  * @returns {Promise<ArrayBuffer>}
  */
-export async function openPieces(key, { userId, mediaId }, sealed, pieceBytes = PIECE_BYTES) {
+async function openPiecesBound(key, binding, sealed, pieceBytes) {
   const sealedPiece = IV_BYTES + pieceBytes + TAG_BYTES;
   const count = Math.ceil(sealed.byteLength / sealedPiece);
   const lastSize = sealed.byteLength - (count - 1) * sealedPiece;
@@ -94,7 +98,7 @@ export async function openPieces(key, { userId, mediaId }, sealed, pieceBytes = 
     const piece = sealed.slice(n * sealedPiece, (n + 1) * sealedPiece);
     try {
       const plain = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: piece.slice(0, IV_BYTES), additionalData: pieceData(userId, mediaId, n, n === count - 1) },
+        { name: "AES-GCM", iv: piece.slice(0, IV_BYTES), additionalData: encode(binding.piece(n, n === count - 1)) },
         key, piece.slice(IV_BYTES)
       );
       out.set(new Uint8Array(plain), n * pieceBytes);
@@ -106,21 +110,104 @@ export async function openPieces(key, { userId, mediaId }, sealed, pieceBytes = 
 }
 
 /**
+ * Seals one part whole: the IV, then the ciphertext.
+ * @param {CryptoKey} key
+ * @param {string} additionalData
+ * @param {ArrayBuffer} bytes
+ * @returns {Promise<Uint8Array<ArrayBuffer>>}
+ */
+async function sealBound(key, additionalData, bytes) {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: encode(additionalData) }, key, bytes);
+  const out = new Uint8Array(IV_BYTES + sealed.byteLength);
+  out.set(iv);
+  out.set(new Uint8Array(sealed), IV_BYTES);
+  return out;
+}
+
+/**
+ * Opens one part sealed whole. Throws CantOpen if it won't.
+ * @param {CryptoKey} key
+ * @param {string} additionalData
+ * @param {ArrayBuffer} sealed
+ * @returns {Promise<ArrayBuffer>}
+ */
+async function openBound(key, additionalData, sealed) {
+  try {
+    return await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: sealed.slice(0, IV_BYTES), additionalData: encode(additionalData) }, key, sealed.slice(IV_BYTES)
+    );
+  } catch {
+    throw new CantOpen();
+  }
+}
+
+/**
+ * Seals a photo or video into the object that's uploaded: its thumbnail,
+ * then its full size (a video's in pieces).
+ * @param {CryptoKey} key
+ * @param {Binding} binding
+ * @param {{ thumb: ArrayBuffer, full: ArrayBuffer, video: boolean }} file
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export async function sealObject(key, binding, { thumb, full, video }) {
+  const sealedThumb = await sealBound(key, binding.part("thumb"), thumb);
+  const sealedFull = video ? await sealPiecesBound(key, binding, full, PIECE_BYTES) : await sealBound(key, binding.part("full"), full);
+  const body = new Uint8Array(sealedThumb.length + sealedFull.length);
+  body.set(sealedThumb);
+  body.set(sealedFull, sealedThumb.length);
+  return { body: body.buffer, thumbBytes: sealedThumb.length };
+}
+
+/**
+ * Opens one part of an object sealObject made. Throws CantOpen if it won't.
+ * @param {CryptoKey} key
+ * @param {Binding} binding
+ * @param {{ part: "thumb" | "full", video: boolean }} which
+ * @param {ArrayBuffer} sealed
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openObjectPart(key, binding, { part, video }, sealed) {
+  return video && part === "full"
+    ? openPiecesBound(key, binding, sealed, PIECE_BYTES)
+    : openBound(key, binding.part(part), sealed);
+}
+
+/**
+ * Seals a video's full size in pieces: each a 12-byte IV and its
+ * ciphertext, one after another.
+ * @param {CryptoKey} key
+ * @param {{ userId: string, mediaId: string }} where
+ * @param {ArrayBuffer} bytes
+ * @param {number} [pieceBytes] only changed by tests
+ * @returns {Promise<Uint8Array<ArrayBuffer>>}
+ */
+export function sealPieces(key, { userId, mediaId }, bytes, pieceBytes = PIECE_BYTES) {
+  return sealPiecesBound(key, mediaBinding(userId, mediaId), bytes, pieceBytes);
+}
+
+/**
+ * Opens a video's full size sealed by sealPieces. Throws CantOpen if any
+ * piece won't open, or one is missing.
+ * @param {CryptoKey} key
+ * @param {{ userId: string, mediaId: string }} where
+ * @param {ArrayBuffer} sealed
+ * @param {number} [pieceBytes] only changed by tests
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openPieces(key, { userId, mediaId }, sealed, pieceBytes = PIECE_BYTES) {
+  return openPiecesBound(key, mediaBinding(userId, mediaId), sealed, pieceBytes);
+}
+
+/**
  * Seals one part of a photo.
  * @param {CryptoKey} key
  * @param {{ userId: string, mediaId: string, part: "thumb" | "full" }} where
  * @param {ArrayBuffer} bytes
  * @returns {Promise<Uint8Array<ArrayBuffer>>} the IV, then the ciphertext
  */
-export async function sealPart(key, { userId, mediaId, part }, bytes) {
-  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const sealed = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: additionalData(userId, mediaId, part) }, key, bytes
-  );
-  const out = new Uint8Array(IV_BYTES + sealed.byteLength);
-  out.set(iv);
-  out.set(new Uint8Array(sealed), IV_BYTES);
-  return out;
+export function sealPart(key, { userId, mediaId, part }, bytes) {
+  return sealBound(key, mediaBinding(userId, mediaId).part(part), bytes);
 }
 
 /**
@@ -130,15 +217,8 @@ export async function sealPart(key, { userId, mediaId, part }, bytes) {
  * @param {ArrayBuffer} sealed
  * @returns {Promise<ArrayBuffer>}
  */
-export async function openPart(key, { userId, mediaId, part }, sealed) {
-  try {
-    return await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: sealed.slice(0, IV_BYTES), additionalData: additionalData(userId, mediaId, part) },
-      key, sealed.slice(IV_BYTES)
-    );
-  } catch {
-    throw new CantOpen();
-  }
+export function openPart(key, { userId, mediaId, part }, sealed) {
+  return openBound(key, mediaBinding(userId, mediaId).part(part), sealed);
 }
 
 /**
@@ -148,13 +228,8 @@ export async function openPart(key, { userId, mediaId, part }, sealed) {
  * @param {{ thumb: ArrayBuffer, full: ArrayBuffer }} photo
  * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
  */
-export async function sealPhoto(key, { userId, mediaId }, { thumb, full }) {
-  const sealedThumb = await sealPart(key, { userId, mediaId, part: "thumb" }, thumb);
-  const sealedFull = await sealPart(key, { userId, mediaId, part: "full" }, full);
-  const body = new Uint8Array(sealedThumb.length + sealedFull.length);
-  body.set(sealedThumb);
-  body.set(sealedFull, sealedThumb.length);
-  return { body: body.buffer, thumbBytes: sealedThumb.length };
+export function sealPhoto(key, { userId, mediaId }, { thumb, full }) {
+  return sealObject(key, mediaBinding(userId, mediaId), { thumb, full, video: false });
 }
 
 /**
@@ -165,13 +240,8 @@ export async function sealPhoto(key, { userId, mediaId }, { thumb, full }) {
  * @param {{ thumb: ArrayBuffer, full: ArrayBuffer }} video
  * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
  */
-export async function sealVideo(key, { userId, mediaId }, { thumb, full }) {
-  const sealedThumb = await sealPart(key, { userId, mediaId, part: "thumb" }, thumb);
-  const sealedFull = await sealPieces(key, { userId, mediaId }, full);
-  const body = new Uint8Array(sealedThumb.length + sealedFull.length);
-  body.set(sealedThumb);
-  body.set(sealedFull, sealedThumb.length);
-  return { body: body.buffer, thumbBytes: sealedThumb.length };
+export function sealVideo(key, { userId, mediaId }, { thumb, full }) {
+  return sealObject(key, mediaBinding(userId, mediaId), { thumb, full, video: true });
 }
 
 /**
@@ -188,7 +258,7 @@ export async function sealCaption(key, { userId, mediaId }, text) {
   if (trimmed.length > MAX_CAPTION) throw new CaptionTooLong();
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const sealed = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: additionalData(userId, mediaId, "caption") },
+    { name: "AES-GCM", iv, additionalData: encode(mediaBinding(userId, mediaId).part("caption")) },
     key, new TextEncoder().encode(trimmed)
   );
   return `e1.${toBase64url(iv)}.${toBase64url(sealed)}`;
@@ -207,7 +277,7 @@ export async function openCaption(key, { userId, mediaId }, value) {
   const [, iv, sealed] = String(value).split(".");
   try {
     const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: fromBase64url(iv), additionalData: additionalData(userId, mediaId, "caption") },
+      { name: "AES-GCM", iv: fromBase64url(iv), additionalData: encode(mediaBinding(userId, mediaId).part("caption")) },
       key, fromBase64url(sealed)
     );
     return new TextDecoder().decode(plain);

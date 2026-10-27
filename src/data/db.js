@@ -68,7 +68,7 @@ export async function readAccount(db, userId) {
     q("SELECT kind, message, app_version, created_at FROM feedback WHERE user_id = ? ORDER BY created_at, id"),
     // My shares (their names sealed; the sealed copies themselves aren't
     // exported: only whoever has the link can open them).
-    q(`SELECT kind, label, expires_at, max_uses, use_count, created_at
+    q(`SELECT kind, label, expires_at, max_uses, use_count, files, created_at
          FROM shares WHERE owner_id = ? ORDER BY created_at, id`),
     // My saved poser presets (their names sealed; their angles plain JSON).
     q(`SELECT kind, name, data, created_at, updated_at

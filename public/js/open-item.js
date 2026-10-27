@@ -9,12 +9,18 @@
 // (share-people.js), shown for the recipient to confirm or change. One
 // that looks like it's already in my journal says so, and offers to add
 // another copy.
+//
+// Its photos and videos are fetched and opened in the crypto Worker, and
+// sealed there again as mine (adoptShareFile): only their thumbnails come
+// out, for the preview.
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { seal, open, forgetSearch } from "./vault.js";
+import { seal, open, forgetSearch, openShareThumb, adoptShareFile } from "./vault.js";
 import { forget } from "./pending-share.js";
-import { readItemShare } from "./share-item.js";
+import { readItemShare, isMedia, visualCounts } from "./share-item.js";
+import { uploadSealed } from "./photo-upload.js";
+import { photoUrl } from "./photo-urls.js";
 import { suggestPeople, peopleProblem, suggestItem, plansProblem } from "./share-people.js";
 import { shareToImport, addsItems, withKnown, duplicatePlan } from "./share-to-import.js";
 import { itemsBody, remapTies, remapWorkshops } from "./import-steps.js";
@@ -58,6 +64,7 @@ export async function showItem(body, opened, signal) {
   }
   const item = read;
   const preview = itemCard(kind, item);
+  showThumbs(preview, opened, item, signal);
   if (opened.own) {
     body.replaceChildren(preview,
       h("p", { id: "open-own" }, `This is your own ${noun}. Share its code with someone else to let them add it.`));
@@ -128,7 +135,7 @@ export async function showItem(body, opened, signal) {
       }
       const target = await save(kind, doc, sealed, known);
       forgetSearch();
-      const visuals = await saveVisuals(target, item.visuals, (text) => showMessage(message, text));
+      const visuals = await saveVisuals(target, item.visuals, opened, (text) => showMessage(message, text));
       done(body, kind, visuals);
     } catch (err) {
       showMessage(message, "Couldn't add it: " + errorMessage(err), true);
@@ -262,27 +269,68 @@ async function save(kind, doc, sealed, known) {
 }
 
 /**
- * Saves its drawings and poses, one by one, in the shared order (each goes
- * last among the item's visuals as it's saved).
+ * Saves its visuals, one by one, in the shared order (each goes last among
+ * the item's visuals as it's saved): drawings and poses from the snapshot,
+ * photos and videos fetched from the share and sealed again as mine.
  * @param {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} target
  * @param {import("./share-item.js").SharedVisual[]} visuals
+ * @param {OpenedShare} opened
  * @param {(text: string) => void} progress
  * @returns {Promise<{ added: number, failed: number }>}
  */
-async function saveVisuals(target, visuals, progress) {
+async function saveVisuals(target, visuals, opened, progress) {
   let added = 0;
   let failed = 0;
   for (const [i, visual] of visuals.entries()) {
-    progress(`Adding drawings and poses… ${i + 1} of ${visuals.length}`);
+    progress(`Adding its visuals… ${i + 1} of ${visuals.length}`);
     try {
-      const entry = { data: /** @type {any} */ (visual.data), caption: visual.caption };
-      await (visual.kind === "drawing" ? saveDrawing(target, entry) : savePose(target, entry));
+      if (isMedia(visual)) {
+        const id = crypto.randomUUID();
+        const sealed = await adoptShareFile({ shareId: opened.id, key: opened.key, fileId: visual.file, kind: visual.kind, mediaId: id });
+        await uploadSealed({ item: target, id, kind: visual.kind, mime: visual.mime, ...sealed, caption: visual.caption });
+      } else {
+        const entry = { data: /** @type {any} */ (visual.data), caption: visual.caption };
+        await (visual.kind === "drawing" ? saveDrawing(target, entry) : savePose(target, entry));
+      }
       added++;
     } catch {
       failed++;
     }
   }
   return { added, failed };
+}
+
+/**
+ * Adds its photos' and videos' thumbnails to the preview, opened as they
+ * arrive. One that can't be fetched or opened stays an empty square.
+ * @param {HTMLElement} preview
+ * @param {OpenedShare} opened
+ * @param {SharedItem} item
+ * @param {AbortSignal} signal
+ */
+function showThumbs(preview, opened, item, signal) {
+  const media = item.visuals.filter(isMedia);
+  if (!media.length) return;
+  const tiles = media.map((v) => {
+    const label = `${v.kind === "video" ? "Video" : "Photo"}${v.caption ? `: ${v.caption}` : ""}`;
+    const thumb = h("div", { className: "photo-thumb", role: "img", "aria-label": label },
+      v.kind === "video" ? h("span", { className: "video-badge", "aria-hidden": "true" }, "▶") : null);
+    return { v, thumb, tile: h("figure", { className: `photo-tile visual-${v.kind}` }, thumb,
+      v.caption ? h("figcaption", {}, v.caption) : null) };
+  });
+  preview.append(h("div", { className: "photo-grid shared-thumbs", id: "open-thumbs" }, tiles.map((t) => t.tile)));
+  (async () => {
+    for (const { v, thumb } of tiles) {
+      if (signal.aborted) return;
+      try {
+        const bytes = await openShareThumb({ shareId: opened.id, key: opened.key, fileId: v.file, kind: v.kind });
+        if (signal.aborted) return;
+        thumb.prepend(h("img", { src: photoUrl(bytes, v.kind === "video" ? "image/jpeg" : v.mime), alt: "" }));
+      } catch {
+        // Left empty: Add to my journal says if it can't be added either.
+      }
+    }
+  })();
 }
 
 /**
@@ -296,7 +344,7 @@ function done(body, kind, visuals) {
   const [href, label] = VIEWS[kind];
   const failed = visuals.failed
     ? h("p", { className: "message error", id: "open-visuals-failed" },
-      `${visuals.failed} of its drawings and poses couldn't be added.`)
+      `${visuals.failed} of its visuals couldn't be added.`)
     : null;
   body.replaceChildren(...[h("p", { id: "open-done" }, `The ${NOUNS[kind]} is in your journal.`), failed,
     h("a", { href, id: "open-to-view" }, label)].filter((el) => el !== null));
@@ -323,9 +371,7 @@ function itemCard(kind, item) {
   const rating = kind === "tie" ? item.success_rating : kind === "workshop" ? item.rating : item.est_difficulty;
   const ratingWords = kind === "plan" ? "Difficulty" : kind === "tie" ? "How it went" : "Rating";
   const place = item.location ? [item.location.name, placeText(item.location)].filter(Boolean).join(" · ") : null;
-  const count = (/** @type {string} */ k) => item.visuals.filter((v) => v.kind === k).length;
-  const visuals = [[count("drawing"), "drawing"], [count("pose"), "pose"]].filter(([n]) => n)
-    .map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
+  const visuals = visualCounts(item.visuals, ["photo", "video", "drawing", "pose"]);
   const educators = item.people.filter((p) => p.kind === "educator");
   const attendees = item.people.filter((p) => p.kind !== "educator");
   return h("div", { className: "item shared-item", id: "open-item" },

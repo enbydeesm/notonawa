@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { env, createScheduledController } from "cloudflare:test";
+import { env, createScheduledController, SELF } from "cloudflare:test";
 import worker from "../../src/index.js";
-import { call, createOtherUser, sessionCookieFor, signedInUser, sql, sealed, fakeWrap } from "../helpers.js";
+import { call, createOtherUser, sessionCookieFor, signedInUser, sql, sealed, fakeWrap, ORIGIN } from "../helpers.js";
 import { newShareId } from "../../public/js/crypto/share.js";
-import { toBase64url, snapshotKey, MAX_LIVE_SHARES } from "../../src/shares/parse.js";
+import { toBase64url, snapshotKey, fileKey, MAX_LIVE_SHARES } from "../../src/shares/parse.js";
 import { MAX_ACCOUNT_BYTES } from "../../src/media/parse.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -57,7 +57,7 @@ describe("making a share", () => {
     const listed = list.find((/** @type {any} */ s) => s.id === first.id);
     expect(listed).toEqual({
       id: first.id, kind: "tie", label: sealed("For Sam"), link_key: sealed("key"), bytes: 64, expires_at: null, max_uses: null, use_count: 0, connect: 0,
-      created_at: expect.stringMatching(/Z$/),
+      files: 0, created_at: expect.stringMatching(/Z$/),
     });
     // A day from now, as an ISO timestamp.
     const expires = list.find((/** @type {any} */ s) => s.id === second.id).expires_at;
@@ -243,10 +243,178 @@ describe("the export", () => {
     await share({ kind: "workshop", max_uses: null, expires: "never" });
     const doc = (await call("/api/data/export")).body;
     expect(doc.account.shares).toContainEqual({
-      kind: "workshop", label: sealed("For Sam"), expires_at: null, max_uses: null, use_count: 0, created_at: expect.any(String),
+      kind: "workshop", label: sealed("For Sam"), expires_at: null, max_uses: null, use_count: 0, files: 0, created_at: expect.any(String),
     });
     // Nor their link keys: those open them, so they stay with the account.
     expect(JSON.stringify(doc.account.shares)).not.toContain("snapshot");
     expect(JSON.stringify(doc.account.shares)).not.toContain("link_key");
+  });
+});
+
+describe("photos and videos in a share", () => {
+  const newFileId = () => crypto.randomUUID();
+
+  /**
+   * Uploads one file to a share (bytes standing in for a sealed one: its
+   * thumbnail is the first thumb of them).
+   * @param {string} id
+   * @param {{ file?: string, kind?: string, bytes?: number, thumb?: number, cookie?: string }} [options]
+   */
+  function upload(id, { file = newFileId(), kind = "photo", bytes = 40, thumb = 10, cookie } = {}) {
+    const body = "t".repeat(thumb) + "f".repeat(bytes - thumb);
+    return call(`/api/shares/${id}/files/${file}?kind=${kind}&thumb_bytes=${thumb}`, { method: "PUT", body, cookie })
+      .then((res) => ({ ...res, file }));
+  }
+
+  /**
+   * Fetches a part of a share's file, as the crypto Worker does.
+   * @param {string} id
+   * @param {string} file
+   * @param {"thumb" | "full"} part
+   * @param {string} cookie
+   */
+  async function fetchPart(id, file, part, cookie) {
+    const res = await SELF.fetch(`${ORIGIN}/api/shares/files`, {
+      method: "POST", headers: { cookie, origin: ORIGIN, "content-type": "application/json" },
+      body: JSON.stringify({ id, file, part }),
+    });
+    return { status: res.status, text: await res.text() };
+  }
+
+  /**
+   * @param {string} id
+   * @param {string} [cookie]
+   */
+  const ready = (id, cookie) => call(`/api/shares/${id}/ready`, { method: "POST", cookie });
+
+  it("can't be opened until every file has arrived and it's ready; then its files can be fetched by part", async () => {
+    const me = await signedInUser();
+    const { id, res } = await share({ files: 2, max_uses: null });
+    expect(res.status).toBe(201);
+    const sam = await otherUser();
+    expect((await open(id, sam.cookie)).status).toBe(404);
+    expect((await call("/api/shares")).body.some((/** @type {any} */ s) => s.id === id)).toBe(false);
+
+    const first = await upload(id);
+    expect(first.status).toBe(201);
+    expect(await ready(id)).toMatchObject({ status: 400, body: { error: expect.stringContaining("didn't arrive") } });
+    const second = await upload(id, { kind: "video", bytes: 30, thumb: 5 });
+    expect(second.status).toBe(201);
+    expect((await upload(id)).body.error).toContain("all its photos");
+    expect((await ready(id)).status).toBe(204);
+    expect((await ready(id)).status).toBe(404);
+
+    expect((await open(id, sam.cookie)).status).toBe(200);
+    expect(await fetchPart(id, first.file, "thumb", sam.cookie)).toEqual({ status: 200, text: "t".repeat(10) });
+    expect(await fetchPart(id, second.file, "full", sam.cookie)).toEqual({ status: 200, text: "f".repeat(25) });
+    expect((await fetchPart(id, newFileId(), "full", sam.cookie)).status).toBe(404);
+    // Counted in my 1 GB with the snapshot, and listed with them.
+    expect(await sql("SELECT bytes FROM shares WHERE id = ?", id).first()).toEqual({ bytes: 64 + 40 + 30 });
+    expect((await call("/api/shares")).body.find((/** @type {any} */ s) => s.id === id)).toMatchObject({ files: 2, bytes: 134 });
+    expect(await env.PHOTOS.head(fileKey(me.id, id, first.file))).not.toBeNull();
+  });
+
+  it("only takes a file once, up to 5 videos, and only for my own unfinished share", async () => {
+    const { id } = await share({ files: 7 });
+    const one = await upload(id);
+    expect((await upload(id, { file: one.file })).status).toBe(409);
+    for (let i = 0; i < 5; i++) expect((await upload(id, { kind: "video" })).status).toBe(201);
+    expect((await upload(id, { kind: "video" })).body.error).toContain("at most 5 videos");
+    const sam = await otherUser();
+    expect((await upload(id, { cookie: sam.cookie })).status).toBe(404);
+    expect((await ready(id, sam.cookie)).status).toBe(404);
+    // A share without files is ready at once, and takes none.
+    const plain = await share();
+    expect((await upload(plain.id)).status).toBe(404);
+  });
+
+  it("stops at the account's 1 GB, leaving no file behind", async () => {
+    const user = await otherUser();
+    const { id } = await share({ files: 1 }, user.cookie);
+    const tie = (await call("/api/ties", { method: "POST", cookie: user.cookie, body: { tie_type: "floor", tie_date: "2026-10-01" } })).body.id;
+    await sql(`INSERT INTO media (id, owner_id, tie_id, kind, mime, position, thumb_bytes, bytes)
+               VALUES (?, ?, ?, 'photo', 'image/jpeg', 0, 1, ?)`, crypto.randomUUID(), user.id, tie, MAX_ACCOUNT_BYTES - 100).run();
+    const over = await upload(id, { cookie: user.cookie, bytes: 50 });
+    expect(over.body.error).toContain("filled your 1 GB");
+    expect(await env.PHOTOS.head(fileKey(user.id, id, over.file))).toBeNull();
+  });
+
+  it("restarts its expiry when it's ready, so uploading doesn't use it up", async () => {
+    const { id } = await share({ files: 1, expires: "1h" });
+    await sql("UPDATE shares SET created_at = '2000-01-01T00:00:00Z', expires_at = '2000-01-01T01:00:00Z' WHERE id = ?", id).run();
+    await upload(id);
+    expect((await ready(id)).status).toBe(204);
+    const { expires_at: expires } = /** @type {any} */ (await sql("SELECT expires_at FROM shares WHERE id = ?", id).first());
+    expect(Math.abs(Date.parse(expires) - Date.now() - 60 * 60 * 1000)).toBeLessThan(60_000);
+  });
+
+  it("keeps its files an hour after its last use, but can't be opened again", async () => {
+    const me = await signedInUser();
+    const { id } = await share({ files: 1, max_uses: 1 });
+    const { file } = await upload(id);
+    await ready(id);
+    const sam = await otherUser();
+    expect((await open(id, sam.cookie)).status).toBe(200);
+    expect((await open(id, (await otherUser()).cookie)).status).toBe(404);
+    expect((await open(id)).status).toBe(404);
+    expect((await call("/api/shares")).body.some((/** @type {any} */ s) => s.id === id)).toBe(false);
+    expect((await fetchPart(id, file, "full", sam.cookie)).status).toBe(200);
+
+    // The daily clean-up leaves it for the hour, then deletes it, files too.
+    await worker.scheduled(createScheduledController(), env);
+    expect((await fetchPart(id, file, "full", sam.cookie)).status).toBe(200);
+    await sql("UPDATE shares SET expires_at = '2000-01-01T00:00:00Z' WHERE id = ?", id).run();
+    expect((await fetchPart(id, file, "full", sam.cookie)).status).toBe(404);
+    await worker.scheduled(createScheduledController(), env);
+    expect(await sql("SELECT count(*) AS n FROM shares WHERE id = ?", id).first()).toEqual({ n: 0 });
+    expect(await env.PHOTOS.head(fileKey(me.id, id, file))).toBeNull();
+  });
+
+  it("keeps its files an hour after it expires, too", async () => {
+    const { id } = await share({ files: 1, max_uses: null });
+    const { file } = await upload(id);
+    await ready(id);
+    const sam = await otherUser();
+    await sql(`UPDATE shares SET expires_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 minutes') WHERE id = ?`, id).run();
+    expect((await open(id, sam.cookie)).status).toBe(404);
+    expect((await fetchPart(id, file, "thumb", sam.cookie)).status).toBe(200);
+  });
+
+  it("are gone at once when it's revoked", async () => {
+    const me = await signedInUser();
+    const { id } = await share({ files: 1, max_uses: null });
+    const { file } = await upload(id);
+    await ready(id);
+    expect((await call(`/api/shares/${id}`, { method: "DELETE" })).status).toBe(204);
+    expect(await env.PHOTOS.head(fileKey(me.id, id, file))).toBeNull();
+    expect((await fetchPart(id, file, "thumb", (await otherUser()).cookie)).status).toBe(404);
+  });
+
+  it("an unfinished share is deleted by the clean-up after a day, files and all, and counts in the 50 till then", async () => {
+    const me = await signedInUser();
+    const { id } = await share({ files: 2 });
+    const { file } = await upload(id);
+    expect(await sql("SELECT count(*) AS n FROM shares WHERE id = ? AND ready = 0", id).first()).toEqual({ n: 1 });
+    await worker.scheduled(createScheduledController(), env);
+    expect(await sql("SELECT count(*) AS n FROM shares WHERE id = ?", id).first()).toEqual({ n: 1 });
+    await sql("UPDATE shares SET created_at = '2000-01-01T00:00:00Z' WHERE id = ?", id).run();
+    await worker.scheduled(createScheduledController(), env);
+    expect(await sql("SELECT count(*) AS n FROM shares WHERE id = ?", id).first()).toEqual({ n: 0 });
+    expect(await env.PHOTOS.head(fileKey(me.id, id, file))).toBeNull();
+
+    const user = await otherUser();
+    for (let i = 0; i < MAX_LIVE_SHARES - 1; i++) {
+      await sql("INSERT INTO shares (id, owner_id, kind, bytes, files, ready) VALUES (?, ?, 'tie', 1, 1, 0)", newShareId(), user.id).run();
+    }
+    expect((await share({}, user.cookie)).res.status).toBe(201);
+    expect((await share({}, user.cookie)).res.body.error).toContain("at most 50");
+  });
+
+  it("go with the account", async () => {
+    const sam = await otherUser();
+    const { id } = await share({ files: 1 }, sam.cookie);
+    const { file } = await upload(id, { cookie: sam.cookie });
+    expect((await call("/api/account", { method: "DELETE", cookie: sam.cookie })).status).toBe(200);
+    expect(await env.PHOTOS.head(fileKey(sam.id, id, file))).toBeNull();
   });
 });

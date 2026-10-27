@@ -99,7 +99,7 @@ export function exportDocument(rows, exportedAt) {
       // Their names are opened on the device, like notes.
       shares: rows.shares.map((s) => ({
         kind: s.kind, label: s.label, expires_at: s.expires_at, max_uses: s.max_uses, use_count: s.use_count,
-        created_at: s.created_at,
+        files: s.files, created_at: s.created_at,
       })),
       // Body and arms positions saved in the poser, for any pose. Their
       // names are opened on the device, like notes; an import adds the

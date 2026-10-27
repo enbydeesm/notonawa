@@ -270,6 +270,38 @@ export function openShare(id, kind, key, sealed) {
 }
 
 /**
+ * One of my photos or videos sealed again for a share with its link's key,
+ * as the object to upload (the Worker fetches and opens it itself).
+ * @param {{ shareId: string, key: string, fileId: string, mediaId: string, kind: "photo" | "video" }} args
+ *   key: base64url, the link's
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function reshareMedia(args) {
+  return call("reshareMedia", args);
+}
+
+/**
+ * A share's photo's or video's thumbnail, opened with its link's key (the
+ * Worker fetches it). Throws CantOpen if it won't open.
+ * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video" }} args
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openShareThumb(args) {
+  return call("openShareThumb", args);
+}
+
+/**
+ * A share's photo or video sealed as one of mine, bound to mediaId, as the
+ * object to upload (the Worker fetches and opens it). Throws CantOpen if it
+ * won't open.
+ * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", mediaId: string }} args
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function adoptShareFile(args) {
+  return call("adoptShareFile", args);
+}
+
+/**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock
  *   listeners (the page is showing something else, e.g. "Account deleted")

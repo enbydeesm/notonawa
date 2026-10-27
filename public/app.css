@@ -1008,6 +1008,7 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 /* Adding a shared tie, plan or workshop (/open): who's who, and which of
    my locations and plans its own are. */
 .shared-item { margin: 8px 0 12px; }
+.shared-thumbs { margin-top: 8px; }
 .open-heading { font-size: 1.05rem; margin: 16px 0 4px; }
 .open-choice { margin: 8px 0; }
 .open-choice select, .open-choice input { width: 100%; }

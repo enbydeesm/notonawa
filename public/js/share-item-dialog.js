@@ -5,8 +5,10 @@
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
-import { open } from "./vault.js";
-import { FIELDS, ALWAYS_SHARED, SHARE_LEGEND, itemSource, hasField, buildItemShare } from "./share-item.js";
+import { open, openMedia } from "./vault.js";
+import {
+  FIELDS, ALWAYS_SHARED, SHARE_LEGEND, itemSource, hasField, buildItemShare, shareFiles, visualCounts, mediaSize,
+} from "./share-item.js";
 import { suggestedName } from "./profile-share.js";
 import { mergeVisuals } from "./visual-order.js";
 import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
@@ -75,7 +77,8 @@ export async function openShareItem(kind, item) {
       offered.length
         ? h("fieldset", { className: "share-fields" }, h("legend", { id: "share-item-always" }, SHARE_LEGEND[kind]), fields)
         : h("p", { className: "hint", id: "share-item-always" }, ALWAYS_SHARED[kind]),
-      item.photo_count ? h("p", { className: "hint", id: "share-item-no-photos" }, "Photos and videos can't be shared yet.") : null,
+      hasField(source, "media") ? h("p", { className: "hint", id: "share-item-media-size" },
+        `Photos and videos are copied into the share, taking ${mediaSize(source.visuals)} of your 1 GB until it ends.`) : null,
       h("div", { className: "row" },
         h("div", {}, h("label", { htmlFor: "share-item-expires" }, "Share link lasts"), expires),
         h("div", {}, h("label", { htmlFor: "share-item-uses" }, "Who can use it"), uses)),
@@ -107,7 +110,10 @@ export async function openShareItem(kind, item) {
           ...source, people: source.people.map((p) => (p.sender ? { ...p, name: myName.value.trim() } : p)),
         } : source;
         const data = buildItemShare(kind, named, ticked);
-        const { id, key } = await saveShare({ kind, data, label: label.value, expires: expires.value, uses: uses.value });
+        const { id, key } = await saveShare({
+          kind, data, label: label.value, expires: expires.value, uses: uses.value, files: shareFiles(source, data),
+          progress: (done, total) => showMessage(message, `Sealing photos and videos… ${done + 1} of ${total}`),
+        });
         dialog.close();
         await showShareCode({ id, key, title: `Your ${noun}`, note: shareWarning(expires.value, uses.value) ?? undefined });
       } catch (err) {
@@ -123,8 +129,9 @@ export async function openShareItem(kind, item) {
 
 /**
  * What the item has to share, with what its form doesn't have loaded: my
- * profile (to mark me), its location's place, and its drawings and poses
- * (captions opened) in their order among its visuals.
+ * profile (to mark me), its location's place, and its visuals (captions
+ * opened) in their order. Each photo and video gets a new random id for
+ * the share, so nothing ties it to the one in my journal.
  * @param {ItemKind} kind
  * @param {Record<string, any>} item
  * @returns {Promise<SharedItem>}
@@ -132,16 +139,19 @@ export async function openShareItem(kind, item) {
 async function loadSource(kind, item) {
   const where = new URLSearchParams({ [`${kind}_id`]: item.id });
   const hasPeople = kind !== "plan" && [...(item.participants ?? []), ...(item.educators ?? [])].length > 0;
-  /** @type {[any[], any[], any[], any[]]} */
-  const [people, locations, drawings, poses] = await Promise.all([
+  /** @type {[any[], any[], any[], any[], any[]]} */
+  const [people, locations, media, drawings, poses] = await Promise.all([
     hasPeople ? api("/api/people?archived=false") : [],
     item.location_id ? api("/api/locations?archived=all") : [],
+    api(`/api/media?${where}`).then((list) => openMedia(list)),
     api(`/api/drawings?${where}`).then((list) => open("drawing", list)),
     api(`/api/poses?${where}`).then((list) => open("pose", list)),
   ]);
   const self = people.find((/** @type {any} */ p) => p.is_self) ?? null;
-  const visuals = mergeVisuals({ media: [], drawing: drawings, pose: poses })
-    .map(({ kind: k, item: v }) => ({ kind: /** @type {"drawing" | "pose"} */ (k), data: v.data, caption: v.caption ?? null }));
+  /** @type {import("./share-item.js").SharedVisual[]} */
+  const visuals = mergeVisuals({ media, drawing: drawings, pose: poses }).map(({ kind: k, item: v }) => (k === "media"
+    ? { kind: v.kind, file: crypto.randomUUID(), mime: v.mime, caption: v.caption ?? null, mediaId: v.id, bytes: v.bytes }
+    : { kind: k, data: v.data, caption: v.caption ?? null }));
   return itemSource(kind, item, {
     selfId: self?.id ?? null,
     myName: self ? suggestedName(self.name) : "",
@@ -167,11 +177,8 @@ function shown(source, key) {
     case "location": return source.location?.name ?? "";
     case "plans": case "tags": return source[key].join(", ");
     case "people": return source.people.map((p) => `${p.sender ? "you" : p.name} (${roleName(p.role)})`).join(", ");
-    case "visuals": {
-      const count = (/** @type {string} */ k) => source.visuals.filter((v) => v.kind === k).length;
-      return [[count("drawing"), "drawing"], [count("pose"), "pose"]].filter(([n]) => n)
-        .map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
-    }
+    case "visuals": return visualCounts(source.visuals, ["drawing", "pose"]);
+    case "media": return visualCounts(source.visuals, ["photo", "video"]);
     default: return "";
   }
 }

@@ -8,7 +8,9 @@
 
 import { BadInput } from "../http.js";
 import { encryptedText, toFlag } from "../parse.js";
-import { MAX_ACCOUNT_BYTES } from "../media/parse.js";
+import {
+  MAX_ACCOUNT_BYTES, MAX_OBJECT_BYTES, MAX_VIDEO_BYTES, MAX_PER_ITEM, MAX_VIDEOS_PER_ITEM, KINDS, parseMediaId,
+} from "../media/parse.js";
 
 export const SHARE_KINDS = /** @type {const} */ (["profile", "tie", "plan", "workshop"]);
 
@@ -29,6 +31,16 @@ export const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
 export const MAX_LIVE_SHARES = 50;
 /** A sealed label (a label is short; sealing adds a third and more). */
 export const MAX_SEALED_LABEL = 1000;
+/** Photos and videos a share can carry: as many as one item can have. */
+export const MAX_SHARE_FILES = MAX_PER_ITEM;
+/**
+ * How long a share with photos is kept after it ends (used up or
+ * expired), so whoever opened it can still fetch them. As SQLite
+ * modifiers, so they can go into SQL.
+ */
+export const FILES_GRACE = "-1 hour";
+/** How long a share whose files never all arrived is kept. */
+export const UNFINISHED_GRACE = "-1 day";
 // A 12-byte IV and a 16-byte tag: anything shorter can't be sealed.
 const MIN_SNAPSHOT_BYTES = 28;
 
@@ -41,7 +53,7 @@ const BASE64URL = /^[A-Za-z0-9_-]*$/;
 /**
  * @typedef {{
  *   id: string, kind: ShareKind, label: string | null, linkKey: string,
- *   expires: string | null, maxUses: number | null, snapshot: Uint8Array, connect: 0 | 1,
+ *   expires: string | null, maxUses: number | null, snapshot: Uint8Array, connect: 0 | 1, files: number,
  * }} NewShare
  */
 
@@ -56,9 +68,10 @@ export function parseShareId(value) {
 
 /**
  * A new share: POST /api/shares with { id, kind, label, link_key, expires,
- * max_uses, snapshot, connect } (the snapshot sealed, as base64url; the
- * label and link key sealed with the owner's data key; connect: a profile
- * invite that offers to connect our accounts).
+ * max_uses, snapshot, connect, files } (the snapshot sealed, as base64url;
+ * the label and link key sealed with the owner's data key; connect: a
+ * profile invite that offers to connect our accounts; files: how many
+ * photos and videos will be uploaded with it, 0 if none).
  * @param {Record<string, any>} body
  * @returns {NewShare}
  */
@@ -72,9 +85,14 @@ export function parseNewShare(body) {
   }
   const connect = toFlag(body.connect);
   if (connect && body.kind !== "profile") throw new BadInput("Only a profile invite can offer to connect accounts.");
+  const files = body.files ?? 0;
+  if (!(Number.isInteger(files) && files >= 0 && files <= MAX_SHARE_FILES)) {
+    throw new BadInput(`A share can have at most ${MAX_SHARE_FILES} photos and videos.`);
+  }
+  if (files > 0 && body.kind === "profile") throw new BadInput("A profile invite can't have photos.");
   return {
     id, kind: body.kind, label: parseLabel(body.label), linkKey: parseLinkKey(body.link_key),
-    expires: EXPIRY[/** @type {keyof typeof EXPIRY} */ (body.expires)], maxUses, snapshot: parseSnapshot(body.snapshot), connect,
+    expires: EXPIRY[/** @type {keyof typeof EXPIRY} */ (body.expires)], maxUses, snapshot: parseSnapshot(body.snapshot), connect, files,
   };
 }
 
@@ -135,6 +153,57 @@ function parseSnapshot(value) {
 }
 
 /**
+ * @typedef {{ id: string, kind: typeof KINDS[number], thumbBytes: number, bytes: number }} ShareFile
+ */
+
+/**
+ * A photo or video for a share: PUT /api/shares/:id/files/:fileId?kind=…&thumb_bytes=…
+ * with the object (sealed with the link's key) as the body. Sized as my
+ * own photos and videos are, as it's one of them sealed again.
+ * @param {string} fileId from the path
+ * @param {URLSearchParams} params
+ * @param {string | null} contentLength the request's Content-Length
+ * @returns {ShareFile}
+ */
+export function parseShareFile(fileId, params, contentLength) {
+  const kind = params.get("kind");
+  if (!KINDS.includes(/** @type {any} */ (kind))) throw new BadInput("Only photos and videos can be shared.");
+  const bytes = Number(contentLength);
+  if (contentLength === null || !Number.isInteger(bytes) || bytes <= 0) {
+    throw new BadInput(`Couldn't upload: the ${kind}'s size wasn't sent.`);
+  }
+  if (bytes > (kind === "video" ? MAX_VIDEO_BYTES : MAX_OBJECT_BYTES)) throw new BadInput(`That ${kind} is too big to share.`);
+  const thumbBytes = Number(params.get("thumb_bytes"));
+  if (!Number.isInteger(thumbBytes) || thumbBytes <= 0 || thumbBytes >= bytes) {
+    throw new BadInput("Couldn't upload: the thumbnail's size is wrong.");
+  }
+  return { id: parseMediaId(fileId), kind: /** @type {ShareFile["kind"]} */ (kind), thumbBytes, bytes };
+}
+
+/**
+ * Why a file can't be added to a share, or null if it can.
+ * @param {{ files: number, stored: number, videos: number }} share the files it said it has, and has so far
+ * @param {ShareFile["kind"]} kind
+ * @returns {string | null}
+ */
+export function shareFileProblem({ files, stored, videos }, kind) {
+  if (stored >= files) return "That share has all its photos already.";
+  if (kind === "video" && videos >= MAX_VIDEOS_PER_ITEM) return `A share can have at most ${MAX_VIDEOS_PER_ITEM} videos.`;
+  return null;
+}
+
+/**
+ * Which part of a share's file to fetch: POST /api/shares/files with
+ * { id, file, part }.
+ * @param {Record<string, any>} body
+ * @returns {{ id: string, file: string, part: "thumb" | "full" }}
+ */
+export function parseFileRequest(body) {
+  if (body.part !== "thumb" && body.part !== "full") throw new BadInput("Say which part: thumb or full.");
+  return { id: parseShareId(body.id), file: parseMediaId(body.file), part: body.part };
+}
+
+/**
  * Why a new share can't be kept, or null if it can.
  * @param {{ live: number, accountBytes: number }} used the account's live shares, and its bytes in R2
  * @param {number} bytes the new share's
@@ -174,6 +243,14 @@ export const sharePrefix = (ownerId, shareId) => `${ownerId}/shares/${shareId}/`
  * @param {string} shareId
  */
 export const snapshotKey = (ownerId, shareId) => `${sharePrefix(ownerId, shareId)}snapshot`;
+
+/**
+ * One of a share's photos or videos.
+ * @param {string} ownerId
+ * @param {string} shareId
+ * @param {string} fileId
+ */
+export const fileKey = (ownerId, shareId, fileId) => `${sharePrefix(ownerId, shareId)}${fileId}`;
 
 /**
  * Which share an R2 key belongs to, or null if it isn't a share's.

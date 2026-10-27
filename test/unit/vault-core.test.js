@@ -127,3 +127,62 @@ describe("VaultCore records", () => {
     await expect(new VaultCore().sealShare({ id, kind: "tie", data: {} })).rejects.toThrow("locked");
   });
 });
+
+describe("photos in shares", () => {
+  const PHOTO = "0b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+  const FILE = "2b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+  const ADOPTED = "3b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+
+  /**
+   * A vault whose photos are the objects in store, as the server would
+   * hand back their parts.
+   * @param {string} userId
+   * @param {Map<string, { body: ArrayBuffer, thumbBytes: number }>} store
+   * @param {(fileId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} [loadShareFile]
+   */
+  async function vaultWith(userId, store, loadShareFile) {
+    /** @param {{ body: ArrayBuffer, thumbBytes: number } | undefined} o @param {"thumb" | "full"} part */
+    const part = (o, part) => {
+      if (!o) throw new Error("not there");
+      return part === "thumb" ? o.body.slice(0, o.thumbBytes) : o.body.slice(o.thumbBytes);
+    };
+    const vault = new VaultCore(undefined, async (id, p) => part(store.get(id), p),
+      loadShareFile && ((_shareId, fileId, p) => loadShareFile(fileId, p)));
+    await vault.setup({ userId, code: newCode() });
+    return { vault, part };
+  }
+
+  it("go from one journal to another through the share, opened only in the Workers", async () => {
+    for (const kind of /** @type {const} */ (["photo", "video"])) {
+      const mine = new Map();
+      const sender = await vaultWith(USER, mine);
+      // A video over one piece, so its pieces are checked too.
+      const full = new Uint8Array(kind === "video" ? 1024 * 1024 + 5 : 300).map((_, i) => i % 251);
+      const sealCall = kind === "video" ? "sealVideo" : "sealPhoto";
+      mine.set(PHOTO, await sender.vault[sealCall]({ mediaId: PHOTO, thumb: new Uint8Array([7, 7]).buffer, full: full.slice().buffer }));
+
+      const shareId = newShareId();
+      const key = (await sender.vault.sealShare({ id: shareId, kind: "tie", data: {} })).key;
+      const shared = new Map([[FILE, await sender.vault.reshareMedia({ shareId, key, fileId: FILE, mediaId: PHOTO, kind })]]);
+
+      const theirs = new Map();
+      const recipient = await vaultWith("user-2", theirs, async (fileId, p) => sender.part(shared.get(fileId), p));
+      expect([...new Uint8Array(await recipient.vault.openShareThumb({ shareId, key, fileId: FILE, kind }))]).toEqual([7, 7]);
+      theirs.set(ADOPTED, await recipient.vault.adoptShareFile({ shareId, key, fileId: FILE, kind, mediaId: ADOPTED }));
+      expect(new Uint8Array(await recipient.vault.openPhoto({ mediaId: ADOPTED, part: "full", kind }))).toEqual(full);
+
+      // Not with another link's key, or as another file.
+      await expect(recipient.vault.openShareThumb({ shareId, key: (await sender.vault.sealShare({ id: shareId, kind: "tie", data: {} })).key, fileId: FILE, kind }))
+        .rejects.toThrow(CantOpen);
+      await expect(recipient.vault.adoptShareFile({ shareId: newShareId(), key, fileId: FILE, kind, mediaId: ADOPTED }))
+        .rejects.toThrow(CantOpen);
+    }
+  });
+
+  it("need the journal unlocked", async () => {
+    const vault = new VaultCore();
+    await expect(vault.adoptShareFile({ shareId: newShareId(), key: "x", fileId: FILE, kind: "photo", mediaId: ADOPTED }))
+      .rejects.toThrow("locked");
+    await expect(vault.openShareThumb({ shareId: newShareId(), key: "x", fileId: FILE, kind: "photo" })).rejects.toThrow("locked");
+  });
+});

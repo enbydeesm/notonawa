@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { itemSource, buildItemShare, readItemShare, hasField, FIELDS, LIMITS, SHARE_LEGEND } from "../../public/js/share-item.js";
+import {
+  itemSource, buildItemShare, readItemShare, hasField, shareFiles, visualCounts, mediaSize, FIELDS, LIMITS, SHARE_LEGEND,
+} from "../../public/js/share-item.js";
 
 // A tie as its form has it (GET /api/ties/:id, opened).
 const TIE = {
@@ -122,5 +124,70 @@ describe("SHARE_LEGEND", () => {
       const words = SHARE_LEGEND[kind].toLowerCase().split(/[^a-z]+/);
       for (const field of FIELDS[kind]) expect(words).not.toContain(field.label.toLowerCase());
     }
+  });
+});
+
+describe("photos and videos", () => {
+  const F1 = "0b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+  const F2 = "1b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+  /** @type {import("../../public/js/share-item.js").SharedVisual[]} */
+  const MIXED = [
+    { kind: "photo", file: F1, mime: "image/jpeg", caption: "Front", mediaId: "m1", bytes: 3 * 1024 * 1024 },
+    { kind: "drawing", data: { v: 1, strokes: [] }, caption: null },
+    { kind: "video", file: F2, mime: "video/mp4", caption: null, mediaId: "m2", bytes: 1024 * 1024 },
+  ];
+  const source = () => itemSource("plan", { id: "p", title: "TK" }, { ...EXTRAS, visuals: MIXED });
+
+  it("are their own tickbox, apart from drawings and poses", () => {
+    expect(FIELDS.tie.map((f) => f.key)).toContain("media");
+    expect([hasField(source(), "media"), hasField(source(), "visuals")]).toEqual([true, true]);
+    const drawingsOnly = itemSource("plan", { id: "p", title: "TK" }, { ...EXTRAS, visuals: [MIXED[1]] });
+    expect([hasField(drawingsOnly, "media"), hasField(drawingsOnly, "visuals")]).toEqual([false, true]);
+  });
+
+  it("go in the visuals' one order, each group only when ticked, never with their ids or sizes in my journal", () => {
+    expect(buildItemShare("plan", source(), ["visuals", "media"]).visuals).toEqual([
+      { kind: "photo", file: F1, mime: "image/jpeg", caption: "Front" },
+      { kind: "drawing", data: { v: 1, strokes: [] }, caption: null },
+      { kind: "video", file: F2, mime: "video/mp4", caption: null },
+    ]);
+    expect(buildItemShare("plan", source(), ["visuals"]).visuals).toEqual([MIXED[1]]);
+    expect((/** @type {any[]} */ (buildItemShare("plan", source(), ["media"]).visuals)).map((v) => v.file)).toEqual([F1, F2]);
+    expect(buildItemShare("plan", source(), ["title"]).visuals).toBeUndefined();
+  });
+
+  it("are listed to upload: the ones in the snapshot, with which of mine each is", () => {
+    const s = source();
+    expect(shareFiles(s, buildItemShare("plan", s, ["media"]))).toEqual([
+      { file: F1, mediaId: "m1", kind: "photo" }, { file: F2, mediaId: "m2", kind: "video" },
+    ]);
+    expect(shareFiles(s, buildItemShare("plan", s, ["visuals"]))).toEqual([]);
+  });
+
+  it("are counted, and sized, in words", () => {
+    expect(visualCounts(MIXED, ["photo", "video", "drawing", "pose"])).toBe("1 photo, 1 video, 1 drawing");
+    expect(visualCounts([...MIXED, MIXED[0]], ["photo"])).toBe("2 photos");
+    expect(mediaSize(MIXED)).toBe("4.0 MB");
+    expect(mediaSize([MIXED[1]])).toBe("");
+    expect(mediaSize([{ kind: "photo", file: F1, mime: "image/jpeg", caption: null, bytes: 2000 }])).toBe("under 0.1 MB");
+  });
+
+  it("are read strictly: a file id made here, a type they're stored as, each once, up to an item's worth", () => {
+    const read = (/** @type {unknown[]} */ visuals) => readItemShare("plan", { v: 1, title: "TK", visuals })?.visuals;
+    expect(read([{ kind: "photo", file: F1, mime: "image/webp", caption: " Hi ", mediaId: "x" }]))
+      .toEqual([{ kind: "photo", file: F1, mime: "image/webp", caption: "Hi" }]);
+    for (const bad of [
+      { kind: "photo", file: "../x", mime: "image/jpeg" },
+      { kind: "photo", file: F1, mime: "image/png" },
+      { kind: "video", file: F1, mime: "image/jpeg" },
+      { kind: "photo", file: F1.toUpperCase(), mime: "image/jpeg" },
+    ]) expect(read([bad]), JSON.stringify(bad)).toEqual([]);
+    expect(read([{ kind: "photo", file: F1, mime: "image/jpeg" }, { kind: "video", file: F1, mime: "video/mp4" }])).toHaveLength(1);
+    expect(read([{ kind: "photo", file: F1, mime: "image/jpeg", caption: "x".repeat(201) }])?.[0].caption).toBeNull();
+    const id = (/** @type {number} */ i) => `${String(i).padStart(8, "0")}-3d4a-4b5c-8d6e-7f8091a2b3c4`;
+    const videos = Array.from({ length: 7 }, (_, i) => ({ kind: "video", file: id(i), mime: "video/mp4" }));
+    expect(read(videos)).toHaveLength(5);
+    const photos = Array.from({ length: 35 }, (_, i) => ({ kind: "photo", file: id(i), mime: "image/jpeg" }));
+    expect(read(photos)).toHaveLength(30);
   });
 });

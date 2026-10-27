@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseNewShare, parseShareId, shareProblem, sharePrefix, snapshotKey, shareOfKey, toBase64url,
-  MAX_SNAPSHOT_BYTES, MAX_LIVE_SHARES, MAX_USES,
+  parseNewShare, parseShareId, shareProblem, sharePrefix, snapshotKey, shareOfKey, toBase64url, parseShareFile,
+  shareFileProblem, parseFileRequest, fileKey, MAX_SNAPSHOT_BYTES, MAX_LIVE_SHARES, MAX_USES, MAX_SHARE_FILES,
 } from "../../src/shares/parse.js";
-import { MAX_ACCOUNT_BYTES } from "../../src/media/parse.js";
+import { MAX_ACCOUNT_BYTES, MAX_OBJECT_BYTES, MAX_VIDEO_BYTES } from "../../src/media/parse.js";
 import { sealed } from "../sealed.js";
 
 const ID = "AbCdEfGhIjKlMnOpQrStUv";
@@ -94,5 +94,47 @@ describe("toBase64url", () => {
     const text = toBase64url(bytes);
     expect(text).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(Uint8Array.from(atob(text.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))).toEqual(bytes);
+  });
+});
+
+const FILE = "0b6e1f2c-3d4a-4b5c-8d6e-7f8091a2b3c4";
+
+describe("a share's photos and videos", () => {
+  it("are counted on a new share, up to an item's worth, and never on a profile invite", () => {
+    expect(parseNewShare(share()).files).toBe(0);
+    expect(parseNewShare(share({ files: MAX_SHARE_FILES })).files).toBe(30);
+    for (const files of [-1, 31, 1.5, "2"]) expect(() => parseNewShare(share({ files })), String(files)).toThrow("at most 30");
+    expect(() => parseNewShare(share({ kind: "profile", files: 1 }))).toThrow("profile invite can't have photos");
+  });
+
+  it("are uploaded with their kind, size and where the thumbnail ends", () => {
+    const params = new URLSearchParams({ kind: "video", thumb_bytes: "100" });
+    expect(parseShareFile(FILE, params, "5000")).toEqual({ id: FILE, kind: "video", thumbBytes: 100, bytes: 5000 });
+    expect(() => parseShareFile("../x", params, "5000")).toThrow("isn't a photo id");
+    expect(() => parseShareFile(FILE, new URLSearchParams({ kind: "drawing", thumb_bytes: "1" }), "5")).toThrow("Only photos and videos");
+    expect(() => parseShareFile(FILE, params, null)).toThrow("size wasn't sent");
+    expect(() => parseShareFile(FILE, params, "100")).toThrow("thumbnail's size");
+    expect(() => parseShareFile(FILE, params, String(MAX_VIDEO_BYTES + 1))).toThrow("too big to share");
+    const photo = new URLSearchParams({ kind: "photo", thumb_bytes: "1" });
+    expect(() => parseShareFile(FILE, photo, String(MAX_OBJECT_BYTES + 1))).toThrow("too big to share");
+  });
+
+  it("stop at as many as the share said, and 5 videos", () => {
+    expect(shareFileProblem({ files: 2, stored: 1, videos: 0 }, "photo")).toBeNull();
+    expect(shareFileProblem({ files: 2, stored: 2, videos: 0 }, "photo")).toContain("all its photos");
+    expect(shareFileProblem({ files: 9, stored: 5, videos: 5 }, "video")).toContain("at most 5 videos");
+    expect(shareFileProblem({ files: 9, stored: 5, videos: 5 }, "photo")).toBeNull();
+  });
+
+  it("are fetched by the share's id, the file's and the part", () => {
+    expect(parseFileRequest({ id: ID, file: FILE, part: "thumb" })).toEqual({ id: ID, file: FILE, part: "thumb" });
+    expect(() => parseFileRequest({ id: ID, file: FILE, part: "all" })).toThrow("thumb or full");
+    expect(() => parseFileRequest({ id: ID, file: "x", part: "full" })).toThrow("isn't a photo id");
+  });
+
+  it("sit beside the snapshot, so the sweep and deleting the share take them too", () => {
+    expect(fileKey("u1", ID, FILE)).toBe(`u1/shares/${ID}/${FILE}`);
+    expect(shareOfKey(fileKey("u1", ID, FILE))).toEqual({ ownerId: "u1", shareId: ID });
+    expect(fileKey("u1", ID, FILE).startsWith(sharePrefix("u1", ID))).toBe(true);
   });
 });

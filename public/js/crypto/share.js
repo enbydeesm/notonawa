@@ -14,9 +14,16 @@
 // binds it to the share's id, kind and format version, so the server can't
 // pass one share off as another. Stored as a 12-byte IV, then the
 // ciphertext with its tag. The data key is never used for any of it.
+//
+// Its photos and videos are sealed with another key made from the link's
+// ("notonawa share v1 file"), in the same format as my own (media.js: the
+// thumbnail, then the full size, a video's in pieces), each part bound to
+// the share's id and the file's own id (a random UUID, listed only in the
+// snapshot), so the server can't swap one share's file for another's.
 
 import { toBase64url, fromBase64url } from "./keys.js";
 import { CantOpen } from "./fields.js";
+import { sealObject, openObjectPart } from "./media.js";
 
 export const SHARE_VERSION = 1;
 export const SHARE_KINDS = /** @type {const} */ (["profile", "tie", "plan", "workshop"]);
@@ -50,20 +57,27 @@ function additionalData(id, kind) {
 }
 
 /**
- * The AES key a share's link key makes.
+ * An AES key a share's link key makes, for its snapshot or its files.
  * @param {Uint8Array<ArrayBuffer>} linkKey
+ * @param {"snapshot" | "file"} what
  * @param {"encrypt" | "decrypt"} use
  */
-async function snapshotKey(linkKey, use) {
+async function derivedKey(linkKey, what, use) {
   const material = await crypto.subtle.importKey("raw", linkKey, "HKDF", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: encode(`notonawa share v${SHARE_VERSION} snapshot`) },
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: encode(`notonawa share v${SHARE_VERSION} ${what}`) },
     material,
     { name: "AES-GCM", length: 256 },
     false,
     [use]
   );
 }
+
+/**
+ * @param {Uint8Array<ArrayBuffer>} linkKey
+ * @param {"encrypt" | "decrypt"} use
+ */
+const snapshotKey = (linkKey, use) => derivedKey(linkKey, "snapshot", use);
 
 /**
  * Seals a share's snapshot.
@@ -103,6 +117,43 @@ export async function openSnapshot({ id, kind, key, sealed }) {
     throw new CantOpen();
   }
   return JSON.parse(new TextDecoder().decode(plain));
+}
+
+/**
+ * What a share's file is bound to (see media.js's Binding).
+ * @param {string} shareId
+ * @param {string} fileId
+ * @returns {import("./media.js").Binding}
+ */
+function fileBinding(shareId, fileId) {
+  const base = `notonawa|share|v${SHARE_VERSION}|${shareId}|file|${fileId}`;
+  return {
+    part: (part) => `${base}|${part}`,
+    piece: (n, last) => `${base}|full|${n}|${last ? "last" : "more"}`,
+  };
+}
+
+/**
+ * Seals a photo or video for a share, as the object to upload.
+ * @param {{
+ *   shareId: string, fileId: string, key: Uint8Array<ArrayBuffer>, video: boolean, thumb: ArrayBuffer, full: ArrayBuffer,
+ * }} file
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export async function sealShareFile({ shareId, fileId, key, video, thumb, full }) {
+  return sealObject(await derivedKey(key, "file", "encrypt"), fileBinding(shareId, fileId), { thumb, full, video });
+}
+
+/**
+ * Opens one part of a share's photo or video. Throws CantOpen if the key,
+ * share, file or part is wrong, or it was changed.
+ * @param {{
+ *   shareId: string, fileId: string, key: Uint8Array<ArrayBuffer>, video: boolean, part: "thumb" | "full", sealed: ArrayBuffer,
+ * }} file
+ * @returns {Promise<ArrayBuffer>}
+ */
+export async function openShareFile({ shareId, fileId, key, video, part, sealed }) {
+  return openObjectPart(await derivedKey(key, "file", "decrypt"), fileBinding(shareId, fileId), { part, video }, sealed);
 }
 
 /**
