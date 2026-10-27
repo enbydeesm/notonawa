@@ -33,6 +33,10 @@ export default async function () {
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
     ["/signin", "choose", "none", "center", [true, "NotoNawa"]]);
+  check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
+    const dialog = document.createElement("dialog"); document.body.append(dialog);
+    const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];
+    dialog.remove(); return styles;`), ["none", "contain"]);
   check("sign-in shows the app's version at the bottom", await run(`
     const v = $("#signin-version"); return [v.textContent, v === $("#view").lastElementChild];`), [`Version ${APP_VERSION}`, true]);
   check("sign-in says who to email for help", await run(HELP_LINE),

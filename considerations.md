@@ -2253,3 +2253,16 @@ no "What's new", until it was reloaded by hand. The files were never cached
   A tab in use the whole time catches up at its next lock (at most 15
   minutes idle) instead.
 
+## No pull-down-to-reload (October 2026)
+
+Pulling down at the top of a page reloads it on phone browsers, and it was
+easy to do by accident (scrolling the ties list, using the poser's
+controls); a reload locks the journal, so it meant unlocking again.
+`overscroll-behavior-y: none` on the page turns it off, and `contain` on
+dialogs stops a dialog's scrolling carrying on to the page under it.
+There's no Reload in the app to replace it: there's little need, as a page
+left open over a deploy reloads itself (version-check.js). Android's
+browsers follow the setting; whether Safari on the iPhone stops its own
+pull-to-reload too is to be tried on a phone. Installed to the home
+screen, neither has pull-to-reload at all.
+

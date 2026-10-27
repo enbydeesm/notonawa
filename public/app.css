@@ -42,6 +42,13 @@
   --chart-grey: #8e877d;
 }
 * { box-sizing: border-box; }
+/* No pull-down-to-reload on phones: it was easy to set off by accident
+   (scrolling the ties, using the poser), and a reload locks the journal.
+   Dialogs keep their scrolling to themselves, so reaching the top of one
+   doesn't pull the page under it. (The page reloads itself after a
+   deploy: version-check.js.) */
+html { overscroll-behavior-y: none; }
+dialog { overscroll-behavior: contain; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
