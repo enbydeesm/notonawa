@@ -1703,8 +1703,9 @@ server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
 deployed. Phase 4 (connecting accounts) built 2026-10-26, migration 0026,
 not yet deployed. Phase 5 (sharing ties, plans and workshops) built
 2026-10-26, no migration, not yet deployed. Phase 6 (photos and videos in
-shares) built 2026-10-27, migration 0027, not yet deployed; the rest
-isn't built.
+shares) built 2026-10-27, migration 0027, not yet deployed. Phase 7
+(passphrase and verification code) planned in detail 2026-10-27 and put
+on hold (see the build plan); the rest isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -2270,11 +2271,62 @@ tests and the walkthrough included.
    files' limits and cleanup, the walkthrough with one photo. *Apart from
    phase 5 because R2, sizes and video make it its own risk.*
 7. **Locks on opening: passphrase and verification code** (2–3 days).
-   Both change only creating and opening a share: the passphrase proof and
-   key, claims and codes, the sender's waiting screen, wrong-try limits.
-   Tests: unit for deriving the keys and proof; API for wrong tries,
-   cancelling, a claim used twice; the walkthrough with two accounts and
-   a code.
+   *Planned in detail 2026-10-27, then put on hold; not built.* Both change
+   only creating and opening a share: the passphrase proof and key, claims
+   and codes, the sender's waiting screen, wrong-try limits. Tests: unit
+   for deriving the keys and proof; API for wrong tries, cancelling, a
+   claim used twice; the walkthrough with two accounts and a code.
+
+   **It needs a migration after all** (0028 or whatever's next): phase 2
+   left `share_claims` out. Only additions: `shares.pass_hash` (SHA-256 of
+   the passphrase proof; NULL for none), `needs_code`, `pass_tries` and
+   `code_tries` (wrong ones so far), and `share_claims` (a server-made
+   `id` the sender's screen refers to, `share_id` cascading from
+   `shares`, `secret_hash` of the recipient's random claim secret,
+   `code_hash` once the sender's screen asks for one, `created_at`).
+
+   The plan as it stood:
+   - **Passphrase keys** (`crypto/share.js`, pure). Normalized first
+     (NFKC, trimmed, spaces collapsed, lowercase: it's said out loud),
+     at least 8 characters. `P = PBKDF2-SHA256(passphrase, "notonawa share
+     pass|<id>", 600,000 rounds)`, as the recovery email. The sealing key
+     is `HKDF(linkKey, salt P, "notonawa share v1 passphrase")`, and the
+     snapshot and file keys come from it as they come from the link key
+     now, so a share without a passphrase is sealed exactly as before.
+     The proof is `HKDF(linkKey, salt P, "notonawa share v1 proof")`: with
+     the link's key in it, the stored hash can't be used to guess
+     passphrases offline. The page keeps the sealing key where it keeps
+     the link's key now (`OpenedShare.key`), so the file operations don't
+     change. Worker: `sealShare` takes the passphrase and also returns the
+     sealing key and proof; a new `sharePass` for opening.
+   - **Opening with a passphrase**: `POST /api/shares/open` without the
+     right proof answers `{ locked: "passphrase" }` and counts no use; a
+     wrong one counts a `pass_tries`, and the limit cancels the share
+     (deleted with its files, as revoking). The owner needs it too, but
+     their wrong tries don't count.
+   - **Verification code**: the recipient's page sends a random claim
+     secret (kept in memory only, forgotten on lock) with the open; the
+     server keeps the claim and answers `{ locked: "code" }`, no use
+     counted; at most 5 waiting a share, each lasting 10 minutes. The
+     sender's code dialog (and Show code) polls `GET
+     /api/shares/:id/claims` every few seconds while open, and for each new
+     claim calls `POST /api/shares/:id/claims/:claimId/code`: the server
+     makes a 6-digit code, keeps its hash and returns it once (asking
+     again replaces it). The dialog lists each with its time, and says to
+     revoke if there are more than people it's for. Right code: the claim
+     is deleted, a use counted, the snapshot sent; wrong: `code_tries`,
+     and 5 cancel the share; a claim used twice gets the same "ended". The
+     owner skips the code. The daily clean-up deletes expired claims.
+   - **Pages**: a shared Locks fieldset for both Share dialogs
+     (`share-locks.js`), the passphrase and code forms on `/open`
+     (`open-locks.js`), "Passphrase" and "Code" in Shared by me, both
+     flags (never the hash) in the export, and a sentence in PRIVACY.md
+     (a new version, not one to agree to again).
+   - **Still to decide**: the wrong-try limits (5 codes as above; 10
+     passphrases suggested, as a class shares one count), whether the
+     passphrase ignores capitals, and whether Show code can show it again
+     (suggested: not kept, so the sender revokes and makes a new one if
+     forgotten; or sealed with the data key, as `link_key` is).
 8. **View-only** (2–3 days). Opening without adding, a sealed "Shared with
    me" list in my own data, photos drawn on a canvas with the watermark,
    nothing in the export (it isn't mine). Tests: that view-only shares

@@ -144,7 +144,7 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 - on model poser multiple hardpoints at once
 
-- collapse the search forms to just the text box keyword search, and advanced >. expanding advanced shows the rest of the search form
+<!-- - collapse the search forms to just the text box keyword search, and advanced >. expanding advanced shows the rest of the search form -->
 
 - update the rope hank icon
 
@@ -157,6 +157,9 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 - allow ties to be linked to workshops, or to be created from the workshop (and automatically linked). both entries should show the link to the other and allow clicking to view. 
 
 - update login screen text to put the 'contact...' on new line
+
+-
+edit 'this is me' badge to be a little after 'edit person' title
 
 - on video upload failure, reccomend cropping video or using an app like snapseed to reduce quality/increase compression
 
@@ -172,7 +175,7 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 3	Profile invites + QR + /open + merge dialog	none	2–3	Smallest piece people can use; needs the QR library -->
 <!-- 4	Account ids and connections, link icon	0023 connections + triggers	2	Database-enforced rules, disclosures, PRIVACY.md -->
 <!-- 5	Ties, plans, workshops (drawings and poses included)	none	3	Reuses import; "Which of these is you?" -->
-6	Photos and videos in shares	none	2	R2, sizes and video carry their own risk
+<!-- 6	Photos and videos in shares	none	2	R2, sizes and video carry their own risk -->
 7	Passphrase and verification code	none	2–3	Both only change creating and opening a share
 8	View-only	none	2–3	Separate path: shown but never added to the journal
 
