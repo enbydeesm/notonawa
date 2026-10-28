@@ -1,4 +1,4 @@
-// The "Log a tie" form, in a pop-up dialog opened from the + button. The
+// The "Add a tie" form, in a pop-up dialog opened from the + buttons. The
 // same form edits a tie (opened from its title in the list), with Delete and
 // Share icons beside its ✕.
 
@@ -133,7 +133,7 @@ function showTieForm(tie) {
     // Unlike the confirmation dialogs, tapping outside doesn't close this
     // one, so a stray tap can't throw away a half-written tie. Esc and ✕
     // do, asking first if anything's changed.
-    const heading = h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Log a tie");
+    const heading = h("h2", { id: "tie-form-heading" }, tie ? "Edit tie" : "Add a tie");
     const dialog = h("dialog", { className: "form-dialog", "aria-labelledby": "tie-form-heading" },
       dialogHeader(heading, [
         tie ? iconButton("delete", { id: "tie-delete", label: "Delete tie", onclick: confirmDelete }) : null,

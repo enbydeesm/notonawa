@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.26.001";
+export const APP_VERSION = "2026.10.28.001";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,50 @@ export const APP_VERSION = "2026.10.26.001";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.10.28.001",
+    "intro": [
+      "Share with other people who use NōtoNawa!"
+    ],
+    "notes": [
+      "Everything you share is encrypted on your device first, and the key is only in the link, so NotoNawa can't read it.",
+      "The 'Your data' menu has \"Shared by me\": every share invite that hasn't ended, when it ends and how many times it's been opened, with Show code and Revoke. Revoking deletes it at once, photos too.",
+      "Every share has a QR code and a Copy link button. Scan the code with a phone's camera to open it.",
+      {
+        "text": "Sharing profiles:",
+        "sub": [
+          "Tap Share on your 'Me' profile to make an invite. Choose what goes in it, how long the invite lasts, whether one person or anyone with the link can use it, and whether you'd like to connect your accounts.",
+          "People now have two notes fields. \"Private notes\" is just for you and is never shared. On your own profile, \"About me\" is the part you can choose to share. On someone else's card, \"About them, shared by them\" shows what they shared, and only their next share changes it. Use this field to share about your modifications in rope, your likes and dislikes, etc.",
+          "Opening a profile share prompts to add them as a new person, or add it to someone already in your People. For an existing person you choose, field by field, whether to keep your data or take theirs. Your private notes about them stay as they are."
+        ]
+      },
+      {
+        "text": "Connecting accounts:",
+        "sub": [
+          "Tick it on a profile invite to link your account with whoever accepts it. They have to consent on their side too. When someone accepts your invite, a banner lets you add them to a Person or make a new Person. A linked profile shows a link icon.",
+          "Connecting lets NotoNawa's server see that the two accounts know each other, but never what's in either journal. It opens the way for later features with that person, like sending things inside the app and live plan sharing and messaging.",
+          "Remove a connection at any time from Your data > Connections. It's also removed if either of you deletes your account, and gives you the option to delete your shared 'About me' from their journals."
+        ]
+      },
+      {
+        "text": "Sharing ties, plans, and workshops:",
+        "sub": [
+          "Tap Share in its dialog and tick what to include, down to each field, drawings and poses, and photos and videos. The other person gets a copy. Changing yours later doesn't change theirs.",
+          "Opening a share link for a tie, plan or workshop: \"Who is this?\" asks who each person is in your journal (Me, one of your people, or a new person), and the same for the location and plans. Then \"Add to my journal\" adds it with its visuals. If it looks like one you already have, you can still add another copy."
+        ]
+      },
+      {
+        "text": "Various UI updates:",
+        "sub": [
+          "Edit dialogs now have their heading row icons: delete, archive or restore, share and close. Save changes stays muted until you've changed something, and closing with unsaved changes asks before discarding them.",
+          "The Ties, Plans and Education searches show just the keyword box, with the rest under \"More options\". The search cards and the Analytics filters take up a little less room.",
+          "Ties has an \"Add a Tie\" card at the top, like the other pages, and the new tie dialog is now called \"Add a tie\".",
+          "Pulling down on the page no longer reloads it. When an update is waiting, the app loads it as you unlock.",
+          "Logo and icon updates"
+        ]
+      }
+    ]
+  },
   {
     "version": "2026.10.26.001",
     "intro": [

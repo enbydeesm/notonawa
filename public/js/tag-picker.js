@@ -1,4 +1,4 @@
-// The "Edit tags" dialog, opened from the "Log a tie" and Plans forms (ties
+// The "Edit tags" dialog, opened from the "Add a tie" and Plans forms (ties
 // and plans share my tags): search my tags, pick some, type a new one and
 // press +, or delete one I don't use any more. The Ties and Plans searches
 // open it too (forSearch), only to pick tags already on a tie (or a plan):

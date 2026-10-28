@@ -180,3 +180,5 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 8	View-only	none	2–3	Separate path: shown but never added to the journal
 
 - sick flip simulator 
+
+- update people and location search: advanced. let keywords look in notes? 

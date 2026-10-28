@@ -26,7 +26,13 @@
          as where focus goes on changing view (app.js). -->
     <h1 class="visually-hidden">NotoNawa</h1>
 
-    <section class="card" role="search" aria-label="Search ties">
+    <!-- Opens the tie form in its dialog (tie-form.js), as the nav's + does. -->
+    <section class="card add-card plus-first">
+      <button type="button" class="nav-add" id="add-tie" aria-labelledby="add-tie-label" title="Add a tie">+</button>
+      <h2 id="add-tie-label">Add a Tie</h2>
+    </section>
+
+    <section class="card search-card" role="search" aria-label="Search ties">
       <label for="q">Search</label>
       <input id="q" type="search" placeholder="Title, notes or plan" autocomplete="off" spellcheck="false">
 
@@ -99,7 +105,7 @@
 
     <!-- Like the Ties search, but over the plans already loaded: nothing
          typed leaves the device (public/js/plans-view.js). -->
-    <section class="card" role="search" aria-label="Search plans">
+    <section class="card search-card" role="search" aria-label="Search plans">
       <label for="search-q">Search</label>
       <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
 
@@ -505,7 +511,7 @@
 
     <!-- Over the workshops already loaded, for all three tabs: nothing typed
          leaves the device (public/js/workshops-view.js). -->
-    <section class="card" role="search" aria-label="Search workshops">
+    <section class="card search-card" role="search" aria-label="Search workshops">
       <label for="search-q">Search</label>
       <input id="search-q" type="search" placeholder="Title, description or notes" autocomplete="off" spellcheck="false">
 

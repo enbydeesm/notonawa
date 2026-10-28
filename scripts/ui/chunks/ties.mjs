@@ -182,4 +182,19 @@ export default async function () {
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, getComputedStyle($(".tie-card")).cursor];
     await closeDiscarding("#tie-close"); await wait(300);
     return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged from Plans", "pointer"], false]);
+
+  console.log("Ties: the Add a Tie card");
+  check("Ties starts with a small \"Add a Tie\" card, then the search, snug at its top and bottom", await run(`
+    const cards = [...document.querySelectorAll("#view > section.card")];
+    const search = cards[1].getBoundingClientRect(), label = $("label[for=q]").getBoundingClientRect();
+    const more = $("#search-more > summary").getBoundingClientRect();
+    return [flat(cards[0]), cards[0].getBoundingClientRect().height < 80, cards[1].getAttribute("aria-label"),
+      label.top - search.top <= 16, search.bottom - more.bottom <= 20];`),
+    ["+ | Add a Tie", true, "Search ties", true, true]);
+  check("its + opens the \"Add a tie\" dialog, and saving lists the new tie", await run(`
+    $("#add-tie").click(); await wait(600);
+    const heading = $("#tie-form-heading").textContent;
+    set("#tie-title", "Added from the card"); set("#tie-tie_type", "floor"); $("#tie-save").click(); await wait(1500);
+    return [heading, !!document.querySelector("dialog[open]"), titles()[0]];`),
+    ["Add a tie", false, "Added from the card"]);
 }

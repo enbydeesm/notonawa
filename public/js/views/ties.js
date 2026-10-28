@@ -1,5 +1,5 @@
-// Ties view: search and page through logged ties. New ties are logged from
-// the + button (tie-form.js); tapping a tie's title opens it in the same form
+// Ties view: search and page through logged ties. New ties are added from
+// the "Add a Tie" card's + or the nav's (tie-form.js); tapping a tie's title opens it in the same form
 // to edit or delete.
 
 import { api, errorMessage } from "../api.js";
@@ -11,6 +11,7 @@ import { pickTags } from "../tag-picker.js";
 import { findTag } from "../tags.js";
 import { showingText } from "../ties-view.js";
 import { tieCard, fitPeople, editTie } from "../tie-card.js";
+import { openTieForm } from "../tie-form.js";
 import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
 import { searchTies, open } from "../vault.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
@@ -172,6 +173,11 @@ export function mount(_root, { signal }) {
     loadTies();
   }, { signal });
   document.addEventListener(TIE_SAVED, () => { loadTies(); loadTags(); }, { signal });
+  // The "Add a Tie" card's +: the same form as the nav's, refreshing the
+  // list the same way once a tie is saved.
+  $("#add-tie").addEventListener("click", async () => {
+    if (await openTieForm()) document.dispatchEvent(new CustomEvent(TIE_SAVED));
+  }, { signal });
 
   // Archived people and locations are included (in muted text): a search
   // covers your whole history.

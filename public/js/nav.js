@@ -50,7 +50,7 @@ export function renderNav() {
     "nav",
     {},
     PAGES.map(([href, label, icon]) => h("a", { href, className: "nav-tab", "aria-label": label, title: label }, icon())),
-    h("button", { type: "button", className: "nav-add", "aria-label": "Log a tie", title: "Log a tie", onclick: add }, "+"),
+    h("button", { type: "button", className: "nav-add", "aria-label": "Add a tie", title: "Add a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
       "aria-haspopup": "dialog", onclick: openMenu,
