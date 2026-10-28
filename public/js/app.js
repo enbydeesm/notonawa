@@ -12,9 +12,9 @@
 // journal is locked, and are drawn again when it locks (lock.js), so nothing
 // decrypted stays on the page.
 
-import { matchRoute, inAppTarget, UNLOCK, CONSENT } from "./router.js";
+import { ROUTES, matchRoute, inAppTarget, UNLOCK, CONSENT } from "./router.js";
 import { setNavigator } from "./navigate.js";
-import { renderNav, showNav, setCurrent } from "./nav.js";
+import { renderNav, showNav, setCurrent, preloadMenuLogo } from "./nav.js";
 import { $ } from "./dom.js";
 import { isUnlocked, onLock } from "./vault.js";
 import { sealLeftovers } from "./seal-leftovers.js";
@@ -67,6 +67,8 @@ let currentView = null;
 let leftoversChecked = false;
 // Whether this unlock has shown any release notes I haven't seen.
 let releasesChecked = false;
+// Whether this page has loaded the other views' code ahead (see warmUp).
+let warmedUp = false;
 /** @type {AbortController | null} */
 let controller = null;
 // Only the newest change of view is shown, if two overlap.
@@ -134,6 +136,12 @@ async function show({ fresh, scroll, focus }) {
       .catch(() => {});
   }
 
+  // And once per page, the other views' code and the menu's logo.
+  if (route.needsKey && !warmedUp) {
+    warmedUp = true;
+    warmUp();
+  }
+
   window.scrollTo(0, scroll);
   // Tell screen readers the view changed: focus its heading (not on the
   // first load, where the browser does that itself).
@@ -144,6 +152,25 @@ async function show({ fresh, scroll, focus }) {
       heading.focus({ preventScroll: true });
     }
   }
+}
+
+/**
+ * Loads the journal views' code in the background without showing them, and
+ * the menu's logo, once the browser is idle after the first journal view
+ * (which has its data by then). A module loads once and stays loaded while
+ * the page is open, so opening a view the first time then doesn't wait on
+ * its files, each of which waits on the ones that import it. Not Shared
+ * with you, which only a link opens. Nothing to do if one fails: opening
+ * that view loads it again.
+ */
+function warmUp() {
+  const later = "requestIdleCallback" in window ? requestIdleCallback : (/** @type {() => void} */ fn) => setTimeout(fn, 200);
+  later(() => {
+    preloadMenuLogo();
+    for (const { view, needsKey } of ROUTES) {
+      if (needsKey && view !== "open" && view !== currentView) VIEWS[view]().catch(() => {});
+    }
+  });
 }
 
 /**

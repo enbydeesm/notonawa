@@ -84,6 +84,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/security-headers.js`: headers on every Worker response (no-store, an
   API-only CSP, etc.). Static files get theirs from `public/_headers`
   (the pages' CSP lives there); keep the shared headers the same in both.
+  Pages stay `no-store`; `/js/*` and `app.css` are `no-cache` and
+  `/img/*` is cached a week, so **a changed image needs a new file name**.
+  The logos are `.logo` backgrounds for the mode (`app.css`), AVIF.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.
   `src/parse.js`: field parsers. `src/sql.js`: `NOW`.
 - `src/auth/`: sign-in. `session.js` (pure: tokens, hashes, expiry rules),

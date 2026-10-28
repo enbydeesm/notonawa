@@ -2371,3 +2371,43 @@ browsers follow the setting; whether Safari on the iPhone stops its own
 pull-to-reload too is to be tried on a phone. Installed to the home
 screen, neither has pull-to-reload at all.
 
+
+## Views slow to open the first time, and the menu's logo (October 2026)
+
+After the sharing work and the new logos, each view was slow to open the
+first time after a page load (and Unlock reloads the page after every
+deploy), and the menu's logo appeared only after the menu had slid in.
+
+- **Why views were slow:** every static file was `no-store`, so each page
+  load fetched the app's code afresh, and with no build step a view's code
+  is a chain of small modules (2 to 4 deep past what's already loaded),
+  each waiting on the one that imports it. A view opened again was quick:
+  its modules stay loaded while the page is open.
+- **Code and styles are now `no-cache`, images `max-age` a week**
+  (`public/_headers`, each block taking off the `/*` block's `no-store`
+  first, as two values would be joined with a comma). They hold none of
+  the journal. `no-cache` still asks the server each time, but an unchanged
+  file is a 304 with no body, and a deploy is never missed. Images are
+  kept without asking, so a changed image needs a new file name. The page
+  itself, `privacy.html`, the manifest and the API stay `no-store` (the
+  page out of the back/forward cache, as before). PRIVACY.md says so.
+- **The journal views' code loads ahead** (`warmUp` in `app.js`), once the
+  first journal view is drawn and the browser is idle, without showing
+  them. Not `/open`, which only a link opens. If one fails to load (a
+  dropped connection), opening that view tries again; some browsers may
+  keep the failure until the page reloads, which Unlock does often enough.
+- **Not adopted: a build step bundling each view into one file.** It would
+  remove the chain of requests altogether, but the app has none by choice;
+  loading ahead and caching got most of the way there.
+- **The logos were large and both versions downloaded.** A hidden `<img>`
+  is still fetched, so Unlock fetched the light and the dark logo (164 KB
+  each, shown at 220px) every time, alongside the first view's requests.
+  The menu's banner was a file nothing else used, fetched only when the
+  menu opened. Now each logo is one element whose background is the
+  mode's version (`.logo` in `app.css`; only a matching background is
+  fetched), AVIF at twice the shown size (30 KB, and 14 KB for the menu's),
+  and the menu's is fetched ahead once unlocked (`preloadMenuLogo` in
+  `nav.js`). `forced-color-adjust: none` keeps it in high-contrast modes,
+  which drop backgrounds. AVIF, as macOS's `sips` writes it and every
+  current browser shows it (WebP it can't write); there's no fallback for
+  browsers older than about 2023.

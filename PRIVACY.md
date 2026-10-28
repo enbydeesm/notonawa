@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 27, 2026
+**Last updated:** October 28, 2026
 
 ## The short version
 
@@ -170,7 +170,9 @@ encrypt more of these fields over time.
   and unlocked, and are never written to the browser's storage, its cache or
   its form history. Photos and videos on screen are let go of when the app
   locks. Our pages
-  and data are sent with instructions not to be cached. The browser's
+  and your data are sent with instructions not to be cached; only the
+  app's own code and images, which contain none of your data, are kept by
+  your browser so the app opens faster. The browser's
   spellcheck is turned off in the app, because some browsers can send the
   text being checked to their maker. The one exception is an export, which
   saves a file wherever you choose (see

@@ -9,13 +9,13 @@ export default async function () {
     return [k.has_key, k.passkey !== null, k.recovery?.current ?? null];`);
   check("signing up made a key, wrapped for the passkey and the recovery code", await keysNow(), [true, true, true]);
   // What the visible view is: its heading, and the Unlock card showing (if any).
-  const shown = `return [document.title, $("#view h1").textContent || $("#view h1 img")?.alt, getComputedStyle($("nav")).display === "none",
+  const shown = `return [document.title, $("#view h1").textContent || $("#view h1 .logo")?.getAttribute("aria-label"), getComputedStyle($("nav")).display === "none",
     [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id ?? null, $("#tie-count") !== null];`;
   await go("/plans", { unlock: false });
   check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
     return [location.pathname, ...(() => { ${shown} })()];`),
     ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
-  check("Unlock shows the logo", await run(`return logo("#view h1 img");`), [true, "NotoNawa", "/img/logo-dark.png", 1]);
+  check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", "/img/logo-dark.avif"]);
   check("Unlock says who to email for help", await run(HELP_LINE),
     ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`

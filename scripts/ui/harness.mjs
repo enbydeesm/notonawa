@@ -278,12 +278,14 @@ const PAGE_HELPERS = `
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
   const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
-  // The logo showing in sel (one of a light and a dark version): whether it
-  // has loaded, its alt text, its file, and how many versions show.
+  // Whether this page has fetched a file (by path).
+  const fetched = (path) => performance.getEntriesByName(new URL(path, location.href).href).length > 0;
+  // The logo in sel, app.css's background for the mode: whether its file
+  // has loaded, its name for screen readers, and its file.
   const logo = (sel) => {
-    const shown = [...document.querySelectorAll(sel)].filter((img) => getComputedStyle(img).display !== "none");
-    const img = shown[0];
-    return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null, img ? new URL(img.src).pathname : null, shown.length];
+    const el = $(sel);
+    const file = el ? new URL(getComputedStyle(el).backgroundImage.slice(5, -2)).pathname : null;
+    return [file !== null && fetched(file), el?.getAttribute("aria-label") ?? null, file];
   };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);

@@ -7,7 +7,7 @@ export default async function () {
   await resetBrowser();
   const INVITE = newInvite();
   console.log("Security headers");
-  for (const pagePath of ["/", "/plans", "/people", "/locations", "/data", "/js/api.js"]) {
+  for (const pagePath of ["/", "/plans", "/people", "/locations", "/data", "/manifest.webmanifest"]) {
     const res = await fetch(BASE + pagePath);
     check(`${pagePath}: strict CSP, never cached`, [
       res.headers.get("cache-control"),
@@ -15,6 +15,13 @@ export default async function () {
       res.headers.get("content-security-policy")?.includes("require-trusted-types-for 'script'"),
       res.headers.get("x-frame-options"),
     ], ["no-store", true, true, "DENY"]);
+  }
+  // The app's code and images hold none of the journal: kept by the
+  // browser, the code checked with the server before each use.
+  for (const [path, cache] of [["/js/api.js", "no-cache"], ["/js/views/plans.js", "no-cache"], ["/app.css", "no-cache"],
+    ["/img/logo-dark.avif", "max-age=604800"], ["/img/favicon.png", "max-age=604800"]]) {
+    const res = await fetch(BASE + path);
+    check(`${path}: cached (${cache}), with the security headers`, [res.headers.get("cache-control"), res.headers.get("x-frame-options")], [cache, "DENY"]);
   }
   console.log("Logo and icons");
   const manifest = await (await fetch(BASE + "/manifest.webmanifest")).json();
@@ -24,16 +31,21 @@ export default async function () {
   const page = await (await fetch(BASE + "/")).text();
   const linked = [...page.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="([^"]+)"/g)].map((m) => m[1]);
   check("the page links a tab icon and a home-screen icon", linked.length, 2);
-  for (const path of [...linked, ...manifest.icons.map((i) => i.src), "/img/logo-light.png", "/img/logo-dark.png",
-    "/img/bamboo-logo-light.png", "/img/bamboo-logo-dark.png"]) {
+  for (const path of [...linked, ...manifest.icons.map((i) => i.src)]) {
     const res = await fetch(BASE + path);
     check(`${path} is a PNG`, [res.status, res.headers.get("content-type")], [200, "image/png"]);
+  }
+  for (const path of ["/img/logo-light.avif", "/img/logo-dark.avif", "/img/bamboo-logo-light.avif", "/img/bamboo-logo-dark.avif"]) {
+    const res = await fetch(BASE + path);
+    check(`${path} is an AVIF`, [res.status, res.headers.get("content-type")], [200, "image/avif"]);
   }
   console.log("Signing up");
   await go("/");
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
-    return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
-    ["/signin", "choose", "none", "center", [true, "NotoNawa", "/img/logo-dark.png", 1]]);
+    return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 .logo")];`),
+    ["/signin", "choose", "none", "center", [true, "NotoNawa", "/img/logo-dark.avif"]]);
+  check("…and only the mode's logo is downloaded, not the light one too, nor the menu's", await run(`
+    return [fetched("/img/logo-light.avif"), fetched("/img/bamboo-logo-dark.avif")];`), [false, false]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];

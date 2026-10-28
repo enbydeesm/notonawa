@@ -73,9 +73,21 @@ nav .nav-tab svg { display: block; width: 100%; height: 100%; }
 @media (max-width: 374px) { nav .nav-tab { width: 28px; padding: 4px 2px; } }
 @media (max-width: 340px) { nav { gap: 4px 3px; } }
 
-/* The app's logo on Sign in and Unlock, which have no nav. */
+/* The app's logo: on Sign in, Unlock and Consent, which have no nav, and
+   as a banner (the name on the bamboo) at the top of the menu. Each comes
+   in a light and a dark version, picked by the mode (data-theme, set before
+   the page draws by theme-init.js). A background rather than an <img>: the
+   browser only downloads a background whose rule matches, so only the
+   mode's version is fetched (a hidden <img> still downloads). Sized for
+   2× screens; nav.js loads the menu's ahead of opening it. */
+.logo { display: block; max-width: 100%; margin: 0 auto; background: center / contain no-repeat; }
+/* High-contrast modes drop backgrounds; keep the logo. */
+@media (forced-colors: active) { .logo { forced-color-adjust: none; } }
 .app-title { text-align: center; }
-.app-title img { display: block; width: 220px; max-width: 100%; height: auto; margin: 0 auto; }
+.app-title .logo { width: 220px; aspect-ratio: 1; background-image: url("/img/logo-light.avif"); }
+:root[data-theme="dark"] .app-title .logo { background-image: url("/img/logo-dark.avif"); }
+.menu-title .logo { width: 240px; aspect-ratio: 480 / 116; background-image: url("/img/bamboo-logo-light.avif"); }
+:root[data-theme="dark"] .menu-title .logo { background-image: url("/img/bamboo-logo-dark.avif"); }
 
 .card {
   background: var(--card); border: 1px solid var(--line);
@@ -426,12 +438,6 @@ dialog.menu-panel {
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
 .menu-feedback { margin-top: auto; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
-.menu-title img { display: block; width: 240px; max-width: 100%; height: auto; margin: 0 auto; }
-/* The logo comes in a light and a dark version; show the one for the mode
-   (data-theme, set before the page draws by theme-init.js). After the
-   rules above, so it wins over their display: block. */
-:root[data-theme="dark"] .logo-light,
-:root:not([data-theme="dark"]) .logo-dark { display: none; }
 .menu-item {
   display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
   border: none; border-radius: 8px; background: transparent; color: var(--text);

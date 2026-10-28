@@ -33,6 +33,39 @@ describe("SECURITY_HEADERS and public/_headers", () => {
   });
 });
 
+/**
+ * Each block of public/_headers: its path, then its lines as written.
+ * @param {string} text
+ */
+function blocks(text) {
+  /** @type {Record<string, string[]>} */
+  const found = {};
+  let path = "";
+  for (const line of text.split("\n")) {
+    if (line.startsWith("#") || !line.trim()) continue;
+    if (!/^\s/.test(line)) found[path = line.trim()] = [];
+    else found[path].push(line.trim());
+  }
+  return found;
+}
+
+describe("public/_headers caching", () => {
+  // Two values for one header are joined with a comma, so each block must
+  // take off the "/*" block's no-store ("! Cache-Control") before its own.
+  it("replaces no-store for the code, styles and images only", () => {
+    const { "/*": _all, ...rest } = blocks(staticHeaders);
+    expect(rest).toEqual({
+      "/js/*": ["! Cache-Control", "Cache-Control: no-cache"],
+      "/app.css": ["! Cache-Control", "Cache-Control: no-cache"],
+      "/img/*": ["! Cache-Control", "Cache-Control: max-age=604800"],
+    });
+  });
+
+  it("keeps the page itself no-store (and out of the back/forward cache)", () => {
+    expect(headersForAllFiles(staticHeaders)["cache-control"]).toBe("no-store");
+  });
+});
+
 describe("withSecurityHeaders", () => {
   it("adds every header and keeps the status, body and other headers", async () => {
     const res = withSecurityHeaders(new Response("hi", { status: 418, headers: { "content-type": "text/plain" } }));

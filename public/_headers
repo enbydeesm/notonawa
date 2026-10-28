@@ -15,8 +15,12 @@
 # manifest-src 'self' lets phones add the app to the home screen
 # (manifest.webmanifest).
 #
-# no-store everywhere, including JS and CSS: it's simpler than listing page
-# paths, and keeps pages with journal data out of the back/forward cache.
+# no-store on everything first (the page, privacy.html, the manifest),
+# which keeps the page out of the back/forward cache. The blocks after the
+# first replace it for the app's code and images, which hold none of the
+# journal: with no build step, a view's code is a chain of small files, each
+# waiting on the one that imports it, and fetching them all afresh on every
+# page load made views slow to open.
 /*
   Cache-Control: no-store
   Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src blob:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types crypto-worker
@@ -27,3 +31,19 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+
+# The code and styles: kept, but checked with the server before each use
+# (a tiny "not modified" when unchanged), so a deploy is never missed.
+/js/*
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/app.css
+  ! Cache-Control
+  Cache-Control: no-cache
+
+# Images: kept for a week without asking. A changed image needs a new file
+# name, or devices keep the old one until then.
+/img/*
+  ! Cache-Control
+  Cache-Control: max-age=604800

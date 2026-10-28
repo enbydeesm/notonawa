@@ -15,6 +15,7 @@ import { openFeedback } from "./feedback-dialog.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock } from "./vault.js";
+import { currentTheme } from "./settings.js";
 
 /** The tabs: address, name and icon, in order. */
 export const PAGES = /** @type {const} */ ([
@@ -30,6 +31,19 @@ export const PAGES = /** @type {const} */ ([
 // Fired on document when a tie is saved from the + button on the Ties view,
 // so the list can reload.
 export const TIE_SAVED = "tie-saved";
+
+// The menu's logo for each mode, as in app.css (.menu-title .logo).
+const MENU_LOGOS = { light: "/img/bamboo-logo-light.avif", dark: "/img/bamboo-logo-dark.avif" };
+
+/**
+ * Fetches the menu's logo for the mode on screen, so it's there as soon as
+ * the menu first opens rather than loading as it slides in. app.js calls it
+ * once the journal is unlocked; images are cached (public/_headers), so the
+ * menu's background then comes from the cache.
+ */
+export function preloadMenuLogo() {
+  new Image().src = MENU_LOGOS[currentTheme()];
+}
 
 /** The path of the view being shown (null: not one of the app's views). @type {string | null} */
 let current = null;
@@ -95,15 +109,9 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's logo as a banner (the name on the bamboo), one for each
-      // mode (app.css shows the one for the mode). Search for "NotoNawa"
-      // when it's renamed.
-      h(
-        "h2",
-        { className: "menu-title" },
-        h("img", { className: "logo-light", src: "/img/bamboo-logo-light.png", alt: "NotoNawa" }),
-        h("img", { className: "logo-dark", src: "/img/bamboo-logo-dark.png", alt: "NotoNawa" }),
-      ),
+      // The app's logo as a banner (the name on the bamboo), app.css's
+      // background for the mode. Search for "NotoNawa" when it's renamed.
+      h("h2", { className: "menu-title" }, h("span", { className: "logo", role: "img", "aria-label": "NotoNawa" })),
       h("button", {
         type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openSettings(); },

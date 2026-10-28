@@ -29,9 +29,14 @@ export default async function () {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
+  check("once unlocked, the menu's logo for the mode and the other views' code load ahead, before the menu or a view is opened", await run(`
+    const ready = () => fetched("/img/bamboo-logo-dark.avif") && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
+      .every((v) => fetched("/js/views/" + v + ".js"));
+    for (let i = 0; i < 50 && !ready(); i++) await wait(100);
+    return [ready(), fetched("/img/bamboo-logo-light.avif"), fetched("/js/views/open.js"), $("dialog.menu-panel") === null];`), [true, false, false, true]);
   check("the menu opens with the logo, Settings (a gear), Account, Your data, Bug and feedback, What's new, Privacy Policy and Sign Out", await run(`
     await openMenu();
-    return [$(".menu-title img").alt, [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
+    return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
     ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
@@ -87,7 +92,7 @@ export default async function () {
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
   check("the logo is at the top of the menu", await run(`
-    return [...logo(".menu-title img"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", "/img/bamboo-logo-dark.png", 1, true]);
+    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", "/img/bamboo-logo-dark.avif", true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);
@@ -118,8 +123,8 @@ export default async function () {
   check("Cancel closes the dialog, keeping the mode", await run(`
     $(".settings-dialog .dialog-cancel").click(); await wait(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
   check("in light mode the menu shows the light logo", await run(`
-    await openMenu(); const shown = logo(".menu-title img"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
-    [true, "NotoNawa", "/img/bamboo-logo-light.png", 1]);
+    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    [true, "NotoNawa", "/img/bamboo-logo-light.avif"]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
@@ -155,6 +160,6 @@ export default async function () {
   await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
   check("…with the dark logo in the menu", await run(`
-    await openMenu(); const shown = logo(".menu-title img"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
-    [true, "NotoNawa", "/img/bamboo-logo-dark.png", 1]);
+    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    [true, "NotoNawa", "/img/bamboo-logo-dark.avif"]);
 }
