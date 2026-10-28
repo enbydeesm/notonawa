@@ -95,8 +95,15 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's logo. Search for "NotoNawa" when it's renamed.
-      h("h2", { className: "menu-title" }, h("img", { src: "/img/logo.png", alt: "NotoNawa" })),
+      // The app's logo as a banner (the name on the bamboo), one for each
+      // mode (app.css shows the one for the mode). Search for "NotoNawa"
+      // when it's renamed.
+      h(
+        "h2",
+        { className: "menu-title" },
+        h("img", { className: "logo-light", src: "/img/bamboo-logo-light.png", alt: "NotoNawa" }),
+        h("img", { className: "logo-dark", src: "/img/bamboo-logo-dark.png", alt: "NotoNawa" }),
+      ),
       h("button", {
         type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openSettings(); },

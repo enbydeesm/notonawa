@@ -24,7 +24,8 @@ export default async function () {
   const page = await (await fetch(BASE + "/")).text();
   const linked = [...page.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="([^"]+)"/g)].map((m) => m[1]);
   check("the page links a tab icon and a home-screen icon", linked.length, 2);
-  for (const path of [...linked, ...manifest.icons.map((i) => i.src), "/img/logo.png"]) {
+  for (const path of [...linked, ...manifest.icons.map((i) => i.src), "/img/logo-light.png", "/img/logo-dark.png",
+    "/img/bamboo-logo-light.png", "/img/bamboo-logo-dark.png"]) {
     const res = await fetch(BASE + path);
     check(`${path} is a PNG`, [res.status, res.headers.get("content-type")], [200, "image/png"]);
   }
@@ -32,7 +33,7 @@ export default async function () {
   await go("/");
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 img")];`),
-    ["/signin", "choose", "none", "center", [true, "NotoNawa"]]);
+    ["/signin", "choose", "none", "center", [true, "NotoNawa", "/img/logo-dark.png", 1]]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];

@@ -87,7 +87,7 @@ export default async function () {
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
   check("the logo is at the top of the menu", await run(`
-    return [...logo(".menu-title img"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", true]);
+    return [...logo(".menu-title img"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", "/img/bamboo-logo-dark.png", 1, true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);
@@ -117,6 +117,9 @@ export default async function () {
     ["false", LIGHT_BG, "light", "light", "light"]);
   check("Cancel closes the dialog, keeping the mode", await run(`
     $(".settings-dialog .dialog-cancel").click(); await wait(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
+  check("in light mode the menu shows the light logo", await run(`
+    await openMenu(); const shown = logo(".menu-title img"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    [true, "NotoNawa", "/img/bamboo-logo-light.png", 1]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
@@ -151,4 +154,7 @@ export default async function () {
   // Back to dark, the default.
   await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
+  check("…with the dark logo in the menu", await run(`
+    await openMenu(); const shown = logo(".menu-title img"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    [true, "NotoNawa", "/img/bamboo-logo-dark.png", 1]);
 }

@@ -278,8 +278,13 @@ const PAGE_HELPERS = `
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
   const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
   const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
-  // Whether the logo image in sel has loaded, and its alt text.
-  const logo = (sel) => { const img = $(sel); return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null]; };
+  // The logo showing in sel (one of a light and a dark version): whether it
+  // has loaded, its alt text, its file, and how many versions show.
+  const logo = (sel) => {
+    const shown = [...document.querySelectorAll(sel)].filter((img) => getComputedStyle(img).display !== "none");
+    const img = shown[0];
+    return [img?.complete === true && img.naturalWidth > 0, img?.alt ?? null, img ? new URL(img.src).pathname : null, shown.length];
+  };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);
   const openPerson = async (name) => { [...document.querySelectorAll(".name-button")].find((b) => b.textContent === name).click(); await wait(500); };

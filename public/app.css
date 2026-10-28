@@ -421,7 +421,12 @@ dialog.menu-panel {
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
 .menu-feedback { margin-top: auto; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
-.menu-title img { display: block; width: 160px; max-width: 100%; height: auto; margin: 0 auto; }
+.menu-title img { display: block; width: 240px; max-width: 100%; height: auto; margin: 0 auto; }
+/* The logo comes in a light and a dark version; show the one for the mode
+   (data-theme, set before the page draws by theme-init.js). After the
+   rules above, so it wins over their display: block. */
+:root[data-theme="dark"] .logo-light,
+:root:not([data-theme="dark"]) .logo-dark { display: none; }
 .menu-item {
   display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
   border: none; border-radius: 8px; background: transparent; color: var(--text);
