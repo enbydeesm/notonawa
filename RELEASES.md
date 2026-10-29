@@ -10,6 +10,7 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 
 - Everything you share is encrypted on your device first, and the key is only in the link, so NotoNawa can't read it.

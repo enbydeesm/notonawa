@@ -63,6 +63,7 @@ describe("parseUpload", () => {
     const video = query({ ...GOOD, kind: "video", mime: "video/mp4" });
     expect(parseUpload(ID, video, String(MAX_VIDEO_BYTES)).bytes).toBe(MAX_VIDEO_BYTES);
     expect(() => parseUpload(ID, video, String(MAX_VIDEO_BYTES + 1))).toThrow("That video is too big");
+    expect(() => parseUpload(ID, video, String(MAX_VIDEO_BYTES + 1))).toThrow("cropping or shortening it, or lowering its quality");
   });
   it("needs the thumbnail to end inside the object", () => {
     for (const thumb of ["0", "5000", "6000", "1.5", ""]) {

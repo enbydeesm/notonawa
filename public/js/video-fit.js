@@ -29,6 +29,9 @@ export const THUMB_QUALITY = 0.7;
  * (MAX_VIDEO_BYTES in src/media/parse.js) to leave room for sealing.
  */
 export const MAX_OUTPUT_BYTES = 39 * 1024 * 1024;
+/** What to say when a clip is still over MAX_OUTPUT_BYTES once shrunk, and how to fix it. */
+export const TOO_BIG = "That video is too big to store, even after shrinking it. " +
+  "Try cropping or shortening it, or lowering its quality, then add it again.";
 
 /**
  * Whether a chosen file is a video (by its type, or its name when the

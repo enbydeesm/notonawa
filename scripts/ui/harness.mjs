@@ -403,7 +403,8 @@ export function sql(command) {
 }
 
 /** A page step: the sign-in and unlock pages' line saying who to email for help. */
-export const HELP_LINE = `const p = $("#view .help-line"); return [p?.textContent, p?.querySelector("a")?.getAttribute("href"), p?.offsetParent !== null];`;
+// innerText, so the line break before "Email" shows; the two lines are centred.
+export const HELP_LINE = `const p = $("#view .help-line"); return [p?.innerText, p?.querySelector("a")?.getAttribute("href"), p?.offsetParent !== null, p && getComputedStyle(p).textAlign];`;
 
 /** A new invite code. */
 export const newInvite = () => script("invite.mjs", "--quiet");

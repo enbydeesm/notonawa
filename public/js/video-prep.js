@@ -21,7 +21,7 @@ import {
   canEncodeVideo, canEncodeAudio,
 } from "./vendor/mediabunny.js";
 import {
-  AUDIO_BITRATE, MAX_FPS, MAX_OUTPUT_BYTES, THUMB_EDGE, THUMB_QUALITY, VIDEO_BITRATE,
+  AUDIO_BITRATE, MAX_FPS, MAX_OUTPUT_BYTES, THUMB_EDGE, THUMB_QUALITY, TOO_BIG, VIDEO_BITRATE,
   durationProblem, videoProblem, videoSize,
 } from "./video-fit.js";
 import { fitWithin } from "./photo-fit.js";
@@ -121,7 +121,7 @@ export async function prepareVideo(file, { onProgress = () => {}, withoutSound =
     await conversion.execute();
     const full = output.target.buffer;
     if (!full) throw new Error(CANT);
-    if (full.byteLength > MAX_OUTPUT_BYTES) throw new Error("That video is too big to store, even after shrinking it. Trim it and try again.");
+    if (full.byteLength > MAX_OUTPUT_BYTES) throw new Error(TOO_BIG);
     return { kind: "video", full, thumb, mime: "video/mp4", seconds };
   } finally {
     input.dispose();

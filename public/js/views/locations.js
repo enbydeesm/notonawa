@@ -60,16 +60,17 @@ export function mount(_root, { signal }) {
     // The name (which opens the dialog), then where it is and its notes.
     renderItem: (loc, _locations, edit) => {
       const place = placeText({ city: loc.city, state_province: loc.state_province, country: loc.country });
+      // The API only accepts http(s) links; check again before making one clickable.
+      const maps = /^https?:\/\//.test(loc.maps_url || "");
       return [
         h("div", { className: "item-title name-title" },
           h("button", { type: "button", className: "name-button", onclick: edit }, loc.name),
           loc.is_default ? h("span", { className: "badge" }, "Default") : null),
-        place ? h("div", { className: "item-meta" }, place) : null,
+        // Where it is, with Open in Maps at the right of the same row.
+        place || maps ? h("div", { className: "place-row" },
+          place ? h("span", { className: "item-meta" }, place) : null,
+          maps ? h("a", { className: "maps-link", href: loc.maps_url, target: "_blank", rel: "noopener noreferrer" }, "Open in Maps") : null) : null,
         loc.notes ? h("div", { className: "item-notes" }, loc.notes) : null,
-        // The API only accepts http(s) links; check again before making one clickable.
-        /^https?:\/\//.test(loc.maps_url || "")
-          ? h("div", {}, h("a", { href: loc.maps_url, target: "_blank", rel: "noopener noreferrer" }, "Open in Maps"))
-          : null,
       ];
     },
 

@@ -121,11 +121,11 @@ export function mount(_root, { signal }) {
     // My own profile stays at the top, whatever the order.
     searchable: { noun: "people", pinned: (person) => !!person.is_self, slot: $("#people-search") },
 
-    // "This is me" is shown only on my own profile, and can't be changed
+    // "This is me" is a badge on my own profile only: it can't be changed
     // (who is me is set at sign-up). Nor can that profile be archived or
     // deleted: the API refuses, so its buttons aren't shown.
     onEdit: (person) => {
-      $("#person-self-flag").hidden = !person?.is_self;
+      $("#person-self-badge").hidden = !person?.is_self;
       showAbout(person);
       linked = person?.connection_id ? person : null;
       $("#person-linked").hidden = !linked;

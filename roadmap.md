@@ -140,7 +140,7 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 <!-- - Drag photos into order: rearrange photos on ties and plans by dragging, by finger or mouse, keeping the Move earlier/later buttons.
 - Videos: encrypted video clips on ties and plans, with their location and device details removed. -->
 
-- Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons.
+<!-- - Final logo and icons: swap the placeholder images for the final logo, favicon and home-screen icons. -->
 
 - on model poser multiple hardpoints at once
 
@@ -148,22 +148,14 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 - update the rope hank icon
 
-- update the logo
+<!-- - update the logo -->
 
-
-- ** see considerations.md for details on this implemenation** linking other users to People: scan a qr code that user generates. asks if you want to link to existing people entry. maybe appends their 'me' info they've saved if they check that box when generating a qr code
 - educators sharing handouts and other materials: they can generate a qr code that shares a workshop entry with attachments. or allows attendees to share their nots and append to each others workshop entry
 
 - allow ties to be linked to workshops, or to be created from the workshop (and automatically linked). both entries should show the link to the other and allow clicking to view. 
 
-- update login screen text to put the 'contact...' on new line
-
--
-edit 'this is me' badge to be a little after 'edit person' title
-
 - on video upload failure, reccomend cropping video or using an app like snapseed to reduce quality/increase compression
 
-- make deploying to prod require --env prod
 
 
 Build plan
@@ -182,3 +174,5 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 - sick flip simulator 
 
 - update people and location search: advanced. let keywords look in notes? 
+
+

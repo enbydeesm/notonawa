@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isVideo, videoProblem, durationProblem, videoSize, clock, MAX_INPUT_BYTES, MAX_SECONDS, MAX_OUTPUT_BYTES,
-  VIDEO_BITRATE, AUDIO_BITRATE,
+  VIDEO_BITRATE, AUDIO_BITRATE, TOO_BIG,
 } from "../../public/js/video-fit.js";
 import { MAX_VIDEO_BYTES } from "../../src/media/parse.js";
 
@@ -71,5 +71,12 @@ describe("the limits fit together", () => {
     const fullLength = ((VIDEO_BITRATE + AUDIO_BITRATE) / 8) * MAX_SECONDS;
     expect(fullLength).toBeLessThan(MAX_OUTPUT_BYTES * 0.8);
     expect(MAX_OUTPUT_BYTES).toBeLessThan(MAX_VIDEO_BYTES);
+  });
+});
+
+describe("TOO_BIG", () => {
+  it("says how to make a clip small enough", () => {
+    expect(TOO_BIG).toContain("too big to store");
+    expect(TOO_BIG).toContain("cropping or shortening it, or lowering its quality");
   });
 });

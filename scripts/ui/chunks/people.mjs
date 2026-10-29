@@ -25,28 +25,29 @@ export default async function () {
     return [first, roles, adding, closed, personCard("Sam"), personNames()];`),
     [[["Me"], ["Me", null, null, false, [], 1], true], ["None", "Top", "Bottom", "Self tie", "Spotter", "Photographer"],
       [true, "Add a person", ["Close"], "Add person"], true, ["Sam", "they/them", "Bottom", false, [], 1], ["Me", "Alex", "Sam"]]);
-  check("'This is me' shows only on my own profile, ticked and greyed out, under the heading's row, which can't be archived or deleted", await run(`
-    $("#add-person").click(); await wait(300); const onAdd = $("#person-self-flag").hidden; $("[data-cancel-edit]").click(); await wait(200);
-    await openPerson("Sam"); const onSam = [$("#person-self-flag").hidden, personButtons()]; $("[data-cancel-edit]").click(); await wait(200);
-    await openPerson("Me"); const box = $("[name=is_self]");
-    const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
-    const onMe = [$("#person-self-flag").hidden, box.checked, box.disabled, mid($("#person-self-flag")) > $("#person-form-heading").getBoundingClientRect().bottom, personButtons()];
+  check("'This is me' is a badge just after the heading, only on my own profile, which can't be archived or deleted", await run(`
+    $("#add-person").click(); await wait(300); const onAdd = $("#person-self-badge").hidden; $("[data-cancel-edit]").click(); await wait(200);
+    await openPerson("Sam"); const onSam = [$("#person-self-badge").hidden, personButtons()]; $("[data-cancel-edit]").click(); await wait(200);
+    await openPerson("Me"); const badge = $("#person-self-badge").getBoundingClientRect(), heading = $("#person-form-heading").getBoundingClientRect();
+    const mid = (r) => (r.top + r.bottom) / 2;
+    const onMe = [$("#person-self-badge").hidden, !$("[name=is_self]"), Math.abs(mid(badge) - mid(heading)) < 4,
+      badge.left - heading.right >= 0 && badge.left - heading.right < 24, personButtons()];
     $("[data-cancel-edit]").click(); await wait(200);
     const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
     const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
     return [onAdd, onSam, onMe, $("#person-dialog").open, refused];`),
     [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false, [400, 400]]);
-  check("the + comes first on its card; Educator sits on the Name row and 'This is me' on the heading's, both at the right", await run(`
+  check("the + comes first on its card; Educator sits on the Name row, at the right", await run(`
     const add = $("#add-person"), label = $("#add-person-label"), addCard = add.closest(".card");
     const plusFirst = [addCard.firstElementChild === add, add.getBoundingClientRect().left - addCard.getBoundingClientRect().left < 40,
       label.getBoundingClientRect().left - add.getBoundingClientRect().right < 24];
     await openPerson("Me");
     const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
     const right = (el) => el.getBoundingClientRect().right > $("#person-name").getBoundingClientRect().right - 4;
-    const educator = $("[name=is_educator]").closest("label"), self = $("#person-self-flag");
-    const placed = [Math.abs(mid(educator) - mid($("label[for=person-name]"))) < 3, right(educator), right(self), mid(self) < mid(educator)];
+    const educator = $("[name=is_educator]").closest("label");
+    const placed = [Math.abs(mid(educator) - mid($("label[for=person-name]"))) < 3, right(educator)];
     $("[data-cancel-edit]").click(); await wait(200);
-    return [plusFirst, placed];`), [[true, true, true], [true, true, true, true]]);
+    return [plusFirst, placed];`), [[true, true, true], [true, true]]);
   check("pronouns and social names aren't capitalized as they're typed; the platform's text is smaller", await run(`
     $("#add-person").click(); await wait(300); $("#person-add-alias").click();
     const caps = [$("#person-pronouns").autocapitalize, $(".alias-name").autocapitalize];

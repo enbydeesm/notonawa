@@ -52,8 +52,8 @@ export default async function () {
     dialog.remove(); return styles;`), ["none", "contain"]);
   check("sign-in shows the app's version at the bottom", await run(`
     const v = $("#signin-version"); return [v.textContent, v === $("#view").lastElementChild];`), [`Version ${APP_VERSION}`, true]);
-  check("sign-in says who to email for help", await run(HELP_LINE),
-    ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
+  check("sign-in says who to email for help, on its own centred line", await run(HELP_LINE),
+    ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
   check("the sign-up form's fields are kept out of form history and spellcheck", await run(`
     [...document.querySelectorAll("[data-show=signup]")][0].click(); return [visibleCard(), leakyFields()];`), ["signup", []]);
   check("sign-up needs 18+ and consent", await run(`

@@ -111,7 +111,9 @@ export function parseUpload(id, params, contentLength) {
     throw new BadInput(`Couldn't upload: the ${kind}'s size wasn't sent.`);
   }
   if (bytes > (video ? MAX_VIDEO_BYTES : MAX_OBJECT_BYTES)) {
-    throw new BadInput(`That ${kind} is too big to store, even after shrinking it.`);
+    throw new BadInput(video
+      ? "That video is too big to store, even after shrinking it. Try cropping or shortening it, or lowering its quality, then add it again."
+      : "That photo is too big to store, even after shrinking it.");
   }
   const thumbBytes = Number(params.get("thumb_bytes"));
   if (!Number.isInteger(thumbBytes) || thumbBytes <= 0 || thumbBytes >= bytes) {

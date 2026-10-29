@@ -16,8 +16,8 @@ export default async function () {
     return [location.pathname, ...(() => { ${shown} })()];`),
     ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
   check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", "/img/logo-dark.avif"]);
-  check("Unlock says who to email for help", await run(HELP_LINE),
-    ["Trouble signing in? Email contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true]);
+  check("Unlock says who to email for help, on its own centred line", await run(HELP_LINE),
+    ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };

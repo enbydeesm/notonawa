@@ -881,8 +881,11 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .person-flags:not(:has(> :not([hidden]))) { display: none; }
 .self-flag { display: inline-flex; align-items: center; gap: 6px; }
 .self-flag[hidden] { display: none; }
-.self-flag input { width: 14px; height: 14px; margin: 0; }
-.self-flag:has(input:disabled) { opacity: 0.6; }
+/* "This is me", a little after the heading on my own profile: the heading
+   stops filling the row, and the badge pushes the icons to the right. */
+.self-badge { flex: none; margin: 0 auto 0 8px; }
+.self-badge[hidden] { display: none; }
+.dialog-header h2:has(+ .self-badge:not([hidden])) { flex: 0 1 auto; }
 .alias-row input { flex: 1.4; min-width: 0; }
 /* Smaller, so "Scene name" fits once chosen. */
 .alias-row .alias-platform { font-size: 0.85rem; }
@@ -892,6 +895,9 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
    at the right, or a location's "Default" badge. */
 .name-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .name-title .badge { margin-left: 0; }
+/* A location card's place, with Open in Maps at the right of its row. */
+.place-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.place-row .maps-link { margin-left: auto; }
 .name-title .item-meta { font-weight: 400; }
 .name-button {
   padding: 0; border: none; border-radius: 0; background: none; text-align: left;

@@ -246,16 +246,14 @@
            actionsInDialog; people.js). -->
       <div class="dialog-header">
         <h2 id="person-form-heading">Add a person</h2>
+        <span class="badge self-badge" id="person-self-badge" hidden>This is me</span>
         <span class="dialog-icons" data-item-actions></span>
         <button type="button" class="icon-button" id="person-close" data-cancel-edit aria-label="Close" title="Close"></button>
       </div>
-      <!-- "This is me" shows only when editing my own profile, ticked and
-           greyed out: it can't be changed (people.js). It's outside the form,
-           so form="form" keeps it in the form's fields. In the same place on
-           someone linked to their account (connections.js): the link icon,
-           "Linked to their account" and Remove link. -->
+      <!-- On someone linked to their account (connections.js): the link
+           icon, "Linked to their account" and Remove link. ("This is me" is
+           a badge after the heading, on my own profile only: people.js.) -->
       <div class="person-flags">
-        <label class="self-flag" id="person-self-flag" hidden><input type="checkbox" name="is_self" form="form" disabled> This is me</label>
         <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Linked to their account
           <button type="button" class="link" id="person-unlink">Remove link</button></span>
       </div>
@@ -365,7 +363,7 @@
           </div>
           <div>
             <label for="location-state_province">State/Province</label>
-            <input id="location-state_province" name="state_province" autocomplete="off" spellcheck="false">
+            <input id="location-state_province" name="state_province" autocomplete="off" spellcheck="false" autocapitalize="characters">
           </div>
         </div>
 
@@ -373,7 +371,7 @@
         <div class="row">
           <div>
             <label for="location-country">Country</label>
-            <input id="location-country" name="country" autocomplete="off" spellcheck="false">
+            <input id="location-country" name="country" autocomplete="off" spellcheck="false" autocapitalize="characters">
           </div>
           <div class="coord-field">
             <label for="location-latitude">Lat</label>
@@ -736,7 +734,7 @@
         <p class="message" id="add-passkey-message"></p>
       </form>
     </section>
-    <p class="hint help-line">Trouble signing in? Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
+    <p class="hint help-line">Trouble signing in?<br>Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
     <!-- Filled in by views/signin.js (public/js/releases.js) -->
     <p class="hint app-version" id="signin-version"></p>
   </template>
@@ -788,7 +786,7 @@
     </section>
 
     <button type="button" class="link" id="unlock-sign-out">Sign out</button>
-    <p class="hint help-line">Trouble signing in? Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
+    <p class="hint help-line">Trouble signing in?<br>Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
   </template>
 
   <!-- Any other address -->

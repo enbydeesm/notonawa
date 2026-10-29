@@ -20,6 +20,12 @@ export default async function () {
     return [plusFirst, adding, closed, items(), [...document.querySelectorAll("#list a")].map((a) => a.href), leakyFields()];`),
     [[true, true], [true, "Add a location", "Add location", ["Close"]], true,
       ["Old flat | Canada", "Studio | Seattle, WA, USA | Open in Maps"], ["https://maps.app.goo.gl/abc"], []]);
+  check("a card's Open in Maps sits on its place's row, at the right; State/Province and Country start in caps", await run(`
+    const studio = [...document.querySelectorAll("#list .item")].find((el) => el.textContent.includes("Studio"));
+    const place = studio.querySelector(".place-row .item-meta").getBoundingClientRect(), link = studio.querySelector(".place-row a").getBoundingClientRect();
+    const row = [Math.abs(place.top - link.top) < 4, studio.getBoundingClientRect().right - link.right < 24, link.left > place.right];
+    return [row, $("#location-state_province").autocapitalize, $("#location-country").autocapitalize];`),
+    [[true, true, true], "characters", "characters"]);
   check("City and State/Province sit below the Maps link; Country beside narrow Lat and Long", await run(`
     $("#add-location").click(); await wait(300);
     const box = (sel) => $(sel).getBoundingClientRect();
