@@ -1,12 +1,14 @@
 # What's new
 
 The app's release notes, newest first: the "What's new" dialog shows them.
-Each release is a `## YYYY.MM.DD.NNN` heading (the date it's released, and
-001, 002… for each release that day), then its notes as `- ` bullets, in
-plain words for the people using the app. Lines under a heading before its
-first bullet are an intro (a blank line between paragraphs), and a `- `
-indented under a bullet is a sub-bullet of it. The newest heading is the
-app's version. After editing, run `node scripts/releases.mjs`.
+Write new notes under a `## Next` heading at the top: `npm run deploy:prod`
+renames it to the version it deploys (the date and time, UTC:
+`YYYY.MM.DD.HHMM`), and until then they're not in the app. Older releases
+end in 001, 002… for each release that day instead. Notes are `- `
+bullets, in plain words for the people using the app. Lines under a heading
+before its first bullet are an intro (a blank line between paragraphs), and
+a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
+new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 

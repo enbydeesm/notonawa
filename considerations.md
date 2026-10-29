@@ -2411,3 +2411,46 @@ deploy), and the menu's logo appeared only after the menu had slid in.
   which drop backgrounds. AVIF, as macOS's `sips` writes it and every
   current browser shows it (WebP it can't write); there's no fallback for
   browsers older than about 2023.
+
+## A version for every deploy (October 2026)
+
+A deploy without a new RELEASES.md heading kept the old version, so pages
+left open over it, installed apps above all (phones resume them rather
+than reloading), never reloaded: the update check only reloads into a
+newer version. That deploy also removed the PNG logos the old page's
+Unlock asked for, so installed apps showed broken images until closed.
+
+- **Every deploy gets a version: its UTC date and time to the minute**
+  (`2026.10.28.2104`), from `npm run deploy:prod` (`scripts/deploy.mjs`), with
+  or without release notes. It's written to `VERSION` and built into both
+  files that hold `APP_VERSION`, so the menu shows it and `/api/version`
+  serves it, and the Worker is deployed with `--tag` so Cloudflare's list
+  of deployments shows it too. Notes are written under `## Next` and
+  given the version by the deploy; What's new only lists releases with
+  notes. UTC because it only ever goes up (a local clock goes back an
+  hour in the autumn); an evening deploy in California is dated the next
+  day.
+- **Twice in one minute is refused**, not given a suffix: the second
+  would have the same version, and open pages wouldn't reload into it.
+  The script asks the server it's deploying to for its version first.
+- **No default target: `deploy:prod` or `deploy:dev`.** At first plain
+  `npm run deploy` was production and `-- --dev` dev, and `npm run deploy
+  --dev` (no `--`) deployed to production: npm takes the flag itself and
+  drops it without a trace, so the script can't tell. Now plain `npm run
+  deploy` refuses.
+- **Dev deploys stamp the files for the deploy and put them back**, so
+  only production's versions are committed; dev's are just as new, from
+  the same clock.
+- **The older versions end in a release's number that day** (`.001`),
+  three digits to the times' four. They compare as text with the times,
+  except a time before 00:10 on Oct 28 2026, the one day with both, which
+  had passed.
+- **Not adopted: Cloudflare's version metadata.** The Worker can read
+  each upload's id (a random UUID), a tag and a timestamp, but the page,
+  a static file, can't, and a random id doesn't say which is newer.
+- **Not adopted: counting deploys** (`.001`, `.002` asking production for
+  the last one). The time needs nothing remembered or asked, and says
+  when a build went out, which helps matching a bug report to a deploy.
+- **Not adopted (for now): keeping removed files for a release.** Old
+  pages reload at their next lock, so a missing file only shows until
+  then.

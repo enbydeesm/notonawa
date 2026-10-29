@@ -3,8 +3,8 @@
 
 /**
  * Whether to reload: the server is on a newer version than this page (they
- * compare as text: dates with a three-digit number for each release that
- * day), and no share link is waiting to be opened (its key is only in
+ * compare as text: each deploy's UTC date and time, scripts/deploy.mjs),
+ * and no share link is waiting to be opened (its key is only in
  * memory, and a reload would lose it; it's forgotten at the next lock, so
  * the check after that reloads). Only newer, never just different: a page
  * that has reloaded is on the server's version, so it can't reload again

@@ -5,8 +5,9 @@ export const MAX_SHOWN = 10;
 
 /**
  * The releases newer than the one I last saw, newest first (as RELEASES
- * lists them), at most MAX_SHOWN. Versions compare as text: they're dates
- * with a three-digit number for each release that day (2026.10.19.001).
+ * lists them), at most MAX_SHOWN. Versions compare as text: they're each
+ * deploy's UTC date and time (2026.10.28.2104; older ones end in a release's
+ * number that day, 2026.10.19.001).
  * Never having seen any (null): all of them.
  * @template {{ version: string }} R
  * @param {R[]} releases newest first

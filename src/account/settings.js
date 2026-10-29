@@ -14,8 +14,8 @@ import { cleanText } from "../parse.js";
 
 export const THEMES = ["light", "dark"];
 export const MAX_ROLE_NAME = 24;
-/** A release's version, as scripts/releases-lib.mjs writes them. */
-const RELEASE_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
+/** A version, as scripts/releases-lib.mjs writes them: a deploy's UTC date and time (2026.10.28.2104), or a release's number that day in older ones (2026.10.19.001). */
+const RELEASE_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.(\d{3}|\d{4})$/;
 /** Words a role name can't be, as they'd be confused with another role. */
 const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 

@@ -1,8 +1,53 @@
 // Reading RELEASES.md and writing what's built from it, for
-// scripts/releases.mjs. Pure, so it's easy to test.
+// scripts/releases.mjs, and the version a deploy stamps, for
+// scripts/deploy.mjs. Pure, so it's easy to test.
 
-/** A release's version: its date and its number that day, e.g. 2026.10.19.001. */
-export const VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
+/**
+ * A version: the date and time (UTC) of the deploy, e.g. 2026.10.28.2104
+ * for 21:04. Older ones end in a release's number that day instead
+ * (2026.10.19.001). They compare as text, newest last; the two kinds only
+ * share one day, Oct 28 2026, whose first deploy as a time was after 00:10.
+ */
+export const VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.(\d{3}|\d{4})$/;
+
+/** The heading for notes not deployed yet: a deploy gives it its version. */
+export const NEXT = "Next";
+
+/**
+ * The version for a deploy at a moment: its UTC date, hours and minutes.
+ * @param {Date} date
+ */
+export function versionAt(date) {
+  const two = (/** @type {number} */ n) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}.${two(date.getUTCMonth() + 1)}.${two(date.getUTCDate())}.${two(date.getUTCHours())}${two(date.getUTCMinutes())}`;
+}
+
+/**
+ * Where scripts/deploy.mjs deploys: exactly one of --prod or --dev, as
+ * npm run deploy:prod and deploy:dev give it. There's no default:
+ * `npm run deploy --dev`, without "--", gives --dev to npm, which drops it
+ * without a trace, and the script once deployed that to production.
+ * @param {string[]} args the script's (process.argv after the first two)
+ * @returns {"dev" | "production"}
+ */
+export function deployTarget(args) {
+  const usage = "Deploy with npm run deploy:prod or npm run deploy:dev.";
+  const unknown = args.filter((a) => a !== "--dev" && a !== "--prod");
+  if (unknown.length) throw new Error(`Unknown: ${unknown.join(" ")}. ${usage}`);
+  const dev = args.includes("--dev");
+  if (dev === args.includes("--prod")) throw new Error(`Say where to deploy. ${usage}`);
+  return dev ? "dev" : "production";
+}
+
+/**
+ * RELEASES.md with its "## Next" heading (if any) named the version being
+ * deployed, so its notes are that release's.
+ * @param {string} markdown
+ * @param {string} version
+ */
+export function stampNext(markdown, version) {
+  return markdown.replace(new RegExp(`^## ${NEXT}[ \\t]*$`, "m"), `## ${version}`);
+}
 
 /**
  * A note: its words, or its words and the sub-bullets under it.
@@ -11,7 +56,8 @@ export const VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
  */
 
 /**
- * The releases in RELEASES.md, newest first, as written. Anything before
+ * The releases in RELEASES.md, newest first, as written, "## Next" (notes
+ * not deployed yet) included, first if it's there. Anything before
  * the first `## ` heading is the file's own introduction. Under a heading,
  * lines before the first bullet are its intro (a blank line between
  * paragraphs); then each note is a `- ` bullet, a `- ` indented under one
@@ -28,8 +74,10 @@ export function parseReleases(markdown) {
     const heading = line.match(/^## (.*)$/);
     if (heading) {
       const version = heading[1].trim();
-      if (!VERSION_FORMAT.test(version)) {
-        throw new Error(`"${version}" isn't a version: write it as YYYY.MM.DD.NNN, e.g. 2026.10.19.001.`);
+      if (version === NEXT) {
+        if (releases.length) throw new Error(`"## ${NEXT}" goes above every release.`);
+      } else if (!VERSION_FORMAT.test(version)) {
+        throw new Error(`"${version}" isn't a version: write "## ${NEXT}" for notes not deployed yet (a deploy names it).`);
       }
       releases.push({ version, notes: [] });
       paragraph = false;
@@ -64,13 +112,13 @@ export function parseReleases(markdown) {
       throw new Error(`Under ${release.version}, write each note as a "- " bullet (words before the first one are its intro): "${line.trim()}"`);
     }
   }
-  if (!releases.length) throw new Error("RELEASES.md needs at least one release.");
+  if (!releases.some((r) => r.version !== NEXT)) throw new Error("RELEASES.md needs at least one release.");
   releases.forEach((release, i) => {
     if (!release.notes.length) throw new Error(`${release.version} has no notes.`);
     // Versions compare as text (the page relies on it), so newest first
     // means each is later than the one below it.
     const older = releases[i + 1];
-    if (older && older.version >= release.version) {
+    if (release.version !== NEXT && older && older.version >= release.version) {
       throw new Error(`List releases newest first, each once: ${release.version} is above ${older.version}.`);
     }
   });
@@ -78,14 +126,32 @@ export function parseReleases(markdown) {
 }
 
 /**
- * public/js/releases.js: the version and every release's notes, for the page.
- * @param {Release[]} releases
+ * The releases already deployed (not "## Next"), checked against the app's
+ * version: a release can't be newer than the deploy it went out in.
+ * @param {Release[]} releases from parseReleases
+ * @param {string} version the app's (VERSION)
+ * @returns {Release[]}
  */
-export function pageFile(releases) {
-  return `// Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
+export function deployed(releases, version) {
+  if (!VERSION_FORMAT.test(version)) throw new Error(`VERSION holds "${version}", which isn't a version.`);
+  const out = releases.filter((r) => r.version !== NEXT);
+  if (out[0].version > version) {
+    throw new Error(`${out[0].version} in RELEASES.md is newer than the app's version, ${version}: write "## ${NEXT}" until it's deployed.`);
+  }
+  return out;
+}
 
-/** The app's version: the newest release. */
-export const APP_VERSION = ${JSON.stringify(releases[0].version)};
+/**
+ * public/js/releases.js: the version and every deployed release's notes,
+ * for the page.
+ * @param {string} version the app's (VERSION)
+ * @param {Release[]} releases from deployed()
+ */
+export function pageFile(version, releases) {
+  return `// Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
+
+/** The app's version: when it was deployed (scripts/deploy.mjs). */
+export const APP_VERSION = ${JSON.stringify(version)};
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -98,12 +164,12 @@ export const RELEASES = ${JSON.stringify(releases.map(({ version, intro, notes }
 
 /**
  * src/app-version.js: the version, for the Worker (new accounts start on it).
- * @param {Release[]} releases
+ * @param {string} version the app's (VERSION)
  */
-export function workerFile(releases) {
-  return `// Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
+export function workerFile(version) {
+  return `// Made by scripts/releases.mjs from VERSION. Don't edit it: rebuild.
 
-/** The app's version: the newest release. New accounts have seen its notes. */
-export const APP_VERSION = ${JSON.stringify(releases[0].version)};
+/** The app's version: when it was deployed. New accounts have seen every release's notes up to it. */
+export const APP_VERSION = ${JSON.stringify(version)};
 `;
 }

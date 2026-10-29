@@ -1,7 +1,7 @@
-// Made by scripts/releases.mjs from RELEASES.md. Don't edit it: rebuild.
+// Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
-/** The app's version: the newest release. */
-export const APP_VERSION = "2026.10.28.001";
+/** The app's version: when it was deployed (scripts/deploy.mjs). */
+export const APP_VERSION = "2026.10.28.2218";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro

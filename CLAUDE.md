@@ -61,7 +61,7 @@ building live in [roadmap.md](roadmap.md).
   (1002). No backups (`BACKUP_PUBLIC_KEY` is empty, so the daily job logs
   that it skipped one) and no feedback emails (no `FEEDBACK_EMAIL`).
   Bindings and vars aren't inherited from the top level, so a new one
-  needs adding to both. Deploy with `npx wrangler deploy --env dev`; apply
+  needs adding to both. Deploy with `npm run deploy:dev`; apply
   migrations with `npx wrangler d1 migrations apply DB --remote --env
   dev`. The scripts take `--dev` in place of `--remote` (below).
 - **Plain JavaScript ES modules, no framework, no build step.** Wrangler bundles
@@ -288,9 +288,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `plan_count` and `workshop_count`, `DELETE /api/tags/:id`).
 - `src/version/routes.js`: `GET /api/version` (`{ version }`, no
   session needed), for pages left open over a deploy (`version-check.js`).
-- `src/app-version.js`: generated from RELEASES.md by
-  `scripts/releases.mjs` (never edit it): `APP_VERSION`, whose release
-  notes new accounts start as having seen.
+- `src/app-version.js`: generated from `VERSION` by
+  `scripts/releases.mjs` (never edit it): `APP_VERSION`, up to which new
+  accounts start as having seen the release notes.
 - `public/`: `index.html` (the app: a `<template id="view-…">` for each
   view), `privacy.html` (built from PRIVACY.md; a separate page, opened from
   the app in a new tab), `import-template.csv` (the "Your data" view's CSV
@@ -359,7 +359,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   kind), `import-dedupe.js` (pure: import duplicates from candidates),
   `seal-leftovers.js` (encrypting older plain text), `links.js` (pure: album
   links, checked before sealing and again before being made clickable),
-  `releases.js` (generated from RELEASES.md: `APP_VERSION`, `RELEASES`),
+  `releases.js` (generated from `VERSION` and RELEASES.md: `APP_VERSION`,
+  `RELEASES`),
   `version-rules.js` (pure: whether to reload) and `version-check.js`
   (a page left open over a deploy: the sign-in and Unlock views ask
   `/api/version` on showing, on coming back into view and before signing
@@ -552,18 +553,29 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
-  matches PRIVACY.md, the release files match RELEASES.md, the welcome
+  matches PRIVACY.md, the release files match VERSION and RELEASES.md, the welcome
   matches WELCOME.md and `public/js/vendor/` matches node_modules. Run before a release.
 - `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint and type
   check, then only the tests (and with `--ui`, the walkthrough chunks) of
   the areas changed since the last commit, or of the areas named. A shared
   file, or one in no area, runs everything. `--list` shows what it would
   run. Run after every change.
+- `npm run deploy:prod` / `npm run deploy:dev`: deploy (`scripts/deploy.mjs`), always
+  this way rather than `npx wrangler deploy`. Every deploy gets a new
+  version, the UTC date and time (`YYYY.MM.DD.HHMM`, e.g.
+  2026.10.28.2104; older releases end in 001, 002… that day), shown on
+  sign-in and in the menu, so open pages and installed apps reload into
+  it (`version-check.js`). It's written to `VERSION`, `## Next` in
+  RELEASES.md is renamed to it, the release files are rebuilt, and the
+  Worker deployed with `--tag <version>`. Production's changed files are
+  committed afterwards; dev puts them back. Plain `npm run deploy` refuses
+  (npm drops a `--dev` given without `--`, so there's no default). It refuses a version not
+  newer than the one being served (twice in a minute).
 - `node scripts/releases.mjs`: rebuild `public/js/releases.js` and
-  `src/app-version.js` after editing RELEASES.md. Each release is a
-  `## YYYY.MM.DD.NNN` heading (the date, and 001, 002… that day; newest
-  first) with `- ` notes; the newest is the app's version, shown on
-  sign-in and in the menu. Add one before each deploy.
+  `src/app-version.js` after editing RELEASES.md. New notes go under a
+  `## Next` heading at the top (`- ` bullets), left out of the app until
+  a deploy names it; releases are newest first, none newer than `VERSION`.
+  Never edit `VERSION` by hand.
 - `node scripts/welcome.mjs`: rebuild `public/js/welcome-text.js` after
   editing WELCOME.md (the welcome dialog's text: a heading, paragraphs, a
   list, **bold**, *italics*; email addresses become links).

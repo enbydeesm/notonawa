@@ -34,9 +34,10 @@ describe("parseSettings", () => {
     expect(() => parseSettings({}, DEFAULTS)).toThrow("Nothing to change");
   });
 
-  it("takes the last release seen, only as a version", () => {
+  it("takes the last release seen, only as a version: a deploy's time, or an older release's number that day", () => {
+    expect(parseSettings({ seen_release: "2026.10.28.2104" }, DEFAULTS)).toEqual({ seen_release: "2026.10.28.2104" });
     expect(parseSettings({ seen_release: "2026.10.19.001" }, DEFAULTS)).toEqual({ seen_release: "2026.10.19.001" });
-    for (const bad of ["2026.10.19.01", "2026-10-19.001", "latest", 2026, null]) {
+    for (const bad of ["2026.10.19.01", "2026.10.19.21045", "2026-10-19.001", "latest", 2026, null]) {
       expect(() => parseSettings({ seen_release: bad }, DEFAULTS)).toThrow("isn't a version");
     }
   });

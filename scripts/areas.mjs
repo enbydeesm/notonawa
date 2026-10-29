@@ -137,7 +137,7 @@ export const AREAS = [
   {
     name: "releases",
     files: ["public/js/whats-new.js", "public/js/release-notes.js", "public/js/releases.js", "src/app-version.js",
-      "scripts/releases.mjs", "scripts/releases-lib.mjs", "RELEASES.md"],
+      "scripts/releases.mjs", "scripts/releases-lib.mjs", "scripts/releases-build.mjs", "scripts/deploy.mjs", "RELEASES.md", "VERSION"],
     tests: ["test/unit/releases.test.js"],
     ui: ["basics", "settings"],
     generated: ["releases"],
