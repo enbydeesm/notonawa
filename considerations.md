@@ -1831,9 +1831,10 @@ about 6 minutes, too slow to run after every change.
   within ±60°. Older poses' one-number elbows and knees read as untwisted.
 - **No hips to tap**: the whole body's sliders (Tip body, Turn body, Roll
   body, its height and moving it) are under the head's, with a Reset of
-  their own. Tapping the hips, low belly or lower chest poses the waist,
-  which was hard to tap between the chest and the hips; ropes put there
-  are still on the hips (`POSED_AS` beside `TAPPED_AS`).
+  their own. The waist's area is its own and the hips' together, which
+  makes it easy to tap; the chest keeps all of its own (taking the lower
+  chest too was tried, and left the chest only around the neck). Ropes put
+  on the hips are still on the hips (`POSED_AS` beside `TAPPED_AS`).
 - **Body shape's row**: "Save as my default" in its middle, and Reset at
   its end, back to the app's own body without touching my saved default.
 - **A new hashira goes 3 cm behind the body**, square to its back,
@@ -1854,9 +1855,16 @@ about 6 minutes, too slow to run after every change.
   is greyed out while the figure's in any of them. "Manage my presets" is
   gone: its renaming and deleting are on the rows. Saving over is `PUT`
   with `{ data }`, checked as the preset's own kind.
-- Known limit: the built-in body presets' heights are for the default
-  body, so on a much shorter or taller one Standing floats or sinks a
-  little (fix with the Height slider). See roadmap.md.
+- **Body presets on any body's height**: a body preset's height (built-in
+  or saved) is for the default body. Choosing one puts the body in it on
+  the default body, then gives it its own shape, keeping its lowest point
+  where it was (`withBodyPresetOn`), so Standing stands on the floor and
+  Kneeling kneels on it on a 150 or 200 cm body alike. Saving one, and
+  checking whether the figure's in one, turn the body into the default
+  first (`onDefaultBody`), the heights matching within a centimetre.
+  Scaling each preset's height by the body's standing height was offered;
+  keeping the lowest point is exact for kneeling and lying too. Presets
+  saved before this kept the height of the body they were saved on.
 
 ## Sharing between accounts (October 2026)
 

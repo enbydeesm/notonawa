@@ -7,9 +7,9 @@ import {
   readBody, bodyPositions, measurements,
 } from "../../public/js/figure-body.js";
 import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
-import { DRIVES, anchorBone, olderJointPlaces, restJoints } from "../../public/js/figure-rig.js";
+import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom } from "../../public/js/figure-rig.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
-import { makeSkeleton, posed, ropePoint, boneParts, withShape } from "../../public/js/pose-skeleton.js";
+import { makeSkeleton, posed, ropePoint, boneParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
 
 /** @typedef {import("../../public/js/figure-body.js").Shape} Shape */
@@ -170,6 +170,33 @@ describe("a pose's shape", () => {
       }
     }
     expect(withShape(skeleton, standing, [50, 50, 25, 150]).lift).toBeLessThan(standing.lift - 10);
+  });
+
+  it("puts a body preset on a shorter or taller body at the height it has on the default body, and knows it's in it", () => {
+    const skeleton = makeSkeleton();
+    // The lowest joint, as withShape keeps it.
+    const lowest = (/** @type {import("../../public/js/pose-format.js").Pose} */ p) => {
+      posed(skeleton, p);
+      return Math.min(...[...skeleton.all.values()].map((b) => b.localToWorld(b.position.clone().set(0, 0, 0)).y));
+    };
+    for (const preset of BODY_PRESETS) {
+      const onDefault = withBodyPresetOn(skeleton, newPose(), preset);
+      expect(onDefault.lift, preset.name).toBe(preset.lift);
+      for (const shape of /** @type {Shape[]} */ ([[50, 50, 25, 150], [0, 80, 100, 200]])) {
+        const start = withShape(skeleton, newPose(), shape);
+        const posedOn = withBodyPresetOn(skeleton, start, preset);
+        expect(posedOn.shape).toEqual(shape);
+        expect(Math.abs(lowest(posedOn) - lowest(onDefault)), `${preset.name} at ${shape}`).toBeLessThan(0.6);
+        // As the picker compares it: on the default body, the heights within a centimetre.
+        expect(inPreset("body", onDefaultBody(skeleton, posedOn), preset, { liftWithin: 1 }), preset.name).toBe(true);
+        // Saved from this body, it's the default body's height, so it comes back the same.
+        const { name: _n, ...saved } = bodyPresetFrom(onDefaultBody(skeleton, posedOn), "");
+        expect(Math.abs(withBodyPresetOn(skeleton, start, /** @type {any} */ (saved)).lift - posedOn.lift)).toBeLessThan(1);
+      }
+    }
+    // Standing on a 150 cm body is lower than on the default one, feet on the floor.
+    const short = withBodyPresetOn(skeleton, withShape(skeleton, newPose(), [50, 50, 25, 150]), BODY_PRESETS[0]);
+    expect(short.lift).toBeLessThan(BODY_PRESETS[0].lift - 15);
   });
 
   it("opens an older pose on the in-between body, its ropes where they were on the first figure", () => {

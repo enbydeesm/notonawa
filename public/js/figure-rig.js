@@ -143,12 +143,12 @@ export const TAPPED_AS = Object.freeze({ "spine04": "pelvis", "clavicle.L": "che
 /**
  * Body bones tapped (to pose) as another part than their rope points
  * are on: the hips aren't posed on their own (the whole body's sliders
- * are the head's), so tapping them, or the low belly or the lower chest,
- * poses the waist, which makes the waist easy to tap.
+ * are the head's), so tapping them poses the waist, which makes the waist
+ * easy to tap. The chest keeps its own.
  * @type {Readonly<Record<string, string>>}
  */
 export const POSED_AS = Object.freeze({
-  ...TAPPED_AS, "root": "spine", "pelvis.L": "spine", "pelvis.R": "spine", "spine05": "spine", "spine04": "spine", "spine02": "spine",
+  ...TAPPED_AS, "root": "spine", "pelvis.L": "spine", "pelvis.R": "spine", "spine05": "spine", "spine04": "spine",
 });
 
 /**
@@ -415,12 +415,16 @@ const sameAngles = (a, b) => {
  * @param {"body" | "arms"} kind
  * @param {Posture} posture
  * @param {Omit<BodyPreset, "name"> | Omit<ArmsPreset, "name">} preset
+ * @param {{ liftWithin?: number }} [options] how close the heights must be (cm): a body's
+ *   height worked out for another body shape is only as close as half a centimetre
  * @returns {boolean}
  */
-export function inPreset(kind, posture, preset) {
+export function inPreset(kind, posture, preset, { liftWithin = 0.05 } = {}) {
   const named = /** @type {any} */ ({ name: "", ...preset });
   if (kind === "body") {
-    return sameAngles(bodyPresetFrom(posture, ""), bodyPresetFrom(withBodyPreset(posture, named), ""));
+    const { lift: now, ...rest } = bodyPresetFrom(posture, "");
+    const { lift: then, ...after } = bodyPresetFrom(withBodyPreset(posture, named), "");
+    return Math.abs(now - then) <= liftWithin && sameAngles(rest, after);
   }
   return sameAngles(armsPresetFrom(posture, ""), armsPresetFrom(withArmsPreset(posture, named), ""));
 }

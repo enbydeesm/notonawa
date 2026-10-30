@@ -63,7 +63,8 @@ const KIND_WORDS = /** @type {const} */ ({
  *   builtIn: readonly { name: string }[],
  *   posture: () => Posture,
  *   apply: (preset: Record<string, any>) => void,
- * }} options posture: the figure now; apply: puts a preset on it
+ * }} options posture: the figure now (a body as it would be on the default body, as body presets are);
+ *   apply: puts a preset on it
  * @returns {Promise<void>} once closed
  */
 export function pickPreset({ kind, builtIn, posture, apply }) {
@@ -74,7 +75,7 @@ export function pickPreset({ kind, builtIn, posture, apply }) {
     const { name: _name, ...data } = kind === "body" ? bodyPresetFrom(posture(), "") : armsPresetFrom(posture(), "");
     return data;
   };
-  const matches = (/** @type {Record<string, any>} */ data) => inPreset(kind, posture(), /** @type {any} */ (data));
+  const matches = (/** @type {Record<string, any>} */ data) => inPreset(kind, posture(), /** @type {any} */ (data), { liftWithin: 1 });
 
   /** @type {SavedPreset[]} */
   let mine = [];

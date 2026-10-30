@@ -9,9 +9,9 @@
 // of the body ("chest", "l_elbow"…) is the bone its rope points are kept on.
 
 import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
-import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, anchorBone, carrierBone, jointRotation, bodyRotation } from "./figure-rig.js";
+import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, anchorBone, carrierBone, jointRotation, bodyRotation, withBodyPreset } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
-import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp } from "./pose-format.js";
+import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp, withPosture } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -229,6 +229,30 @@ export function withShape(skeleton, pose, shape) {
   const drop = lowestJoint(skeleton, pose) - lowestJoint(skeleton, next);
   return Math.abs(drop) < 0.5 ? next : { ...next, lift: clamp(next.lift + drop, LIFT_RANGE) };
 }
+
+/**
+ * A body preset's height (and a saved one's) is for the default body: a
+ * shorter or taller body is put in it on the default body, then given its
+ * own shape, which keeps its lowest point where it was (standing on the
+ * floor, kneeling on it, lying at the same height).
+ * @param {Skeleton} skeleton any (it's posed)
+ * @param {Pose} pose
+ * @param {import("./figure-rig.js").BodyPreset} preset
+ * @returns {Pose}
+ */
+export function withBodyPresetOn(skeleton, pose, preset) {
+  const onDefault = setShape(pose, [...DEFAULT_SHAPE]);
+  return withShape(skeleton, withPosture(onDefault, withBodyPreset(onDefault, preset)), pose.shape);
+}
+
+/**
+ * A pose as it would be on the default body, its height changed to keep its
+ * lowest point where it is: what a body preset is saved as and compared with.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @returns {Pose}
+ */
+export const onDefaultBody = (skeleton, pose) => withShape(skeleton, pose, [...DEFAULT_SHAPE]);
 
 /**
  * Where a point on a bone is in the room (cm), the skeleton posed.

@@ -44,7 +44,7 @@ import { h, showMessage, privateField } from "./dom.js";
 import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
-  PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withBodyPreset, withArmsPreset,
+  PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withArmsPreset,
 } from "./figure-rig.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
@@ -58,7 +58,7 @@ import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
 import { loadSettings, saveDefaultShape } from "./settings.js";
 import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
-import { makeSkeleton, posed, withShape } from "./pose-skeleton.js";
+import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
@@ -206,11 +206,15 @@ export async function editPose(start, { addToVisuals } = {}) {
     // The pickers for the body's and arms' presets, and where the body
     // faces (preset-picker.js).
     /** @type {(kind: "body" | "arms") => void} */
+    // A body preset's height is for the default body, so the body's turned
+    // into that to compare and save, and a preset put on it the same way
+    // (pose-skeleton.js): Standing stands on the floor whatever the height.
     const openPresets = (kind) => pickPreset({
-      kind, builtIn: kind === "body" ? BODY_PRESETS : ARMS_PRESETS, posture: () => history.pose,
-      apply: (preset) => commit(withPosture(history.pose, kind === "body"
-        ? withBodyPreset(history.pose, /** @type {BodyPreset} */ (preset))
-        : withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset)))),
+      kind, builtIn: kind === "body" ? BODY_PRESETS : ARMS_PRESETS,
+      posture: () => (kind === "body" ? onDefaultBody(measuring, history.pose) : history.pose),
+      apply: (preset) => commit(kind === "body"
+        ? withBodyPresetOn(measuring, history.pose, /** @type {BodyPreset} */ (preset))
+        : withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset)))),
     });
     const pickerButton = (/** @type {string} */ id, /** @type {string} */ label, /** @type {() => void} */ onclick) =>
       h("button", { type: "button", className: "tool pose-picker", id, "aria-haspopup": "dialog", onclick }, label);

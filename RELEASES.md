@@ -26,6 +26,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Body shape has "Save as my default" in the middle and a Reset that goes back to the usual body (your saved default stays).
 - Body…, Arms… and Turn body… open a list of their own: search it, tap any row to use it, and save, rename or delete your own presets right there. The one the figure's in is tinted.
 - A new hashira goes just behind the body, wherever it's standing.
+- Body positions now fit any body's height: Standing stands on the floor and kneeling kneels on it, on a short or tall body alike.
 - Your screen stays on while the poser is open.
 
 ## 2026.10.28.001
