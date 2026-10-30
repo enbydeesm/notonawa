@@ -57,6 +57,17 @@ export function exportRoleNames(data) {
 }
 
 /**
+ * An export's poser default body, if it has one ([gender, muscle, weight,
+ * height]; the server checks it's within the sliders).
+ * @param {unknown} data the export, as read
+ * @returns {number[] | null}
+ */
+export function exportDefaultShape(data) {
+  const shape = /** @type {Record<string, any>} */ (data)?.account?.settings?.default_shape;
+  return Array.isArray(shape) && shape.length === 4 && shape.every((n) => Number.isInteger(n)) ? [...shape] : null;
+}
+
+/**
  * The first request's body.
  * @param {ImportDoc} doc
  * @param {boolean} preview

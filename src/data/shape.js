@@ -77,13 +77,15 @@ export function exportDocument(rows, exportedAt) {
       // Only whether one is set: we never have the address, and the hash
       // is of no use to the user.
       recovery_email_set: !!rows.user.recovery_email_set,
-      // Role names, light/dark mode, the last release notes seen and
-      // whether the welcome is still shown. An
-      // import into a journal still on the default role names takes the
-      // file's (public/js/views/data.js); the rest isn't imported.
+      // Role names, light/dark mode, the last release notes seen, whether
+      // the welcome is still shown and the poser's default body. An import
+      // into a journal still on the default role names takes the file's,
+      // and one with no default body the file's (public/js/views/data.js);
+      // the rest isn't imported.
       settings: {
         top_label: rows.user.top_label ?? null, bottom_label: rows.user.bottom_label ?? null, theme: rows.user.theme ?? null,
         seen_release: rows.user.seen_release ?? null, hide_welcome: !!rows.user.hide_welcome,
+        default_shape: typeof rows.user.default_shape === "string" ? JSON.parse(rows.user.default_shape) : null,
       },
       passkeys: rows.passkeys.map((p) => ({ name: p.name, created_at: p.created_at, last_used_at: p.last_used_at })),
       // Messages from us just for me, and ones for everyone I dismissed

@@ -293,7 +293,8 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   },
   {
     name: "Upside down", body: [180, 180, 0], lift: 165,
-    joints: { l_hip: [10, 30, 0], r_hip: [10, 30, 0], l_knee: [15], r_knee: [15] },
+    // The legs folded: knees bent right up, toes pointed.
+    joints: { l_hip: [19, 5, 0], r_hip: [19, 5, 0], l_knee: [150], r_knee: [150], l_ankle: [-50], r_ankle: [-50] },
   },
 ]));
 

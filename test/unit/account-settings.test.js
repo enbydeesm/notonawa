@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSettings, MAX_ROLE_NAME } from "../../src/account/settings.js";
 
-const DEFAULTS = { top_label: null, bottom_label: null, theme: null, seen_release: null, hide_welcome: false };
+const DEFAULTS = { top_label: null, bottom_label: null, theme: null, seen_release: null, hide_welcome: false, default_shape: null };
 
 describe("parseSettings", () => {
   it("changes only what's sent", () => {
@@ -45,6 +45,14 @@ describe("parseSettings", () => {
   it("takes whether to hide the welcome, only as true or false", () => {
     expect(parseSettings({ hide_welcome: true }, DEFAULTS)).toEqual({ hide_welcome: true });
     expect(parseSettings({ hide_welcome: false }, DEFAULTS)).toEqual({ hide_welcome: false });
+  });
+
+  it("takes a default body shape within the poser's sliders, or null", () => {
+    expect(parseSettings({ default_shape: [10, 80, 60, 170] }, DEFAULTS)).toEqual({ default_shape: [10, 80, 60, 170] });
+    expect(parseSettings({ default_shape: null }, DEFAULTS)).toEqual({ default_shape: null });
+    for (const bad of [[10, 80, 60], [10, 80, 60, 140], [10.5, 80, 60, 170], "tall", [0, 0, 0, 160, 1]]) {
+      expect(() => parseSettings({ default_shape: bad }, DEFAULTS)).toThrow("body shape");
+    }
     for (const bad of [1, "true", null]) {
       expect(() => parseSettings({ hide_welcome: bad }, DEFAULTS)).toThrow("show the welcome");
     }

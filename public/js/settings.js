@@ -1,8 +1,8 @@
 // The account's settings on the page: role names (roles.js) and light/dark
 // mode (theme.js), read once the journal is unlocked and saved from the
 // Settings dialog (settings-dialog.js), the last release notes seen
-// (whats-new.js) and whether to show the welcome (welcome.js). See
-// src/account/settings.js.
+// (whats-new.js), whether to show the welcome (welcome.js) and the body new
+// poses start with (pose-editor.js). See src/account/settings.js.
 
 import { api } from "./api.js";
 import { setRoleNames, namesToAdopt } from "./roles.js";
@@ -12,7 +12,7 @@ import { onWipe } from "./vault.js";
 /**
  * @typedef {{
  *   top_label: string | null, bottom_label: string | null, theme: string | null, seen_release: string | null,
- *   hide_welcome: boolean,
+ *   hide_welcome: boolean, default_shape: import("./figure-body.js").Shape | null,
  * }} Settings
  */
 
@@ -71,6 +71,26 @@ export async function adoptRoleNames(fromFile) {
   const names = namesToAdopt(await loadSettings(), fromFile);
   if (!names) return false;
   await saveRoleNames(names.top, names.bottom, { redraw: false });
+  return true;
+}
+
+/**
+ * Saves the body new poses start with (the poser's "Save as default").
+ * @param {import("./figure-body.js").Shape} shape
+ */
+export async function saveDefaultShape(shape) {
+  const settings = await api("/api/account/settings", { method: "PUT", body: { default_shape: shape } });
+  if (loaded) loaded = { ...loaded, default_shape: settings.default_shape };
+}
+
+/**
+ * An import's poser default body, taken if I haven't saved one.
+ * @param {number[] | null} fromFile
+ * @returns {Promise<boolean>} whether it was taken
+ */
+export async function adoptDefaultShape(fromFile) {
+  if (!fromFile || (await loadSettings()).default_shape) return false;
+  await saveDefaultShape(/** @type {import("./figure-body.js").Shape} */ (fromFile));
   return true;
 }
 

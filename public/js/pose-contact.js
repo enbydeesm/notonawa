@@ -1,14 +1,19 @@
 // Keeping limbs out of the body: the body as capsules (figure-body.js's
 // SEGMENTS, sized for its shape), and how far a pose pushes one into
-// another. A change that pushes a limb further in than it was is stopped
-// where it touches (sliders, dragging and the rope solver all ask), so
-// a pose that starts touching (hands at the thighs, a box tie's forearms
-// on the back) can still move. Approximate: capsules, not the skin, so a
-// centimetre or so of overlap can show. Pure apart from three.js's math.
+// another. A move is never stopped part-way: while it's made, the parts it
+// pushes into each other are shown (clashingParts), and when it's let go
+// it's settled (settleClashes): another limb, or the head, moves aside
+// just enough; a limb pushed into the trunk, which doesn't move aside,
+// comes back out to the nearest clear spot. Only what the move made worse
+// counts, so a pose that starts touching (hands at the thighs, a box tie's
+// forearms on the back) is left as it is. Approximate: capsules, not the
+// skin, so a centimetre or so of overlap can show. Pure apart from
+// three.js's math.
 
 import { Vector3 } from "./vendor/three.js";
 import { SEGMENTS, segmentSizes } from "./figure-body.js";
 import { posed } from "./pose-skeleton.js";
+import { setJoint } from "./pose-format.js";
 
 /** @typedef {import("./pose-skeleton.js").Skeleton} Skeleton */
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -135,28 +140,179 @@ export function depths(skeleton, pose) {
   return out;
 }
 
-/** How far a pose pushes limbs into the body, all told (cm). @param {Skeleton} skeleton @param {Pose} pose */
-export const overlap = (skeleton, pose) => depths(skeleton, pose).reduce((a, b) => a + b, 0);
+
+/** How much deeper than before a pair can go before it counts as pushed in (cm). */
+const SLACK = 0.3;
 
 /**
- * Whether no pair of segments is pushed further into each other than
- * before (a pair that eases off doesn't make up for one that doesn't).
+ * The pairs a move pushed further into each other than they were.
  * @param {Float64Array} after @param {Float64Array} before
+ * @returns {number[]} indices into PAIRS
  */
-export const noDeeper = (after, before) => after.every((d, k) => d <= before[k] + 0.05);
+const pushedIn = (after, before) => [...after.keys()].filter((k) => after[k] > before[k] + SLACK);
+
+/** How far, all told, pairs are pushed in past where they were (cm). @param {Float64Array} after @param {Float64Array} before */
+const excess = (after, before) => after.reduce((sum, d, k) => sum + Math.max(0, d - before[k] - SLACK), 0);
+
+/** Each body part's segment (figure-rig.js's parts: "pelvis" and the joints). */
+const SEGMENT_OF = Object.freeze({
+  pelvis: "hips", spine: "waist", chest: "chest", head: "head",
+  ...Object.fromEntries(["l", "r"].flatMap((s) => [
+    [`${s}_shoulder`, `${s}_upperarm`], [`${s}_elbow`, `${s}_forearm`], [`${s}_wrist`, `${s}_hand`],
+    [`${s}_hip`, `${s}_thigh`], [`${s}_knee`, `${s}_shin`], [`${s}_ankle`, `${s}_foot`],
+  ])),
+});
+/** @type {Readonly<Record<string, string>>} */
+const PART_OF = Object.freeze(Object.fromEntries(Object.entries(SEGMENT_OF).map(([part, seg]) => [seg, part])));
 
 /**
- * A change kept out of the body: `after` if it pushes no limb further in
- * than `before` did, or else as far toward it as it can go before one
- * does (every joint's angles moved together, whole degrees).
+ * What moves aside to settle a clash: each limb (an arm at the shoulder
+ * and elbow, a leg at the hip and knee) and the head (bending and
+ * leaning). The trunk doesn't: bending it would carry both arms, the
+ * head and their ropes with it.
+ * @type {Readonly<Record<string, readonly [string, number][]>>}
+ */
+const GIVES = Object.freeze({
+  head: [["head", 0], ["head", 1]],
+  ...Object.fromEntries(["l", "r"].flatMap((s) => [
+    [`${s}_arm`, [[`${s}_shoulder`, 0], [`${s}_shoulder`, 1], [`${s}_elbow`, 0]]],
+    [`${s}_leg`, [[`${s}_hip`, 0], [`${s}_hip`, 1], [`${s}_knee`, 0]]],
+  ])),
+});
+
+/** The limb (or head) a segment is part of, null for the trunk. @param {string} segment */
+function limbOf(segment) {
+  if (segment === "head") return "head";
+  const [side, part] = segment.split("_");
+  if (!part) return null;
+  return `${side}_${ARM.includes(part) ? "arm" : "leg"}`;
+}
+
+/** The limb (or head) a joint moves, null for the trunk's. @param {string} joint */
+const limbOfJoint = (joint) => (joint in SEGMENT_OF && joint !== "pelvis" ? limbOf(SEGMENT_OF[/** @type {keyof typeof SEGMENT_OF} */ (joint)]) : null);
+
+/**
+ * The parts a move has pushed into each other (both of each pair), to
+ * show while it's being made.
  * @param {Skeleton} skeleton any (it's posed)
  * @param {Pose} before
- * @param {Pose} after the same but for its joints
+ * @param {Pose} after
+ * @param {Float64Array} [beforeDepths] before's depths, if already worked out
+ * @returns {Set<string>} parts (figure-rig.js's names)
+ */
+export function clashingParts(skeleton, before, after, beforeDepths = depths(skeleton, before)) {
+  const parts = new Set();
+  for (const k of pushedIn(depths(skeleton, after), beforeDepths)) {
+    for (const i of PAIRS[k]) parts.add(PART_OF[SEGMENTS[i].name]);
+  }
+  return parts;
+}
+
+/**
+ * A pose with some angles changed a little at a time (a few degrees,
+ * then fewer) while that pushes pairs less far in, preferring small
+ * changes: settling a clash.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @param {Float64Array} before the depths to get back to
+ * @param {readonly [string, number][]} angles
+ * @param {number} cost how much a degree of change counts against a centimetre less pushed in
+ * @param {number} [most] the most any angle changes (degrees)
  * @returns {Pose}
  */
-export function keptOut(skeleton, before, after) {
+function ease(skeleton, pose, before, angles, cost, most = Infinity) {
+  const start = pose;
+  const score = (/** @type {Pose} */ p) => excess(depths(skeleton, p), before)
+    + cost * angles.reduce((sum, [name, i]) => sum + Math.abs(p.joints[name][i] - start.joints[name][i]), 0);
+  let best = pose, bestScore = score(pose);
+  for (const step of [6, 3, 1]) {
+    for (let round = 0; round < 20 && bestScore > 0.05; round++) {
+      /** @type {Pose | null} */
+      let next = null;
+      let nextScore = bestScore - 1e-6;
+      for (const [name, i] of angles) {
+        for (const by of [step, -step]) {
+          if (Math.abs(best.joints[name][i] + by - start.joints[name][i]) > most) continue;
+          const trial = setJoint(best, name, i, best.joints[name][i] + by);
+          if (trial.joints[name][i] === best.joints[name][i]) continue;
+          const s = score(trial);
+          if (s < nextScore) [next, nextScore] = [trial, s];
+        }
+      }
+      if (!next) break;
+      [best, bestScore] = [next, nextScore];
+      if (excess(depths(skeleton, best), before) === 0) return best;
+    }
+  }
+  return best;
+}
+
+/**
+ * How much a degree counts when the limb moved comes back, and when
+ * another moves aside (which should move as little as it can), and the
+ * most another moves aside: a head tilts away a little, and the limb
+ * moved does the rest.
+ */
+const OWN_COST = 0.02;
+const ASIDE_COST = 0.1;
+/** @type {Readonly<Record<string, number>>} */
+const ASIDE_MOST = Object.freeze({ head: 20 });
+const LIMB_ASIDE_MOST = 30;
+
+/**
+ * A move settled when it's let go: if it pushed parts into each other,
+ * another limb (or the head) the move didn't touch moves aside; what's
+ * still pushed in after that is settled by the joints moved coming back
+ * to the nearest clear spot. A move into the trunk (which doesn't move
+ * aside) comes back first, so nothing else is moved for a clash that
+ * coming back clears anyway.
+ * @param {Skeleton} skeleton any (it's posed)
+ * @param {Pose} before the pose before the move
+ * @param {Pose} after the move
+ * @param {readonly string[]} moved the joints the move turned
+ * @returns {Pose}
+ */
+export function settleClashes(skeleton, before, after, moved) {
   const was = depths(skeleton, before);
-  if (noDeeper(depths(skeleton, after), was)) return after;
+  const worse = pushedIn(depths(skeleton, after), was);
+  if (!worse.length) return after;
+  const movedLimbs = new Set(moved.map(limbOfJoint));
+  // The limbs on the other side of each clash, to move aside, and whether
+  // any clash is with the trunk.
+  const aside = new Set();
+  let trunk = false;
+  for (const k of worse) {
+    for (const i of PAIRS[k]) {
+      const limb = limbOf(SEGMENTS[i].name);
+      if (!limb) trunk = true;
+      else if (!movedLimbs.has(limb)) aside.add(limb);
+    }
+  }
+  // The joints moved, all their movements, coming back out.
+  const own = moved.flatMap((name) => after.joints[name].map((_, i) => /** @type {[string, number]} */ ([name, i])));
+  const clear = (/** @type {Pose} */ p) => excess(depths(skeleton, p), was) === 0;
+  let pose = after;
+  if (trunk) pose = ease(skeleton, pose, was, own, OWN_COST);
+  for (const limb of aside) {
+    if (!clear(pose)) pose = ease(skeleton, pose, was, GIVES[limb], ASIDE_COST, ASIDE_MOST[limb] ?? LIMB_ASIDE_MOST);
+  }
+  if (!clear(pose)) pose = ease(skeleton, pose, was, own, OWN_COST);
+  // Still clashing: the move taken back the way it came, only as far as
+  // it has to (the pose before it was clear).
+  if (!clear(pose)) pose = backTowards(skeleton, before, pose, was);
+  return pose;
+}
+
+/**
+ * As near `after` as it can be, on the way back to `before` (every joint
+ * moved together), without anything pushed in further than before.
+ * @param {Skeleton} skeleton
+ * @param {Pose} before
+ * @param {Pose} after
+ * @param {Float64Array} was before's depths
+ * @returns {Pose}
+ */
+function backTowards(skeleton, before, after, was) {
   /** @param {number} t */
   const at = (t) => ({
     ...after,
@@ -167,7 +323,7 @@ export function keptOut(skeleton, before, after) {
   let low = 0, high = 1;
   for (let k = 0; k < 10; k++) {
     const mid = (low + high) / 2;
-    if (noDeeper(depths(skeleton, at(mid)), was)) low = mid; else high = mid;
+    if (excess(depths(skeleton, at(mid)), was) === 0) low = mid; else high = mid;
   }
   return low === 0 ? before : at(low);
 }

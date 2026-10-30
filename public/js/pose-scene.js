@@ -126,6 +126,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   const sphere = new SphereGeometry(1, 28, 18);
   const skinColor = cssColor("pose-figure");
   const selectedColor = cssColor("pose-selected");
+  const clashColor = cssColor("pose-clash");
 
   // The pelvis is the figure's root, moved and turned as the whole body.
   const skeleton = makeSkeleton(new Group());
@@ -174,7 +175,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   scene.add(figure);
   /** The shape the skin was last made in. @type {import("./figure-body.js").Shape | null} */
   let skinShape = null;
-  /** The part shown selected (undefined before the first). @type {string | null | undefined} */
+  /** The parts shown selected and clashing, as last painted. @type {string | undefined} */
   let painted;
 
   /** Makes the skin in the skeleton's shape (after posed() has reshaped it). */
@@ -201,14 +202,21 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     });
   }
 
-  /** Colors the part being posed. @param {string | null} part */
-  function paint(part) {
-    if (part === painted) return;
-    painted = part;
+  /**
+   * Colors the part being posed, and parts a move is pushing into each
+   * other (pose-contact.js).
+   * @param {string | null} part
+   * @param {Set<string> | null} clash
+   */
+  function paint(part, clash) {
+    const key = `${part}|${clash ? [...clash].sort().join() : ""}`;
+    if (key === painted) return;
+    painted = key;
     const colors = /** @type {Float32Array} */ (tint.array);
     const chosen = part === null ? -1 : parts.names.indexOf(part);
+    const clashing = new Set([...(clash ?? [])].map((p) => parts.names.indexOf(p)));
     for (let v = 0; v < parts.of.length; v++) {
-      const c = parts.of[v] === chosen ? selectedColor : skinColor;
+      const c = clashing.has(parts.of[v]) ? clashColor : parts.of[v] === chosen ? selectedColor : skinColor;
       colors[v * 3] = c.r;
       colors[v * 3 + 1] = c.g;
       colors[v * 3 + 2] = c.b;
@@ -330,16 +338,16 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   }
 
   /**
-   * Shows a pose (and the rope being laid, the part being posed, and the
-   * rope chosen).
+   * Shows a pose (and the rope being laid, the part being posed, the rope
+   * chosen, and the parts a move is pushing into each other).
    * @param {Pose} pose
-   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number }} [extras]
+   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null }} [extras]
    */
-  function show(pose, { laying = null, selected = null, rope = -1 } = {}) {
+  function show(pose, { laying = null, selected = null, rope = -1, clash = null } = {}) {
     shown = pose;
     posed(skeleton, pose);
     fitSkin();
-    paint(selected);
+    paint(selected, clash);
 
     ring.visible = !!pose.ring;
     if (pose.ring) {

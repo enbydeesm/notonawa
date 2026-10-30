@@ -133,7 +133,7 @@ export async function deleteAccount(db, userId) {
  * @returns {Promise<import("./settings.js").Settings>}
  */
 export async function getSettings(db, userId) {
-  const row = await db.prepare("SELECT top_label, bottom_label, theme, seen_release, hide_welcome FROM users WHERE id = ?")
+  const row = await db.prepare("SELECT top_label, bottom_label, theme, seen_release, hide_welcome, default_shape FROM users WHERE id = ?")
     .bind(userId).first();
   return {
     top_label: /** @type {string | null} */ (row?.top_label ?? null),
@@ -141,6 +141,7 @@ export async function getSettings(db, userId) {
     theme: /** @type {string | null} */ (row?.theme ?? null),
     seen_release: /** @type {string | null} */ (row?.seen_release ?? null),
     hide_welcome: row?.hide_welcome === 1,
+    default_shape: typeof row?.default_shape === "string" ? JSON.parse(row.default_shape) : null,
   };
 }
 
@@ -152,9 +153,15 @@ export async function getSettings(db, userId) {
  * @param {import("./settings.js").SettingsChange} change
  */
 export async function updateSettings(db, userId, change) {
-  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme", "seen_release", "hide_welcome"]).filter((c) => c in change);
-  // hide_welcome is stored as 1 or 0.
-  const value = (/** @type {typeof columns[number]} */ c) => (typeof change[c] === "boolean" ? Number(change[c]) : change[c] ?? null);
+  const columns = /** @type {const} */ (["top_label", "bottom_label", "theme", "seen_release", "hide_welcome", "default_shape"])
+    .filter((c) => c in change);
+  // hide_welcome is stored as 1 or 0, default_shape as JSON.
+  const value = (/** @type {typeof columns[number]} */ c) => {
+    const v = change[c];
+    if (typeof v === "boolean") return Number(v);
+    if (Array.isArray(v)) return JSON.stringify(v);
+    return v ?? null;
+  };
   await db.prepare(`UPDATE users SET ${columns.map((c) => `${c} = ?`).join(", ")} WHERE id = ?`)
     .bind(...columns.map(value), userId).run();
 }

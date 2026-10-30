@@ -15,7 +15,6 @@
 
 import { jointNamed, clampJoint, LIFT_RANGE } from "./figure-rig.js";
 import { DRAG_CHAINS, dampedSolve, snapshot, keepReachable } from "./pose-ik.js";
-import { depths, noDeeper } from "./pose-contact.js";
 import { makeSkeleton, posed } from "./pose-skeleton.js";
 import { ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength } from "./pose-format.js";
 import { bends, segmentLength } from "./pose-cinch.js";
@@ -98,8 +97,6 @@ function settle(pose, angles, errors) {
     return [...errors(skeleton, trial), 0, 0, 0].slice(0, 3);
   };
 
-  // No limb is pushed further into the body than it was (pose-contact.js).
-  const touching = depths(skeleton, trial);
   for (let round = 0; round < ROUNDS; round++) {
     const now = measure();
     const size = Math.hypot(...now);
@@ -114,16 +111,8 @@ function settle(pose, angles, errors) {
       return moved.map((m, r) => (m - now[r]) / step);
     });
     const before = snapshot(trial.joints, moved);
-    const lifted = [trial.lift, [...trial.body]];
     dampedSolve(columns, wanted).forEach((d, k) => set(k, get(k) + d));
     keepReachable(trial.joints, before);
-    // A step into the body is taken back, and the solving stops there.
-    if (!noDeeper(depths(skeleton, trial), touching)) {
-      Object.assign(trial.joints, before);
-      trial.lift = /** @type {number} */ (lifted[0]);
-      trial.body = /** @type {[number, number, number]} */ (lifted[1]);
-      break;
-    }
   }
 
   // Whole degrees and cm, as poses keep them.

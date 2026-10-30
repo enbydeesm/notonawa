@@ -57,10 +57,11 @@ import {
   isCinch, isUpline, canSeesaw, setSeesaw, cinchOn, cantCinch, addCinch, setCinchLength, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
-import { SHAPE_RANGES, SHAPE_SLIDERS, standingLift } from "./figure-body.js";
+import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
+import { loadSettings, saveDefaultShape } from "./settings.js";
 import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
 import { makeSkeleton, posed, withShape } from "./pose-skeleton.js";
-import { keptOut } from "./pose-contact.js";
+import { depths, clashingParts, settleClashes } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -73,6 +74,7 @@ import { saveFile } from "./download.js";
 /** @typedef {import("./drawing-format.js").Color} Color */
 /** @typedef {import("./drawing-format.js").Width} Width */
 /** @typedef {import("./figure-rig.js").BodyPreset} BodyPreset */
+/** @typedef {import("./figure-body.js").Shape} Shape */
 /** @typedef {import("./figure-rig.js").ArmsPreset} ArmsPreset */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
 /** @typedef {import("./drawing-format.js").Stroke} Stroke */
@@ -106,15 +108,19 @@ let lastColor = "red";
 let lastWidth = 2;
 
 /**
- * Opens the poser on a pose (or a new one, standing).
+ * Opens the poser on a pose (or a new one, standing, in the account's
+ * default body if one's saved).
  * @param {Pose | null} start
  * @param {{ addToVisuals?: (picture: Blob) => Promise<void> }} [options] addToVisuals:
  *   puts a picture of the pose (a PNG) into the item's visuals (the button's left out without it)
  * @returns {Promise<Pose | null>} the new pose, or null if cancelled
  */
-export function editPose(start, { addToVisuals } = {}) {
+export async function editPose(start, { addToVisuals } = {}) {
+  /** The body new poses start with (null: the in-between one). @type {Shape | null} */
+  let defaultShape = (await loadSettings().catch(() => null))?.default_shape ?? null;
+  const fresh = () => (defaultShape ? withShape(makeSkeleton(), newPose(), defaultShape) : newPose());
   return new Promise((resolve) => {
-    let history = startHistory(start ? readPose(start) : newPose());
+    let history = startHistory(start ? readPose(start) : fresh());
     /** A slider being dragged: its pose, not yet a change (it is when let go). @type {Pose | null} */
     let draft = null;
     /** @type {"pose" | "rope" | "draw"} */
@@ -277,10 +283,28 @@ export function editPose(start, { addToVisuals } = {}) {
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
-    // The body's shape, folded away until wanted.
+    // The body's shape, folded away until wanted, with "Save as default"
+    // on its heading's row (beside the fold, not in it, so it shows folded).
     const shapeSliders = h("div", { className: "pose-sliders", id: "pose-shape-sliders" });
-    const shapeFold = h("details", { className: "fold pose-shape", id: "pose-shape" },
-      h("summary", {}, "Body shape"), shapeSliders);
+    const saveShapeButton = h("button", {
+      type: "button", className: "tool pose-shape-save", id: "pose-shape-default", onclick: saveShapeAsDefault,
+    }, "Save as default");
+    const shapeFold = h("div", { className: "pose-shape" },
+      h("details", { className: "fold", id: "pose-shape" }, h("summary", {}, "Body shape"), shapeSliders), saveShapeButton);
+
+    /** Saves the body shown as the one new poses start with. */
+    async function saveShapeAsDefault() {
+      const shape = /** @type {Shape} */ ([...current().shape]);
+      saveShapeButton.disabled = true;
+      try {
+        await saveDefaultShape(shape);
+        defaultShape = shape;
+        say("Saved. New poses will start with this body.");
+      } catch (err) {
+        say(`Couldn't save the default body: ${err instanceof Error ? err.message : "try again"}`, true);
+      }
+      drawShapePanel();
+    }
     // The part's name, with Reset at the end of the same row.
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
       h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
@@ -366,6 +390,13 @@ export function editPose(start, { addToVisuals } = {}) {
 
     // --- drawing ---------------------------------------------------------------
 
+    /** The depths of the pose a move starts from (pose-contact.js), worked out once per pose. @type {{ pose: Pose, depths: Float64Array } | null} */
+    let before = null;
+    const depthsBefore = () => {
+      if (before?.pose !== history.pose) before = { pose: history.pose, depths: depths(measuring, history.pose) };
+      return before.depths;
+    };
+
     let queued = false;
     /** Draws the view at the next frame (once, however many changes before it). */
     function drawSoon() {
@@ -374,7 +405,9 @@ export function editPose(start, { addToVisuals } = {}) {
       requestAnimationFrame(() => {
         queued = false;
         const pose = current();
-        view.show(pose, { laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1 });
+        // A move being made shows the parts it pushes into each other.
+        const clash = draft && mode === "pose" ? clashingParts(measuring, history.pose, draft, depthsBefore()) : null;
+        view.show(pose, { laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1, clash });
         view.draw();
         marks.draw([...(marksShow(pose.marks, pose.camera) ? /** @type {import("./pose-marks.js").Marks} */ (pose.marks).strokes : []),
           ...(markLine ? [markLine] : [])]);
@@ -451,9 +484,14 @@ export function editPose(start, { addToVisuals } = {}) {
      * into (Enter or leaving the box makes it one change), kept within the
      * slider's range; anything but a number puts the old value back. ▲
      * and ▼ beside the box step it by one, each tap a change.
-     * @param {{ id: string, label: string, min: number, max: number, value: number, apply: (pose: Pose, value: number) => Pose }} row
+     * settle, if given, has the last say on a change once it's made (let
+     * go, typed or stepped): a limb's clashes settled.
+     * @param {{ id: string, label: string, min: number, max: number, value: number,
+     *   apply: (pose: Pose, value: number) => Pose, settle?: (before: Pose, after: Pose) => Pose }} row
      */
-    function slider({ id, label, min, max, value, apply }) {
+    function slider({ id, label, min, max, value, apply, settle = (_before, after) => after }) {
+      /** @param {number} v */
+      const change = (v) => commit(settle(history.pose, apply(history.pose, v)));
       // type="number" (not an inputmode) so an iPhone's keyboard has a minus sign.
       const typed = privateField(h("input", {
         type: "number", id: `${id}-typed`, className: "pose-value", min: String(min), max: String(max), step: "1",
@@ -465,7 +503,7 @@ export function editPose(start, { addToVisuals } = {}) {
         typed.value = input.value;
         drawSoon();
       });
-      input.addEventListener("change", () => commit(apply(history.pose, Number(input.value))));
+      input.addEventListener("change", () => change(Number(input.value)));
       typed.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           event.preventDefault();
@@ -478,12 +516,12 @@ export function editPose(start, { addToVisuals } = {}) {
           typed.value = input.value;
           return;
         }
-        commit(apply(history.pose, number));
+        change(number);
       });
       /** @param {1 | -1} by */
       const step = (by) => {
         const number = clamp(Number(input.value) + by, [min, max]);
-        if (number !== Number(input.value)) commit(apply(history.pose, number));
+        if (number !== Number(input.value)) change(number);
       };
       const steps = h("div", { className: "pose-steps" },
         h("button", { type: "button", id: `${id}-up`, className: "pose-step", "aria-label": `${label}: up one`, title: "Up one", onclick: () => step(1) }, "▲"),
@@ -493,6 +531,8 @@ export function editPose(start, { addToVisuals } = {}) {
 
     function drawShapePanel() {
       const pose = current();
+      // Nothing to save when it's already the default.
+      saveShapeButton.disabled = sameShape(pose.shape, defaultShape ?? DEFAULT_SHAPE);
       if (draft) return;
       shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
         id: `pose-shape-${i}`, label, min: SHAPE_RANGES[i][0], max: SHAPE_RANGES[i][1], value: pose.shape[i],
@@ -534,9 +574,10 @@ export function editPose(start, { addToVisuals } = {}) {
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
       sliders.replaceChildren(...joint.moves.map((m, i) => slider({
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
-        // Stopped where a limb would go into the body (pose-contact.js); a
-        // see-saw rope's other end moves to keep it the same length.
-        apply: (p, v) => keepSeesaws(p, keptOut(measuring, p, setJoint(p, joint.name, i, v)), [joint.name]),
+        // A see-saw rope's other end moves to keep it the same length; let
+        // go, any clash is settled (pose-contact.js).
+        apply: (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
+        settle: (before, after) => settleClashes(measuring, before, after, [joint.name]),
       })), ...(joint.name === "head" ? wholeFigure() : []));
     }
 
@@ -1014,11 +1055,14 @@ export function editPose(start, { addToVisuals } = {}) {
       pointers.delete(event.pointerId);
       if (pointers.size < 2) pinch = null;
       if (limb) {
+        const held = limb.bone;
         limb = null;
         limbPose = null;
-        // A limb dragged is one change; let go of with a cancel, it's put back.
-        if (draft && event.type === "pointerup") commit(draft);
-        else if (draft) {
+        // A limb dragged is one change, any clash settled (pose-contact.js);
+        // let go of with a cancel, it's put back.
+        if (draft && event.type === "pointerup") {
+          commit(settleClashes(measuring, history.pose, draft, DRAG_CHAINS[held].map(([name]) => name)));
+        } else if (draft) {
           draft = null;
           drawAll();
         }

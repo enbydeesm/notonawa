@@ -23,11 +23,11 @@
   --ink-black: #222; --ink-grey: #8a857e; --ink-red: #d63031; --ink-orange: #e8891c;
   --ink-green: #2e9145; --ink-blue: #2f6bd6; --ink-purple: #7e51a2; --ink-pink: #e0559a;
   /* Poses (pose-scene.js reads these): the figure, the part being posed,
-     the floor, the backdrop and the hardpoints (the ring, the jute lines
+     parts a move is pushing into each other (pose-contact.js), the floor, the backdrop and the hardpoints (the ring, the jute lines
      things hang from, a bamboo, a wooden hashira), the same in both modes,
      as the paper is, so a pose's picture looks the same whichever is on.
      Ropes use the inks above. */
-  --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
+  --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-clash: #e0605a; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
   --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
@@ -294,8 +294,11 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-part-row .tool { flex: none; }
 .pose-row-label { font-size: 0.85rem; margin-right: 4px; }
 .pose-sliders { display: flex; flex-direction: column; gap: 4px; }
-/* The body's shape sliders, folded away until wanted. */
-.pose-shape { margin: 8px 0; }
+/* The body's shape sliders, folded away until wanted, with "Save as
+   default" at the right of the fold's heading row. */
+.pose-shape { position: relative; margin: 8px 0; }
+.pose-shape > .fold { margin: 0; }
+.pose-shape-save { position: absolute; top: 0; right: 0; padding: 2px 10px; font-size: 0.85rem; }
 .pose-slider { display: grid; grid-template-columns: 7.5rem 1fr auto 4rem; align-items: center; gap: 8px; }
 /* ▲ and ▼ left of the value's box, stacked, each stepping it by one. */
 .pose-steps { display: flex; flex-direction: column; gap: 2px; }

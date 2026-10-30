@@ -16,7 +16,9 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Open "Body shape" in the Pose panel to change the body's gender (masculine to feminine), muscle, weight and height. Each pose keeps its own body.
 - Shoulders, elbows and knees bend more like a body's: the shoulder rises with a raised arm, the armpit no longer tears, and a fully bent elbow or knee is rounded rather than sharp.
 - Joints stay within what a body can do: a shoulder twists less once the arm is raised, an arm swings back less once it's out to the side, and a leg crosses the other only once it's forward. Poses saved outside these limits are brought within them when opened.
-- Arms and legs stop where they'd go into the body or another limb, whether moved with a slider or dragged.
+- Arms and legs can be moved freely, even through the body. While a move pushes parts into each other they show in red; let go, and another arm or leg (or the head) moves aside just enough, or a limb pushed into the body comes back out to the nearest clear spot. One undo puts it all back.
+- "Save as default" beside Body shape makes the body shown the one new poses start with, on all your devices.
+- The "Upside down" body position now has the legs folded.
 - New poses and "At sides" start with the arms a little out from the thighs.
 - Poses saved before this open on the in-between body, with their ropes where they were.
 

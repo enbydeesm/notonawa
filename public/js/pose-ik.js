@@ -16,7 +16,6 @@
 
 import { jointNamed, clampJoint } from "./figure-rig.js";
 import { canReach } from "./joint-limits.js";
-import { depths, noDeeper } from "./pose-contact.js";
 import { makeSkeleton, posed, onBone } from "./pose-skeleton.js";
 
 /** @typedef {import("./vendor/three.js").Vector3} Vector3 */
@@ -102,8 +101,6 @@ export function dragTo(pose, bone, cm, target) {
   };
   const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
 
-  // No limb is pushed further into the body than it was (pose-contact.js).
-  const touching = depths(skeleton, trial);
   for (let round = 0; round < ROUNDS; round++) {
     const at = held();
     const error = [target.x - at.x, target.y - at.y, target.z - at.z];
@@ -127,22 +124,6 @@ export function dragTo(pose, bone, cm, target) {
     const before = snapshot(joints, chain);
     change.forEach((d, k) => set(k, get(k) + d));
     keepReachable(joints, before);
-    // A step into the body: only the angles that don't push a limb in are
-    // kept, biggest first, so the limb slides along what it touches (and
-    // stops if none can move).
-    if (!noDeeper(depths(skeleton, trial), touching)) {
-      Object.assign(joints, before);
-      let moved = false;
-      for (const k of change.map((_, k) => k).sort((a, b) => Math.abs(change[b]) - Math.abs(change[a]))) {
-        const was = get(k);
-        const keep = snapshot(joints, chain);
-        set(k, was + change[k]);
-        keepReachable(joints, keep);
-        if (noDeeper(depths(skeleton, trial), touching)) moved = true;
-        else Object.assign(joints, keep);
-      }
-      if (!moved) break;
-    }
   }
   const rounded = { ...pose.joints };
   for (const [name] of chain) rounded[name] = clampJoint(name, joints[name], pose.joints[name]);

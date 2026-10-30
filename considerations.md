@@ -1784,17 +1784,39 @@ about 6 minutes, too slow to run after every change.
   never opened again keeps its old angles in the database.
 - **Contact** (`pose-contact.js`): the body as capsules fitted to the skin
   at every corner of the sliders (`pack_body.py`; each torso segment
-  three side by side, as a torso is wider than deep). A change is refused
-  only if it pushes some pair deeper than it was, so a pose that starts
-  touching (hands at the thighs, a box tie) can still move. Sliders stop
-  where a limb touches; a drag keeps the parts of each step that don't
-  push in, so a limb slides along what it touches. The rope solver does
-  the same. Presets aren't stopped (stopping one part-way would leave a
-  pose that isn't the preset). Known limits: capsules, not the skin, so it
-  can stop a little short of what you see, or let a centimetre through;
-  and a drag can't go round the body (an arm pressed to the side can't be
-  dragged across the chest until it's raised forward), as the solver only
-  looks a step ahead.
+  three side by side, as a torso is wider than deep). Only what a move
+  makes worse counts, so a pose that starts touching (hands at the
+  thighs, a box tie) is left as it is.
+  - *First built as a stop* (a slider or drag halted where a limb
+    touched). Dropped: a slider snapping back, with nothing to say what it
+    hit, looked broken.
+  - *As built:* moves go anywhere, through the body too. While one is
+    made, the parts it pushes into each other are red. Let go (a slider,
+    a typed value, ▲▼, or a limb dragged), it's settled as one change:
+    another limb moves aside (its shoulder and elbow, or hip and knee, up
+    to 30°), or the head tilts away (up to 20°), each as little as it can;
+    a limb pushed into the trunk comes back out to the nearest clear spot
+    from where it was let go. The trunk never moves aside: bending it
+    would carry both arms, the head and their ropes. A move into the trunk
+    comes back first, so nothing else moves for a clash that clears
+    anyway; what's still clashing after all that is taken back the way it
+    came until it's clear. Presets, the body's sliders and the rope solver
+    aren't settled.
+  - Known limits: capsules, not the skin, so a centimetre or so either
+    way; a limb moved aside can carry its ropes off where they were put.
+
+## Poser: the account's default body (October 2026)
+
+**Status:** built (2026-10-30, on the `anny-body` branch)
+
+- "Save as default", on the Body shape fold's heading row (beside the
+  fold, not in its summary, so it shows folded and doesn't toggle it),
+  saves the body shown as `users.default_shape` (migration 0028), an
+  account setting like light/dark mode, so it's the same on every device.
+  New poses start in it, feet on the floor. Saved poses keep their own.
+  Kept on the device instead was offered and not chosen.
+- It's in the export's settings; an import takes it only into an account
+  that hasn't saved one, as role names are taken.
 
 ## Sharing between accounts (October 2026)
 

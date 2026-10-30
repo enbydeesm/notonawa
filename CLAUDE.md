@@ -110,7 +110,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   delete), and my settings (`GET`/`PUT /api/account/settings`: role names
   and light/dark mode (migration 0013), `seen_release`, the last release
   notes shown (migration 0014), and `hide_welcome`, the welcome's "Don't
-  show this again" (migration 0015); `settings.js` (pure) parses them).
+  show this again" (migration 0015), and `default_shape`, the poser's
+  "Save as default" body for new poses (migration 0028, JSON); `settings.js`
+  (pure) parses them).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
   `db.js` for `GET /api/data/export`; import in `import-parse.js` (pure),
   `import-plan.js` (pure: matching names, new ids, JSON chunks) and
@@ -412,9 +414,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   code and on the CPU for taps, so bends round off), `joint-limits.js`
   (pure, no imports: the shoulders' and hips' limits that depend on
   several movements; the server imports this same file),
-  `pose-contact.js` (the body as capsules: a change that pushes a limb
-  further into the body is stopped where it touches; sliders, dragging and
-  the rope solver),
+  `pose-contact.js` (the body as capsules: while a move is made, the parts
+  it pushes into each other (shown red); let go (a slider or a limb
+  dragged), `settleClashes` moves another limb or the head aside, or brings
+  a limb pushed into the trunk back out),
   `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
   cinches and see-saws, `relink` when ropes go, undo/redo, `typedNumber`:
   a number typed into a slider's box, `forSaving`: without the poser's

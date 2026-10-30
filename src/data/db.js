@@ -15,7 +15,7 @@ export async function readAccount(db, userId) {
   const q = (/** @type {string} */ sql) => db.prepare(sql).bind(userId);
   const results = await db.batch([
     q(`SELECT created_at, accepted_at, terms_version, recovery_email_hash IS NOT NULL AS recovery_email_set,
-              top_label, bottom_label, theme, seen_release, hide_welcome
+              top_label, bottom_label, theme, seen_release, hide_welcome, default_shape
          FROM users WHERE id = ?`),
     q("SELECT name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at"),
     q(`SELECT id, name, pronouns, notes, is_self, default_role, is_educator, based_in, aliases, about, about_shared_on,

@@ -1,8 +1,9 @@
 // Account settings, the same on every device: the words shown for the top
 // and bottom roles, and light or dark mode (migration 0013), and the last
 // release whose notes I've seen (migration 0014), and whether to stop
-// showing the welcome (migration 0015). Pure, so it's easy to test. The
-// page's side is public/js/roles.js, theme.js, whats-new.js and welcome.js.
+// showing the welcome (migration 0015), and the body new poses start with
+// (migration 0028). Pure, so it's easy to test. The page's side is
+// public/js/roles.js, theme.js, whats-new.js, welcome.js and pose-editor.js.
 //
 // A role name is stored only when it differs from the role itself, so an
 // account that never chose one keeps following the defaults. Role names
@@ -11,6 +12,7 @@
 
 import { BadInput } from "../http.js";
 import { cleanText } from "../parse.js";
+import { SHAPE_RANGES } from "../poses/parse.js";
 
 export const THEMES = ["light", "dark"];
 export const MAX_ROLE_NAME = 24;
@@ -22,7 +24,7 @@ const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 /**
  * @typedef {{
  *   top_label: string | null, bottom_label: string | null, theme: string | null, seen_release: string | null,
- *   hide_welcome: boolean,
+ *   hide_welcome: boolean, default_shape: number[] | null,
  * }} Settings
  * @typedef {Partial<Settings>} SettingsChange only the settings sent
  */
@@ -31,7 +33,8 @@ const OTHER_ROLES = ["self tie", "spotter", "photographer"];
  * The body of PUT /api/account/settings: any of top_label and bottom_label
  * (a word, or empty for the default), theme ("light" or "dark") and
  * seen_release (a version, e.g. 2026.10.19.001) and hide_welcome (true or
- * false).
+ * false) and default_shape (a pose's body shape, [gender, muscle, weight,
+ * height], or null for the in-between body).
  * Checked against `current` so the two role names never end up the same.
  * @param {Record<string, unknown>} body
  * @param {Settings} current
@@ -56,12 +59,28 @@ export function parseSettings(body, current) {
     if (typeof body.hide_welcome !== "boolean") throw new BadInput("Say whether to show the welcome again.");
     change.hide_welcome = body.hide_welcome;
   }
+  if (body.default_shape !== undefined) change.default_shape = defaultShape(body.default_shape);
   if (!Object.keys(change).length) throw new BadInput("Nothing to change.");
 
   const top = shown("top", "top_label" in change ? change.top_label : current.top_label);
   const bottom = shown("bottom", "bottom_label" in change ? change.bottom_label : current.bottom_label);
   if (top.toLowerCase() === bottom.toLowerCase()) throw new BadInput("Give the two roles different names.");
   return change;
+}
+
+/**
+ * The default body shape as stored: four whole numbers within the poser's
+ * sliders (src/poses/parse.js), or null.
+ * @param {unknown} value
+ * @returns {number[] | null}
+ */
+function defaultShape(value) {
+  if (value === null) return null;
+  if (!Array.isArray(value) || value.length !== SHAPE_RANGES.length
+    || !value.every((n, i) => Number.isInteger(n) && n >= SHAPE_RANGES[i][0] && n <= SHAPE_RANGES[i][1])) {
+    throw new BadInput("That isn't a body shape the poser has.");
+  }
+  return [...value];
 }
 
 /**

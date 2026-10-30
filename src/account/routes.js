@@ -47,14 +47,15 @@ export async function handleAccount(request, env, user, url) {
   //   seen_release, hide_welcome }: the words I chose for the top and bottom
   //   roles (null: "top", "bottom"), light or dark mode (null: not chosen
   //   yet), the last release whose notes I saw (null: none yet), and whether
-  //   I ticked the welcome's "Don't show this again". Read by every page at
-  //   start, so it's its own small request.
+  //   I ticked the welcome's "Don't show this again", and the body new poses
+  //   start with (default_shape, null: the in-between body). Read by every
+  //   page at start, so it's its own small request.
   if (url.pathname === "/api/account/settings" && request.method === "GET") {
     return json(await getSettings(db, user.id));
   }
 
-  // PUT /api/account/settings  body { top_label?, bottom_label?, theme?, seen_release?, hide_welcome? }
-  //   -> { top_label, bottom_label, theme, seen_release, hide_welcome }: changes the ones sent. A role
+  // PUT /api/account/settings  body { top_label?, bottom_label?, theme?, seen_release?, hide_welcome?, default_shape? }
+  //   -> { top_label, bottom_label, theme, seen_release, hide_welcome, default_shape }: changes the ones sent. A role
   //   name that's empty, or the role's own name, goes back to the default.
   if (url.pathname === "/api/account/settings" && request.method === "PUT") {
     const current = await getSettings(db, user.id);

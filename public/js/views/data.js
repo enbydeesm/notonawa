@@ -25,9 +25,9 @@ import { saveFile } from "../download.js";
 import { parseCsv } from "../csv.js";
 import { csvToImport } from "../import-csv.js";
 import {
-  readExport, exportRoleNames, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
+  readExport, exportRoleNames, exportDefaultShape, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
 } from "../import-steps.js";
-import { adoptRoleNames } from "../settings.js";
+import { adoptRoleNames, adoptDefaultShape } from "../settings.js";
 import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
@@ -198,6 +198,8 @@ export function mount(_root, { signal }) {
   let pending = null;
   /** The role names in the file being imported (an export's), if any. */
   let fileRoleNames = /** @type {ReturnType<typeof exportRoleNames>} */ (null);
+  /** The file's poser default body, if it has one. @type {number[] | null} */
+  let fileDefaultShape = null;
   /** The file's saved poser presets (account.pose_presets), names in plain text. @type {unknown[]} */
   let filePresets = [];
 
@@ -318,6 +320,8 @@ export function mount(_root, { signal }) {
       const extras = [drawingResult, poseResult, photoResult, presetResult].filter(Boolean).join(" ") || null;
       // The file's role names, if mine are still the defaults.
       const tookNames = await adoptRoleNames(fileRoleNames).catch(() => false);
+      // And its poser default body, if I haven't saved one.
+      const tookShape = await adoptDefaultShape(fileDefaultShape).catch(() => false);
       preview.hidden = true;
       go.hidden = true;
       fileInput.value = "";
@@ -329,7 +333,8 @@ export function mount(_root, { signal }) {
         (workshopsSkipped ? ` Skipped ${workshops(workshopsSkipped)} already in your journal.` : "") +
         (extras ? ` ${extras}` : "") +
         (unlinked ? ` ${unlinked}` : "") +
-        (tookNames ? " Your role names were set from the file (change them in Settings)." : ""), !!extras && /couldn't/.test(extras));
+        (tookNames ? " Your role names were set from the file (change them in Settings)." : "") +
+        (tookShape ? " The poser's default body was set from the file." : ""), !!extras && /couldn't/.test(extras));
     } catch (err) {
       // Batches already saved stay saved; running it again skips them.
       showMessage(importMessage, `Couldn't finish: ${errorMessage(err)} ` +
@@ -495,6 +500,7 @@ export function mount(_root, { signal }) {
       if (!name) throw new Error("This zip file isn't a NotoNawa export.");
       const data = parseJson(new TextDecoder().decode(files.get(name)));
       fileRoleNames = exportRoleNames(data);
+      fileDefaultShape = exportDefaultShape(data);
       filePresets = presetsIn(data);
       return { doc: readExport(data), files };
     }
@@ -503,11 +509,13 @@ export function mount(_root, { signal }) {
       const { doc, errors } = csvToImport(parseCsv(text));
       if (errors.length) throw new Error(`Fix these in the file, then choose it again:\n${errors.join("\n")}`);
       fileRoleNames = null;
+      fileDefaultShape = null;
       filePresets = [];
       return { doc, files: null };
     }
     const data = parseJson(text);
     fileRoleNames = exportRoleNames(data);
+    fileDefaultShape = exportDefaultShape(data);
     filePresets = presetsIn(data);
     return { doc: readExport(data), files: null };
   }
