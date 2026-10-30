@@ -11,6 +11,11 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 
+## Next
+- The poser's figure is now a realistic body that bends at the joints like a person, in place of the simple shapes.
+- Open "Body shape" in the Pose panel to change the body's gender (masculine to feminine), muscle, weight and height. Its measurements (height, waist, mass, BMI and volume) update as you go. Each pose keeps its own body.
+- Poses saved before this open on the in-between body, with their ropes where they were.
+
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 
 - Everything you share is encrypted on your device first, and the key is only in the link, so NotoNawa can't read it.

@@ -52,12 +52,13 @@ function blocks(text) {
 describe("public/_headers caching", () => {
   // Two values for one header are joined with a comma, so each block must
   // take off the "/*" block's no-store ("! Cache-Control") before its own.
-  it("replaces no-store for the code, styles and images only", () => {
+  it("replaces no-store for the code, styles, images and the poser's body only", () => {
     const { "/*": _all, ...rest } = blocks(staticHeaders);
     expect(rest).toEqual({
       "/js/*": ["! Cache-Control", "Cache-Control: no-cache"],
       "/app.css": ["! Cache-Control", "Cache-Control: no-cache"],
       "/img/*": ["! Cache-Control", "Cache-Control: max-age=604800"],
+      "/figure/*": ["! Cache-Control", "Cache-Control: max-age=604800"],
     });
   });
 

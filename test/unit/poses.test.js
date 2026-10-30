@@ -6,9 +6,10 @@ import { describe, it, expect } from "vitest";
 import * as server from "../../src/poses/parse.js";
 import * as page from "../../public/js/pose-format.js";
 import {
-  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, SHAPES, STANDING_LIFT, MAX_PRESETS, withBodyPreset, withArmsPreset,
+  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, DRIVES, STANDING_LIFT, MAX_PRESETS, withBodyPreset, withArmsPreset,
   bodyPresetFrom, armsPresetFrom, clampJoint, jointRotation,
 } from "../../public/js/figure-rig.js";
+import { BONES as BODY_BONES } from "../../public/js/figure-body.js";
 import * as presets from "../../src/pose-presets/parse.js";
 import { makeSkeleton, posed, onBone, ropePoint, toBone, toHardpoint, BAMBOO_RADIUS } from "../../public/js/pose-skeleton.js";
 import { takePoses } from "../../public/js/import-poses.js";
@@ -48,7 +49,9 @@ describe("the page and the server", () => {
       expect(joint.moves.map((m) => [m.min, m.max]), joint.name).toEqual(server.JOINTS[joint.name]);
     }
     expect(["pelvis", ...JOINTS.map((j) => j.name)]).toEqual(server.BONES);
-    expect(Object.keys(SHAPES).sort()).toEqual([...server.BONES].sort());
+    expect(Object.keys(DRIVES).sort()).toEqual([...server.BONES].sort());
+    // Every bone a joint turns is one of the body's.
+    for (const drive of Object.values(DRIVES)) for (const [bone] of drive) expect(BODY_BONES).toContain(bone);
   });
 
   it("agree on the format", () => {
@@ -222,11 +225,13 @@ describe("the figure, posed", () => {
     const at = (bone, cm) => onBone(skeleton, bone, cm);
     return {
       at,
-      head: at("head", [0, 17, 1]),
-      face: at("head", [0, 16, 11]),
+      // On the in-between body: the middle of the head and the tip of the
+      // nose, from the top of the neck.
+      head: at("head", [0, 6, -1]),
+      face: at("head", [0, 0, 12.5]),
       pelvis: at("pelvis"),
       /** The bottom of each foot (its sole, under the ankle). */
-      soles: [at("l_ankle", [0, -7.5, 5.5]), at("r_ankle", [0, -7.5, 5.5])],
+      soles: [at("l_ankle", [0, -8, 5]), at("r_ankle", [0, -8, 5])],
       wrists: [at("l_wrist"), at("r_wrist")],
       elbows: [at("l_elbow"), at("r_elbow")],
       knees: [at("l_knee"), at("r_knee")],
@@ -237,8 +242,9 @@ describe("the figure, posed", () => {
   it("stands on the floor, about as tall as an adult, facing the front", () => {
     const f = figure(page.newPose());
     for (const sole of f.soles) expect(Math.abs(sole.y)).toBeLessThan(1.5);
-    expect(f.at("head", [0, 28.5, 1]).y).toBeGreaterThan(170);
-    expect(f.at("head", [0, 28.5, 1]).y).toBeLessThan(182);
+    // The top of the head.
+    expect(f.at("head", [0, 15.6, 0]).y).toBeGreaterThan(178);
+    expect(f.at("head", [0, 15.6, 0]).y).toBeLessThan(190);
     expect(f.face.z).toBeGreaterThan(f.head.z);
     // Its left is on the viewer's right (+x), facing the front (+z).
     expect(f.at("l_wrist").x).toBeGreaterThan(0);
@@ -278,7 +284,7 @@ describe("the figure, posed", () => {
 
   it("in a box tie, has the elbows and wrists at the back, the forearms crossing", () => {
     const f = figure("Standing, Boxtie");
-    const backOfChest = f.at("chest", [0, 12, -10.5]).z;
+    const backOfChest = f.at("chest", [0, -3.3, -4]).z;
     for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeLessThan(backOfChest + 3);
     // Each forearm reaches past the middle of the back.
     expect(f.wrists[0].x).toBeLessThan(0);
@@ -289,7 +295,7 @@ describe("the figure, posed", () => {
 
   it("in a hug, has the forearms across the front of the chest, the hands crossing", () => {
     const f = figure("Standing, Crossed (hug)");
-    const frontOfChest = f.at("chest", [0, 12, 10]).z;
+    const frontOfChest = f.at("chest", [0, -3.3, 17.5]).z;
     for (const p of [...f.elbows, ...f.wrists]) expect(p.z).toBeGreaterThan(frontOfChest - 2);
     for (const w of f.wrists) expect(Math.abs(w.x)).toBeLessThan(4);
     expect(f.at("l_wrist", [0, -6, 0]).x).toBeLessThan(0);
@@ -521,11 +527,11 @@ describe("changing a pose", () => {
     let p = page.withPosture(page.newPose(), withBodyPreset(page.newPose(), kneeling));
     expect(ARM_JOINTS.every((j) => p.joints[j].every((a) => a === 0))).toBe(true);
     p = page.withPosture(p, withArmsPreset(p, behind));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([29, [155], [105]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([19, [155], [105]]);
     // An arm moved by hand stays as it is, too.
     p = page.setJoint(p, "r_wrist", 0, 30);
     p = page.withPosture(p, withBodyPreset(p, up));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([55, [90], [105], [30, 0]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([50, [90], [105], [30, 0]]);
     expect(p.joints.l_hip).toEqual([0, 0, 0]);
   });
 

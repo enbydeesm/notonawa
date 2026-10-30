@@ -1,6 +1,8 @@
-// The poser's figure: a generic, genderless body as a tree of bones, each
-// joint's movements with their limits, and the starting poses offered.
-// Pure, so it's easy to test; pose-scene.js builds the 3D figure from it.
+// The poser's figure: the joints a pose turns, each joint's movements with
+// their limits, which of the body's bones each one turns (DRIVES), and the
+// starting poses offered. Pure, so it's easy to test. The body itself, a
+// realistic one from Anny with its own skeleton, is figure-body.js's;
+// pose-skeleton.js puts the joints' turns on its bones.
 //
 // Saved presets (the account's own, src/pose-presets/) are made here from
 // the figure (bodyPresetFrom, armsPresetFrom) and put on it as the
@@ -10,6 +12,10 @@
 // (y = 0) facing +z, so its left is +x. Every bone's axes start lined up
 // with the world's, so a joint's angles say how far it's turned from
 // standing with arms at the sides. Left and right are the figure's own.
+//
+// Each joint's `offset` is where it was on the first, simpler figure (from
+// its parent's): only for moving older poses' ropes onto the body
+// (pose-format.js, readPose).
 //
 // Each joint's movements are named for what they look like (Forward, Out,
 // Twist…), positive the way the name says; `axis` and `sign` turn that into
@@ -25,11 +31,10 @@
  * }} Joint
  */
 /**
- * A body part's shape: a capsule from a to b, an ellipsoid at c, or a block
- * at c (an ellipsoid squared off, so its front, back and sides are flatter
- * and a rope across them stays near the surface).
- * @typedef {{ capsule: [number[], number[]], r: number } | { ellipsoid: number[], radii: number[] }
- *   | { block: number[], radii: number[] }} Shape
+ * A joint's share of a turn for each body bone it turns (figure-body.js's
+ * BONES), parents first; the last is the bone a rope point on that part is
+ * kept on.
+ * @typedef {readonly (readonly [string, number])[]} Drive
  */
 
 /** How high the pelvis is when standing (cm). */
@@ -92,26 +97,50 @@ export const jointNamed = (name) => BY_NAME.get(name);
 export const PART_LABELS = Object.freeze({ pelvis: "Hips and whole body", ...Object.fromEntries(JOINTS.map((j) => [j.name, j.label])) });
 
 /**
- * Each bone's shapes, in its own centimetres (from its joint). The pelvis
- * is the root; every other bone is named for the joint it turns at.
- * @type {Readonly<Record<string, Shape[]>>}
+ * Which body bones each joint turns, and how much of the turn each takes:
+ * the waist, chest and neck bend over several vertebrae, so the back
+ * curves rather than folding at one point. "pelvis" is the body's root.
+ * @type {Readonly<Record<string, Drive>>}
  */
-export const SHAPES = Object.freeze({
-  pelvis: [{ block: [0, 0, 0], radii: [15.5, 10, 10] }],
-  spine: [{ block: [0, 8, 0], radii: [13.5, 10, 9] }],
-  chest: [{ block: [0, 12, 0], radii: [16.5, 13.5, 10] }],
-  // The neck and the head.
-  head: [{ capsule: [[0, -2, 0], [0, 8, 0]], r: 5 }, { ellipsoid: [0, 17, 1], radii: [9.5, 11.5, 10.5] }],
-  ...Object.fromEntries(["l", "r"].flatMap((side) => [
-    [`${side}_shoulder`, [{ ellipsoid: [0, 0, 0], radii: [5.5, 5.5, 5.5] }, { capsule: [[0, 0, 0], [0, -29, 0]], r: 5 }]],
-    [`${side}_elbow`, [{ capsule: [[0, 0, 0], [0, -25, 0]], r: 4 }]],
-    // A flat hand, its palm toward the thigh.
-    [`${side}_wrist`, [{ ellipsoid: [0, -8.5, 0], radii: [2.3, 9, 4.6] }]],
-    [`${side}_hip`, [{ capsule: [[0, 0, 0], [0, -44, 0]], r: 7.5 }]],
-    [`${side}_knee`, [{ capsule: [[0, 0, 0], [0, -43, 0]], r: 5.5 }]],
-    [`${side}_ankle`, [{ ellipsoid: [0, -4, 5.5], radii: [4.5, 3.5, 12] }]],
-  ])),
+export const DRIVES = Object.freeze({
+  pelvis: [["root", 1]],
+  spine: [["spine04", 0.5], ["spine03", 0.5]],
+  chest: [["spine02", 0.5], ["spine01", 0.5]],
+  head: [["neck01", 0.3], ["neck02", 0.2], ["neck03", 0.2], ["head", 0.3]],
+  ...Object.fromEntries(["L", "R"].flatMap((s) => {
+    const side = s.toLowerCase();
+    return [
+      [`${side}_shoulder`, [[`upperarm01.${s}`, 1]]], [`${side}_elbow`, [[`lowerarm01.${s}`, 1]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
+      [`${side}_hip`, [[`upperleg01.${s}`, 1]]], [`${side}_knee`, [[`lowerleg01.${s}`, 1]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
+    ];
+  })),
 });
+
+/**
+ * Body bones tapped as another part than the one that turns them: the low
+ * belly and the small of the back (the lowest vertebra the waist bends)
+ * are the hips', as on the first figure, so the hips are easy to tap.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const TAPPED_AS = Object.freeze({ spine04: "pelvis" });
+
+/** The body bone a part's rope points are kept on. @param {string} part "pelvis" or a joint */
+export const anchorBone = (part) => /** @type {Drive} */ (DRIVES[part]).at(-1)?.[0] ?? "root";
+
+/**
+ * Where each part's joint was on the first figure, standing (cm from the
+ * pelvis): its offsets added up.
+ * @returns {Record<string, [number, number, number]>}
+ */
+export function olderJointPlaces() {
+  /** @type {Record<string, [number, number, number]>} */
+  const at = { pelvis: [0, 0, 0] };
+  for (const j of JOINTS) {
+    const [x, y, z] = at[j.parent];
+    at[j.name] = [x + j.offset[0], y + j.offset[1], z + j.offset[2]];
+  }
+  return at;
+}
 
 /**
  * @typedef {{
@@ -189,10 +218,10 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
-    name: "Kneeling (seiza)", body: [0, 0, 0], lift: 29,
-    joints: { l_hip: [65, 8, 0], r_hip: [65, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
+    name: "Kneeling (seiza)", body: [0, 0, 0], lift: 19,
+    joints: { l_hip: [68, 8, 0], r_hip: [68, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
   },
-  { name: "Kneeling up", body: [0, 0, 0], lift: 55, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
+  { name: "Kneeling up", body: [0, 0, 0], lift: 50, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
   { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, 15, 0], l_knee: [155], l_ankle: [-40] } },
   {
     name: "Face down", body: [90, 0, 0], lift: 110,
@@ -235,7 +264,7 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
   // The forearms across the front of the chest, the hands crossing, as in a hug.
   {
     name: "Crossed (hug)", joints: {
-      l_shoulder: [20, 3, -65], l_elbow: [133], l_wrist: [20, 0], r_shoulder: [20, 3, -65], r_elbow: [133], r_wrist: [20, 0],
+      l_shoulder: [30, 3, -65], l_elbow: [133], l_wrist: [20, 0], r_shoulder: [30, 3, -65], r_elbow: [133], r_wrist: [20, 0],
     },
   },
 ]));

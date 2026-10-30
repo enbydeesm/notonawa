@@ -1694,6 +1694,59 @@ about 6 minutes, too slow to run after every change.
   and marks in empty air need a rule). Saving them with the pose was
   weighed too: it would change the format, the limits and the export.
 
+## Poser: a realistic body from Anny (October 2026)
+
+**Status:** built (2026-10-29, on the `anny-body` branch)
+
+- **Anny, not the atlas's code or SMPL.** The body is Anny's
+  (github.com/naver/anny): its code is Apache 2.0 and its body assets are
+  MakeHuman's, CC0, so they can ship in the app. We don't use its
+  SMPL-X topology, which is non-commercial only. MMHuman3D was looked at
+  and isn't for this: it estimates poses from photos, on SMPL. The 3D
+  anatomy atlas (github.com/authorOd/3d-anatomy-atlas) has CPAL-1.0 code,
+  so we wouldn't take its code. Its nerves come from Z-Anatomy (CC BY-SA),
+  which is where we'd take the nerves from, for the overlay
+  (roadmap.md).
+- **Always an adult.** Anny's age slider at 0.5 sits between "child" and
+  "young adult", so its own demo's default is a teenager. The figure's age
+  is fixed at Anny's young-adult setting, with no age slider.
+- **Built offline, blended in the browser.** Anny is Python and PyTorch,
+  with no browser or glTF export. `scripts/figure/` takes its body at the
+  36 corners of the sliders (gender, muscle and weight at three settings,
+  height at two), posed arms down. It packs them as 23 components, which
+  give those shapes exactly, into `public/figure/body-1.bin` (2.3 MB, about
+  1.8 MB compressed, cached a week). Anny blends between corners linearly,
+  so a shape between them is their blend, made on the device when a slider
+  moves. No morph targets on the GPU: the shape changes rarely, so the
+  skin's vertices are worked out once and the normals computed again. No
+  GLTFLoader either: it would add to the bundle, and a file of our own is
+  simpler to read.
+- **Heavier than Anny goes.** Anny's heaviest is only about BMI 23. The
+  weight slider runs 0–100, with Anny's heaviest at 50. Past it, Anny's
+  own weight change carries on in a straight line (its "extrapolate"), and
+  fat is added to the belly, waist, hips, thighs, arms and neck from its
+  local targets. The top is about BMI 36. Further than that, the belly
+  gets lumpy.
+- **The joints stay the poser's.** The pose format, the joints' limits,
+  the IK and the presets are as they were. Each joint turns Anny bones
+  (`DRIVES`): the waist, chest and neck share their turn across several
+  vertebrae, so the back curves. Anny's bones are lined up with the world
+  at rest, so a joint's angles mean what they did, and each bone's skin
+  inverse is just a move back from its joint. The body's proportions are
+  close to the first figure's: its hips are 98.6 cm up rather than 99, and
+  its joints are within a few cm. The seiza, kneeling-up and hug presets
+  were retuned for its legs and chest.
+- **Older poses' ropes moved, not migrated in the database.** A pose
+  without `shape` is from the first figure. It opens on the in-between
+  body, each rope point moved by how far its joint moved, so it sits where
+  it was (`readPose`). It's saved with a shape the next time.
+- **Changing the shape keeps the lowest joint where it was**, so feet stay
+  on the floor standing, knees kneeling, and a body lying down stays down.
+  Joint centres, not the skin, so a much smaller body's knees can sink a
+  centimetre or two.
+- **Tapping the body** picks the part whose bones move that spot most.
+  The selected part is shown by coloring its vertices.
+
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)

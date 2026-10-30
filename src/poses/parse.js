@@ -9,6 +9,7 @@
 //     joints: { spine: [bend, side, twist], l_elbow: [bend], … },
 //     body: [pitch, yaw, roll], lift,
 //     shift: [across, front to back],
+//     shape: [gender, muscle, weight, height],
 //     camera: [yaw, pitch, distance, target height, target x, target z],
 //     ring: [x, y, z] | null,
 //     bamboo: [x, y, z, turn, length, inset] | null,
@@ -20,7 +21,10 @@
 // At most one of ring, bamboo and hashira (the hardpoint) is there. Older
 // poses have a camera of four numbers (no sideways pan) and no bamboo or
 // hashira, and no shift (where the whole figure stands); they're read as
-// having none. An older bamboo has four numbers, read as OLDER_BAMBOO's
+// having none. A pose without a shape (the body's sliders: gender, muscle
+// and weight 0 to 100, height in cm, SHAPE_RANGES; the page's
+// figure-body.js has the same, kept in step by a unit test) is from the
+// first, simpler figure, and is kept without one. An older bamboo has four numbers, read as OLDER_BAMBOO's
 // length and inset (how far in from its ends it hangs).
 // A rope with `l` (cm) is a cinch: two points, at least one a spot on
 // another rope (its index, a segment of it, and thousandths along it)
@@ -67,6 +71,9 @@ export const JOINTS = Object.freeze({
   r_knee: [[0, 155]],
   r_ankle: [[-50, 30]],
 });
+
+/** The body's sliders: gender, muscle, weight, height (cm). @type {readonly (readonly [number, number])[]} */
+export const SHAPE_RANGES = Object.freeze([[0, 100], [0, 100], [0, 100], [150, 200]]);
 
 /** What a rope point can be on: the pelvis, or the part after each joint (or a hardpoint). */
 export const BONES = Object.freeze(["pelvis", ...Object.keys(JOINTS)]);
@@ -116,7 +123,7 @@ export const MAX_BODY_BYTES = 256 * 1024;
  * @typedef {[string, number, number, number]} RopePoint
  * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true }} Rope
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
+ *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[],
  * }} Pose
@@ -180,6 +187,8 @@ export function parsePose(value) {
   if (!within(doc.lift, LIFT[0], LIFT[1])) throw bad("the figure is off the floor by too much.");
   const shift = doc.shift ?? [0, 0];
   if (!fits(shift, SHIFT_RANGE)) throw bad("the figure is moved too far.");
+  const shape = doc.shape ?? null;
+  if (shape !== null && !fits(shape, SHAPE_RANGES)) throw bad("the body's shape isn't in the right format.");
   // A camera of four numbers is from before sideways panning.
   const camera = Array.isArray(doc.camera) && doc.camera.length === 4 ? [...doc.camera, 0, 0] : doc.camera;
   if (!fits(camera, CAMERA)) throw bad("the view isn't in the right format.");
@@ -245,7 +254,8 @@ export function parsePose(value) {
   /** @param {number[] | null} list */
   const copy = (list) => (list === null ? null : [...list]);
   return {
-    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]], camera: [...camera],
+    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]],
+    ...(shape === null ? {} : { shape: [...shape] }), camera: [...camera],
     ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };
 }

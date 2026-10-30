@@ -3,7 +3,9 @@
 // these are bundled, so the page loads a fraction of the library. Add a
 // name here (and to three.d.ts beside this file) to use it.
 export {
-  CapsuleGeometry,
+  Bone,
+  BufferAttribute,
+  BufferGeometry,
   CatmullRomCurve3,
   CircleGeometry,
   Color,
@@ -11,6 +13,7 @@ export {
   DirectionalLight,
   Group,
   HemisphereLight,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -18,6 +21,8 @@ export {
   PerspectiveCamera,
   Raycaster,
   Scene,
+  Skeleton,
+  SkinnedMesh,
   SphereGeometry,
   TorusGeometry,
   TubeGeometry,

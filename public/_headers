@@ -47,3 +47,10 @@
 /img/*
   ! Cache-Control
   Cache-Control: max-age=604800
+
+# The poser's body (about 2 MB): kept a week, like images, as it's fetched
+# whenever the poser opens. A changed body needs a new file name
+# (scripts/figure/pack_body.py, BIN).
+/figure/*
+  ! Cache-Control
+  Cache-Control: max-age=604800

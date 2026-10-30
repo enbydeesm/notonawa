@@ -8,6 +8,9 @@ export type ColorLike = Color | string | number;
 
 export class Color {
   constructor(color?: ColorLike);
+  r: number;
+  g: number;
+  b: number;
 }
 
 export class Vector2 {
@@ -18,6 +21,13 @@ export class Vector2 {
 
 export class Matrix4 {
   elements: number[];
+  makeTranslation(x: number, y: number, z: number): this;
+}
+
+export class Quaternion {
+  identity(): this;
+  copy(q: Quaternion): this;
+  slerp(q: Quaternion, t: number): this;
 }
 
 export class Vector3 {
@@ -52,7 +62,10 @@ export class Euler {
 export class Object3D {
   position: Vector3;
   rotation: Euler;
+  quaternion: Quaternion;
   scale: Vector3;
+  name: string;
+  frustumCulled: boolean;
   children: Object3D[];
   parent: Object3D | null;
   userData: Record<string, any>;
@@ -69,6 +82,15 @@ export class Object3D {
 
 export class Group extends Object3D {}
 
+export class Bone extends Object3D {}
+
+export class Skeleton {
+  constructor(bones?: Bone[], boneInverses?: Matrix4[]);
+  bones: Bone[];
+  boneInverses: Matrix4[];
+  dispose(): void;
+}
+
 export class Scene extends Object3D {
   background: Color | null;
 }
@@ -81,7 +103,11 @@ export class PerspectiveCamera extends Camera {
   updateProjectionMatrix(): void;
 }
 
+export type TypedArray = Float32Array | Uint16Array | Uint8Array | Int16Array;
+
 export class BufferAttribute {
+  constructor(array: TypedArray, itemSize: number, normalized?: boolean);
+  array: TypedArray;
   count: number;
   needsUpdate: boolean;
   getX(index: number): number;
@@ -92,13 +118,12 @@ export class BufferAttribute {
 
 export class BufferGeometry {
   getAttribute(name: string): BufferAttribute;
+  setAttribute(name: string, attribute: BufferAttribute): this;
+  setIndex(index: BufferAttribute): this;
   computeVertexNormals(): void;
   dispose(): void;
 }
 
-export class CapsuleGeometry extends BufferGeometry {
-  constructor(radius?: number, length?: number, capSegments?: number, radialSegments?: number);
-}
 export class CircleGeometry extends BufferGeometry {
   constructor(radius?: number, segments?: number);
 }
@@ -126,7 +151,7 @@ export class Material {
   dispose(): void;
 }
 export class MeshStandardMaterial extends Material {
-  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean });
+  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean });
 }
 export class MeshBasicMaterial extends Material {
   constructor(parameters?: { color?: ColorLike });
@@ -136,6 +161,14 @@ export class Mesh extends Object3D {
   constructor(geometry?: BufferGeometry, material?: Material);
   geometry: BufferGeometry;
   material: Material;
+}
+
+export class SkinnedMesh extends Mesh {
+  constructor(geometry?: BufferGeometry, material?: Material);
+  skeleton: Skeleton;
+  bindMode: "attached" | "detached";
+  bind(skeleton: Skeleton, bindMatrix?: Matrix4): void;
+  computeBoundingSphere(): void;
 }
 
 export class Light extends Object3D {}
@@ -150,7 +183,7 @@ export interface Intersection {
   distance: number;
   point: Vector3;
   object: Object3D;
-  face?: { normal: Vector3 } | null;
+  face?: { a: number, b: number, c: number, normal: Vector3 } | null;
 }
 
 export class Ray {

@@ -85,6 +85,20 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
   tapped, and can cut through the body between two far-apart points; it
   could follow the surface instead.
 - **Animated transitions** between a sequence's poses.
+- **Nerves on the body** (6–10, for rope safety: radial, ulnar, median,
+  axillary, brachial plexus, common fibular, lateral femoral cutaneous,
+  femoral, sciatic, saphenous), taken from Z-Anatomy (CC BY-SA 4.0,
+  credited), shown or hidden over the body and moving with it. They'd be
+  fitted into Anny's body at each of the 36 corners as the skin is
+  (`scripts/figure/`), so they follow every slider. They'd follow the bones
+  rather than the skin, so a heavier body doesn't carry them outward.
+  Labelled approximate.
+- **Ropes on the skin as the shape changes**: a rope point is kept on its
+  bone, so a much heavier or thinner body can leave a rope inside or off
+  the skin. Points could be kept on the surface instead (a triangle and
+  where on it).
+- **A smaller body file**: fewer components, or a lighter mesh, if 2 MB is
+  slow on phones.
 
 ## Ideas, not yet committed
 

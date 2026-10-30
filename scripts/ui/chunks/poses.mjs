@@ -217,7 +217,7 @@ export default async function () {
   // view's size, and so the figure's place on it, changes with the
   // selected part's sliders).
   const redoBefore = await run(`return $("#pose-redo").disabled;`);
-  await drag(0.57, 0.57, 0.82, 0.6);
+  await drag(0.63, 0.63, 0.82, 0.6);
   // A change made clears what redo had (the typed turns undone above).
   check("dragging a leg moves it as one change, the shin selected, and undo puts it back", [redoBefore, await run(`
     const after = [$("#pose-part").textContent, $("#pose-redo").disabled];

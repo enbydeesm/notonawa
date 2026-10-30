@@ -1,5 +1,5 @@
-// The poser's 3D view: the figure (figure-rig.js) built from simple shapes,
-// a floor, the hardpoint (a ring, bamboo or hashira) and the ropes, drawn by three.js (vendor/three.js,
+// The poser's 3D view: the figure (figure-body.js: a realistic body, its
+// skin moved by its skeleton, pose-skeleton.js), a floor, the hardpoint (a ring, bamboo or hashira) and the ropes, drawn by three.js (vendor/three.js,
 // bundled with only the parts used here). Loaded only when a pose is shown
 // (poses-ui.js imports it), so the rest of the app doesn't fetch it.
 //
@@ -10,15 +10,21 @@
 //
 // Pictures of poses (thumbnails, and the poser's "Add to visuals") come
 // from one hidden view, reused (browsers allow only a few 3D views at once).
+//
+// The body's mesh (about 2 MB) is fetched as this module loads, so anything
+// importing it waits for it; the browser keeps it a week (/figure/* in
+// _headers).
 
 import {
-  CapsuleGeometry, CatmullRomCurve3, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group,
-  HemisphereLight, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, Raycaster,
-  Scene, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
+  BufferAttribute, BufferGeometry, CatmullRomCurve3, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group,
+  HemisphereLight, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, Raycaster,
+  Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
-import { SHAPES } from "./figure-rig.js";
+import { BONES, BODY_FILE, readBody, bodyPositions, measurements, sameShape } from "./figure-body.js";
 import { ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
-import { makeSkeleton, posed, ropePoint, toBone, toHardpoint, RING_RADIUS, BAMBOO_RADIUS } from "./pose-skeleton.js";
+import {
+  makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
+} from "./pose-skeleton.js";
 import { bends, ropeRuns } from "./pose-cinch.js";
 import { segmentDistance } from "./drawing-format.js";
 
@@ -40,8 +46,6 @@ const ROPE_REACH = 18;
 /** How far behind what's under a tap (cm) a rope can be and still be chosen (one lying on the body, not behind it). */
 const ROPE_DEPTH = 3;
 
-/** How square a block shape is (figure-rig.js): 1 is an ellipsoid, smaller is boxier. */
-const BLOCKINESS = 0.6;
 /** How long the lines a ring or bamboo hangs from are (up out of sight), cm. */
 const HANG_LENGTH = 900;
 /** The hanging lines' look, as a jute rope: three strands twisted round, one turn every PITCH cm. */
@@ -66,26 +70,28 @@ function strands() {
 }
 
 /**
- * A sphere of radius 1 squared off into a block with rounded edges (a
- * superellipsoid), to be scaled to a part's size.
- * @param {SphereGeometry} sphere
- */
-function squaredOff(sphere) {
-  const position = sphere.getAttribute("position");
-  const pull = (/** @type {number} */ n) => Math.sign(n) * Math.abs(n) ** BLOCKINESS;
-  for (let i = 0; i < position.count; i++) {
-    position.setXYZ(i, pull(position.getX(i)), pull(position.getY(i)), pull(position.getZ(i)));
-  }
-  position.needsUpdate = true;
-  sphere.computeVertexNormals();
-  return sphere;
-}
-
-/**
  * The view's colors, from app.css.
  * @param {string} name e.g. "pose-figure", "ink-red"
  */
 const cssColor = (name) => new Color(getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim() || "#888");
+
+/** The body's mesh. */
+const body = readBody(await (await fetch(BODY_FILE)).arrayBuffer());
+/** Which part of the body (figure-rig.js) each vertex is on: tapping it poses that part. */
+const parts = vertexParts(body);
+
+/** The last shape measured, and its measurements. @type {{ key: string, m: ReturnType<typeof measurements> } | null} */
+let lastMeasured = null;
+
+/**
+ * A body shape's measurements (height, waist, volume, mass, BMI).
+ * @param {import("./figure-body.js").Shape} shape
+ */
+export function bodyMeasurements(shape) {
+  const key = shape.join();
+  if (lastMeasured?.key !== key) lastMeasured = { key, m: measurements(body, bodyPositions(body, shape)) };
+  return lastMeasured.m;
+}
 
 /**
  * Whether this browser can draw 3D at all.
@@ -129,37 +135,62 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   // --- the figure ------------------------------------------------------------
 
-  const skin = new MeshStandardMaterial({ color: cssColor("pose-figure"), roughness: 0.75 });
-  const selectedSkin = new MeshStandardMaterial({ color: cssColor("pose-selected"), roughness: 0.6 });
   const sphere = new SphereGeometry(1, 28, 18);
-  const block = squaredOff(new SphereGeometry(1, 36, 24));
+  const skinColor = cssColor("pose-figure");
+  const selectedColor = cssColor("pose-selected");
 
   // The pelvis is the figure's root, moved and turned as the whole body.
   const skeleton = makeSkeleton(new Group());
-  const { bones } = skeleton;
   scene.add(skeleton.pelvis);
-  /** Every part's meshes, for picking and for showing which is selected. @type {Mesh[]} */
-  const parts = [];
-  for (const [name, shapes] of Object.entries(SHAPES)) {
-    const bone = /** @type {Object3D} */ (bones.get(name));
-    for (const shape of shapes) {
-      /** @type {Mesh} */
-      let mesh;
-      if ("capsule" in shape) {
-        const [a, b] = shape.capsule;
-        const length = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-        mesh = new Mesh(new CapsuleGeometry(shape.r, length, 6, 16), skin);
-        mesh.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
-      } else {
-        const at = "block" in shape ? shape.block : shape.ellipsoid;
-        mesh = new Mesh("block" in shape ? block : sphere, skin);
-        mesh.position.set(at[0], at[1], at[2]);
-        mesh.scale.set(shape.radii[0], shape.radii[1], shape.radii[2]);
-      }
-      mesh.userData.bone = name;
-      bone.add(mesh);
-      parts.push(mesh);
+  // The skin: the body's mesh, each vertex moved by up to four bones. Its
+  // bones are at rest lined up with the world, at their joints, so each
+  // one's inverse is just a move back from its joint (set with the shape).
+  const geometry = new BufferGeometry();
+  const place = new BufferAttribute(new Float32Array(body.base.length), 3);
+  const tint = new BufferAttribute(new Float32Array(body.base.length), 3);
+  geometry.setAttribute("position", place);
+  geometry.setAttribute("color", tint);
+  geometry.setAttribute("skinIndex", new BufferAttribute(body.joints, 4));
+  geometry.setAttribute("skinWeight", new BufferAttribute(body.weights, 4, true));
+  geometry.setIndex(new BufferAttribute(body.faces, 1));
+  const skinMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
+  const figure = new SkinnedMesh(geometry, skinMaterial);
+  // Its bounds move with the pose: always drawn, and worked out afresh before a tap.
+  figure.frustumCulled = false;
+  const inverses = BONES.map(() => new Matrix4());
+  const bones = /** @type {import("./vendor/three.js").Bone[]} */ (BONES.map((name) => skeleton.all.get(name)));
+  figure.bindMode = "detached";
+  figure.bind(new Skeleton(bones, inverses), new Matrix4());
+  scene.add(figure);
+  /** The shape the skin was last made in. @type {import("./figure-body.js").Shape | null} */
+  let skinShape = null;
+  /** The part shown selected (undefined before the first). @type {string | null | undefined} */
+  let painted;
+
+  /** Makes the skin in the skeleton's shape (after posed() has reshaped it). */
+  function fitSkin() {
+    if (skinShape && sameShape(skinShape, skeleton.shape)) return;
+    skinShape = [...skeleton.shape];
+    bodyPositions(body, skinShape, /** @type {Float32Array} */ (place.array));
+    place.needsUpdate = true;
+    geometry.computeVertexNormals();
+    const { heads } = skeleton;
+    inverses.forEach((m, i) => m.makeTranslation(-heads[i * 3], -heads[i * 3 + 1], -heads[i * 3 + 2]));
+  }
+
+  /** Colors the part being posed. @param {string | null} part */
+  function paint(part) {
+    if (part === painted) return;
+    painted = part;
+    const colors = /** @type {Float32Array} */ (tint.array);
+    const chosen = part === null ? -1 : parts.names.indexOf(part);
+    for (let v = 0; v < parts.of.length; v++) {
+      const c = parts.of[v] === chosen ? selectedColor : skinColor;
+      colors[v * 3] = c.r;
+      colors[v * 3 + 1] = c.g;
+      colors[v * 3 + 2] = c.b;
     }
+    tint.needsUpdate = true;
   }
 
   // --- the hardpoints: a ring, a bamboo or a hashira --------------------------
@@ -284,7 +315,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   function show(pose, { laying = null, selected = null, rope = -1 } = {}) {
     shown = pose;
     posed(skeleton, pose);
-    for (const mesh of parts) mesh.material = mesh.userData.bone === selected ? selectedSkin : skin;
+    fitSkin();
+    paint(selected);
 
     ring.visible = !!pose.ring;
     if (pose.ring) {
@@ -405,8 +437,10 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
    */
   function pick(x, y, { ropes: withRopes = false } = {}) {
     aim(x, y);
+    // Where the skin is now, for the ray to find it.
+    figure.computeBoundingSphere();
     /** @type {Object3D[]} */
-    const targets = [...parts];
+    const targets = [figure];
     if (ring.visible) targets.push(hoop);
     if (bamboo.visible) targets.push(pole);
     if (hashira.visible) targets.push(post);
@@ -416,9 +450,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       if (rope) return rope;
     }
     if (!hit || !shown) return null;
-    // Just off the surface, so the rope lies on it, not in it.
-    const normal = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new Vector3();
-    const onSurface = hit.point.clone().addScaledVector(normal, 0.6);
+    // Just off the surface, toward the camera, so the rope lies on it, not in it.
+    const onSurface = hit.point.clone().addScaledVector(raycaster.ray.direction, -0.6);
     const hardpoint = hit.object.userData.hardpoint;
     if (hardpoint === "ring") return { kind: "ring" };
     if (hardpoint === "bamboo") return { kind: "bamboo", along: Math.round(toHardpoint(shown, "bamboo", hit.point)[0] * 10) };
@@ -426,7 +459,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const [x, y, z] = toHardpoint(shown, "hashira", onSurface);
       return { kind: "hashira", mm: [Math.round(x * 10), Math.round(y * 10), Math.round(z * 10)] };
     }
-    const bone = /** @type {string} */ (hit.object.userData.bone);
+    const bone = parts.names[parts.of[hit.face ? hit.face.a : 0]];
     return { kind: "body", bone, mm: toBone(skeleton, bone, onSurface), point: onSurface };
   }
 
@@ -434,10 +467,11 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   function dispose() {
     clearRopes();
     scene.traverse((o) => {
-      if (o instanceof Mesh && o.geometry !== sphere && o.geometry !== block && !line.includes(o.geometry)) o.geometry.dispose();
+      if (o instanceof Mesh && o.geometry !== sphere && !line.includes(o.geometry)) o.geometry.dispose();
     });
-    for (const g of [sphere, block, ...line]) g.dispose();
-    for (const m of [skin, selectedSkin, ringMaterial, juteMaterial, bambooMaterial, woodMaterial, marker, chosenInk, ...inks.values(), floor.material]) {
+    for (const g of [sphere, ...line]) g.dispose();
+    figure.skeleton.dispose();
+    for (const m of [skinMaterial, ringMaterial, juteMaterial, bambooMaterial, woodMaterial, marker, chosenInk, ...inks.values(), floor.material]) {
       m.dispose();
     }
     renderer.dispose();

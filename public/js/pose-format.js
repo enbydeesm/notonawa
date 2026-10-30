@@ -7,6 +7,10 @@
 //   lift     how high the pelvis is off the floor, cm
 //   shift    where the whole figure stands: [across, front to back], cm
 //            (older poses have none, read as [0, 0])
+//   shape    the body: [gender, muscle, weight, height in cm]
+//            (figure-body.js). Older poses have none: they were posed on
+//            the first, simpler figure, so they open on the in-between
+//            body with their ropes moved onto it (readPose)
 //   camera   [yaw, pitch, distance, target height, target x, target z]:
 //            degrees and cm (older poses have the first four)
 //   ring     a ring to tie uplines to: [x, y, z] in cm, or null
@@ -41,7 +45,8 @@
 // history is just the poses before and after.
 
 import { COLORS } from "./drawing-format.js";
-import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints } from "./figure-rig.js";
+import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
+import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./figure-body.js";
 
 /** @typedef {import("./drawing-format.js").Color} Color */
 /** @typedef {import("./drawing-format.js").Width} Width */
@@ -56,6 +61,7 @@ import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints } from "./fig
 /**
  * @typedef {{
  *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
+ *   shape: import("./figure-body.js").Shape,
  *   camera: Camera, ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[], marks?: import("./pose-marks.js").Marks,
  * }} Pose
@@ -138,14 +144,49 @@ export function typedNumber(text, range) {
 /** @returns {Pose} the figure standing, seen from the front and a little above */
 export function newPose() {
   return {
-    v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT, shift: [0, 0],
+    v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT, shift: [0, 0], shape: [...DEFAULT_SHAPE],
     camera: [25, 8, 330, 100, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
   };
 }
 
 /**
+ * How far each part's rope points move from the first figure to the
+ * in-between body, mm: its joint was there, the bone they're kept on is
+ * here (both lined up with the world at rest, so it's a plain move).
+ * @returns {Record<string, [number, number, number]>}
+ */
+function ropeShifts() {
+  const older = olderJointPlaces();
+  const heads = bodyHeads(DEFAULT_SHAPE);
+  return Object.fromEntries(Object.entries(older).map(([part, [x, y, z]]) => {
+    const i = BODY_BONES.indexOf(anchorBone(part)) * 3;
+    return [part, [(x - heads[i]) * 10, (y - heads[i + 1]) * 10, (z - heads[i + 2]) * 10]];
+  }));
+}
+
+/**
+ * A pose's ropes from the first figure, on the in-between body: each point
+ * on the body kept where it was on the first figure, standing.
+ * @param {Rope[]} ropes
+ * @returns {Rope[]}
+ */
+export function ropesOntoBody(ropes) {
+  const shifts = ropeShifts();
+  return ropes.map((r) => ({
+    ...r,
+    p: r.p.map((point) => {
+      const shift = shifts[point[0]];
+      if (!shift) return /** @type {RopePoint} */ ([...point]);
+      return bonePoint(point[0], [point[1] + shift[0], point[2] + shift[1], point[3] + shift[2]]);
+    }),
+  }));
+}
+
+/**
  * A pose as saved, made whole: every joint listed and within its limits
- * (older or partial poses, e.g. from an import, open like this).
+ * (older or partial poses, e.g. from an import, open like this). One saved
+ * before the body had a shape gets the in-between one, its ropes moved
+ * onto it.
  * @param {Partial<Pose>} saved
  * @returns {Pose}
  */
@@ -161,9 +202,20 @@ export function readPose(saved) {
     ...fresh, ...saved, v: FORMAT_VERSION, joints, camera, shift: saved.shift ? [saved.shift[0], saved.shift[1]] : [0, 0],
     ring: saved.ring ?? null, hashira: saved.hashira ?? null,
     bamboo: saved.bamboo ? [...saved.bamboo.slice(0, 4), ...(saved.bamboo.length === 4 ? OLDER_BAMBOO : saved.bamboo.slice(4))] : null,
-    ropes: (saved.ropes ?? []).map((r) => ({ ...r, p: r.p.map((p) => /** @type {RopePoint} */ ([...p])) })),
+    shape: saved.shape ? cleanShape(saved.shape) : [...DEFAULT_SHAPE],
+    ropes: saved.shape ? (saved.ropes ?? []).map((r) => ({ ...r, p: r.p.map((p) => /** @type {RopePoint} */ ([...p])) }))
+      : ropesOntoBody(saved.ropes ?? []),
   };
 }
+
+/**
+ * A pose with a new body shape (pose-skeleton.js's withShape also keeps it
+ * on the floor).
+ * @param {Pose} pose
+ * @param {import("./figure-body.js").Shape} shape
+ * @returns {Pose}
+ */
+export const setShape = (pose, shape) => ({ ...pose, shape: cleanShape(shape) });
 
 /**
  * @param {Pose} pose

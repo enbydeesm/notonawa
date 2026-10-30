@@ -56,9 +56,10 @@ import {
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
   isCinch, isUpline, canSeesaw, setSeesaw, cinchOn, cantCinch, addCinch, setCinchLength, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
-import { poseView, poseImage } from "./pose-scene.js";
+import { poseView, poseImage, bodyMeasurements } from "./pose-scene.js";
+import { SHAPE_RANGES, SHAPE_SLIDERS } from "./figure-body.js";
 import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
-import { makeSkeleton, posed } from "./pose-skeleton.js";
+import { makeSkeleton, posed, withShape } from "./pose-skeleton.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -275,9 +276,16 @@ export function editPose(start, { addToVisuals } = {}) {
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
+    // The body's shape, folded away until wanted: its sliders, and its
+    // measurements as they change.
+    const shapeSliders = h("div", { className: "pose-sliders", id: "pose-shape-sliders" });
+    const measured = h("dl", { className: "pose-measurements", id: "pose-measurements" });
+    const shapeFold = h("details", { className: "fold pose-shape", id: "pose-shape" },
+      h("summary", {}, "Body shape"), shapeSliders, measured);
     // The part's name, with Reset at the end of the same row.
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
       h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
+      shapeFold,
       h("div", { className: "pose-part-row" }, partName, resetPart), sliders);
 
     // --- the Rope panel ----------------------------------------------------------
@@ -484,8 +492,30 @@ export function editPose(start, { addToVisuals } = {}) {
       return h("div", { className: "pose-slider" }, h("label", { htmlFor: id }, label), input, steps, typed);
     }
 
+    /** The body's measurements, for the shape shown (a slider being dragged too). */
+    function drawMeasurements() {
+      const m = bodyMeasurements(current().shape);
+      /** @param {string} label @param {string} value */
+      const row = (label, value) => [h("dt", {}, label), h("dd", {}, value)];
+      measured.replaceChildren(
+        ...row("Height", `${m.height.toFixed(1)} cm`), ...row("Waist", `${m.waist.toFixed(1)} cm`),
+        ...row("Mass", `${m.mass.toFixed(1)} kg`), ...row("BMI", m.bmi.toFixed(1)),
+        ...row("Volume", `${m.volume.toFixed(1)} L`));
+    }
+
+    function drawShapePanel() {
+      const pose = current();
+      drawMeasurements();
+      if (draft) return;
+      shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
+        id: `pose-shape-${i}`, label, min: SHAPE_RANGES[i][0], max: SHAPE_RANGES[i][1], value: pose.shape[i],
+        apply: (p, v) => withShape(measuring, p, /** @type {import("./figure-body.js").Shape} */ (p.shape.map((n, k) => (k === i ? v : n)))),
+      })));
+    }
+
     function drawPosePanel() {
       const pose = current();
+      drawShapePanel();
       // A slider being dragged keeps its place (redrawing it would drop the drag).
       if (draft) return;
       if (!selected) {
