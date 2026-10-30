@@ -126,7 +126,7 @@ export function dragTo(pose, bone, cm, target) {
     keepReachable(joints, before);
   }
   const rounded = { ...pose.joints };
-  for (const [name] of chain) rounded[name] = clampJoint(name, joints[name], pose.joints[name]);
+  for (const [name] of chain) rounded[name] = clampJoint(name, joints[name], pose.joints[name], rounded);
   return { ...pose, joints: rounded };
 }
 
@@ -146,7 +146,7 @@ export const snapshot = (joints, chain) => Object.fromEntries(chain.map(([name])
  * @param {Record<string, number[]>} before the angles before the step
  */
 export function keepReachable(joints, before) {
-  for (const [name, was] of Object.entries(before)) if (!canReach(name, joints[name])) joints[name] = was;
+  for (const [name, was] of Object.entries(before)) if (!canReach(name, joints[name], joints)) joints[name] = was;
 }
 
 /**

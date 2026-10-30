@@ -44,11 +44,9 @@ import { h, showMessage, privateField } from "./dom.js";
 import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
-  PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, MAX_PRESETS, jointNamed, withBodyPreset, withArmsPreset,
-  bodyPresetFrom, armsPresetFrom,
+  PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withBodyPreset, withArmsPreset,
 } from "./figure-rig.js";
-import { savedPresets, savePreset, presetLabel } from "./pose-presets.js";
-import { askPresetName, managePresets } from "./pose-presets-ui.js";
+import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
   COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
   setCamera, panCamera, typedNumber, clamp, maxInset,
@@ -61,7 +59,8 @@ import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } f
 import { loadSettings, saveDefaultShape } from "./settings.js";
 import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
 import { makeSkeleton, posed, withShape } from "./pose-skeleton.js";
-import { depths, clashingParts, settleClashes } from "./pose-contact.js";
+import { keepAwake } from "./wake-lock.js";
+import { depths, clashingParts, settleClashes, behindBody } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -204,93 +203,40 @@ export async function editPose(start, { addToVisuals } = {}) {
 
     // --- the Pose panel ----------------------------------------------------------
 
-    // The built-in presets, then my saved ones (once read), then saving
-    // this position as one and managing them.
-    /** @type {import("./pose-presets.js").SavedPreset[]} */
-    let saved = [];
-    const bodyMenu = h("select", { id: "pose-body-preset", "aria-label": "Body position", onchange: () => {
-      const value = bodyMenu.value;
-      bodyMenu.value = "";
-      if (value === "save") saveAsPreset("body");
-      else if (value === "manage") manage();
-      else {
-        const preset = value.startsWith("s:") ? saved.find((p) => p.id === value.slice(2))?.data : BODY_PRESETS[Number(value.slice(2))];
-        if (preset) commit(withPosture(history.pose, withBodyPreset(history.pose, /** @type {BodyPreset} */ (preset))));
-      }
-    } });
-    const armsMenu = h("select", { id: "pose-arms-preset", "aria-label": "Arms position", onchange: () => {
-      const value = armsMenu.value;
-      armsMenu.value = "";
-      if (value === "save") saveAsPreset("arms");
-      else if (value === "manage") manage();
-      else {
-        const preset = value.startsWith("s:") ? saved.find((p) => p.id === value.slice(2))?.data : ARMS_PRESETS[Number(value.slice(2))];
-        if (preset) commit(withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset))));
-      }
-    } });
-
-    /** Fills the Body… and Arms… menus. */
-    function fillPresetMenus() {
-      for (const [menu, kind, first, builtIn] of /** @type {const} */ ([
-        [bodyMenu, "body", "Body…", BODY_PRESETS], [armsMenu, "arms", "Arms…", ARMS_PRESETS],
-      ])) {
-        const mine = saved.filter((p) => p.kind === kind);
-        menu.replaceChildren(
-          h("option", { value: "" }, first),
-          ...builtIn.map((p, i) => h("option", { value: `b:${i}` }, p.name)),
-          ...(mine.length ? [h("optgroup", { label: "My presets" }, mine.map((p) => h("option", { value: `s:${p.id}` }, presetLabel(p))))] : []),
-          h("optgroup", { label: "Presets" },
-            h("option", { value: "save" }, `Save ${kind === "body" ? "this body" : "these arms"} as a preset…`),
-            h("option", { value: "manage" }, "Manage my presets…")));
-      }
-    }
-    fillPresetMenus();
-    savedPresets().then((list) => {
-      saved = list;
-      fillPresetMenus();
-    }, () => say("Couldn't load your saved presets. The built-in ones are there.", true));
-
-    /**
-     * Saves the body or arms as they are now, as a new preset, after asking
-     * for its name.
-     * @param {"body" | "arms"} kind
-     */
-    async function saveAsPreset(kind) {
-      if (saved.length >= MAX_PRESETS) {
-        say(`You can keep up to ${MAX_PRESETS} presets. Delete one (Manage my presets…) to save another.`, true);
-        return;
-      }
-      const { name: _name, ...data } = kind === "body" ? bodyPresetFrom(history.pose, "") : armsPresetFrom(history.pose, "");
-      const done = await askPresetName({
-        title: kind === "body" ? "Save this body position" : "Save these arms", action: "Save preset",
-        save: async (name) => { await savePreset(kind, name, data); },
-      });
-      if (done) {
-        fillPresetMenus();
-        say(`Saved. It's in the ${kind === "body" ? "Body…" : "Arms…"} menu, for any pose.`);
-      }
-    }
-
-    async function manage() {
-      await managePresets(fillPresetMenus);
-      fillPresetMenus();
-    }
-    const turnMenu = h("select", { id: "pose-orientation", "aria-label": "Turn the whole body", onchange: () => {
-      const choice = ORIENTATIONS[Number(turnMenu.value)];
-      turnMenu.value = "";
-      if (choice) commit({ ...history.pose, body: [...choice.body] });
-    } }, h("option", { value: "" }, "Turn body…"), ORIENTATIONS.map((o, i) => h("option", { value: String(i) }, o.name)));
+    // The pickers for the body's and arms' presets, and where the body
+    // faces (preset-picker.js).
+    /** @type {(kind: "body" | "arms") => void} */
+    const openPresets = (kind) => pickPreset({
+      kind, builtIn: kind === "body" ? BODY_PRESETS : ARMS_PRESETS, posture: () => history.pose,
+      apply: (preset) => commit(withPosture(history.pose, kind === "body"
+        ? withBodyPreset(history.pose, /** @type {BodyPreset} */ (preset))
+        : withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset)))),
+    });
+    const pickerButton = (/** @type {string} */ id, /** @type {string} */ label, /** @type {() => void} */ onclick) =>
+      h("button", { type: "button", className: "tool pose-picker", id, "aria-haspopup": "dialog", onclick }, label);
+    const bodyButton = pickerButton("pose-body-preset", "Body…", () => openPresets("body"));
+    const armsButton = pickerButton("pose-arms-preset", "Arms…", () => openPresets("arms"));
+    const turnButton = pickerButton("pose-orientation", "Turn body…", () => pickTurn({
+      orientations: ORIENTATIONS, body: history.pose.body, apply: (body) => commit({ ...history.pose, body: /** @type {[number, number, number]} */ (body) }),
+    }));
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
-    // The body's shape, folded away until wanted, with "Save as default"
-    // on its heading's row (beside the fold, not in it, so it shows folded).
+    // The body's shape, folded away until wanted, with "Save as my
+    // default" in the middle of its heading's row and Reset at its end
+    // (beside the fold, not in it, so they show folded).
     const shapeSliders = h("div", { className: "pose-sliders", id: "pose-shape-sliders" });
     const saveShapeButton = h("button", {
       type: "button", className: "tool pose-shape-save", id: "pose-shape-default", onclick: saveShapeAsDefault,
-    }, "Save as default");
+    }, "Save as my default");
+    // Back to the app's own body; my saved default stays as it is.
+    const resetShapeButton = h("button", {
+      type: "button", className: "tool pose-shape-reset", id: "pose-shape-reset",
+      onclick: () => commit(withShape(measuring, history.pose, DEFAULT_SHAPE)),
+    }, "Reset");
     const shapeFold = h("div", { className: "pose-shape" },
-      h("details", { className: "fold", id: "pose-shape" }, h("summary", {}, "Body shape"), shapeSliders), saveShapeButton);
+      h("details", { className: "fold", id: "pose-shape" }, h("summary", {}, "Body shape"), shapeSliders),
+      h("div", { className: "pose-shape-actions" }, saveShapeButton, resetShapeButton));
 
     /** Saves the body shown as the one new poses start with. */
     async function saveShapeAsDefault() {
@@ -307,7 +253,7 @@ export async function editPose(start, { addToVisuals } = {}) {
     }
     // The part's name, with Reset at the end of the same row.
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
-      h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
+      h("div", { className: "pose-menus" }, bodyButton, armsButton, turnButton),
       shapeFold,
       h("div", { className: "pose-part-row" }, partName, resetPart), sliders);
 
@@ -376,6 +322,7 @@ export async function editPose(start, { addToVisuals } = {}) {
       cancel();
     });
     dialog.addEventListener("close", () => {
+      letSleep();
       resized.disconnect();
       view.dispose();
       dialog.remove();
@@ -533,6 +480,7 @@ export async function editPose(start, { addToVisuals } = {}) {
       const pose = current();
       // Nothing to save when it's already the default.
       saveShapeButton.disabled = sameShape(pose.shape, defaultShape ?? DEFAULT_SHAPE);
+      resetShapeButton.disabled = sameShape(pose.shape, DEFAULT_SHAPE);
       if (draft) return;
       shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
         id: `pose-shape-${i}`, label, min: SHAPE_RANGES[i][0], max: SHAPE_RANGES[i][1], value: pose.shape[i],
@@ -553,43 +501,45 @@ export async function editPose(start, { addToVisuals } = {}) {
       }
       partName.textContent = /** @type {Record<string, string>} */ (PART_LABELS)[selected];
       resetPart.hidden = false;
-      // The hips and the head both move the whole figure: up and down,
-      // front to back, and across.
-      const wholeFigure = () => [
-        slider({ id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift, apply: setLift }),
-        ...[1, 0].map((i) => slider({
-          id: `pose-shift-${i}`, label: SHIFT_SLIDERS[i], min: SHIFT_RANGE[i][0], max: SHIFT_RANGE[i][1], value: pose.shift[i],
-          apply: (p, v) => setShift(p, i, v),
-        })),
-      ];
-      if (selected === "pelvis") {
-        sliders.replaceChildren(
-          ...BODY_MOVES.map((m, i) => slider({
-            id: `pose-body-${i}`, label: m.label, min: m.min, max: m.max, value: pose.body[i],
-            apply: (p, v) => setBody(p, i, v),
-          })),
-          ...wholeFigure());
-        return;
-      }
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
-      sliders.replaceChildren(...joint.moves.map((m, i) => slider({
+      const own = joint.moves.map((m, i) => slider({
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
         // A see-saw rope's other end moves to keep it the same length; let
         // go, any clash is settled (pose-contact.js).
         apply: (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
         settle: (before, after) => settleClashes(measuring, before, after, [joint.name]),
-      })), ...(joint.name === "head" ? wholeFigure() : []));
+      }));
+      if (joint.name !== "head") {
+        sliders.replaceChildren(...own);
+        return;
+      }
+      // Under the head's own sliders, the whole body's: tipping, turning
+      // and rolling it, its height, and moving it front to back and across,
+      // with a Reset of their own.
+      sliders.replaceChildren(...own,
+        h("div", { className: "pose-part-row pose-whole-row" },
+          h("h4", { className: "pose-part", id: "pose-whole" }, "Whole body"),
+          h("button", { type: "button", className: "tool", id: "pose-reset-whole", onclick: resetWholeBody }, "Reset")),
+        ...BODY_MOVES.map((m, i) => slider({
+          id: `pose-body-${i}`, label: m.label, min: m.min, max: m.max, value: pose.body[i],
+          apply: (p, v) => setBody(p, i, v),
+        })),
+        slider({ id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift, apply: setLift }),
+        ...[1, 0].map((i) => slider({
+          id: `pose-shift-${i}`, label: SHIFT_SLIDERS[i], min: SHIFT_RANGE[i][0], max: SHIFT_RANGE[i][1], value: pose.shift[i],
+          apply: (p, v) => setShift(p, i, v),
+        })));
     }
 
     function resetSelected() {
       if (!selected) return;
-      if (selected === "pelvis") {
-        // Standing, its feet on the floor for its body's height.
-        commit({ ...history.pose, body: [0, 0, 0], lift: Math.round(standingLift(history.pose.shape)), shift: [0, 0] });
-        return;
-      }
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
       commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } });
+    }
+
+    /** Stands the whole body up, facing ahead, its feet on the floor for its body's height. */
+    function resetWholeBody() {
+      commit({ ...history.pose, body: [0, 0, 0], lift: Math.round(standingLift(history.pose.shape)), shift: [0, 0] });
     }
 
     function drawRopePanel() {
@@ -827,7 +777,9 @@ export async function editPose(start, { addToVisuals } = {}) {
         });
         if (choice !== "go") return;
       }
-      commit(setHardpoint(history.pose, next));
+      // A new hashira goes just behind the body, wherever it's standing.
+      const place = next === "hashira" ? behindBody(measuring, history.pose) ?? undefined : undefined;
+      commit(setHardpoint(history.pose, next, place));
     }
 
     /** A picture of the pose as it is now, with the pencil marks showing on it. */
@@ -871,7 +823,7 @@ export async function editPose(start, { addToVisuals } = {}) {
       if (mode === "pose") {
         const hit = view.pick(x, y);
         if (hit?.kind === "body") {
-          selected = hit.bone;
+          selected = hit.part;
           drawAll();
         }
         return;
@@ -1172,6 +1124,8 @@ export async function editPose(start, { addToVisuals } = {}) {
 
     document.body.append(dialog);
     dialog.showModal();
+    // The screen stays on while the poser is open.
+    const letSleep = keepAwake();
     resized.observe(frame);
     setMode("pose");
     setErasing(false);

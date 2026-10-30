@@ -1,7 +1,7 @@
 // Saved poser presets: the body and arms positions someone saved, theirs to
 // start any pose from (src/pose-presets/). Read once the poser is first
 // opened and kept while the journal is unlocked (their names are opened,
-// so they're dropped on lock); saving, renaming and deleting keep the copy
+// so they're dropped on lock); saving, renaming, saving over and deleting keep the copy
 // up to date. Names are sealed before they're sent.
 
 import { api } from "./api.js";
@@ -59,6 +59,17 @@ export async function renamePreset(id, name) {
   await api(`/api/pose-presets/${id}`, { method: "PUT", body: { name: sealed } });
   const preset = (await savedPresets()).find((p) => p.id === id);
   if (preset) preset.name = name.trim();
+}
+
+/**
+ * Saves the figure's angles now over a preset's, keeping its name.
+ * @param {string} id
+ * @param {Record<string, any>} data as savePreset's
+ */
+export async function overwritePreset(id, data) {
+  await api(`/api/pose-presets/${id}`, { method: "PUT", body: { data } });
+  const preset = (await savedPresets()).find((p) => p.id === id);
+  if (preset) preset.data = data;
 }
 
 /** @param {string} id */

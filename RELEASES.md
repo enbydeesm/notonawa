@@ -21,6 +21,12 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - The "Upside down" body position now has the legs folded.
 - New poses and "At sides" start with the arms a little out from the thighs.
 - Poses saved before this open on the in-between body, with their ropes where they were.
+- Elbows and knees have a Twist out slider: turn a forearm palm up or down, or a lower leg and foot in or out, within what a body can do.
+- Tapping the hips now poses the waist, which is easier to tap. The whole body's sliders, now named Tip body, Turn body and Roll body, are under the head's, with their own Reset.
+- Body shape has "Save as my default" in the middle and a Reset that goes back to the usual body (your saved default stays).
+- Body…, Arms… and Turn body… open a list of their own: search it, tap any row to use it, and save, rename or delete your own presets right there. The one the figure's in is tinted.
+- A new hashira goes just behind the body, wherever it's standing.
+- Your screen stays on while the poser is open.
 
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 

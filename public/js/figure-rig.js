@@ -50,7 +50,7 @@ const move = (label, axis, sign, min, max) => ({ label, axis, sign, min, max });
 // The trunk and head bend forward, lean to the figure's left and turn its
 // front to its left, when positive.
 const trunk = (/** @type {[number, number][]} */ [bend, side, twist]) => [
-  move("Forward", "x", 1, ...bend), move("Lean left", "z", -1, ...side), move("Turn left", "y", 1, ...twist),
+  move("Forward", "x", 1, ...bend), move("Lean", "z", -1, ...side), move("Turn", "y", 1, ...twist),
 ];
 
 /**
@@ -67,16 +67,20 @@ function limbs(side) {
       name: `${side}_shoulder`, label: `${name} shoulder`, parent: "chest", offset: [17 * s, 22, 0], order: "ZXY",
       moves: [move("Forward", "x", -1, -70, 180), move("Out", "z", out, -30, 180), move("Twist out", "y", out, -90, 90)],
     },
+    // The forearm's twist turns the palm: out is palm forward (from facing
+    // the thigh), in is palm back.
     { name: `${side}_elbow`, label: `${name} elbow`, parent: `${side}_shoulder`, offset: [0, -29, 0], order: "XYZ",
-      moves: [move("Bend", "x", -1, 0, 150)] },
+      moves: [move("Bend", "x", -1, 0, 150), move("Twist out", "y", out, -80, 90)] },
     { name: `${side}_wrist`, label: `${name} wrist`, parent: `${side}_elbow`, offset: [0, -25, 0], order: "ZXY",
       moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -80, 80), move("Tilt", "x", 1, -30, 30)] },
     {
       name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "ZXY",
       moves: [move("Forward", "x", -1, -30, 140), move("Out", "z", out, -30, 90), move("Twist out", "y", out, -45, 45)],
     },
+    // The lower leg's twist turns the foot out or in: only once the knee
+    // bends, and with the hip's no further than a leg can (joint-limits.js).
     { name: `${side}_knee`, label: `${name} knee`, parent: `${side}_hip`, offset: [0, -44, 0], order: "XYZ",
-      moves: [move("Bend", "x", 1, 0, 155)] },
+      moves: [move("Bend", "x", 1, 0, 155), move("Twist out", "y", out, -35, 35)] },
     { name: `${side}_ankle`, label: `${name} ankle`, parent: `${side}_knee`, offset: [0, -43, 0], order: "XYZ",
       moves: [move("Toes up", "x", -1, -50, 30)] },
   ];
@@ -98,14 +102,15 @@ const BY_NAME = new Map(JOINTS.map((j) => [j.name, j]));
 export const jointNamed = (name) => BY_NAME.get(name);
 
 /** What tapping each part selects, named for the person posing it. */
-export const PART_LABELS = Object.freeze({ pelvis: "Hips and whole body", ...Object.fromEntries(JOINTS.map((j) => [j.name, j.label])) });
+export const PART_LABELS = Object.freeze({ pelvis: "Hips", ...Object.fromEntries(JOINTS.map((j) => [j.name, j.label])) });
 
 /**
  * Which body bones each joint turns, and how much of the turn each takes:
  * the waist, chest and neck bend over several vertebrae, so the back
  * curves rather than folding at one point. A shoulder's raise is shared
  * with the collarbone and shoulder blade, so the shoulder rises with the
- * arm; an upper arm's or thigh's twist is spread over its two bones, so
+ * arm; an upper arm's, forearm's, thigh's or shin's twist is spread over
+ * its two bones, so
  * the skin twists along it rather than pinching at the joint. "pelvis" is
  * the body's root.
  * @type {Readonly<Record<string, Drive>>}
@@ -119,9 +124,9 @@ export const DRIVES = Object.freeze({
     const side = s.toLowerCase();
     return [
       [`${side}_shoulder`, [[`clavicle.${s}`, 0.12, 0], [`shoulder01.${s}`, 0.08, 0], [`upperarm01.${s}`, 0.8, 0.5], [`upperarm02.${s}`, 0, 0.5]]],
-      [`${side}_elbow`, [[`lowerarm01.${s}`, 1]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
+      [`${side}_elbow`, [[`lowerarm01.${s}`, 1, 0.4], [`lowerarm02.${s}`, 0, 0.6]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
       [`${side}_hip`, [[`upperleg01.${s}`, 1, 0.5], [`upperleg02.${s}`, 0, 0.5]]],
-      [`${side}_knee`, [[`lowerleg01.${s}`, 1]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
+      [`${side}_knee`, [[`lowerleg01.${s}`, 1, 0.5], [`lowerleg02.${s}`, 0, 0.5]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
     ];
   })),
 });
@@ -134,6 +139,17 @@ export const DRIVES = Object.freeze({
  * @type {Readonly<Record<string, string>>}
  */
 export const TAPPED_AS = Object.freeze({ "spine04": "pelvis", "clavicle.L": "chest", "clavicle.R": "chest" });
+
+/**
+ * Body bones tapped (to pose) as another part than their rope points
+ * are on: the hips aren't posed on their own (the whole body's sliders
+ * are the head's), so tapping them, or the low belly or the lower chest,
+ * poses the waist, which makes the waist easy to tap.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const POSED_AS = Object.freeze({
+  ...TAPPED_AS, "root": "spine", "pelvis.L": "spine", "pelvis.R": "spine", "spine05": "spine", "spine04": "spine", "spine02": "spine",
+});
 
 /**
  * The body bone at a part's joint: its rope points are measured from that
@@ -189,13 +205,16 @@ export const startJoints = () => ({ ...restJoints(), ...Object.fromEntries(Objec
  * @param {string} name
  * @param {readonly number[]} angles
  * @param {readonly number[]} [from] what the joint was (rest if left out)
+ * @param {Readonly<Record<string, readonly number[]>>} [joints] the rest of the pose (a knee's twist and its hip's depend on each other)
  * @returns {number[]}
  */
-export function clampJoint(name, angles, from) {
+export function clampJoint(name, angles, from, joints) {
   const joint = BY_NAME.get(name);
   if (!joint) throw new Error(`No joint ${name}`);
+  // A movement left out (an older pose's elbow or knee, from before they
+  // twisted) is at rest.
   const each = joint.moves.map((m, i) => Math.min(m.max, Math.max(m.min, Math.round(angles[i] ?? 0))));
-  return withinReach(name, each, from);
+  return withinReach(name, each, from, joints);
 }
 
 /**
@@ -213,8 +232,8 @@ export function jointsInReach(data) {
   const joints = { ...sent };
   for (const [name, angles] of Object.entries(sent)) {
     if (!BY_NAME.has(name) || !Array.isArray(angles)) continue;
-    const clamped = clampJoint(name, angles);
-    if (clamped.some((a, i) => a !== angles[i])) joints[name] = clamped;
+    const clamped = clampJoint(name, angles, undefined, /** @type {Record<string, number[]>} */ (joints));
+    if (clamped.length !== angles.length || clamped.some((a, i) => a !== angles[i])) joints[name] = clamped;
   }
   return { ...data, joints };
 }
@@ -243,7 +262,7 @@ export const bodyRotation = ([pitch, yaw, roll]) =>
 
 /** The body's own movements, shown when the hips are selected. */
 export const BODY_MOVES = Object.freeze([
-  { label: "Tip forward", min: -180, max: 180 }, { label: "Turn", min: -180, max: 180 }, { label: "Roll", min: -180, max: 180 },
+  { label: "Tip body", min: -180, max: 180 }, { label: "Turn body", min: -180, max: 180 }, { label: "Roll body", min: -180, max: 180 },
 ]);
 export const LIFT_RANGE = /** @type {const} */ ([0, 250]);
 
@@ -336,7 +355,7 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
 export function withBodyPreset(posture, preset) {
   const joints = { ...posture.joints };
   for (const j of JOINTS) {
-    if (!ARM_JOINTS.includes(j.name)) joints[j.name] = clampJoint(j.name, preset.joints[j.name] ?? []);
+    if (!ARM_JOINTS.includes(j.name)) joints[j.name] = clampJoint(j.name, preset.joints[j.name] ?? [], undefined, joints);
   }
   return { joints, body: [...preset.body], lift: preset.lift };
 }
@@ -349,7 +368,7 @@ export function withBodyPreset(posture, preset) {
  */
 export function withArmsPreset(posture, preset) {
   const joints = { ...posture.joints };
-  for (const name of ARM_JOINTS) joints[name] = clampJoint(name, preset.joints[name] ?? []);
+  for (const name of ARM_JOINTS) joints[name] = clampJoint(name, preset.joints[name] ?? [], undefined, joints);
   return { ...posture, joints };
 }
 
@@ -376,4 +395,32 @@ export function bodyPresetFrom(posture, name) {
  */
 export function armsPresetFrom(posture, name) {
   return { name, joints: Object.fromEntries(ARM_JOINTS.map((n) => [n, [...posture.joints[n]]])) };
+}
+
+/** @param {unknown} a @param {unknown} b @returns {boolean} whether two lists of angles (nested) are the same, to a twentieth of a degree */
+const sameAngles = (a, b) => {
+  if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 0.05;
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameAngles(x, b[i]));
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((k) => sameAngles(/** @type {any} */ (a)[k], /** @type {any} */ (b)[k]));
+  }
+  return a === b;
+};
+
+/**
+ * Whether a figure is in a body or arms preset already: choosing it would
+ * change nothing (a built-in one's missing joints count as at rest, and
+ * its angles as kept within reach, as choosing it would).
+ * @param {"body" | "arms"} kind
+ * @param {Posture} posture
+ * @param {Omit<BodyPreset, "name"> | Omit<ArmsPreset, "name">} preset
+ * @returns {boolean}
+ */
+export function inPreset(kind, posture, preset) {
+  const named = /** @type {any} */ ({ name: "", ...preset });
+  if (kind === "body") {
+    return sameAngles(bodyPresetFrom(posture, ""), bodyPresetFrom(withBodyPreset(posture, named), ""));
+  }
+  return sameAngles(armsPresetFrom(posture, ""), armsPresetFrom(withArmsPreset(posture, named), ""));
 }

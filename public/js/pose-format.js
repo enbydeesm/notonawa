@@ -195,7 +195,7 @@ export function readPose(saved) {
   const joints = restJoints();
   for (const j of JOINTS) {
     const angles = saved.joints?.[j.name];
-    if (Array.isArray(angles)) joints[j.name] = clampJoint(j.name, angles);
+    if (Array.isArray(angles)) joints[j.name] = clampJoint(j.name, angles, undefined, joints);
   }
   const camera = /** @type {Camera} */ ([...(saved.camera ?? fresh.camera), 0, 0].slice(0, 6));
   return {
@@ -227,7 +227,7 @@ export const setShape = (pose, shape) => ({ ...pose, shape: cleanShape(shape) })
 export function setJoint(pose, name, index, angle) {
   const angles = [...pose.joints[name]];
   angles[index] = angle;
-  return { ...pose, joints: { ...pose.joints, [name]: clampJoint(name, angles, pose.joints[name]) } };
+  return { ...pose, joints: { ...pose.joints, [name]: clampJoint(name, angles, pose.joints[name], pose.joints) } };
 }
 
 /**
@@ -402,9 +402,10 @@ export function hardpointPointsLost(pose, next) {
  * one's rope points go, and any rope left too short.
  * @param {Pose} pose
  * @param {Hardpoint | null} next
+ * @param {number[]} [place] where the new one goes, if not DEFAULT_HARDPOINTS' place (kept within its limits)
  * @returns {Pose}
  */
-export function setHardpoint(pose, next) {
+export function setHardpoint(pose, next, place) {
   const now = hardpointOf(pose);
   if (now === next) return pose;
   let ropes = pose.ropes;
@@ -414,7 +415,10 @@ export function setHardpoint(pose, next) {
   }
   /** @type {Pose} */
   const changed = { ...pose, ring: null, bamboo: null, hashira: null, ropes };
-  if (next) changed[next] = [...DEFAULT_HARDPOINTS[next]];
+  if (next) {
+    const ranges = HARDPOINT_RANGES[next];
+    changed[next] = place ? place.map((n, i) => clamp(n, ranges[i])) : [...DEFAULT_HARDPOINTS[next]];
+  }
   return changed;
 }
 

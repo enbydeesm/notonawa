@@ -99,6 +99,10 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
   where on it).
 - **A smaller body file**: fewer components, or a lighter mesh, if 2 MB is
   slow on phones.
+- **Body presets' heights for the body's shape**: the built-in body
+  presets' heights are for the default body, so a much shorter or taller
+  one floats or sinks a little. Their height could be scaled by
+  `standingLift(shape)` (or the lowest point set on the floor).
 
 ## Ideas, not yet committed
 

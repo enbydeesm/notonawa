@@ -3,8 +3,8 @@
 // angles are plain JSON (parse.js checks them).
 
 import { BadInput, json, notFound, noContent, readJson } from "../http.js";
-import { parseNewPreset, parsePresetId, parseName, MAX_PRESETS } from "./parse.js";
-import { listPresets, insertPreset, renamePreset, deletePreset } from "./db.js";
+import { parseNewPreset, parsePresetId, parseName, parsePresetData, MAX_PRESETS } from "./parse.js";
+import { listPresets, insertPreset, presetKind, updatePreset, deletePreset } from "./db.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -42,11 +42,22 @@ export async function handlePosePresets(request, env, user, url) {
   const one = url.pathname.match(ONE_PATH);
   if (!one) return null;
 
-  // PUT /api/pose-presets/:id  body { name } -> renames it (sealed in the browser)
+  // PUT /api/pose-presets/:id  body { name?, data? } -> renames it (the
+  //   name sealed in the browser) and/or saves new angles over its own
+  //   (checked as its kind's, which doesn't change); one of them is needed
   if (method === "PUT") {
     const id = parsePresetId(one[1]);
-    const { name } = await readJson(request);
-    return (await renamePreset(db, user.id, id, parseName(name))) ? noContent() : notFound();
+    const body = await readJson(request);
+    if (body.name === undefined && body.data === undefined) throw new BadInput("Nothing to change.");
+    const name = body.name === undefined ? null : parseName(body.name);
+    /** @type {import("./parse.js").PresetData | null} */
+    let data = null;
+    if (body.data !== undefined) {
+      const kind = await presetKind(db, user.id, id);
+      if (!kind) return notFound();
+      data = parsePresetData(kind, body.data);
+    }
+    return (await updatePreset(db, user.id, id, { name, data })) ? noContent() : notFound();
   }
 
   // DELETE /api/pose-presets/:id -> deletes it

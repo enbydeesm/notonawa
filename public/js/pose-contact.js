@@ -13,7 +13,7 @@
 import { Vector3 } from "./vendor/three.js";
 import { SEGMENTS, segmentSizes } from "./figure-body.js";
 import { posed } from "./pose-skeleton.js";
-import { setJoint } from "./pose-format.js";
+import { setJoint, HASHIRA_SIZE } from "./pose-format.js";
 
 /** @typedef {import("./pose-skeleton.js").Skeleton} Skeleton */
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -326,4 +326,42 @@ function backTowards(skeleton, before, after, was) {
     if (excess(depths(skeleton, at(mid)), was) === 0) low = mid; else high = mid;
   }
   return low === 0 ? before : at(low);
+}
+
+/** How far behind the body a new hashira goes (cm, from the back to the post). */
+const HASHIRA_GAP = 3;
+/** The parts a new hashira goes behind: the trunk, the head and the arms (tied behind the back, say), not the legs. */
+const BEHIND = [...TORSO, "head", ...["l", "r"].flatMap((s) => ARM.map((p) => `${s}_${p}`))].map(segment);
+
+/**
+ * Where a new hashira goes: just behind the body, its face square to the
+ * body's back. A body lying face up or down (its back facing up or down)
+ * has no "behind" on the floor, so the post goes where it always has.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @returns {[number, number, number] | null} x, z and turn, or null for the usual place
+ */
+export function behindBody(skeleton, pose) {
+  posed(skeleton, pose);
+  const caps = capsules(skeleton);
+  const bone = /** @type {import("./vendor/three.js").Object3D} */ (skeleton.all.get(SEGMENTS[segment("waist")].a[0]));
+  const forward = bone.localToWorld(new Vector3(0, 0, 1)).sub(bone.localToWorld(new Vector3()));
+  forward.y = 0;
+  if (forward.length() < 0.5) return null;
+  forward.multiplyScalar(1 / forward.length());
+  const hips = caps[segment("hips")];
+  const middle = hips.reduce((sum, c) => sum.add(c.a).add(c.b), new Vector3()).multiplyScalar(1 / (hips.length * 2));
+  middle.y = 0;
+  // The furthest back any of them reaches, along the way the body faces.
+  let back = 0;
+  for (const i of BEHIND) {
+    for (const c of caps[i]) {
+      for (const p of [c.a, c.b]) back = Math.min(back, p.clone().sub(middle).dot(forward) - c.r);
+    }
+  }
+  const at = middle.addScaledVector(forward, back - HASHIRA_GAP - HASHIRA_SIZE.width / 2);
+  // A square post looks the same every quarter turn: the nearest to straight.
+  const facing = Math.atan2(forward.x, forward.z) * 180 / Math.PI;
+  const turn = facing - 90 * Math.round(facing / 90);
+  return [Math.round(at.x), Math.round(at.z), Math.round(turn)];
 }

@@ -63,21 +63,33 @@ export const JOINTS = Object.freeze({
   chest: [[-25, 45], [-30, 30], [-35, 35]],
   head: [[-50, 70], [-45, 45], [-80, 80]],
   l_shoulder: [[-70, 180], [-30, 180], [-90, 90]],
-  l_elbow: [[0, 150]],
+  l_elbow: [[0, 150], [-80, 90]],
   l_wrist: [[-80, 80], [-30, 30]],
   r_shoulder: [[-70, 180], [-30, 180], [-90, 90]],
-  r_elbow: [[0, 150]],
+  r_elbow: [[0, 150], [-80, 90]],
   r_wrist: [[-80, 80], [-30, 30]],
   l_hip: [[-30, 140], [-30, 90], [-45, 45]],
-  l_knee: [[0, 155]],
+  l_knee: [[0, 155], [-35, 35]],
   l_ankle: [[-50, 30]],
   r_hip: [[-30, 140], [-30, 90], [-45, 45]],
-  r_knee: [[0, 155]],
+  r_knee: [[0, 155], [-35, 35]],
   r_ankle: [[-50, 30]],
 });
 
 /** The body's sliders: gender, muscle, weight, height (cm). @type {readonly (readonly [number, number])[]} */
 export const SHAPE_RANGES = Object.freeze([[0, 100], [0, 100], [0, 100], [150, 200]]);
+
+/**
+ * A joint's angles with any movement left out at rest (0): an older
+ * pose's elbow or knee, from before they could twist.
+ * @param {unknown} angles
+ * @param {readonly (readonly [number, number])[]} ranges
+ * @returns {unknown}
+ */
+export function padded(angles, ranges) {
+  if (!Array.isArray(angles) || angles.length > ranges.length) return angles;
+  return [...angles, ...ranges.slice(angles.length).map(() => 0)];
+}
 
 /** What a rope point can be on: the pelvis, or the part after each joint (or a hardpoint). */
 export const BONES = Object.freeze(["pelvis", ...Object.keys(JOINTS)]);
@@ -181,9 +193,13 @@ export function parsePose(value) {
   /** @type {Record<string, number[]>} */
   const joints = {};
   for (const [name, ranges] of Object.entries(JOINTS)) {
-    const angles = Object.hasOwn(sent, name) ? sent[name] : ranges.map(() => 0);
-    if (!fits(angles, ranges) || !canReach(name, angles)) throw bad("a joint is bent further than a body can.");
-    joints[name] = [...angles];
+    const angles = padded(Object.hasOwn(sent, name) ? sent[name] : [], ranges);
+    if (!fits(angles, ranges)) throw bad("a joint is bent further than a body can.");
+    joints[name] = [.../** @type {number[]} */ (angles)];
+  }
+  // Checked once all are read: a knee's twist and its hip's depend on each other.
+  for (const [name, angles] of Object.entries(joints)) {
+    if (!canReach(name, angles, joints)) throw bad("a joint is bent further than a body can.");
   }
 
   const angle = /** @type {[number, number]} */ ([-BODY_ANGLE, BODY_ANGLE]);

@@ -71,7 +71,7 @@ describe("saving a preset", () => {
   });
 });
 
-describe("renaming and deleting a preset", () => {
+describe("changing and deleting a preset", () => {
   it("renames one, sealed, and deletes it", async () => {
     const { id } = (await save({ kind: "arms", name: sealed("Boxtie"), data: arms })).body;
     expect((await call(`/api/pose-presets/${id}`, { method: "PUT", body: { name: sealed("TK") } })).status).toBe(204);
@@ -84,12 +84,32 @@ describe("renaming and deleting a preset", () => {
     expect((await call("/api/pose-presets/not-an-id", { method: "DELETE" })).status).toBe(400);
   });
 
+  it("saves new angles over one's own, checked as its kind's, keeping its name", async () => {
+    const { id } = (await save({ kind: "arms", name: sealed("Boxtie"), data: arms })).body;
+    const put = (/** @type {Record<string, any>} */ body) => call(`/api/pose-presets/${id}`, { method: "PUT", body });
+    const higher = { joints: { ...arms.joints, l_elbow: [120] } };
+    expect((await put({ data: higher })).status).toBe(204);
+    const [preset] = await list();
+    expect(preset.name).toBe(sealed("Boxtie"));
+    expect(preset.data.joints.l_elbow).toEqual([120, 0]);
+    // Both at once, too.
+    expect((await put({ name: sealed("TK"), data: arms })).status).toBe(204);
+    expect((await list())[0]).toMatchObject({ name: sealed("TK"), data: { joints: { l_elbow: [105, 0] } } });
+    // A body's angles on an arms preset, past a limit, or nothing to change: refused, nothing saved.
+    for (const body of [{ data: { joints: { l_knee: [10] } } }, { data: { joints: { l_elbow: [200] } } }, {}, { data: null }]) {
+      expect((await put(body)).status, JSON.stringify(body)).toBe(400);
+    }
+    expect((await list())[0].data.joints.l_elbow).toEqual([105, 0]);
+    expect((await call(`/api/pose-presets/${crypto.randomUUID()}`, { method: "PUT", body: { data: arms } })).status).toBe(404);
+  });
+
   it("keeps someone else's presets out of reach", async () => {
     const them = await createOtherUser();
     const cookie = await sessionCookieFor(them);
     const theirs = (await call("/api/pose-presets", { method: "POST", body: { kind: "arms", name: sealed("Theirs"), data: arms }, cookie })).body.id;
     expect(await list()).toEqual([]);
     expect((await call(`/api/pose-presets/${theirs}`, { method: "PUT", body: { name: sealed("Mine now") } })).status).toBe(404);
+    expect((await call(`/api/pose-presets/${theirs}`, { method: "PUT", body: { data: arms } })).status).toBe(404);
     expect((await call(`/api/pose-presets/${theirs}`, { method: "DELETE" })).status).toBe(404);
     expect((await call("/api/pose-presets", { cookie })).body).toHaveLength(1);
     // And the database won't move one to another owner.

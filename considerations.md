@@ -1620,7 +1620,8 @@ about 6 minutes, too slow to run after every change.
 - **The preset menus' own sheet: not now.** Body… and Arms… are the
   phone's own `<select>` picker, whose popup can't be given a ✕ or a
   Cancel. A sheet of our own (title, ✕, presets, Cancel) would do it, and
-  was put off by choice: the native pickers stay.
+  was put off by choice: the native pickers stay. (Built since: see "Poser:
+  pickers, twists and the whole body's sliders".)
 - **A bamboo's length and hanger inset** are in the pose
   (`[x, y, z, turn, length, inset]`), 90–215 cm long (about 3 to 7 ft), the
   inset keeping both hangers on their own side of the middle. A new one is
@@ -1817,6 +1818,45 @@ about 6 minutes, too slow to run after every change.
   Kept on the device instead was offered and not chosen.
 - It's in the export's settings; an import takes it only into an account
   that hasn't saved one, as role names are taken.
+
+## Poser: pickers, twists and the whole body's sliders (October 2026)
+
+**Status:** built (2026-10-30, on the `anny-body` branch)
+
+- **Forearm and lower-leg twist**: the elbow and knee have a Twist out
+  slider (the forearm −80 to 90, turning the hand palm up or down; the
+  shin ±35), shared along the forearm's and shin's two bones so the skin
+  twists rather than pinching. A straight knee hardly twists (up to 35°
+  only at 90° of bend), and the hip's and knee's twists together stay
+  within ±60°. Older poses' one-number elbows and knees read as untwisted.
+- **No hips to tap**: the whole body's sliders (Tip body, Turn body, Roll
+  body, its height and moving it) are under the head's, with a Reset of
+  their own. Tapping the hips, low belly or lower chest poses the waist,
+  which was hard to tap between the chest and the hips; ropes put there
+  are still on the hips (`POSED_AS` beside `TAPPED_AS`).
+- **Body shape's row**: "Save as my default" in its middle, and Reset at
+  its end, back to the app's own body without touching my saved default.
+- **A new hashira goes 3 cm behind the body**, square to its back,
+  wherever it stands and whichever way it faces, behind the arms too (a
+  box tie's hands). A body lying face up or down has no "behind" on the
+  floor, so it goes where it always did.
+- **The screen stays on** while the poser is open (a screen wake lock,
+  asked for again on coming back to the page); where it's not offered or
+  refused, the screen sleeps as usual.
+- **Pickers of our own** in place of the `<select>` menus for Body…,
+  Arms… and Turn body…: a dialog with its title, Save as preset and ✕;
+  a search box, not focused when it opens so no keyboard; the built-in
+  presets in their order, a line labelled "My presets", then mine
+  alphabetically, each with save over (floppy), rename (pencil) and delete
+  (red) icons, save over and delete asking first. Tapping a row anywhere
+  chooses it and closes the picker. The one the figure's in is tinted, not
+  moved to the top (first with a ✓ was offered and changed); Save as preset
+  is greyed out while the figure's in any of them. "Manage my presets" is
+  gone: its renaming and deleting are on the rows. Saving over is `PUT`
+  with `{ data }`, checked as the preset's own kind.
+- Known limit: the built-in body presets' heights are for the default
+  body, so on a much shorter or taller one Standing floats or sinks a
+  little (fix with the Height slider). See roadmap.md.
 
 ## Sharing between accounts (October 2026)
 

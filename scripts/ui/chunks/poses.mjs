@@ -1,5 +1,5 @@
-// The walkthrough's poses chunk. Poses on ties: the poser (body and arms
-// presets, saving my own and managing them, posing a part with a slider, the head and hips moving the whole
+// The walkthrough's poses chunk. Poses on ties: the poser (the body, arms and turn pickers, saving, saving over,
+// renaming and deleting my own presets, posing a part with a slider, the head's sliders moving the whole
 // figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
 // rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
 // a see-saw rope, a cinch and moving an upline along the bamboo, tapped on a pose made through the API, and the
@@ -76,18 +76,17 @@ export default async function () {
       $("#pose-mode-pose").getAttribute("aria-pressed"), $("#pose-part").textContent, $("#pose-undo").disabled, leakyFields()];`),
   [true, true, true, true, "true", "Tap a body part to pose it", true, []]);
 
-  check("the help on one line, the views top right on the floor's grey, and menus for the body and the arms", await run(`
+  check("the help on one line, the views top right on the floor's grey, and pickers for the body, the arms and the body's turn", await run(`
     const options = (id) => [...$(id).options].map((o) => o.textContent);
     const frame = $(".pose-frame").getBoundingClientRect(), views = $("#pose-view-choice").getBoundingClientRect();
     const hint = $(".pose-hint");
     return [hint.textContent, hint.scrollWidth <= hint.clientWidth && hint.getBoundingClientRect().height < 20,
       Math.round(frame.right - views.right) < 12 && Math.round(views.top - frame.top) < 12,
       getComputedStyle($("#pose-view-choice")).backgroundColor, options("#pose-view-choice")[0],
-      options("#pose-body-preset").slice(0, 4), options("#pose-arms-preset"), $("#pose-add-visual").textContent];`),
+      ["#pose-body-preset", "#pose-arms-preset", "#pose-orientation"].map((id) => [$(id).tagName, $(id).textContent]),
+      $("#pose-add-visual").textContent];`),
   ["Drag to turn · 2 fingers to pan · pinch to zoom", true, true, "rgb(217, 211, 200)", "View",
-    ["Body…", "Standing", "Kneeling (seiza)", "Kneeling up"], ["Arms…", "At sides", "Boxtie", "Bunny ears", "Tengu", "Tenshi", "Crossed (hug)",
-      "Save these arms as a preset…", "Manage my presets…"],
-    "Add to visuals"]);
+    [["BUTTON", "Body…"], ["BUTTON", "Arms…"], ["BUTTON", "Turn body…"]], "Add to visuals"]);
   check("undo, redo and download are icons, named for screen readers, and the pencil is a mode after Rope", await run(`
     const modes = [...$("#pose-mode-draw").parentElement.children].map((b) => b.id);
     return [["#pose-undo", "#pose-redo", "#pose-download", "#pose-mode-draw"].map((id) => [$(id).getAttribute("aria-label"), !!$(id + " svg"), $(id).textContent]),
@@ -115,72 +114,119 @@ export default async function () {
   await run(`$("#pose-download").click();`);
   check("download saves a picture of the pose to the device, as a PNG",
     await pngDownloaded(pictures, /^notonawa-pose-\d{4}-\d{2}-\d{2}\.png$/), [true, 900, 1200]);
-  check("an arms position can be chosen, and undone", await run(`
-    set("#pose-arms-preset", "b:1"); await wait(300);
-    const after = $("#pose-undo").disabled;
+  // The pickers: Body…, Arms… and Turn body… each open a dialog over the poser.
+  const openPicker = (button, dialog) =>
+    `$("${button}").click(); for (let i = 0; i < 50 && !document.querySelector("${dialog}[open]"); i++) await wait(100); await wait(200);`;
+  // Each row's name, and whether it's tinted as the one the figure's in (the divider's words, and false).
+  const pickerRows = (dialog) => `[...document.querySelectorAll("${dialog} .picker-list > *")]
+    .map((el) => [el.querySelector(".picker-name")?.textContent ?? el.textContent, el.classList.contains("current")])`;
+  const BODY_NAMES = ["Standing", "Kneeling (seiza)", "Kneeling up", "One leg folded (futomomo)", "Face down", "Face up", "On their side", "Upside down"];
+  check("Arms… opens Arms Presets: Save as preset and ✕ on its heading's row, on the heading (no keyboard), the one the figure's in tinted and Save greyed out; ✕ changes nothing", await run(`
+    ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
+    const d = $("#pose-arms-presets");
+    const header = [...d.querySelector(".dialog-header").querySelectorAll("h2, button")].map((el) => el.getAttribute("aria-label") ?? el.textContent);
+    const tinted = getComputedStyle($("#pose-arms-presets-b0")).backgroundColor !== getComputedStyle($("#pose-arms-presets-b1")).backgroundColor;
+    const result = [header, document.activeElement?.id, $("#pose-arms-presets-search").placeholder, $("#pose-arms-presets-save").disabled,
+      ${pickerRows("#pose-arms-presets")}, tinted, leakyFields()];
+    $("#pose-arms-presets-close").click(); await wait(200);
+    return [...result, !!$("#pose-arms-presets"), $("#pose-undo").disabled];`),
+  [["Arms Presets", "Save as preset", "Close"], "pose-arms-presets-title", "Search", true,
+    [["At sides", true], ["Boxtie", false], ["Bunny ears", false], ["Tengu", false], ["Tenshi", false], ["Crossed (hug)", false]], true, [],
+    false, true]);
+  check("searching narrows the list; tapping a row anywhere chooses it and closes the picker, as one change to undo", await run(`
+    ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
+    const search = $("#pose-arms-presets-search");
+    search.value = "BOX"; search.dispatchEvent(new Event("input")); await wait(100);
+    const found = ${pickerRows("#pose-arms-presets")};
+    $("#pose-arms-presets-b1").click(); await wait(300);
+    const after = [!!$("#pose-arms-presets"), $("#pose-undo").disabled];
     $("#pose-undo").click(); await wait(200);
     const undone = $("#pose-redo").disabled;
     $("#pose-redo").click(); await wait(200);
-    return [after, undone, $("#pose-arms-preset").value];`), [false, false, ""]);
+    ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
+    const now = [$("#pose-arms-presets-b1").classList.contains("current"), $("#pose-arms-presets-save").disabled];
+    $("#pose-arms-presets-close").click(); await wait(200);
+    return [found, after, undone, now];`), [[["Boxtie", false]], [false, false], false, [true, true]]);
+  check("Turn body…: the same kind of picker, no search or Save, the way the body faces tinted", await run(`
+    ${openPicker("#pose-orientation", "#pose-turn")}
+    const result = [$("#pose-turn h2").textContent, !!$("#pose-turn input"), ${pickerRows("#pose-turn")}.filter(([, on]) => on).length];
+    $("#pose-turn-close").click(); await wait(200);
+    return [...result, !!$("#pose-turn")];`), ["Turn body", false, 1, false]);
 
-  // Saved presets: the arms as they are (the boxtie), and the body.
-  const presetsMenu = (id) => `[...$("${id}").querySelectorAll("optgroup")].map((g) => [g.label, [...g.children].map((o) => o.textContent)])`;
+  // Saved presets. The body as it starts is the Standing preset, so it's
+  // changed first (the head tipped), for there to be something to save.
   const myPresets = `(async () => {
     const list = await (await fetch("/api/pose-presets")).json();
-    return list.map((p) => [p.kind, p.name.startsWith("e1."), p.name.includes("boxtie")]);
+    return list.map((p) => [p.kind, p.name.startsWith("e1."), p.name.includes("tall")]);
   })()`;
-  check("the arms can be saved as a preset, named, its name sealed, and it's in the Arms… menu", await run(`
-    set("#pose-arms-preset", "save"); await wait(300);
+  await tap(0.5, 0.2);
+  check("the body can be saved as a preset, named, its name sealed; it's listed under My presets, tinted, and Save greys out", await run(`
+    ${slide("pose-head-0", 10)}
+    ${openPicker("#pose-body-preset", "#pose-body-presets")}
+    const enabled = !$("#pose-body-presets-save").disabled;
+    $("#pose-body-presets-save").click(); await wait(300);
     const asked = [$("#pose-preset-title").textContent, document.activeElement?.id, leakyFields()];
-    set("#pose-preset-name", " My boxtie "); $("#pose-preset-save").click();
-    for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
-    return [asked, $("#pose-message").textContent, ${presetsMenu("#pose-arms-preset")}, await ${myPresets}];`),
-  [["Save these arms", "pose-preset-name", []], "Saved. It's in the Arms… menu, for any pose.",
-    [["My presets", ["My boxtie"]], ["Presets", ["Save these arms as a preset…", "Manage my presets…"]]], [["arms", true, false]]]);
-  check("a saved preset puts the arms back, as one change, leaving the body", await run(`
-    set("#pose-arms-preset", "b:0"); await wait(200);
-    const id = [...$("#pose-arms-preset").options].find((o) => o.textContent === "My boxtie").value;
-    set("#pose-arms-preset", id); await wait(200);
-    const redo = $("#pose-redo").disabled;
-    $("#pose-undo").click(); await wait(200); $("#pose-redo").click(); await wait(200);
-    return [redo, ${presetsMenu("#pose-body-preset")}.length];`), [true, 1]);
-  check("Manage my presets: a body preset saved too, listed by kind; renaming one, and deleting one after asking", await run(`
-    set("#pose-body-preset", "save"); await wait(300);
-    set("#pose-preset-name", "Standing tall"); $("#pose-preset-save").click();
-    for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
-    set("#pose-arms-preset", "manage");
-    for (let i = 0; i < 50 && !document.querySelector("#pose-preset-list .preset-row"); i++) await wait(100);
-    const rows = () => [...document.querySelectorAll("#pose-preset-list > *")].map((el) => el.querySelector(".preset-name")?.textContent ?? el.textContent);
-    const listed = rows();
-    [...document.querySelectorAll("#pose-preset-list button")].find((b) => b.getAttribute("aria-label") === "Rename My boxtie").click();
-    await wait(300);
-    const renaming = $("#pose-preset-name").value;
-    set("#pose-preset-name", "TK arms"); $("#pose-preset-save").click();
+    set("#pose-preset-name", " Standing tall "); $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
     await wait(200);
-    const renamed = rows();
-    [...document.querySelectorAll("#pose-preset-list button")].find((b) => b.getAttribute("aria-label") === "Delete Standing tall").click();
-    await wait(300);
-    const asked = ${topDialog}.querySelector("h2").textContent;
+    return [enabled, asked, $("#pose-body-presets-message").textContent, ${pickerRows("#pose-body-presets")},
+      $("#pose-body-presets-save").disabled, await ${myPresets}];`),
+  [true, ["Save this body as a preset", "pose-preset-name", []], "Saved, for any pose.",
+    [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, false]]]);
+  check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left", await run(`
+    $("#pose-body-presets-b2").click(); await wait(300);
+    ${slide("pose-head-0", -10)}
+    ${openPicker("#pose-body-preset", "#pose-body-presets")}
+    $("#pose-body-presets-save").click(); await wait(300);
+    set("#pose-preset-name", "Kneel, head down"); $("#pose-preset-save").click();
+    for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
+    await wait(200);
+    const row = [...document.querySelectorAll("#pose-body-presets .picker-row")].pop();
+    const icons = [...row.querySelectorAll(".picker-icons button")].map((b) => [b.getAttribute("aria-label"), b.classList.contains("danger")]);
+    return [${pickerRows("#pose-body-presets")}.slice(BODY_NAMES_LENGTH), icons];`.replace("BODY_NAMES_LENGTH", String(BODY_NAMES.length))),
+  [[["My presets", false], ["Kneel, head down", true], ["Standing tall", false]],
+    [["Save this body over Standing tall", false], ["Rename Standing tall", false], ["Delete Standing tall", true]]]);
+  // Each icon by its name: the last row's (Standing tall), and the first of mine.
+  const icon = (label) => `[...document.querySelectorAll("#pose-body-presets .picker-icons button")].find((b) => b.getAttribute("aria-label") === "${label}")`;
+  check("saving over one asks first, then holds the body as it is; renaming one; deleting one asks first", await run(`
+    ${icon("Save this body over Standing tall")}.click(); await wait(300);
+    const overAsked = ${topDialog}.querySelector("h2").textContent;
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Save over it").click();
+    for (let i = 0; i < 50 && !${pickerRows("#pose-body-presets")}.at(-1)[1]; i++) await wait(100);
+    const over = ${pickerRows("#pose-body-presets")}.slice(-2);
+    ${icon("Rename Kneel, head down")}.click(); await wait(300);
+    const renaming = [$("#pose-preset-title").textContent, $("#pose-preset-name").value];
+    set("#pose-preset-name", "Kneel"); $("#pose-preset-save").click();
+    for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
+    await wait(200);
+    const renamed = ${pickerRows("#pose-body-presets")}.slice(-2);
+    ${icon("Delete Standing tall")}.click(); await wait(300);
+    const deleteAsked = ${topDialog}.querySelector("h2").textContent;
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete preset").click();
-    for (let i = 0; i < 50 && rows().includes("Standing tall"); i++) await wait(100);
-    const after = rows();
-    $("#pose-presets-done").click(); await wait(200);
-    return [listed, renaming, renamed, asked, after, ${presetsMenu("#pose-arms-preset")}[0], ${presetsMenu("#pose-body-preset")}.length,
-      !!document.querySelector("dialog.pose-editor[open]"), leakyFields()];`),
-  [["Body", "Standing tall", "Arms", "My boxtie"], "My boxtie", ["Body", "Standing tall", "Arms", "TK arms"], 'Delete "Standing tall"?',
-    ["Arms", "TK arms"], ["My presets", ["TK arms"]], 1, true, []]);
+    for (let i = 0; i < 50 && ${pickerRows("#pose-body-presets")}.some(([n]) => n === "Standing tall"); i++) await wait(100);
+    const after = ${pickerRows("#pose-body-presets")}.slice(-2);
+    $("#pose-body-presets-close").click(); await wait(200);
+    // Back to standing (the kneel, and both tips of the head), for the taps below.
+    for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
+    return [overAsked, over, renaming, renamed, deleteAsked, after, !!document.querySelector("dialog.pose-editor[open]"), leakyFields()];`),
+  ['Save over "Standing tall"?', [["Kneel, head down", true], ["Standing tall", true]], ["Rename preset", "Kneel, head down"],
+    [["Kneel", true], ["Standing tall", true]], 'Delete "Standing tall"?', [["My presets", false], ["Kneel", true]], true, []]);
 
-  // The view looks at the figure's hips, in the middle.
+  // The view looks at the figure's hips, in the middle: tapping them poses the waist.
   await tap(0.5, 0.5);
-  check("tapping the figure's middle picks its hips, with sliders for the whole body and Reset beside its name", await run(`
+  check("tapping the figure's middle picks its waist, with Reset beside its name", await run(`
     return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent),
       $("#pose-reset-part").textContent, $("#pose-reset-part").parentElement === $("#pose-part").parentElement,
       Math.round($("#pose-reset-part").getBoundingClientRect().right) === Math.round($("#pose-panel-pose").getBoundingClientRect().right),
       leakyFields()];`),
-  ["Hips and whole body", ["Tip forward", "Turn", "Roll", "Height (cm)", "Front to back (cm)", "Across (cm)"], "Reset", true, true, []]);
-  // Turning keeps the hips in the middle of the view, for the taps below.
-  const turned = `[...document.querySelectorAll("#pose-sliders .pose-value")][1].value`;
+  ["Waist", ["Forward", "Lean", "Turn"], "Reset", true, true, []]);
+  // The head is at the top of the view.
+  await tap(0.5, 0.2);
+  check("the head has its own sliders, then the whole body's under a heading with its own Reset", await run(`
+    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent),
+      $("#pose-whole").textContent, $("#pose-reset-whole").parentElement === $("#pose-whole").parentElement];`),
+  ["Head", ["Forward", "Lean", "Turn", "Tip body", "Turn body", "Roll body", "Height (cm)", "Front to back (cm)", "Across (cm)"], "Whole body", true]);
+  const turned = `$("#pose-body-1").value`;
   check("a slider moves the body, as one change to undo", await run(`
     ${slide("pose-body-1", 20)}
     return [${turned}, $("#pose-undo").disabled];`), ["20", false]);
@@ -201,7 +247,7 @@ export default async function () {
     const undone = $("#pose-body-1").value;
     $("#pose-undo").click(); await wait(200);
     return [undone, $("#pose-body-1").value, leakyFields()];`)],
-  [["Turn, typed", "number"], [["-45", "-45"], ["-180", "-180"], ["-180", "-180"]], ["-45", "20", []]]);
+  [["Turn body, typed", "number"], [["-45", "-45"], ["-180", "-180"], ["-180", "-180"]], ["-45", "20", []]]);
   check("▲ and ▼ left of a slider's box step it by one, each a change", await run(`
     const steps = $("#pose-body-1-up").parentElement;
     const placed = steps.nextElementSibling === $("#pose-body-1-typed") && steps.previousElementSibling === $("#pose-body-1");
@@ -211,9 +257,9 @@ export default async function () {
     const down = $("#pose-body-1").value;
     for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
     return [placed, $("#pose-body-1-up").getAttribute("aria-label"), $("#pose-body-1-down").textContent, up, down, $("#pose-body-1").value];`),
-  [true, "Turn: up one", "▼", "21", "19", "20"]);
+  [true, "Turn body: up one", "▼", "21", "19", "20"]);
 
-  // The left shin is low on the view's right, with the hips selected (the
+  // The left shin is low on the view's right, with the head selected (the
   // view's size, and so the figure's place on it, changes with the
   // selected part's sliders).
   const redoBefore = await run(`return $("#pose-redo").disabled;`);
@@ -224,8 +270,8 @@ export default async function () {
     $("#pose-undo").click(); await wait(200);
     return [...after, $("#pose-redo").disabled, $("#pose-l_knee-0").value];`)],
   [false, ["Left knee", true, false, "0"]]);
-  // Back to the hips, for the steps after.
-  await tap(0.5, 0.5);
+  // Back to the head, for the steps after.
+  await tap(0.5, 0.2);
 
   await drag(0.3, 0.6, 0.8);
   check("dragging turns the view, which undo leaves alone", await run(`
@@ -233,18 +279,18 @@ export default async function () {
     return ${turned};`), "0");
   await run(`$("#pose-redo").click(); await wait(200);`);
 
-  // The head is at the top of the view.
-  await tap(0.5, 0.2);
-  check("the head has its own sliders, and the whole figure's height and moves", await run(`
-    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent).slice(3)];`),
-  ["Head", ["Height (cm)", "Front to back (cm)", "Across (cm)"]]);
-  check("moving the figure from the head is one change; the head's Reset leaves it moved, and undo puts it back", await run(`
+  check("moving the figure from the head is one change; the head's Reset leaves it moved, the whole body's Reset stands it back up, and undo puts it back", await run(`
     ${slide("pose-shift-0", 30)} ${slide("pose-head-0", 20)}
     const moved = [$("#pose-shift-0").value, $("#pose-head-0").value];
     $("#pose-reset-part").click(); await wait(200);
     const reset = [$("#pose-shift-0").value, $("#pose-head-0").value];
     $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200);
-    return [moved, reset, $("#pose-shift-0").value, $("#pose-head-0").value];`), [["30", "20"], ["30", "0"], "0", "0"]);
+    const undone = [$("#pose-shift-0").value, $("#pose-head-0").value];
+    ${slide("pose-shift-0", 30)} ${slide("pose-body-0", 15)}
+    $("#pose-reset-whole").click(); await wait(200);
+    const whole = [$("#pose-shift-0").value, $("#pose-body-0").value];
+    for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
+    return [moved, reset, undone, whole, $("#pose-shift-0").value];`), [["30", "20"], ["30", "0"], ["0", "0"], ["0", "0"], "0"]);
   await tap(0.5, 0.5);
 
   const hardpoints = `["ring", "bamboo", "hashira"].map((k) => [$("#pose-" + k).textContent, $("#pose-" + k).getAttribute("aria-pressed")])`;
@@ -331,7 +377,7 @@ export default async function () {
     const media = await (await fetch("/api/media?tie_id=" + tie.id)).json();
     return [!!document.querySelector("dialog[open]"), p.data.body, p.data.joints.l_elbow, p.data.ring, p.data.ropes.length,
       p.data.ropes[0].p.length, p.caption, media.map((m) => [m.kind, m.position]), p.position];`),
-  [false, [0, 20, 0], [105], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
+  [false, [0, 20, 0], [105, 0], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
 
   check("a caption is saved encrypted and shown under the pose", await run(`
     ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);
@@ -346,11 +392,13 @@ export default async function () {
     return [edit > 0 && edit < caption, $("#tie-pose-edit").className, $("#tie-pose-duplicate").parentElement === $("#tie-pose-copy").parentElement,
       $("#tie-pose-earlier").parentElement === $("#tie-pose-later").parentElement, !!$("#tie-pose-photo")];`),
   [true, "outline-accent wide", true, true, false]);
-  check("Edit pose: the saved preset is in its Arms… menu; a bamboo in place of the ring, then a hashira, its own sliders each; nothing kept on Cancel", await run(`
+  check("Edit pose: the saved preset is in its Body… picker; a bamboo in place of the ring, then a hashira, its own sliders each; nothing kept on Cancel", await run(`
     $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await wait(300);
-    const saved = ${presetsMenu("#pose-arms-preset")}[0];
+    ${openPicker("#pose-body-preset", "#pose-body-presets")}
+    const saved = ${pickerRows("#pose-body-presets")}.slice(${BODY_NAMES.length}).map(([n]) => n);
+    $("#pose-body-presets-close").click(); await wait(200);
     $("#pose-mode-rope").click(); await wait(100);
     $("#pose-bamboo").click(); await wait(200);
     const bamboo = [${hardpoints}, $("#pose-rope-hint").textContent, ${hardpointLabels}];
@@ -362,7 +410,7 @@ export default async function () {
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
     const [p] = await ${tiePoses};
     return [saved, bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
-  [["My presets", ["TK arms"]], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]],
+  [["My presets", "Kneel"], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]],
     "Tap the body to lay a rope, point by point. Tap the bamboo for an upline. Tap a rope to choose it.",
     ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn", "Length (cm)", "Hanger inset (cm)"]],
   true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);

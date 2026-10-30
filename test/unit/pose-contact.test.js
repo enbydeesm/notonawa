@@ -5,9 +5,9 @@
 import { describe, it, expect } from "vitest";
 import { Vector3 } from "../../public/js/vendor/three.js";
 import { makeSkeleton, posed } from "../../public/js/pose-skeleton.js";
-import { segmentGap, capsules, clashingParts, settleClashes } from "../../public/js/pose-contact.js";
+import { segmentGap, capsules, clashingParts, settleClashes, behindBody } from "../../public/js/pose-contact.js";
 import { SEGMENTS } from "../../public/js/figure-body.js";
-import { newPose, setJoint } from "../../public/js/pose-format.js";
+import { newPose, setJoint, setHardpoint, HASHIRA_SIZE } from "../../public/js/pose-format.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
 
@@ -74,7 +74,7 @@ describe("clashes", () => {
     expect(clashingParts(skeleton, before, after).has("r_wrist")).toBe(true);
     const settled = settleClashes(skeleton, before, after, ["r_elbow"]);
     expect(clashingParts(skeleton, before, settled).size).toBe(0);
-    expect(settled.joints.r_elbow).toEqual([90]);
+    expect(settled.joints.r_elbow).toEqual([90, 0]);
     expect(changed(after, settled).every((j) => j.startsWith("l_"))).toBe(true);
   });
 
@@ -87,5 +87,47 @@ describe("clashes", () => {
     expect(clashingParts(skeleton, before, settled).size).toBe(0);
     for (const a of settled.joints.head) expect(Math.abs(a)).toBeLessThanOrEqual(20);
     expect(changed(after, settled).every((j) => j === "head" || j === "l_elbow")).toBe(true);
+  });
+});
+
+describe("behindBody", () => {
+  /** The gap from the furthest-back capsule of the trunk to the post's face, along the body's facing. */
+  const gapBehind = (/** @type {Pose} */ pose, /** @type {number[]} */ [, z]) => {
+    const skeleton = makeSkeleton();
+    posed(skeleton, pose);
+    const caps = capsules(skeleton);
+    const torso = ["hips", "waist", "chest"].map((n) => SEGMENTS.findIndex((s) => s.name === n));
+    let back = Infinity;
+    for (const i of torso) for (const c of caps[i]) for (const p of [c.a, c.b]) back = Math.min(back, p.z - c.r);
+    return back - (z + HASHIRA_SIZE.width / 2);
+  };
+
+  it("puts a new hashira about 3 cm behind a standing body", () => {
+    const pose = newPose();
+    const place = /** @type {number[]} */ (behindBody(makeSkeleton(), pose));
+    expect(place).not.toBeNull();
+    expect(Math.abs(place[0])).toBeLessThanOrEqual(1);
+    expect(place[2]).toBe(0);
+    expect(gapBehind(pose, place)).toBeGreaterThan(2);
+    expect(gapBehind(pose, place)).toBeLessThan(4);
+    expect(setHardpoint(pose, "hashira", place).hashira).toEqual(place);
+  });
+
+  it("follows the body when it's moved and turned", () => {
+    const at = (/** @type {Partial<Pose>} */ o) => behindBody(makeSkeleton(), { ...newPose(), ...o });
+    const [, z] = /** @type {number[]} */ (at({}));
+    // Moved across, it moves with it.
+    expect(at({ shift: [40, 0] })).toEqual([40, z, 0]);
+    // Turned a quarter, "behind" is off to the side, as far, and the
+    // square post needs no turn; a third of that, it turns to face the back.
+    const turned = /** @type {number[]} */ (at({ body: [0, 90, 0] }));
+    expect(turned[0]).toBeCloseTo(z, 0);
+    expect(Math.abs(turned[1])).toBeLessThanOrEqual(1);
+    expect(at({ body: [0, 30, 0] })?.[2]).toBe(30);
+  });
+
+  it("leaves the usual place for a body lying face down", () => {
+    const pose = { ...newPose(), body: /** @type {[number, number, number]} */ ([90, 0, 0]) };
+    expect(behindBody(makeSkeleton(), pose)).toBeNull();
   });
 });

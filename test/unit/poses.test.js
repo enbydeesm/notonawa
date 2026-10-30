@@ -119,7 +119,8 @@ describe("parsePose", () => {
 
   it("puts joints left out at rest", () => {
     const parsed = server.parsePose({ ...ok, joints: { l_knee: [40] } });
-    expect(parsed.joints.l_knee).toEqual([40]);
+    // One number, from before the knee twisted: its twist at rest.
+    expect(parsed.joints.l_knee).toEqual([40, 0]);
     expect(parsed.joints.r_shoulder).toEqual([0, 0, 0]);
   });
 
@@ -196,8 +197,8 @@ describe("saved presets", () => {
 
 describe("the figure's joints", () => {
   it("keep their angles within limits, as whole degrees", () => {
-    expect(clampJoint("l_elbow", [200])).toEqual([150]);
-    expect(clampJoint("l_elbow", [-3])).toEqual([0]);
+    expect(clampJoint("l_elbow", [200])).toEqual([150, 0]);
+    expect(clampJoint("l_elbow", [-3, 120])).toEqual([0, 90]);
     expect(clampJoint("spine", [10.4, -99])).toEqual([10, -35, 0]);
     expect(() => clampJoint("tail", [1])).toThrow();
   });
@@ -406,7 +407,7 @@ describe("the figure, posed", () => {
 describe("changing a pose", () => {
   it("sets joints, the body, the lift and the view within their limits", () => {
     let p = page.setJoint(page.newPose(), "r_knee", 0, 999);
-    expect(p.joints.r_knee).toEqual([155]);
+    expect(p.joints.r_knee).toEqual([155, 0]);
     p = page.setBody(p, 2, 200);
     expect(p.body).toEqual([0, 0, 180]);
     expect(page.setLift(p, -4).lift).toBe(0);
@@ -516,7 +517,7 @@ describe("changing a pose", () => {
     const up = /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((x) => x.name === "Kneeling up"));
     const kneeling = page.withPosture(p, withBodyPreset(p, up));
     expect([kneeling.ring, kneeling.camera, kneeling.ropes]).toEqual([p.ring, p.camera, p.ropes]);
-    expect(kneeling.joints.l_knee).toEqual([90]);
+    expect(kneeling.joints.l_knee).toEqual([90, 0]);
   });
 
   it("keeps the arms when the body changes, and the body when the arms do", () => {
@@ -528,17 +529,17 @@ describe("changing a pose", () => {
     expect(ARM_JOINTS.map((j) => p.joints[j])).toEqual(ARM_JOINTS.map((j) => startJoints()[j]));
     expect(p.joints.l_shoulder).toEqual([0, 4, 0]);
     p = page.withPosture(p, withArmsPreset(p, behind));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([19, [155], [105]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([19, [155, 0], [105, 0]]);
     // An arm moved by hand stays as it is, too.
     p = page.setJoint(p, "r_wrist", 0, 30);
     p = page.withPosture(p, withBodyPreset(p, up));
-    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([50, [90], [105], [30, 0]]);
+    expect([p.lift, p.joints.l_knee, p.joints.l_elbow, p.joints.r_wrist]).toEqual([50, [90, 0], [105, 0], [30, 0]]);
     expect(p.joints.l_hip).toEqual([0, 0, 0]);
   });
 
   it("opens a saved pose whole, even one missing joints or with angles out of reach", () => {
     const opened = page.readPose(/** @type {any} */ ({ joints: { l_knee: [400] }, ring: [0, 280, 0], camera: [1, 2, 300, 4] }));
-    expect(opened.joints.l_knee).toEqual([155]);
+    expect(opened.joints.l_knee).toEqual([155, 0]);
     expect([opened.camera, opened.bamboo, opened.hashira]).toEqual([[1, 2, 300, 4, 0, 0], null, null]);
     expect(opened.joints.head).toEqual([0, 0, 0]);
     expect(opened.ring).toEqual([0, 280, 0]);
@@ -554,10 +555,10 @@ describe("undo and redo", () => {
     expect(page.change(h, h.pose)).toBe(h);
     h = page.look(h, page.setCamera(h.pose, [90, 0, 200, 100]));
     h = page.undo(h);
-    expect(h.pose.joints.l_elbow).toEqual([0]);
+    expect(h.pose.joints.l_elbow).toEqual([0, 0]);
     expect(h.pose.camera).toEqual([90, 0, 200, 100, 0, 0]);
     h = page.redo(h);
-    expect(h.pose.joints.l_elbow).toEqual([90]);
+    expect(h.pose.joints.l_elbow).toEqual([90, 0]);
     expect(page.undo(page.startHistory(page.newPose())).past).toEqual([]);
     expect(page.redo(h)).toBe(h);
   });

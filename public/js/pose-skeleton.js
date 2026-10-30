@@ -9,7 +9,7 @@
 // of the body ("chest", "l_elbow"…) is the bone its rope points are kept on.
 
 import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
-import { JOINTS, DRIVES, TAPPED_AS, anchorBone, carrierBone, jointRotation, bodyRotation } from "./figure-rig.js";
+import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, anchorBone, carrierBone, jointRotation, bodyRotation } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
 import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
@@ -117,15 +117,16 @@ const PART_NAMES = Object.freeze(["pelvis", ...JOINTS.map((j) => j.name)]);
 
 /**
  * Which part each body bone is tapped as: the part whose joint turns it
- * (or TAPPED_AS says), or, for one no joint turns (a finger, a
- * collarbone), its nearest parent's.
+ * (or TAPPED_AS says: for a rope point; POSED_AS, posing), or, for one no
+ * joint turns (a finger, a collarbone), its nearest parent's.
+ * @param {{ posing?: boolean }} [options]
  * @returns {number[]} an index into PART_NAMES for each of BONES
  */
-export function boneParts() {
+export function boneParts({ posing = false } = {}) {
   /** @type {Map<string, number>} */
   const driven = new Map();
   PART_NAMES.forEach((part, i) => { for (const [name] of DRIVES[part]) driven.set(name, i); });
-  for (const [name, part] of Object.entries(TAPPED_AS)) driven.set(name, PART_NAMES.indexOf(part));
+  for (const [name, part] of Object.entries(posing ? POSED_AS : TAPPED_AS)) driven.set(name, PART_NAMES.indexOf(part));
   /** @type {number[]} */
   const out = [];
   BONES.forEach((name, i) => {
@@ -136,12 +137,13 @@ export function boneParts() {
 
 /**
  * Which part each of the mesh's vertices is on: the one whose bones move
- * it most.
+ * it most (for a rope point, or with `posing`, for posing).
  * @param {{ joints: Uint8Array, weights: Uint8Array, vertices: number }} body
+ * @param {{ posing?: boolean }} [options]
  * @returns {{ names: readonly string[], of: Uint8Array }} the parts, and an index into them per vertex
  */
-export function vertexParts({ joints, weights, vertices }) {
-  const ofBone = boneParts();
+export function vertexParts({ joints, weights, vertices }, options) {
+  const ofBone = boneParts(options);
   const of = new Uint8Array(vertices);
   const sums = new Float64Array(PART_NAMES.length);
   for (let v = 0; v < vertices; v++) {

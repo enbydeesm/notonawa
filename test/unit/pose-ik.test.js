@@ -77,7 +77,7 @@ describe("dragging", () => {
     const moved = dragTo(start, "l_shoulder", [0, -29, 0], target);
     expect(at(moved, "l_elbow").distanceTo(target)).toBeLessThan(1.5);
     expect(moved.joints.l_shoulder[1]).toBeGreaterThan(80);
-    expect(moved.joints.l_elbow).toEqual([0]);
+    expect(moved.joints.l_elbow).toEqual([0, 0]);
   });
 
   it("lifts a foot by bending the hip and knee", () => {

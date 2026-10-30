@@ -163,7 +163,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (the shoulders, elbows and wrists, `ARM_JOINTS`), checked against
   `src/poses/parse.js`'s `JOINTS`; a sealed name; 50 an account), `db.js`,
   `routes.js` (`GET`/`POST /api/pose-presets`, `PUT
-  /api/pose-presets/:id` with `{ name }`, `DELETE
+  /api/pose-presets/:id` with `{ name }` and/or `{ data }` (saving over
+  its angles, checked as its kind's), `DELETE
   /api/pose-presets/:id`). The name is an encrypted column (NULL after a
   new key, shown unnamed); the angles are plain JSON, as poses' are.
 - `src/visuals/`: an item's photos and videos, drawings and poses share
@@ -417,7 +418,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `pose-contact.js` (the body as capsules: while a move is made, the parts
   it pushes into each other (shown red); let go (a slider or a limb
   dragged), `settleClashes` moves another limb or the head aside, or brings
-  a limb pushed into the trunk back out),
+  a limb pushed into the trunk back out; `behindBody`: where a new hashira
+  goes, 3 cm behind the trunk, head and arms), `wake-lock.js` (keeping the
+  screen on while the poser is open),
   `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
   cinches and see-saws, `relink` when ropes go, undo/redo, `typedNumber`:
   a number typed into a slider's box, `forSaving`: without the poser's
@@ -440,8 +443,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer), `import-poses.js`
   (pure: an import's poses), `pose-presets.js` (my saved presets: read
-  once, names opened, dropped on lock; saving, renaming, deleting) and
-  `pose-presets-ui.js` (naming one, and "Manage my presets"),
+  once, names opened, dropped on lock; saving, renaming, saving over,
+  deleting), `pose-presets-ui.js` (naming one), `preset-picker.js` (the
+  Body…, Arms… and Turn body… pickers: the built-in presets, then mine,
+  searched; on mine save over, rename and delete) and `preset-list.js`
+  (pure: what a picker lists),
   `import-presets.js` (pure: an import's presets to add, by kind and name),
   `drawing-format.js` (pure: the drawing format, simplifying a line, SVG
   paths and the export's SVG file), `drawing-edit.js` (pure: undo/redo and

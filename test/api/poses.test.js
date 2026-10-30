@@ -10,7 +10,7 @@ import { MAX_PER_ITEM, JOINTS } from "../../src/poses/parse.js";
  */
 const pose = (elbow = 90, color = "red") => ({
   v: 1,
-  joints: { ...Object.fromEntries(Object.entries(JOINTS).map(([name, r]) => [name, r.map(() => 0)])), l_elbow: [elbow] },
+  joints: { ...Object.fromEntries(Object.entries(JOINTS).map(([name, r]) => [name, r.map(() => 0)])), l_elbow: [elbow, 0] },
   body: [0, 0, 0], lift: 99, shift: [15, -40], camera: [20, 10, 300, 110, 0, 0], ring: [0, 280, 0], bamboo: null, hashira: null,
   ropes: [{ c: color, w: 2, p: [["chest", 0, 120, 110], ["ring", 0, 0, 0]] }],
 });
@@ -53,7 +53,8 @@ describe("adding a pose", () => {
     // From before the figure could be moved: stored as not moved.
     expect(stored.shift).toEqual([0, 0]);
     expect(stored.ropes).toEqual([{ c: "blue", w: 1, p: [["pelvis", 1, 2, 3], ["l_knee", 4, 5, 6]] }]);
-    expect(stored.joints.l_knee).toEqual([30]);
+    // One number, from before the knee twisted: its twist at rest.
+    expect(stored.joints.l_knee).toEqual([30, 0]);
     expect(stored.joints.spine).toEqual([0, 0, 0]);
     expect(Object.keys(stored.joints)).toEqual(Object.keys(JOINTS));
   });

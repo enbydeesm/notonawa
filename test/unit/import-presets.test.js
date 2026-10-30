@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { presetsToAdd } from "../../public/js/import-presets.js";
 
-const arms = { joints: { l_elbow: [90] } };
+const arms = { joints: { l_elbow: [90, 0] } };
 const body = { joints: {}, body: [0, 0, 0], lift: 99 };
 
 describe("presetsToAdd", () => {

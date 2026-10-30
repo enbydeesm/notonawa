@@ -7,7 +7,7 @@ import { h } from "./dom.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
-/** @typedef {"close" | "share" | "archive" | "restore" | "delete"} IconKind */
+/** @typedef {"close" | "share" | "archive" | "restore" | "delete" | "rename" | "save"} IconKind */
 
 /** Each icon's shapes, on a 24 × 24 grid. */
 const SHAPES = /** @type {Record<IconKind, [string, Record<string, string | number>][]>} */ ({
@@ -25,6 +25,13 @@ const SHAPES = /** @type {Record<IconKind, [string, Record<string, string | numb
   restore: [
     ["rect", { x: 3, y: 4, width: 18, height: 4, rx: 1 }],
     ["path", { d: "M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M12 17v-6M9 14l3-3 3 3" }],
+  ],
+  // A pencil.
+  rename: [["path", { d: "M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4M13.5 6.5l4 4" }]],
+  // A floppy disk: its shutter at the top, its label below.
+  save: [
+    ["path", { d: "M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" }],
+    ["path", { d: "M7 3v5h8V3M7 21v-7h10v7" }],
   ],
   delete: [
     ["path", { d: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" }],

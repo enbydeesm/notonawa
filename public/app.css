@@ -283,12 +283,23 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel[hidden] { display: none; }
 .pose-panel .hint { margin: 0; }
 .pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
-.pose-menus select { flex: 1 1 6.5rem; min-width: 0; }
+.pose-menus .pose-picker { flex: 1 1 6.5rem; min-width: 0; }
 /* "My presets": each saved poser preset, with Rename and Delete. */
-.preset-list { margin-bottom: 12px; }
-.preset-kind { margin: 8px 0 4px; font-size: 0.85rem; color: var(--muted); }
-.preset-row { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 2px 0; }
-.preset-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* The poser's pickers (preset-picker.js): Body, Arms and Turn body. */
+.picker-save { flex: none; margin-right: 4px; padding: 4px 10px; font-size: 0.85rem; }
+.picker input[type="search"] { width: 100%; margin-bottom: 8px; }
+.picker-list { display: flex; flex-direction: column; }
+.picker-row { display: flex; align-items: center; gap: 4px; min-height: 44px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+/* The one the figure's in already: a faint tint of the accent. */
+.picker-row.current { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.picker-name {
+  flex: 1; min-width: 0; padding: 10px 8px; border: none; background: none; color: var(--text);
+  text-align: left; overflow-wrap: anywhere;
+}
+.picker-icons { display: flex; flex: none; gap: 2px; }
+/* Between the built-in ones and mine: a thin line, with a small label. */
+.picker-divider { display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; color: var(--muted); font-size: 0.8rem; }
+.picker-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .pose-part-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pose-part { margin: 0; font-size: 1rem; }
 .pose-part-row .tool { flex: none; }
@@ -298,7 +309,19 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
    default" at the right of the fold's heading row. */
 .pose-shape { position: relative; margin: 8px 0; }
 .pose-shape > .fold { margin: 0; }
-.pose-shape-save { position: absolute; top: 0; right: 0; padding: 2px 10px; font-size: 0.85rem; }
+/* Over the fold's heading row: Save as my default in its middle, Reset at its end. */
+.pose-shape-actions {
+  position: absolute; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; pointer-events: none;
+}
+.pose-shape-actions .tool { pointer-events: auto; padding: 2px 10px; font-size: 0.85rem; }
+.pose-shape-save { grid-column: 2; }
+.pose-shape-reset { grid-column: 3; justify-self: end; }
+/* Too narrow for the middle to clear the fold's heading: next to Reset instead. */
+@media (max-width: 379px) {
+  .pose-shape-actions { grid-template-columns: 1fr auto auto; gap: 8px; }
+}
+.pose-whole-row { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .pose-slider { display: grid; grid-template-columns: 7.5rem 1fr auto 4rem; align-items: center; gap: 8px; }
 /* ▲ and ▼ left of the value's box, stacked, each stepping it by one. */
 .pose-steps { display: flex; flex-direction: column; gap: 2px; }

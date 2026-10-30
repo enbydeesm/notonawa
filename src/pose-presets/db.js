@@ -45,17 +45,30 @@ export async function insertPreset(db, ownerId, { id, kind, name, data }) {
 }
 
 /**
- * Renames a preset.
+ * A preset's kind, to check new angles against.
  * @param {D1Database} db
  * @param {string} ownerId
  * @param {string} id
- * @param {string} name sealed
+ * @returns {Promise<Kind | null>} null if it isn't mine
+ */
+export async function presetKind(db, ownerId, id) {
+  const row = await db.prepare("SELECT kind FROM pose_presets WHERE id = ? AND owner_id = ?").bind(id, ownerId).first();
+  return row ? /** @type {Kind} */ (row.kind) : null;
+}
+
+/**
+ * Renames a preset and/or saves new angles over its own (null leaves either as it is).
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {string} id
+ * @param {{ name: string | null, data: PresetData | null }} change the name sealed
  * @returns {Promise<boolean>} false if it isn't mine
  */
-export async function renamePreset(db, ownerId, id, name) {
+export async function updatePreset(db, ownerId, id, { name, data }) {
   const result = await db.prepare(
-    `UPDATE pose_presets SET name = ?, updated_at = ${NOW} WHERE id = ? AND owner_id = ?`
-  ).bind(name, id, ownerId).run();
+    `UPDATE pose_presets SET name = COALESCE(?, name), data = COALESCE(?, data), updated_at = ${NOW}
+      WHERE id = ? AND owner_id = ?`
+  ).bind(name, data === null ? null : JSON.stringify(data), id, ownerId).run();
   return result.meta.changes > 0;
 }
 

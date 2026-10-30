@@ -117,7 +117,7 @@ function settle(pose, angles, errors) {
 
   // Whole degrees and cm, as poses keep them.
   const joints = { ...pose.joints };
-  for (const a of angles) if ("joint" in a) joints[a.joint] = clampJoint(a.joint, trial.joints[a.joint], pose.joints[a.joint]);
+  for (const a of angles) if ("joint" in a) joints[a.joint] = clampJoint(a.joint, trial.joints[a.joint], pose.joints[a.joint], joints);
   return {
     ...pose, joints,
     body: /** @type {[number, number, number]} */ (trial.body.map((n) => Math.round(n))), lift: Math.round(trial.lift),

@@ -34,7 +34,8 @@ import { segmentDistance } from "./drawing-format.js";
 /** @typedef {import("./pose-format.js").Rope} Rope */
 /**
  * What's under a point on the view (on the body, `point` is where in the room).
- * @typedef {{ kind: "body", bone: string, mm: [number, number, number], point: Vector3 } | { kind: "ring" }
+ * `bone` is the part a rope point there is on, `part` the part tapping there poses.
+ * @typedef {{ kind: "body", bone: string, part: string, mm: [number, number, number], point: Vector3 } | { kind: "ring" }
  *   | { kind: "bamboo", along: number } | { kind: "hashira", mm: [number, number, number] }
  *   | { kind: "rope", index: number, point: Vector3 }} Hit
  */
@@ -78,8 +79,9 @@ const cssColor = (name) => new Color(getComputedStyle(document.documentElement).
 
 /** The body's mesh. */
 const body = readBody(await (await fetch(BODY_FILE)).arrayBuffer());
-/** Which part of the body (figure-rig.js) each vertex is on: tapping it poses that part. */
+/** Which part of the body (figure-rig.js) each vertex is on, for a rope point tapped there, and for posing. */
 const parts = vertexParts(body);
+const posedParts = vertexParts(body, { posing: true });
 
 /**
  * Whether this browser can draw 3D at all.
@@ -213,10 +215,10 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     if (key === painted) return;
     painted = key;
     const colors = /** @type {Float32Array} */ (tint.array);
-    const chosen = part === null ? -1 : parts.names.indexOf(part);
+    const chosen = part === null ? -1 : posedParts.names.indexOf(part);
     const clashing = new Set([...(clash ?? [])].map((p) => parts.names.indexOf(p)));
     for (let v = 0; v < parts.of.length; v++) {
-      const c = clashing.has(parts.of[v]) ? clashColor : parts.of[v] === chosen ? selectedColor : skinColor;
+      const c = clashing.has(parts.of[v]) ? clashColor : posedParts.of[v] === chosen ? selectedColor : skinColor;
       colors[v * 3] = c.r;
       colors[v * 3 + 1] = c.g;
       colors[v * 3 + 2] = c.b;
@@ -490,8 +492,10 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const [x, y, z] = toHardpoint(shown, "hashira", onSurface);
       return { kind: "hashira", mm: [Math.round(x * 10), Math.round(y * 10), Math.round(z * 10)] };
     }
-    const bone = parts.names[parts.of[hit.face ? hit.face.a : 0]];
-    return { kind: "body", bone, mm: toBone(skeleton, bone, onSurface), point: onSurface };
+    const vertex = hit.face ? hit.face.a : 0;
+    const bone = parts.names[parts.of[vertex]];
+    const part = posedParts.names[posedParts.of[vertex]];
+    return { kind: "body", bone, part, mm: toBone(skeleton, bone, onSurface), point: onSurface };
   }
 
   /** Frees the view (its 3D context and everything drawn with it). */
