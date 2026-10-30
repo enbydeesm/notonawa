@@ -154,9 +154,6 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 - allow ties to be linked to workshops, or to be created from the workshop (and automatically linked). both entries should show the link to the other and allow clicking to view. 
 
-- on video upload failure, reccomend cropping video or using an app like snapseed to reduce quality/increase compression
-
-
 
 Build plan
 Each phase leaves the app working and shippable. The times are rough estimates in working days, including tests and the walkthrough.

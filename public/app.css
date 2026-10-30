@@ -534,20 +534,14 @@ button.switch { flex: none; padding: 4px; border: none; border-radius: 999px; }
 button.outline { border-color: var(--accent-ink); color: var(--text); }
 button.outline.active { background: var(--line); }
 
-/* Ratings as rope hanks: a grey outline, filled in the accent when chosen.
-   The wrap's fill matches the card behind it, so the loop's lines don't show
-   through it. */
-.hank { display: block; width: 100%; height: 100%; }
-.hank path, .hank rect { fill: none; stroke: var(--muted); stroke-width: 1.3; stroke-linejoin: round; }
-.hank .hank-wrap { fill: var(--card); }
+/* Ratings as rope hanks: one filled shape, grey (and faded) until chosen,
+   then the accent. */
+.hank { display: block; width: 100%; height: 100%; fill: var(--muted); }
 .hank-picker { display: inline-flex; align-items: center; gap: 2px; }
 .hank-button { width: 32px; height: 32px; padding: 3px; border: none; opacity: 0.55; }
 .hank-button.filled { opacity: 1; }
 .hank-button:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
-/* --accent-text, not --accent-ink: in dark mode the ink is the same yellow
-   as the fill, and the hank's lines would vanish. */
-.filled .hank path, .filled .hank rect, .hank.filled path, .hank.filled rect { stroke: var(--accent-text); }
-.filled .hank .hank-loop, .filled .hank .hank-wrap, .hank.filled .hank-loop, .hank.filled .hank-wrap { fill: var(--accent); }
+.filled .hank, .hank.filled { fill: var(--accent); }
 /* Inline, not flex: flex would put the hidden "4/5" on a line of its own
    when the list's text is copied. */
 .hank-rating { white-space: nowrap; }

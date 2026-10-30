@@ -16,10 +16,11 @@ import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock } from "./vault.js";
 import { currentTheme } from "./settings.js";
+import { HANK_PATH } from "./rope-rating.js";
 
 /** The tabs: address, name and icon, in order. */
 export const PAGES = /** @type {const} */ ([
-  ["/", "Ties", hankLineIcon],
+  ["/", "Ties", hankShapeIcon],
   ["/plans", "Plans", planIcon],
   ["/people", "People", personIcon],
   ["/locations", "Locations", pinIcon],
@@ -204,14 +205,10 @@ function menuIcon() {
   return icon;
 }
 
-/** A coil of rope with wraps round its waist, as in the ratings, for Ties. */
-function hankLineIcon() {
+/** The ratings' rope hank, for Ties: a filled shape, not lines, in the text color. */
+function hankShapeIcon() {
   const icon = lineIcon();
-  icon.append(
-    svg("path", { d: "M12 2.5a5.5 5.5 0 0 1 5.5 5.5v8a5.5 5.5 0 0 1-11 0V8A5.5 5.5 0 0 1 12 2.5z" }),
-    svg("path", { d: "M12 6.5a1.5 1.5 0 0 0-1.5 1.5v8a1.5 1.5 0 0 0 3 0V8A1.5 1.5 0 0 0 12 6.5z" }),
-    svg("path", { d: "M5 10.5h14M5 13.5h14" })
-  );
+  icon.append(svg("path", { d: HANK_PATH, fill: "currentColor", stroke: "none" }));
   return icon;
 }
 
