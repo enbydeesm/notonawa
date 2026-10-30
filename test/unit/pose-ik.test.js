@@ -48,8 +48,9 @@ describe("which parts drag", () => {
 describe("dragging", () => {
   it("puts a hand where it's dragged, bending the elbow", () => {
     const start = newPose();
-    // In front of the chest, within reach.
-    const target = new Vector3(10, 130, 30);
+    // In front of the shoulder, within reach (going round the body to
+    // the middle of the chest is more than one drag: pose-contact.js).
+    const target = new Vector3(18, 130, 30);
     const moved = dragTo(start, "l_wrist", [0, -8.5, 0], target);
     expect(at(moved, "l_wrist", [0, -8.5, 0]).distanceTo(target)).toBeLessThan(1.5);
     expect(moved.joints.l_elbow[0]).toBeGreaterThan(0);

@@ -22,6 +22,8 @@
 // the rotation of the bone. src/poses/parse.js has the same limits (a unit
 // test keeps them in step), so the server refuses an impossible pose.
 
+import { withinReach } from "./joint-limits.js";
+
 /** @typedef {"x" | "y" | "z"} Axis */
 /** @typedef {{ label: string, axis: Axis, sign: 1 | -1, min: number, max: number }} Move */
 /**
@@ -32,9 +34,11 @@
  */
 /**
  * A joint's share of a turn for each body bone it turns (figure-body.js's
- * BONES), parents first; the last is the bone a rope point on that part is
- * kept on.
- * @typedef {readonly (readonly [string, number])[]} Drive
+ * BONES), parents first: [bone, swing, twist]. The twist is the joint's
+ * movement about the bone's length (its y, turned last), the swing the
+ * rest; twist left out is the same share as the swing. Each part's shares
+ * add up to the whole turn.
+ * @typedef {readonly (readonly [string, number, number?])[]} Drive
  */
 
 /** How high the pelvis is when standing (cm). */
@@ -69,7 +73,7 @@ function limbs(side) {
       moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -80, 80), move("Tilt", "x", 1, -30, 30)] },
     {
       name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "ZXY",
-      moves: [move("Forward", "x", -1, -30, 140), move("Out", "z", out, -30, 90), move("Twist out", "y", out, -50, 50)],
+      moves: [move("Forward", "x", -1, -30, 140), move("Out", "z", out, -30, 90), move("Twist out", "y", out, -45, 45)],
     },
     { name: `${side}_knee`, label: `${name} knee`, parent: `${side}_hip`, offset: [0, -44, 0], order: "XYZ",
       moves: [move("Bend", "x", 1, 0, 155)] },
@@ -80,8 +84,8 @@ function limbs(side) {
 
 /** Every joint, parents before children. @type {readonly Joint[]} */
 export const JOINTS = Object.freeze([
-  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-30, 60], [-35, 35], [-40, 40]]) },
-  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-25, 45], [-30, 30], [-40, 40]]) },
+  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-30, 60], [-35, 35], [-35, 35]]) },
+  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-25, 45], [-30, 30], [-35, 35]]) },
   { name: "head", label: "Head", parent: "chest", offset: [0, 26, 0], order: "XZY", moves: trunk([[-50, 70], [-45, 45], [-80, 80]]) },
   ...limbs("l").slice(0, 3), ...limbs("r").slice(0, 3),
   ...limbs("l").slice(3), ...limbs("r").slice(3),
@@ -99,7 +103,11 @@ export const PART_LABELS = Object.freeze({ pelvis: "Hips and whole body", ...Obj
 /**
  * Which body bones each joint turns, and how much of the turn each takes:
  * the waist, chest and neck bend over several vertebrae, so the back
- * curves rather than folding at one point. "pelvis" is the body's root.
+ * curves rather than folding at one point. A shoulder's raise is shared
+ * with the collarbone and shoulder blade, so the shoulder rises with the
+ * arm; an upper arm's or thigh's twist is spread over its two bones, so
+ * the skin twists along it rather than pinching at the joint. "pelvis" is
+ * the body's root.
  * @type {Readonly<Record<string, Drive>>}
  */
 export const DRIVES = Object.freeze({
@@ -110,8 +118,10 @@ export const DRIVES = Object.freeze({
   ...Object.fromEntries(["L", "R"].flatMap((s) => {
     const side = s.toLowerCase();
     return [
-      [`${side}_shoulder`, [[`upperarm01.${s}`, 1]]], [`${side}_elbow`, [[`lowerarm01.${s}`, 1]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
-      [`${side}_hip`, [[`upperleg01.${s}`, 1]]], [`${side}_knee`, [[`lowerleg01.${s}`, 1]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
+      [`${side}_shoulder`, [[`clavicle.${s}`, 0.12, 0], [`shoulder01.${s}`, 0.08, 0], [`upperarm01.${s}`, 0.8, 0.5], [`upperarm02.${s}`, 0, 0.5]]],
+      [`${side}_elbow`, [[`lowerarm01.${s}`, 1]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
+      [`${side}_hip`, [[`upperleg01.${s}`, 1, 0.5], [`upperleg02.${s}`, 0, 0.5]]],
+      [`${side}_knee`, [[`lowerleg01.${s}`, 1]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
     ];
   })),
 });
@@ -119,13 +129,23 @@ export const DRIVES = Object.freeze({
 /**
  * Body bones tapped as another part than the one that turns them: the low
  * belly and the small of the back (the lowest vertebra the waist bends)
- * are the hips', as on the first figure, so the hips are easy to tap.
+ * are the hips', as on the first figure, so the hips are easy to tap; the
+ * collarbones (which a raised arm lifts) are the chest's.
  * @type {Readonly<Record<string, string>>}
  */
-export const TAPPED_AS = Object.freeze({ spine04: "pelvis" });
+export const TAPPED_AS = Object.freeze({ "spine04": "pelvis", "clavicle.L": "chest", "clavicle.R": "chest" });
 
-/** The body bone a part's rope points are kept on. @param {string} part "pelvis" or a joint */
-export const anchorBone = (part) => /** @type {Drive} */ (DRIVES[part]).at(-1)?.[0] ?? "root";
+/**
+ * The body bone at a part's joint: its rope points are measured from that
+ * bone's joint, turned with the whole of the part's turn (the last bone
+ * the part turns carries them, pose-skeleton.js). It's the last bone that
+ * swings.
+ * @param {string} part "pelvis" or a joint
+ */
+export const anchorBone = (part) => /** @type {Drive} */ (DRIVES[part]).findLast(([, swing]) => swing > 0)?.[0] ?? "root";
+
+/** The last bone a part turns, which carries its rope points. @param {string} part */
+export const carrierBone = (part) => /** @type {Drive} */ (DRIVES[part]).at(-1)?.[0] ?? "root";
 
 /**
  * Where each part's joint was on the first figure, standing (cm from the
@@ -152,15 +172,51 @@ export function olderJointPlaces() {
 export const restJoints = () => Object.fromEntries(JOINTS.map((j) => [j.name, j.moves.map(() => 0)]));
 
 /**
- * A joint's angles kept within its limits (whole degrees).
+ * How a new pose starts, and what Reset puts a joint back to: at rest, but
+ * the arms a little out, so the hands start clear of the thighs.
+ * @type {Readonly<Record<string, readonly number[]>>}
+ */
+export const START_JOINTS = Object.freeze({ l_shoulder: [0, 4, 0], r_shoulder: [0, 4, 0] });
+
+/** @returns {Record<string, number[]>} every joint as a new pose has it */
+export const startJoints = () => ({ ...restJoints(), ...Object.fromEntries(Object.entries(START_JOINTS).map(([n, a]) => [n, [...a]])) });
+
+/**
+ * A joint's angles kept within its limits (whole degrees): each
+ * movement's own range, then the shoulders' and hips' limits that depend
+ * on several (joint-limits.js), stopping where it last could on the way
+ * from `from`.
  * @param {string} name
- * @param {number[]} angles
+ * @param {readonly number[]} angles
+ * @param {readonly number[]} [from] what the joint was (rest if left out)
  * @returns {number[]}
  */
-export function clampJoint(name, angles) {
+export function clampJoint(name, angles, from) {
   const joint = BY_NAME.get(name);
   if (!joint) throw new Error(`No joint ${name}`);
-  return joint.moves.map((m, i) => Math.min(m.max, Math.max(m.min, Math.round(angles[i] ?? 0))));
+  const each = joint.moves.map((m, i) => Math.min(m.max, Math.max(m.min, Math.round(angles[i] ?? 0))));
+  return withinReach(name, each, from);
+}
+
+/**
+ * Something with joints (a pose or a preset, as saved) with any joint a
+ * body can't take brought within reach, the rest left exactly as they
+ * were: for one saved or exported before the limits changed.
+ * @template {{ joints?: unknown }} T
+ * @param {T} data
+ * @returns {T}
+ */
+export function jointsInReach(data) {
+  const sent = /** @type {Record<string, unknown>} */ (data.joints);
+  if (!sent || typeof sent !== "object") return data;
+  /** @type {Record<string, unknown>} */
+  const joints = { ...sent };
+  for (const [name, angles] of Object.entries(sent)) {
+    if (!BY_NAME.has(name) || !Array.isArray(angles)) continue;
+    const clamped = clampJoint(name, angles);
+    if (clamped.some((a, i) => a !== angles[i])) joints[name] = clamped;
+  }
+  return { ...data, joints };
 }
 
 /**
@@ -246,7 +302,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
  * @type {readonly ArmsPreset[]}
  */
 export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
-  { name: "At sides", joints: {} },
+  { name: "At sides", joints: { ...START_JOINTS } },
   // The upper arms back enough that the forearms clear the back, folded
   // across each other, one a little lower than the other.
   { name: "Boxtie", joints: { l_shoulder: [-21, 5, -90], l_elbow: [105], r_shoulder: [-21, 5, -90], r_elbow: [90] } },
@@ -264,7 +320,7 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
   // The forearms across the front of the chest, the hands crossing, as in a hug.
   {
     name: "Crossed (hug)", joints: {
-      l_shoulder: [30, 3, -65], l_elbow: [133], l_wrist: [20, 0], r_shoulder: [30, 3, -65], r_elbow: [133], r_wrist: [20, 0],
+      l_shoulder: [30, 3, -65], l_elbow: [133], l_wrist: [13, 14], r_shoulder: [30, 3, -65], r_elbow: [133], r_wrist: [9, 11],
     },
   },
 ]));

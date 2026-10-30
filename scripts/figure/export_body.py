@@ -1,7 +1,14 @@
 # Builds the poser's body from Anny: the shape at every corner of the
-# sliders (gender x muscle x weight x height), posed arms-down, in the
-# poser's frame (cm, y up, facing +z, figure's left +x, hip centre at the
-# origin), plus an extra "heavier" shape from Anny's local fat targets.
+# sliders (gender x muscle x weight x height), in the poser's frame (cm,
+# y up, facing +z, figure's left +x, hip centre at the origin), plus an
+# extra "heavier" shape from Anny's local fat targets.
+#
+# The skin is kept as Anny makes it, arms out in its natural pose (bound
+# there, the shoulders and armpits aren't squashed before they move). The
+# poser's joints are measured from standing arms straight down, so the
+# skeleton is kept both ways: each bone's joint arms down (H) and in
+# Anny's pose (HA), and the turn taking each bone from one to the other
+# (TURNS, the same for every shape).
 # Saves everything to body.npz for pack_body.py.
 import sys, time, numpy as np, torch, anny
 torch.set_grad_enabled(False)
@@ -71,6 +78,14 @@ for side in "LR":
     turns.append((lo, R2, descendants(f"lowerarm01.{side}")))
 
 
+def turns_of():
+    """Each bone's turn from Anny's pose to arms down (3x3, Anny's axes)."""
+    G = np.tile(np.eye(3), (len(L), 1, 1))
+    for _, R, moved in turns:
+        for j in moved: G[j] = R @ G[j]
+    return G
+
+
 def arms_down(V, H, T):
     """LBS with each bone's world transform: the turns of its arm, about the heads of this shape."""
     G = np.tile(np.eye(4), (len(L), 1, 1))
@@ -99,9 +114,11 @@ def to_poser(P, origin):
 
 
 def shape(ph, local=None):
-    V, H, T = arms_down(*rest(ph, local))
+    """The skin and joints in Anny's pose, and the joints arms down."""
+    V, HA, T = rest(ph, local)
+    _, H, _ = arms_down(V, HA, T)
     o = H[HIP].copy()
-    return to_poser(V, o), to_poser(H, o), to_poser(T, o)
+    return to_poser(V, o), to_poser(H, o), to_poser(HA, o)
 
 
 corners, keys = [], []
@@ -113,15 +130,19 @@ for g in GRID["gender"]:
                 corners.append(shape(dict(gender=g, muscle=mu, weight=w, height=h)))
 print("corners", len(corners), round(time.time() - t), "s", file=sys.stderr)
 
-Vb, Hb, Tb = shape(DEFAULT)
-Vf, Hf, Tf = shape(DEFAULT, FAT)
+Vb, Hb, HAb = shape(DEFAULT)
+Vf, Hf, HAf = shape(DEFAULT, FAT)
+# The turns in the poser's axes: x stays, y is Anny's z, z is Anny's -y.
+C = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], float)
+TURNS = np.einsum("ij,bjk,lk->bil", C, turns_of(), C)
 
 # Waist ring, as Anny measures it.
 A = anny.Anthropometry(m)
 np.savez_compressed(
     "body.npz",
     keys=np.array(keys), V=np.stack([c[0] for c in corners]), H=np.stack([c[1] for c in corners]),
-    T=np.stack([c[2] for c in corners]), Vbase=Vb, Hbase=Hb, Tbase=Tb, Vfat=Vf - Vb, Hfat=Hf - Hb,
+    HA=np.stack([c[2] for c in corners]), Vbase=Vb, Hbase=Hb, HAbase=HAb, Vfat=Vf - Vb, Hfat=Hf - Hb, HAfat=HAf - HAb,
+    turns=TURNS,
     faces=faces, W=W, I=I, parents=np.array(parents), labels=np.array(L),
     waist=np.array(A.waist_vertex_indices), uv=m.texture_coordinates.numpy() if hasattr(m, "texture_coordinates") else np.zeros(0),
 )

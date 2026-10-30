@@ -19,6 +19,7 @@ export {
   MeshStandardMaterial,
   Object3D,
   PerspectiveCamera,
+  Quaternion,
   Raycaster,
   Scene,
   Skeleton,

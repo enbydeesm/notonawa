@@ -20,8 +20,9 @@ import {
   HemisphereLight, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, Raycaster,
   Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
-import { BONES, BODY_FILE, readBody, bodyPositions, measurements, sameShape } from "./figure-body.js";
+import { BONES, BODY_FILE, TURNS, readBody, bodyPositions, bindHeads, sameShape } from "./figure-body.js";
 import { ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
+import { withDualQuatSkinning, toDualQuat, blendDualQuats, dqTransform } from "./pose-skinning.js";
 import {
   makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
 } from "./pose-skeleton.js";
@@ -80,19 +81,6 @@ const body = readBody(await (await fetch(BODY_FILE)).arrayBuffer());
 /** Which part of the body (figure-rig.js) each vertex is on: tapping it poses that part. */
 const parts = vertexParts(body);
 
-/** The last shape measured, and its measurements. @type {{ key: string, m: ReturnType<typeof measurements> } | null} */
-let lastMeasured = null;
-
-/**
- * A body shape's measurements (height, waist, volume, mass, BMI).
- * @param {import("./figure-body.js").Shape} shape
- */
-export function bodyMeasurements(shape) {
-  const key = shape.join();
-  if (lastMeasured?.key !== key) lastMeasured = { key, m: measurements(body, bodyPositions(body, shape)) };
-  return lastMeasured.m;
-}
-
 /**
  * Whether this browser can draw 3D at all.
  * @returns {boolean}
@@ -143,8 +131,9 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   const skeleton = makeSkeleton(new Group());
   scene.add(skeleton.pelvis);
   // The skin: the body's mesh, each vertex moved by up to four bones. Its
-  // bones are at rest lined up with the world, at their joints, so each
-  // one's inverse is just a move back from its joint (set with the shape).
+  // bones are at rest lined up with the world, at their joints standing
+  // arms down; the skin is bound in Anny's pose, arms out (set with the
+  // shape, fitSkin).
   const geometry = new BufferGeometry();
   const place = new BufferAttribute(new Float32Array(body.base.length), 3);
   const tint = new BufferAttribute(new Float32Array(body.base.length), 3);
@@ -154,6 +143,10 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   geometry.setAttribute("skinWeight", new BufferAttribute(body.weights, 4, true));
   geometry.setIndex(new BufferAttribute(body.faces, 1));
   const skinMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
+  // Dual-quaternion skinning (pose-skinning.js), so bent elbows and knees
+  // round off rather than fold to a point.
+  skinMaterial.onBeforeCompile = (shader) => { shader.vertexShader = withDualQuatSkinning(shader.vertexShader); };
+  skinMaterial.customProgramCacheKey = () => "dual-quat-skin";
   const figure = new SkinnedMesh(geometry, skinMaterial);
   // Its bounds move with the pose: always drawn, and worked out afresh before a tap.
   figure.frustumCulled = false;
@@ -161,6 +154,23 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   const bones = /** @type {import("./vendor/three.js").Bone[]} */ (BONES.map((name) => skeleton.all.get(name)));
   figure.bindMode = "detached";
   figure.bind(new Skeleton(bones, inverses), new Matrix4());
+  // Taps find the skin where it's drawn: the same skinning on the CPU.
+  const boneMatrix = new Matrix4();
+  figure.applyBoneTransform = (index, target) => {
+    /** @type {import("./pose-skinning.js").DualQuat[]} */
+    const motions = [];
+    /** @type {number[]} */
+    const weights = [];
+    for (let k = 0; k < 4; k++) {
+      const w = body.weights[index * 4 + k] / 255;
+      if (!w) continue;
+      const b = body.joints[index * 4 + k];
+      motions.push(toDualQuat(boneMatrix.multiplyMatrices(bones[b].matrixWorld, inverses[b]).elements));
+      weights.push(w);
+    }
+    const [x, y, z] = dqTransform(blendDualQuats(motions, weights), [target.x, target.y, target.z]);
+    return target.set(x, y, z);
+  };
   scene.add(figure);
   /** The shape the skin was last made in. @type {import("./figure-body.js").Shape | null} */
   let skinShape = null;
@@ -174,8 +184,21 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     bodyPositions(body, skinShape, /** @type {Float32Array} */ (place.array));
     place.needsUpdate = true;
     geometry.computeVertexNormals();
-    const { heads } = skeleton;
-    inverses.forEach((m, i) => m.makeTranslation(-heads[i * 3], -heads[i * 3 + 1], -heads[i * 3 + 2]));
+    // Each bone's skin is moved from where it's bound (Anny's pose) to its
+    // joint standing arms down: back from its bound joint, then its turn.
+    const bound = bindHeads(skinShape);
+    inverses.forEach((m, i) => {
+      const [x, y, z] = [-bound[i * 3], -bound[i * 3 + 1], -bound[i * 3 + 2]];
+      const t = TURNS[BONES[i]];
+      if (!t) {
+        m.makeTranslation(x, y, z);
+        return;
+      }
+      m.set(t[0], t[1], t[2], t[0] * x + t[1] * y + t[2] * z,
+        t[3], t[4], t[5], t[3] * x + t[4] * y + t[5] * z,
+        t[6], t[7], t[8], t[6] * x + t[7] * y + t[8] * z,
+        0, 0, 0, 1);
+    });
   }
 
   /** Colors the part being posed. @param {string | null} part */

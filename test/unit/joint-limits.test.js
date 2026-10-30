@@ -1,0 +1,81 @@
+// The shoulders' and hips' limits that depend on several movements
+// (joint-limits.js), on the page and the server alike.
+import { describe, it, expect } from "vitest";
+import { raised, canReach, withinReach } from "../../public/js/joint-limits.js";
+import { BODY_PRESETS, ARMS_PRESETS, START_JOINTS, clampJoint, jointsInReach } from "../../public/js/figure-rig.js";
+import { newPose, setJoint, forSaving } from "../../public/js/pose-format.js";
+import { dragTo } from "../../public/js/pose-ik.js";
+import { Vector3 } from "../../public/js/vendor/three.js";
+import { parsePose } from "../../src/poses/parse.js";
+import { parsePresetData } from "../../src/pose-presets/parse.js";
+
+describe("limits that depend on several movements", () => {
+  it("measures how far a limb is raised, whichever way", () => {
+    expect(raised(0, 0)).toBeCloseTo(0);
+    expect(raised(90, 0)).toBeCloseTo(90);
+    expect(raised(0, 90)).toBeCloseTo(90);
+    expect(raised(180, 0)).toBeCloseTo(180);
+  });
+
+  it("lets every built-in preset and a new pose through", () => {
+    for (const preset of [...BODY_PRESETS, ...ARMS_PRESETS]) {
+      for (const [name, angles] of Object.entries(preset.joints)) expect(canReach(name, angles), `${preset.name} ${name}`).toBe(true);
+    }
+    for (const [name, angles] of Object.entries(START_JOINTS)) expect(canReach(name, angles)).toBe(true);
+    expect(() => parsePose(forSaving(newPose()))).not.toThrow();
+  });
+
+  it("twists a shoulder less once the arm is raised past shoulder height", () => {
+    expect(canReach("l_shoulder", [0, 0, 90])).toBe(true);
+    expect(canReach("l_shoulder", [0, 90, 90])).toBe(true);
+    expect(canReach("l_shoulder", [180, 0, 90])).toBe(false);
+    expect(canReach("r_shoulder", [180, 0, -54])).toBe(true);
+  });
+
+  it("swings an arm back less once it's raised out to the side, and a leg out less behind the body", () => {
+    expect(canReach("l_shoulder", [-70, 0, 0])).toBe(true);
+    expect(canReach("l_shoulder", [-60, 90, 0])).toBe(false);
+    expect(canReach("l_shoulder", [-35, 90, 0])).toBe(true);
+    expect(canReach("l_hip", [60, 90, 0])).toBe(true);
+    expect(canReach("l_hip", [-20, 90, 0])).toBe(false);
+    // Crossing the other leg only once it's forward.
+    expect(canReach("r_hip", [0, -25, 0])).toBe(false);
+    expect(canReach("r_hip", [60, -25, 0])).toBe(true);
+  });
+
+  it("stops a joint where it last could, on the way from where it was", () => {
+    const stopped = withinReach("l_shoulder", [-70, 90, 0], [0, 90, 0]);
+    expect(canReach("l_shoulder", stopped)).toBe(true);
+    expect(stopped[1]).toBe(90);
+    expect(stopped[0]).toBeLessThan(-30);
+    // The twist alone is just kept within its range.
+    expect(withinReach("l_shoulder", [180, 0, 90])).toEqual([180, 0, 54]);
+    // A slider does the same.
+    const pose = setJoint(setJoint(newPose(), "l_shoulder", 1, 90), "l_shoulder", 0, -70);
+    expect(canReach("l_shoulder", pose.joints.l_shoulder)).toBe(true);
+    expect(pose.joints.l_shoulder[1]).toBe(90);
+  });
+
+  it("keeps dragging within reach", () => {
+    const start = setJoint(newPose(), "l_shoulder", 1, 90);
+    // Far behind the figure, out at shoulder height.
+    const moved = dragTo(start, "l_elbow", [0, 0, 0], new Vector3(40, 140, -80));
+    expect(canReach("l_shoulder", moved.joints.l_shoulder)).toBe(true);
+  });
+
+  it("is checked by the server, for poses and presets", () => {
+    const pose = forSaving(newPose());
+    expect(() => parsePose({ ...pose, joints: { ...pose.joints, l_shoulder: [180, 0, 90] } })).toThrow();
+    expect(() => parsePresetData("arms", { joints: { l_shoulder: [-60, 90, 0] } })).toThrow();
+  });
+
+  it("brings an older pose's or preset's joints within reach, leaving the rest as they were", () => {
+    const older = { joints: { l_shoulder: [180, 0, 90], l_hip: [0, 0, 50], l_knee: [30] }, lift: 99 };
+    const fixed = jointsInReach(older);
+    expect(fixed.joints).toEqual({ l_shoulder: [180, 0, 54], l_hip: [0, 0, 45], l_knee: [30] });
+    expect(fixed.lift).toBe(99);
+    const fine = { joints: { l_knee: [30] } };
+    expect(jointsInReach(fine).joints).toEqual(fine.joints);
+    expect(clampJoint("l_hip", [0, 0, 50])).toEqual([0, 0, 45]);
+  });
+});

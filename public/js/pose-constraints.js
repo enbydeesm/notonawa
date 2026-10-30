@@ -13,8 +13,9 @@
 // dragging a limb does (pose-ik.js), within their limits, getting as near
 // as it can when it can't.
 
-import { jointNamed, LIFT_RANGE } from "./figure-rig.js";
-import { DRAG_CHAINS, dampedSolve } from "./pose-ik.js";
+import { jointNamed, clampJoint, LIFT_RANGE } from "./figure-rig.js";
+import { DRAG_CHAINS, dampedSolve, snapshot, keepReachable } from "./pose-ik.js";
+import { depths, noDeeper } from "./pose-contact.js";
 import { makeSkeleton, posed } from "./pose-skeleton.js";
 import { ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength } from "./pose-format.js";
 import { bends, segmentLength } from "./pose-cinch.js";
@@ -89,12 +90,16 @@ function settle(pose, angles, errors) {
     else if ("body" in a) trial.body[a.body] = v;
     else trial.lift = v;
   };
+  /** The joints these angles move. @type {[string, number][]} */
+  const moved = angles.flatMap((a) => ("joint" in a ? [/** @type {[string, number]} */ ([a.joint, a.i])] : []));
   const skeleton = spare ??= makeSkeleton();
   const measure = () => {
     posed(skeleton, trial);
     return [...errors(skeleton, trial), 0, 0, 0].slice(0, 3);
   };
 
+  // No limb is pushed further into the body than it was (pose-contact.js).
+  const touching = depths(skeleton, trial);
   for (let round = 0; round < ROUNDS; round++) {
     const now = measure();
     const size = Math.hypot(...now);
@@ -108,12 +113,22 @@ function settle(pose, angles, errors) {
       set(k, was);
       return moved.map((m, r) => (m - now[r]) / step);
     });
+    const before = snapshot(trial.joints, moved);
+    const lifted = [trial.lift, [...trial.body]];
     dampedSolve(columns, wanted).forEach((d, k) => set(k, get(k) + d));
+    keepReachable(trial.joints, before);
+    // A step into the body is taken back, and the solving stops there.
+    if (!noDeeper(depths(skeleton, trial), touching)) {
+      Object.assign(trial.joints, before);
+      trial.lift = /** @type {number} */ (lifted[0]);
+      trial.body = /** @type {[number, number, number]} */ (lifted[1]);
+      break;
+    }
   }
 
   // Whole degrees and cm, as poses keep them.
   const joints = { ...pose.joints };
-  for (const a of angles) if ("joint" in a) joints[a.joint] = trial.joints[a.joint].map((n) => Math.round(n));
+  for (const a of angles) if ("joint" in a) joints[a.joint] = clampJoint(a.joint, trial.joints[a.joint], pose.joints[a.joint]);
   return {
     ...pose, joints,
     body: /** @type {[number, number, number]} */ (trial.body.map((n) => Math.round(n))), lift: Math.round(trial.lift),

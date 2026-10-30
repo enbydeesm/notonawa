@@ -3,6 +3,8 @@
 // of the same kind and name is already there (or earlier in the file), and
 // only as many as the account has room for; the server checks the angles.
 
+import { jointsInReach } from "./figure-rig.js";
+
 /** @typedef {{ kind: "body" | "arms", name: string, data: Record<string, any> }} PresetEntry */
 
 /**
@@ -31,7 +33,8 @@ export function presetsToAdd(list, mine, room) {
       full++;
       continue;
     }
-    add.push({ kind: p.kind, name: p.name.trim(), data: p.data });
+    // One exported before the joints' limits changed is brought within them.
+    add.push({ kind: p.kind, name: p.name.trim(), data: jointsInReach(p.data) });
   }
   return { add, skipped, full };
 }

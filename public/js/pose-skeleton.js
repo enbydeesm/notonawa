@@ -8,8 +8,8 @@
 // world at rest. A pose's joints turn them (figure-rig.js, DRIVES); a part
 // of the body ("chest", "l_elbow"…) is the bone its rope points are kept on.
 
-import { Bone, Object3D, Vector3 } from "./vendor/three.js";
-import { JOINTS, DRIVES, TAPPED_AS, anchorBone, jointRotation, bodyRotation } from "./figure-rig.js";
+import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
+import { JOINTS, DRIVES, TAPPED_AS, anchorBone, carrierBone, jointRotation, bodyRotation } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
 import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
@@ -70,8 +70,17 @@ export function makeSkeleton(pelvis = new Object3D(), shape = DEFAULT_SHAPE) {
     /** @type {Object3D} */ (all.get(BONES[PARENTS[i]])).add(bone);
     all.set(name, bone);
   });
+  // Each part's rope points are on its anchor: at its joint, carried by the
+  // last bone it turns (which has the whole turn, twist included). Most
+  // parts' anchor is that bone itself.
   /** @type {Map<string, Object3D>} */
-  const bones = new Map(["pelvis", ...JOINTS.map((j) => j.name)].map((part) => [part, /** @type {Object3D} */ (all.get(anchorBone(part)))]));
+  const bones = new Map(["pelvis", ...JOINTS.map((j) => j.name)].map((part) => {
+    const carrier = /** @type {Object3D} */ (all.get(carrierBone(part)));
+    if (carrierBone(part) === anchorBone(part)) return [part, carrier];
+    const anchor = new Object3D();
+    carrier.add(anchor);
+    return [part, anchor];
+  }));
   const skeleton = { pelvis, bones, all, shape: /** @type {import("./figure-body.js").Shape} */ ([...shape]), heads: /** @type {Float64Array} */ (new Float64Array(0)) };
   reshape(skeleton, shape);
   return skeleton;
@@ -93,6 +102,12 @@ export function reshape(skeleton, shape) {
       heads[i * 3] - heads[parent * 3], heads[i * 3 + 1] - heads[parent * 3 + 1], heads[i * 3 + 2] - heads[parent * 3 + 2],
     );
   });
+  // An anchor apart from its carrier sits at the part's joint.
+  for (const [part, anchor] of skeleton.bones) {
+    if (anchor === skeleton.all.get(carrierBone(part))) continue;
+    const a = BONES.indexOf(anchorBone(part)) * 3, c = BONES.indexOf(carrierBone(part)) * 3;
+    anchor.position.set(heads[a] - heads[c], heads[a + 1] - heads[c + 1], heads[a + 2] - heads[c + 2]);
+  }
   skeleton.shape = [...shape];
   skeleton.heads = heads;
 }
@@ -139,8 +154,11 @@ export function vertexParts({ joints, weights, vertices }) {
   return { names: PART_NAMES, of };
 }
 
-/** For working out a joint's turn as a quaternion. */
+/** For working out a joint's swing and twist as quaternions. */
 const turning = new Object3D();
+const swing = new Quaternion();
+const twist = new Quaternion();
+const share = new Quaternion();
 
 /**
  * Puts the skeleton in a pose (and works out where everything is).
@@ -157,11 +175,25 @@ export function posed(skeleton, pose) {
   pelvis.rotation.set(turn.x, turn.y, turn.z, turn.order);
   for (const joint of JOINTS) {
     const r = jointRotation(joint.name, pose.joints[joint.name]);
-    turning.rotation.set(r.x, r.y, r.z, r.order);
-    // Each bone takes its share of the turn (they add up to the whole, as
-    // each turns about the same axis, already turned by the ones above).
-    for (const [name, share] of DRIVES[joint.name]) {
-      /** @type {Object3D} */ (all.get(name)).quaternion.identity().slerp(turning.quaternion, share);
+    // The turn as a swing, then a twist about the bone's length: a joint
+    // that shares them differently turns about y last (its twist), so the
+    // two are its angles without and with only that turn.
+    const drive = DRIVES[joint.name];
+    if (drive.some(([, s, t = s]) => s !== t)) {
+      turning.rotation.set(r.x, 0, r.z, r.order);
+      swing.copy(turning.quaternion);
+      turning.rotation.set(0, r.y, 0, r.order);
+      twist.copy(turning.quaternion);
+    } else {
+      turning.rotation.set(r.x, r.y, r.z, r.order);
+      swing.copy(turning.quaternion);
+      twist.identity();
+    }
+    // Each bone takes its share of each (they add up to the whole, as each
+    // turns about the same axes, already turned by the ones above).
+    for (const [name, swingShare, twistShare = swingShare] of DRIVES[joint.name]) {
+      const bone = /** @type {Object3D} */ (all.get(name));
+      bone.quaternion.identity().slerp(swing, swingShare).multiply(share.identity().slerp(twist, twistShare));
     }
   }
   let root = pelvis;

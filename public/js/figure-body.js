@@ -18,11 +18,11 @@
 //   height  cm, top of the head to the soles
 
 import {
-  BONES, PARENTS, CORNERS, CORNER_KEYS, HEADS, CORNER_HEADS, FAT_HEADS,
-  CORNER_STATURE, CORNER_FLOOR, FAT_STATURE, FAT_FLOOR, BODY_FILE,
+  BONES, PARENTS, CORNERS, CORNER_KEYS, HEADS, CORNER_HEADS, FAT_HEADS, BIND_HEADS, CORNER_BIND_HEADS, FAT_BIND_HEADS,
+  TURNS, CORNER_STATURE, CORNER_FLOOR, FAT_STATURE, FAT_FLOOR, BODY_FILE, SEGMENTS, RADII, CORNER_RADII, FAT_RADII,
 } from "./figure-body-data.js";
 
-export { BONES, PARENTS, BODY_FILE };
+export { BONES, PARENTS, BODY_FILE, TURNS, SEGMENTS };
 
 /** @typedef {[number, number, number, number]} Shape gender, muscle, weight, height (cm) */
 
@@ -102,18 +102,39 @@ export function shapeBlend([gender, muscle, weight, height]) {
 /**
  * Where every bone's joint is for a shape, standing arms down (cm, from
  * the hip centre; BONES order, three numbers each).
+ * @type {(shape: Shape) => Float64Array}
+ */
+export const bodyHeads = (shape) => blendHeads(shape, HEADS, CORNER_HEADS, FAT_HEADS);
+
+/**
+ * Where every bone's joint is for a shape in the pose the skin is bound in
+ * (Anny's own, arms out), BONES order: each bone's skin is moved from there.
  * @param {Shape} shape
  * @returns {Float64Array}
  */
-export function bodyHeads(shape) {
+export const bindHeads = (shape) => blendHeads(shape, BIND_HEADS, CORNER_BIND_HEADS, FAT_BIND_HEADS);
+
+/**
+ * The body's segments as capsules for a shape (SEGMENTS order, three
+ * numbers each): radius, how far forward of its line, and how far out a
+ * torso segment's side capsules are (cm).
+ * @type {(shape: Shape) => Float64Array}
+ */
+export const segmentSizes = (shape) => blendHeads(shape, RADII, CORNER_RADII, FAT_RADII);
+
+/**
+ * @param {Shape} shape
+ * @param {readonly number[]} base @param {readonly (readonly number[])[]} perCorner @param {readonly number[]} fatDelta
+ */
+function blendHeads(shape, base, perCorner, fatDelta) {
   const { corners, fat } = shapeBlend(shape);
-  const out = Float64Array.from(HEADS);
+  const out = Float64Array.from(base);
   corners.forEach((a, c) => {
     if (!a) return;
-    const delta = CORNER_HEADS[c];
+    const delta = perCorner[c];
     for (let i = 0; i < out.length; i++) out[i] += a * delta[i];
   });
-  if (fat) for (let i = 0; i < out.length; i++) out[i] += fat * FAT_HEADS[i];
+  if (fat) for (let i = 0; i < out.length; i++) out[i] += fat * fatDelta[i];
   return out;
 }
 
@@ -185,8 +206,8 @@ export function readBody(buffer) {
 }
 
 /**
- * Every vertex's place for a shape (cm, standing arms down, from the hip
- * centre): the in-between shape plus each component as much as the
+ * Every vertex's place for a shape (cm, in Anny's pose, arms out, from
+ * the hip centre): the in-between shape plus each component as much as the
  * corners' blend says, plus the heavier shape.
  * @param {Body} body
  * @param {Shape} shape

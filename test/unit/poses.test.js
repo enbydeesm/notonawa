@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import * as server from "../../src/poses/parse.js";
 import * as page from "../../public/js/pose-format.js";
 import {
-  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, DRIVES, STANDING_LIFT, MAX_PRESETS, withBodyPreset, withArmsPreset,
+  JOINTS, BODY_PRESETS, ARMS_PRESETS, ARM_JOINTS, ORIENTATIONS, DRIVES, startJoints, STANDING_LIFT, MAX_PRESETS, withBodyPreset, withArmsPreset,
   bodyPresetFrom, armsPresetFrom, clampJoint, jointRotation,
 } from "../../public/js/figure-rig.js";
 import { BONES as BODY_BONES } from "../../public/js/figure-body.js";
@@ -523,9 +523,10 @@ describe("changing a pose", () => {
     const behind = /** @type {any} */ (ARMS_PRESETS.find((x) => x.name === "Boxtie"));
     const kneeling = /** @type {any} */ (BODY_PRESETS.find((x) => x.name === "Kneeling (seiza)"));
     const up = /** @type {any} */ (BODY_PRESETS.find((x) => x.name === "Kneeling up"));
-    // Kneeling, arms at the sides; then behind the back; then kneeling up.
+    // Kneeling, arms at the sides (a little out, as a new pose starts); then behind the back; then kneeling up.
     let p = page.withPosture(page.newPose(), withBodyPreset(page.newPose(), kneeling));
-    expect(ARM_JOINTS.every((j) => p.joints[j].every((a) => a === 0))).toBe(true);
+    expect(ARM_JOINTS.map((j) => p.joints[j])).toEqual(ARM_JOINTS.map((j) => startJoints()[j]));
+    expect(p.joints.l_shoulder).toEqual([0, 4, 0]);
     p = page.withPosture(p, withArmsPreset(p, behind));
     expect([p.lift, p.joints.l_knee, p.joints.l_elbow]).toEqual([19, [155], [105]]);
     // An arm moved by hand stays as it is, too.

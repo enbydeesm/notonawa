@@ -45,7 +45,7 @@
 // history is just the poses before and after.
 
 import { COLORS } from "./drawing-format.js";
-import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
+import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, startJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
 import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./figure-body.js";
 
 /** @typedef {import("./drawing-format.js").Color} Color */
@@ -144,7 +144,7 @@ export function typedNumber(text, range) {
 /** @returns {Pose} the figure standing, seen from the front and a little above */
 export function newPose() {
   return {
-    v: FORMAT_VERSION, joints: restJoints(), body: [0, 0, 0], lift: STANDING_LIFT, shift: [0, 0], shape: [...DEFAULT_SHAPE],
+    v: FORMAT_VERSION, joints: startJoints(), body: [0, 0, 0], lift: STANDING_LIFT, shift: [0, 0], shape: [...DEFAULT_SHAPE],
     camera: [25, 8, 330, 100, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
   };
 }
@@ -227,7 +227,7 @@ export const setShape = (pose, shape) => ({ ...pose, shape: cleanShape(shape) })
 export function setJoint(pose, name, index, angle) {
   const angles = [...pose.joints[name]];
   angles[index] = angle;
-  return { ...pose, joints: { ...pose.joints, [name]: clampJoint(name, angles) } };
+  return { ...pose, joints: { ...pose.joints, [name]: clampJoint(name, angles, pose.joints[name]) } };
 }
 
 /**

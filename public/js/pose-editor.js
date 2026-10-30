@@ -44,7 +44,7 @@ import { h, showMessage, privateField } from "./dom.js";
 import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
-  PART_LABELS, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, MAX_PRESETS, jointNamed, withBodyPreset, withArmsPreset,
+  PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, MAX_PRESETS, jointNamed, withBodyPreset, withArmsPreset,
   bodyPresetFrom, armsPresetFrom,
 } from "./figure-rig.js";
 import { savedPresets, savePreset, presetLabel } from "./pose-presets.js";
@@ -56,10 +56,11 @@ import {
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
   isCinch, isUpline, canSeesaw, setSeesaw, cinchOn, cantCinch, addCinch, setCinchLength, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
-import { poseView, poseImage, bodyMeasurements } from "./pose-scene.js";
-import { SHAPE_RANGES, SHAPE_SLIDERS } from "./figure-body.js";
+import { poseView, poseImage } from "./pose-scene.js";
+import { SHAPE_RANGES, SHAPE_SLIDERS, standingLift } from "./figure-body.js";
 import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
 import { makeSkeleton, posed, withShape } from "./pose-skeleton.js";
+import { keptOut } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -276,12 +277,10 @@ export function editPose(start, { addToVisuals } = {}) {
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
-    // The body's shape, folded away until wanted: its sliders, and its
-    // measurements as they change.
+    // The body's shape, folded away until wanted.
     const shapeSliders = h("div", { className: "pose-sliders", id: "pose-shape-sliders" });
-    const measured = h("dl", { className: "pose-measurements", id: "pose-measurements" });
     const shapeFold = h("details", { className: "fold pose-shape", id: "pose-shape" },
-      h("summary", {}, "Body shape"), shapeSliders, measured);
+      h("summary", {}, "Body shape"), shapeSliders);
     // The part's name, with Reset at the end of the same row.
     const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
       h("div", { className: "pose-menus" }, bodyMenu, armsMenu, turnMenu),
@@ -492,20 +491,8 @@ export function editPose(start, { addToVisuals } = {}) {
       return h("div", { className: "pose-slider" }, h("label", { htmlFor: id }, label), input, steps, typed);
     }
 
-    /** The body's measurements, for the shape shown (a slider being dragged too). */
-    function drawMeasurements() {
-      const m = bodyMeasurements(current().shape);
-      /** @param {string} label @param {string} value */
-      const row = (label, value) => [h("dt", {}, label), h("dd", {}, value)];
-      measured.replaceChildren(
-        ...row("Height", `${m.height.toFixed(1)} cm`), ...row("Waist", `${m.waist.toFixed(1)} cm`),
-        ...row("Mass", `${m.mass.toFixed(1)} kg`), ...row("BMI", m.bmi.toFixed(1)),
-        ...row("Volume", `${m.volume.toFixed(1)} L`));
-    }
-
     function drawShapePanel() {
       const pose = current();
-      drawMeasurements();
       if (draft) return;
       shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
         id: `pose-shape-${i}`, label, min: SHAPE_RANGES[i][0], max: SHAPE_RANGES[i][1], value: pose.shape[i],
@@ -547,19 +534,21 @@ export function editPose(start, { addToVisuals } = {}) {
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
       sliders.replaceChildren(...joint.moves.map((m, i) => slider({
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
-        // A see-saw rope's other end moves to keep it the same length.
-        apply: (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
+        // Stopped where a limb would go into the body (pose-contact.js); a
+        // see-saw rope's other end moves to keep it the same length.
+        apply: (p, v) => keepSeesaws(p, keptOut(measuring, p, setJoint(p, joint.name, i, v)), [joint.name]),
       })), ...(joint.name === "head" ? wholeFigure() : []));
     }
 
     function resetSelected() {
       if (!selected) return;
       if (selected === "pelvis") {
-        commit({ ...history.pose, body: [0, 0, 0], lift: newPose().lift, shift: [0, 0] });
+        // Standing, its feet on the floor for its body's height.
+        commit({ ...history.pose, body: [0, 0, 0], lift: Math.round(standingLift(history.pose.shape)), shift: [0, 0] });
         return;
       }
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
-      commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: joint.moves.map(() => 0) } });
+      commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } });
     }
 
     function drawRopePanel() {

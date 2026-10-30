@@ -15,6 +15,8 @@
 import { BadInput } from "../http.js";
 import { encryptedText } from "../parse.js";
 import { JOINTS, BODY_ANGLE, LIFT } from "../poses/parse.js";
+// The shoulders' and hips' limits that depend on several movements (shared with the page).
+import { canReach } from "../../public/js/joint-limits.js";
 
 export const KINDS = /** @type {const} */ (["body", "arms"]);
 /** The arms' joints: an arms preset has only these, and a body preset none of them. */
@@ -95,7 +97,8 @@ export function parsePresetData(kind, value) {
   for (const name of names) {
     const ranges = JOINTS[name];
     const angles = Object.hasOwn(sent, name) ? sent[name] : ranges.map(() => 0);
-    if (!Array.isArray(angles) || angles.length !== ranges.length || !angles.every((n, i) => within(n, ranges[i][0], ranges[i][1]))) {
+    if (!Array.isArray(angles) || angles.length !== ranges.length || !angles.every((n, i) => within(n, ranges[i][0], ranges[i][1]))
+      || !canReach(name, angles)) {
       throw bad("a joint is bent further than a body can.");
     }
     joints[name] = [...angles];

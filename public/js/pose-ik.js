@@ -14,7 +14,9 @@
 // reach gets the point as near as it can. Angles stay fractional while
 // solving and are rounded to whole degrees, as poses keep them, at the end.
 
-import { jointNamed } from "./figure-rig.js";
+import { jointNamed, clampJoint } from "./figure-rig.js";
+import { canReach } from "./joint-limits.js";
+import { depths, noDeeper } from "./pose-contact.js";
 import { makeSkeleton, posed, onBone } from "./pose-skeleton.js";
 
 /** @typedef {import("./vendor/three.js").Vector3} Vector3 */
@@ -100,6 +102,8 @@ export function dragTo(pose, bone, cm, target) {
   };
   const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
 
+  // No limb is pushed further into the body than it was (pose-contact.js).
+  const touching = depths(skeleton, trial);
   for (let round = 0; round < ROUNDS; round++) {
     const at = held();
     const error = [target.x - at.x, target.y - at.y, target.z - at.z];
@@ -120,11 +124,48 @@ export function dragTo(pose, bone, cm, target) {
       return [(moved.x - at.x) / step, (moved.y - at.y) / step, (moved.z - at.z) / step];
     });
     const change = dampedSolve(columns, error);
+    const before = snapshot(joints, chain);
     change.forEach((d, k) => set(k, get(k) + d));
+    keepReachable(joints, before);
+    // A step into the body: only the angles that don't push a limb in are
+    // kept, biggest first, so the limb slides along what it touches (and
+    // stops if none can move).
+    if (!noDeeper(depths(skeleton, trial), touching)) {
+      Object.assign(joints, before);
+      let moved = false;
+      for (const k of change.map((_, k) => k).sort((a, b) => Math.abs(change[b]) - Math.abs(change[a]))) {
+        const was = get(k);
+        const keep = snapshot(joints, chain);
+        set(k, was + change[k]);
+        keepReachable(joints, keep);
+        if (noDeeper(depths(skeleton, trial), touching)) moved = true;
+        else Object.assign(joints, keep);
+      }
+      if (!moved) break;
+    }
   }
   const rounded = { ...pose.joints };
-  for (const [name] of chain) rounded[name] = joints[name].map((a) => Math.round(a));
+  for (const [name] of chain) rounded[name] = clampJoint(name, joints[name], pose.joints[name]);
   return { ...pose, joints: rounded };
+}
+
+/**
+ * The angles of the joints in a chain, copied.
+ * @param {Record<string, number[]>} joints
+ * @param {readonly (readonly [string, number])[]} chain
+ * @returns {Record<string, number[]>}
+ */
+export const snapshot = (joints, chain) => Object.fromEntries(chain.map(([name]) => [name, [...joints[name]]]));
+
+/**
+ * Takes back a step for any joint it took out of reach (a shoulder or
+ * hip pointing or twisting where a body can't, joint-limits.js), so
+ * solving stays within reach.
+ * @param {Record<string, number[]>} joints changed in place
+ * @param {Record<string, number[]>} before the angles before the step
+ */
+export function keepReachable(joints, before) {
+  for (const [name, was] of Object.entries(before)) if (!canReach(name, joints[name])) joints[name] = was;
 }
 
 /**

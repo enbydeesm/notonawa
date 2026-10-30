@@ -7,7 +7,7 @@ import {
   readBody, bodyPositions, measurements,
 } from "../../public/js/figure-body.js";
 import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
-import { DRIVES, anchorBone, olderJointPlaces } from "../../public/js/figure-rig.js";
+import { DRIVES, anchorBone, olderJointPlaces, restJoints } from "../../public/js/figure-rig.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
 import { makeSkeleton, posed, ropePoint, boneParts, withShape } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
@@ -174,8 +174,9 @@ describe("a pose's shape", () => {
 
   it("opens an older pose on the in-between body, its ropes where they were on the first figure", () => {
     const older = olderJointPlaces();
+    // Saved at rest on the first figure (its arms straight down).
     const { shape: _, ...saved } = {
-      ...newPose(),
+      ...newPose(), joints: restJoints(),
       ropes: [{ c: /** @type {const} */ ("red"), w: /** @type {const} */ (2), p: /** @type {import("../../public/js/pose-format.js").RopePoint[]} */ ([
         ["l_wrist", 0, 0, 0], ["chest", 50, 120, 105], ["l_knee", -20, -100, 0],
       ]) }],

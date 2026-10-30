@@ -22,12 +22,26 @@ export class Vector2 {
 export class Matrix4 {
   elements: number[];
   makeTranslation(x: number, y: number, z: number): this;
+  multiplyMatrices(a: Matrix4, b: Matrix4): this;
+  set(n11: number, n12: number, n13: number, n14: number, n21: number, n22: number, n23: number, n24: number,
+    n31: number, n32: number, n33: number, n34: number, n41: number, n42: number, n43: number, n44: number): this;
 }
 
 export class Quaternion {
+  constructor(x?: number, y?: number, z?: number, w?: number);
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  set(x: number, y: number, z: number, w: number): this;
   identity(): this;
   copy(q: Quaternion): this;
   slerp(q: Quaternion, t: number): this;
+  invert(): this;
+  normalize(): this;
+  lengthSq(): number;
+  multiply(q: Quaternion): this;
+  premultiply(q: Quaternion): this;
 }
 
 export class Vector3 {
@@ -47,6 +61,9 @@ export class Vector3 {
   lengthSq(): number;
   project(camera: Camera): this;
   transformDirection(m: Matrix4): this;
+  applyMatrix4(m: Matrix4): this;
+  multiplyScalar(s: number): this;
+  length(): number;
   distanceTo(v: Vector3): number;
 }
 
@@ -149,6 +166,8 @@ export class TubeGeometry extends BufferGeometry {
 
 export class Material {
   dispose(): void;
+  onBeforeCompile: (shader: { vertexShader: string, fragmentShader: string }) => void;
+  customProgramCacheKey: () => string;
 }
 export class MeshStandardMaterial extends Material {
   constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean });
@@ -168,6 +187,7 @@ export class SkinnedMesh extends Mesh {
   skeleton: Skeleton;
   bindMode: "attached" | "detached";
   bind(skeleton: Skeleton, bindMatrix?: Matrix4): void;
+  applyBoneTransform(index: number, target: Vector3): Vector3;
   computeBoundingSphere(): void;
 }
 

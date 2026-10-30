@@ -1747,6 +1747,55 @@ about 6 minutes, too slow to run after every change.
 - **Tapping the body** picks the part whose bones move that spot most.
   The selected part is shown by coloring its vertices.
 
+## Poser: shoulders, bends, limits and contact (October 2026)
+
+**Status:** built (2026-10-29, on the `anny-body` branch)
+
+- **Measurements taken out** of the Body shape fold, by choice: the
+  sliders stay. (`figure-body.js` still has `measurements`, tested.)
+- **The skin is bound in Anny's own pose** (arms out about 45°), not baked
+  arms down. Baking it arms down squashed the armpit before anything
+  moved, so raising an arm tore it. The joints are still measured from
+  arms down: each bone's skin inverse is its turn from Anny's pose to arms
+  down after a move back from its bound joint (`TURNS`, `BIND_HEADS`).
+- **Shoulders**: a raise is shared with the collarbone (12%) and shoulder
+  blade (8%), so the shoulder rises with the arm. The upper arm's and
+  thigh's twist is spread over their two bones. Swing and twist come from
+  the joint's own angles (twist is turned last), as splitting a turn
+  after the fact is unsteady with the arm straight up.
+- **Four bones per vertex** (all three.js takes): a dropped bone's pull
+  goes to its nearest kept relative in the skeleton, not shared out over
+  all four, which made the shoulder sag (up to 22% of its pull dropped).
+- **Dual-quaternion skinning** (`pose-skinning.js`), in a shader patch
+  and on the CPU for taps: a tight bend keeps its volume and rounds off,
+  where three.js's linear blend folded elbows and knees to a point. The
+  usual cost is a slight bulge at a bend, which suits a body. Corrective
+  shapes sculpted in Blender would be the next step if it isn't enough.
+- **Limits that depend on several movements** (`joint-limits.js`): a
+  shoulder twists ±90° low and about ±55° straight up; an arm swings back
+  70° hanging, 40° once out to the side; a leg goes out 90° forward but
+  45° behind; a leg crosses the other only once forward. Base twists
+  tightened: hips ±45°, waist and chest ±35° each. Enforced on the server
+  too, not just the poser (the user asked for the stricter way). The
+  server imports the page's file itself rather than a copy kept in step,
+  so they can't differ. Older poses and presets are brought within the
+  limits as they're read, on opening (`readPose`) and on import
+  (`jointsInReach`), so nothing already saved is refused. One saved and
+  never opened again keeps its old angles in the database.
+- **Contact** (`pose-contact.js`): the body as capsules fitted to the skin
+  at every corner of the sliders (`pack_body.py`; each torso segment
+  three side by side, as a torso is wider than deep). A change is refused
+  only if it pushes some pair deeper than it was, so a pose that starts
+  touching (hands at the thighs, a box tie) can still move. Sliders stop
+  where a limb touches; a drag keeps the parts of each step that don't
+  push in, so a limb slides along what it touches. The rope solver does
+  the same. Presets aren't stopped (stopping one part-way would leave a
+  pose that isn't the preset). Known limits: capsules, not the skin, so it
+  can stop a little short of what you see, or let a centimetre through;
+  and a drag can't go round the body (an arm pressed to the side can't be
+  dragged across the chest until it's raised forward), as the solver only
+  looks a step ahead.
+
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)

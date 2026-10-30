@@ -13,7 +13,11 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
 - The poser's figure is now a realistic body that bends at the joints like a person, in place of the simple shapes.
-- Open "Body shape" in the Pose panel to change the body's gender (masculine to feminine), muscle, weight and height. Its measurements (height, waist, mass, BMI and volume) update as you go. Each pose keeps its own body.
+- Open "Body shape" in the Pose panel to change the body's gender (masculine to feminine), muscle, weight and height. Each pose keeps its own body.
+- Shoulders, elbows and knees bend more like a body's: the shoulder rises with a raised arm, the armpit no longer tears, and a fully bent elbow or knee is rounded rather than sharp.
+- Joints stay within what a body can do: a shoulder twists less once the arm is raised, an arm swings back less once it's out to the side, and a leg crosses the other only once it's forward. Poses saved outside these limits are brought within them when opened.
+- Arms and legs stop where they'd go into the body or another limb, whether moved with a slider or dragged.
+- New poses and "At sides" start with the arms a little out from the thighs.
 - Poses saved before this open on the in-between body, with their ropes where they were.
 
 ## 2026.10.28.001
