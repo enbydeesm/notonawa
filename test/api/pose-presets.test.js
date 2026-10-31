@@ -27,7 +27,7 @@ describe("saving a preset", () => {
       [first.body.id, "body", sealed("Seiza, leaning")], [second.body.id, "arms", sealed("Sam's boxtie")],
     ]);
     const [b, a] = presets.map((/** @type {any} */ p) => p.data);
-    expect(Object.keys(b.joints)).toEqual(["spine", "chest", "head", "l_hip", "l_knee", "l_ankle", "r_hip", "r_knee", "r_ankle"]);
+    expect(Object.keys(b.joints)).toEqual(["hips", "spine", "chest", "head", "l_hip", "l_knee", "l_ankle", "l_toes", "r_hip", "r_knee", "r_ankle", "r_toes"]);
     expect(b.joints.l_hip).toEqual([65, 8, 0]);
     expect(b.joints.spine).toEqual([0, 0, 0]);
     expect([b.body, b.lift]).toEqual([[10, 0, 0], 29]);

@@ -100,6 +100,18 @@ describe("parsePose", () => {
     expect(server.parsePose(older)).toEqual({ ...ok, camera: [20, 10, 300, 110, 0, 0] });
   });
 
+  it("takes a pointed foot with its toes up, a tipped pelvis and a deep backbend; an older pose has them at rest", () => {
+    const barbie = { ...ok, joints: { ...ok.joints, l_ankle: [-65], l_toes: [80], hips: [-30, 20, 30], spine: [-50, 0, 0], chest: [-40, 0, 0] } };
+    expect(server.parsePose(barbie)).toEqual(barbie);
+    expect(page.readPose(barbie).joints.l_toes).toEqual([80]);
+    for (const [name, angles] of /** @type {[string, number[]][]} */ ([["l_toes", [81]], ["l_ankle", [-66]], ["hips", [31, 0, 0]], ["spine", [-51, 0, 0]], ["chest", [-41, 0, 0]]])) {
+      expect(() => server.parsePose({ ...ok, joints: { ...ok.joints, [name]: angles } }), name).toThrow();
+    }
+    const { hips: _h, l_toes: _l, r_toes: _r, ...older } = ok.joints;
+    expect(server.parsePose({ ...ok, joints: older }).joints).toMatchObject({ hips: [0, 0, 0], l_toes: [0], r_toes: [0] });
+    expect(page.readPose({ ...ok, joints: older }).joints).toMatchObject({ hips: [0, 0, 0], l_toes: [0], r_toes: [0] });
+  });
+
   it("takes rope points on a bamboo or a hashira", () => {
     const onBamboo = pose({ bamboo: [0, 195, 0, 30, 150, 8], ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["bamboo", -750, 0, 0]] }] });
     expect(server.parsePose(onBamboo)).toEqual(onBamboo);

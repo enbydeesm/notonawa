@@ -4,8 +4,8 @@ import { describe, it, expect } from "vitest";
 import { Vector3 } from "../../public/js/vendor/three.js";
 import { newPose, setJoint } from "../../public/js/pose-format.js";
 import { JOINTS } from "../../public/js/figure-rig.js";
-import { makeSkeleton, posed, onBone } from "../../public/js/pose-skeleton.js";
-import { DRAG_CHAINS, canDrag, dragTo, onPlane, dampedSolve } from "../../public/js/pose-ik.js";
+import { makeSkeleton, posed, onBone, withHips, withHipsOn } from "../../public/js/pose-skeleton.js";
+import { DRAG_CHAINS, canDrag, dragTo, dragJoints, onPlane, dampedSolve } from "../../public/js/pose-ik.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
 
@@ -31,9 +31,9 @@ function withinLimits(pose) {
 describe("which parts drag", () => {
   it("is the arms and legs, not the trunk or head", () => {
     for (const s of ["l", "r"]) {
-      for (const part of ["shoulder", "elbow", "wrist", "hip", "knee", "ankle"]) expect(canDrag(`${s}_${part}`)).toBe(true);
+      for (const part of ["shoulder", "elbow", "wrist", "hip", "knee", "ankle", "toes"]) expect(canDrag(`${s}_${part}`)).toBe(true);
     }
-    for (const part of ["pelvis", "spine", "chest", "head"]) expect(canDrag(part)).toBe(false);
+    for (const part of ["pelvis", "hips", "spine", "chest", "head"]) expect(canDrag(part)).toBe(false);
     expect(() => dragTo(newPose(), "head", [0, 0, 0], new Vector3())).toThrow();
   });
 
@@ -57,9 +57,11 @@ describe("dragging", () => {
     withinLimits(moved);
   });
 
-  it("moves only the limb held: the other limbs, the trunk and the twists stay", () => {
+  it("moves only the limb held while it can reach: the other limbs, the trunk and the twists stay", () => {
     const start = setJoint(newPose(), "l_shoulder", 2, 30);
-    const moved = dragTo(start, "l_wrist", [0, -8.5, 0], new Vector3(10, 130, 30));
+    // Somewhere this arm can reach: where its hand is with the shoulder forward and the elbow bent.
+    const reachable = at(setJoint(setJoint(start, "l_shoulder", 0, 40), "l_elbow", 0, 30), "l_wrist", [0, -8.5, 0]);
+    const moved = dragTo(start, "l_wrist", [0, -8.5, 0], reachable);
     for (const joint of JOINTS) {
       if (joint.name === "l_shoulder") continue;
       if (joint.name === "l_elbow") continue;
@@ -117,6 +119,75 @@ describe("dragging", () => {
       expect(now.distanceTo(last)).toBeLessThan(10);
       last = now;
     }
+  });
+});
+
+describe("the trunk joining in", () => {
+  // A leg raised as far forward as the hip goes, the knee straight.
+  const raised = setJoint(newPose(), "l_hip", 0, 140);
+  const hip = at(raised, "l_hip"), foot = at(raised, "l_ankle");
+  const length = Math.hypot(foot.y - hip.y, foot.z - hip.z);
+  /** The foot's place with the leg at `deg` from straight down, nearly its full length. @param {number} deg */
+  const legAt = (deg) => new Vector3(foot.x, hip.y - 0.95 * length * Math.cos(deg * Math.PI / 180), hip.z + 0.95 * length * Math.sin(deg * Math.PI / 180));
+
+  it("tips the pelvis back to lift a leg higher than the hip alone goes, keeping the other foot on the floor", () => {
+    const target = legAt(160);
+    let moved = raised;
+    for (let k = 0; k < 6; k++) moved = dragTo(moved, "l_ankle", [0, 0, 0], target);
+    expect(at(moved, "l_ankle").distanceTo(target)).toBeLessThan(1.5);
+    expect(moved.joints.hips[0]).toBeLessThan(-10);
+    withinLimits(moved);
+    // The other leg points where it did, its foot still on the floor.
+    const other = at(moved, "r_ankle"), was = at(raised, "r_ankle");
+    expect(Math.abs(other.y - was.y)).toBeLessThan(1.5);
+    expect(Math.hypot(other.x - was.x, other.z - was.z)).toBeLessThan(4);
+  });
+
+  it("leaves the trunk alone while the limb can reach", () => {
+    const start = newPose();
+    const foot0 = at(start, "r_ankle");
+    const moved = dragTo(start, "r_ankle", [0, 0, 0], new Vector3(foot0.x, foot0.y + 40, foot0.z + 20));
+    expect([moved.joints.hips, moved.joints.spine, moved.joints.chest]).toEqual([[0, 0, 0], [0, 0, 0], [0, 0, 0]]);
+  });
+
+  it("names every joint a drag can change: the limb's, the trunk's, and the other hip for a leg", () => {
+    expect(dragJoints("l_ankle")).toEqual(["l_hip", "l_knee", "hips", "r_hip"]);
+    expect(dragJoints("r_wrist")).toEqual(["r_shoulder", "r_elbow", "chest"]);
+  });
+
+  it("leans the chest to reach further than an arm goes", () => {
+    const start = newPose();
+    const shoulder = at(start, "l_shoulder");
+    // Straight up, further than the arm's length.
+    const target = new Vector3(shoulder.x + 5, shoulder.y + 75, shoulder.z);
+    let moved = start;
+    for (let k = 0; k < 6; k++) moved = dragTo(moved, "l_wrist", [0, -8.5, 0], target);
+    const reach = at(moved, "l_wrist", [0, -8.5, 0]).distanceTo(target);
+    let alone = start;
+    for (let k = 0; k < 6; k++) alone = dragTo({ ...alone, joints: { ...alone.joints, chest: [0, 0, 0] } }, "l_wrist", [0, -8.5, 0], target);
+    expect(moved.joints.chest.some((a) => a !== 0)).toBe(true);
+    expect(reach).toBeLessThan(at(alone, "l_wrist", [0, -8.5, 0]).distanceTo(target) + 0.01);
+    withinLimits(moved);
+  });
+});
+
+describe("the Hips sliders", () => {
+  it("tip the pelvis about the hip joints, the trunk going with it and both feet staying put", () => {
+    const start = newPose();
+    for (const tilt of [25, -30]) {
+      const moved = withHips(start, [tilt, 0, 0]);
+      for (const foot of ["l_ankle", "r_ankle"]) expect(at(moved, foot).distanceTo(at(start, foot))).toBeLessThan(0.5);
+      expect(Math.abs(at(moved, "head").z - at(start, "head").z)).toBeGreaterThan(15);
+      expect(moved.joints.l_hip[0]).toBe(tilt);
+    }
+  });
+
+  it("hike one side, lifting that leg rather than pushing the other foot into the floor", () => {
+    const start = newPose();
+    const moved = withHipsOn(makeSkeleton(), start, [0, 15, 0]);
+    expect(moved.joints.hips).toEqual([0, 15, 0]);
+    expect(at(moved, "l_ankle").y).toBeGreaterThan(at(start, "l_ankle").y + 3);
+    expect(Math.abs(at(moved, "r_toes").y - at(start, "r_toes").y)).toBeLessThan(1);
   });
 });
 

@@ -9,7 +9,7 @@
 // of the body ("chest", "l_elbow"…) is the bone its rope points are kept on.
 
 import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
-import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, anchorBone, carrierBone, jointRotation, bodyRotation, withBodyPreset } from "./figure-rig.js";
+import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, WAIST_SHARE_OF_HIPS, anchorBone, carrierBone, jointRotation, bodyRotation, withBodyPreset, clampJoint, jointNamed } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
 import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp, withPosture } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
@@ -137,12 +137,34 @@ export function boneParts({ posing = false } = {}) {
 
 /**
  * Which part each of the mesh's vertices is on: the one whose bones move
- * it most (for a rope point, or with `posing`, for posing).
- * @param {{ joints: Uint8Array, weights: Uint8Array, vertices: number }} body
+ * it most (for a rope point, or with `posing`, for posing: then the top of
+ * the hips' area, by height, is the waist's, given the mesh's places).
+ * @param {{ joints: Uint8Array, weights: Uint8Array, vertices: number, base?: Float32Array }} body
  * @param {{ posing?: boolean }} [options]
  * @returns {{ names: readonly string[], of: Uint8Array }} the parts, and an index into them per vertex
  */
-export function vertexParts({ joints, weights, vertices }, options) {
+export function vertexParts({ joints, weights, vertices, base }, options) {
+  const parts = partsByWeight({ joints, weights, vertices }, options);
+  if (options?.posing && base) {
+    const hips = PART_NAMES.indexOf("hips"), waist = PART_NAMES.indexOf("spine");
+    let low = Infinity, high = -Infinity;
+    for (let v = 0; v < vertices; v++) {
+      if (parts.of[v] !== hips) continue;
+      low = Math.min(low, base[v * 3 + 1]);
+      high = Math.max(high, base[v * 3 + 1]);
+    }
+    const from = high - (high - low) * WAIST_SHARE_OF_HIPS;
+    for (let v = 0; v < vertices; v++) if (parts.of[v] === hips && base[v * 3 + 1] >= from) parts.of[v] = waist;
+  }
+  return parts;
+}
+
+/**
+ * @param {{ joints: Uint8Array, weights: Uint8Array, vertices: number }} body
+ * @param {{ posing?: boolean }} [options]
+ * @returns {{ names: readonly string[], of: Uint8Array }}
+ */
+function partsByWeight({ joints, weights, vertices }, options) {
   const ofBone = boneParts(options);
   const of = new Uint8Array(vertices);
   const sums = new Float64Array(PART_NAMES.length);
@@ -161,6 +183,27 @@ const turning = new Object3D();
 const swing = new Quaternion();
 const twist = new Quaternion();
 const share = new Quaternion();
+const tilt = new Quaternion();
+const between = new Vector3();
+const pivoted = new Vector3();
+
+/** The Hips joint's turn of the pelvis, as a quaternion. @param {readonly number[] | undefined} angles @param {Quaternion} out */
+function hipsTurn(angles, out) {
+  const r = jointRotation("hips", [...(angles ?? [0, 0, 0])]);
+  turning.rotation.set(r.x, r.y, r.z, r.order);
+  return out.copy(turning.quaternion);
+}
+
+/**
+ * The point between the hip joints, from the pelvis (its root), for the
+ * skeleton's shape: what the Hips joint turns the pelvis about.
+ * @param {Skeleton} skeleton
+ * @param {Vector3} out
+ */
+function hipsMiddle({ heads }, out) {
+  const l = BONES.indexOf("upperleg01.L") * 3, r = BONES.indexOf("upperleg01.R") * 3;
+  return out.set((heads[l] + heads[r]) / 2 - heads[0], (heads[l + 1] + heads[r + 1]) / 2 - heads[1], (heads[l + 2] + heads[r + 2]) / 2 - heads[2]);
+}
 
 /**
  * Puts the skeleton in a pose (and works out where everything is).
@@ -175,6 +218,16 @@ export function posed(skeleton, pose) {
   pelvis.position.set(x, pose.lift, z);
   const turn = bodyRotation(pose.body);
   pelvis.rotation.set(turn.x, turn.y, turn.z, turn.order);
+  // The Hips joint turns the pelvis (and all on it) about the point between
+  // the hip joints, so tipping it forward leaves the hip joints in place.
+  const hips = pose.joints.hips;
+  if (hips && hips.some((a) => a !== 0)) {
+    hipsTurn(hips, tilt);
+    hipsMiddle(skeleton, between);
+    pivoted.copy(between).applyQuaternion(tilt);
+    pelvis.position.add(between.sub(pivoted).applyQuaternion(pelvis.quaternion));
+    pelvis.quaternion.multiply(tilt);
+  }
   for (const joint of JOINTS) {
     const r = jointRotation(joint.name, pose.joints[joint.name]);
     // The turn as a swing, then a twist about the bone's length: a joint
@@ -203,6 +256,38 @@ export function posed(skeleton, pose) {
   root.updateMatrixWorld(true);
 }
 
+/** The hip's angles, from a turn (pelvis to thigh), as its sliders have them. */
+const leg = new Quaternion();
+const held = new Quaternion();
+
+/**
+ * A pose with the Hips joint changed, and the legs named kept pointing
+ * where they were (their hip angles changed to make up for the pelvis's
+ * turn), within the hips' limits: the Hips sliders keep both legs, and a
+ * dragged leg pulling the pelvis keeps the other.
+ * @param {Pose} pose
+ * @param {readonly number[]} angles the Hips joint's new angles
+ * @param {readonly string[]} [kept] the hips to keep ("l_hip", "r_hip")
+ * @param {{ exact?: boolean }} [options] exact: fractional angles, unclamped (while dragging)
+ * @returns {Pose}
+ */
+export function withHips(pose, angles, kept = ["l_hip", "r_hip"], { exact = false } = {}) {
+  const hips = exact ? [...angles] : clampJoint("hips", angles);
+  const joints = { ...pose.joints, hips };
+  hipsTurn(hips, tilt).invert().multiply(hipsTurn(pose.joints.hips, swing));
+  for (const name of kept) {
+    const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name));
+    const r = jointRotation(name, pose.joints[name]);
+    turning.rotation.set(r.x, r.y, r.z, r.order);
+    held.copy(tilt).multiply(leg.copy(turning.quaternion));
+    turning.quaternion.copy(held);
+    const turned = /** @type {Record<string, number>} */ (/** @type {unknown} */ (turning.rotation));
+    const next = joint.moves.map((m) => m.sign * turned[m.axis] * 180 / Math.PI);
+    joints[name] = exact ? next : clampJoint(name, next, pose.joints[name], joints);
+  }
+  return { ...pose, joints };
+}
+
 /**
  * How high the body's lowest joint is in a pose (cm).
  * @param {Skeleton} skeleton
@@ -225,10 +310,32 @@ function lowestJoint(skeleton, pose) {
  * @returns {Pose}
  */
 export function withShape(skeleton, pose, shape) {
-  const next = setShape(pose, shape);
-  const drop = lowestJoint(skeleton, pose) - lowestJoint(skeleton, next);
-  return Math.abs(drop) < 0.5 ? next : { ...next, lift: clamp(next.lift + drop, LIFT_RANGE) };
+  return keptLowest(skeleton, pose, setShape(pose, shape));
 }
+
+/**
+ * A changed pose moved up or down so its lowest point is as high as it
+ * was before the change.
+ * @param {Skeleton} skeleton any (it's posed)
+ * @param {Pose} before
+ * @param {Pose} after
+ * @returns {Pose}
+ */
+export function keptLowest(skeleton, before, after) {
+  const drop = lowestJoint(skeleton, before) - lowestJoint(skeleton, after);
+  return Math.abs(drop) < 0.5 ? after : { ...after, lift: clamp(after.lift + drop, LIFT_RANGE) };
+}
+
+/**
+ * The Hips sliders' change: the pelvis turned, both legs kept pointing
+ * where they were, and the body moved up or down to keep its lowest point
+ * (one hip hiked lifts the other leg rather than pushing a foot into the floor).
+ * @param {Skeleton} skeleton any (it's posed)
+ * @param {Pose} pose
+ * @param {readonly number[]} angles the Hips joint's new angles
+ * @returns {Pose}
+ */
+export const withHipsOn = (skeleton, pose, angles) => keptLowest(skeleton, pose, withHips(pose, angles));
 
 /**
  * A body preset's height (and a saved one's) is for the default body: a

@@ -220,14 +220,26 @@ export default async function () {
   ['Save over "Standing tall"?', [["Kneel, head down", true], ["Standing tall", true]], ["Rename preset", "Kneel, head down"],
     [["Kneel", true], ["Standing tall", true]], 'Delete "Standing tall"?', [["My presets", false], ["Kneel", true]], true, []]);
 
-  // The view looks at the figure's hips, in the middle: tapping them poses the waist.
+  // The view looks at the figure's hips, in the middle: tapping them poses the pelvis.
   await tap(0.5, 0.5);
-  check("tapping the figure's middle picks its waist, with Reset beside its name", await run(`
+  check("tapping the figure's middle picks its hips, with Reset beside its name", await run(`
     return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent),
       $("#pose-reset-part").textContent, $("#pose-reset-part").parentElement === $("#pose-part").parentElement,
       Math.round($("#pose-reset-part").getBoundingClientRect().right) === Math.round($("#pose-panel-pose").getBoundingClientRect().right),
       leakyFields()];`),
-  ["Waist", ["Forward", "Lean", "Turn"], "Reset", true, true, []]);
+  ["Hips", ["Tilt", "Hike", "Turn"], "Reset", true, true, []]);
+  check("tilting the hips is one change, the hips' angles making up for it so the legs stay; Reset puts it back", await run(`
+    ${slide("pose-hips-0", 20)}
+    const tilted = [$("#pose-hips-0").value, $("#pose-undo").disabled];
+    $("#pose-reset-part").click(); await wait(200);
+    const reset = $("#pose-hips-0").value;
+    $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200);
+    return [tilted, reset, $("#pose-hips-0").value];`), [["20", false], "0", "0"]);
+  // The waist is just above, at the top of the hips.
+  await tap(0.5, 0.43);
+  check("just above the hips is the waist", await run(`
+    return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent)];`),
+  ["Waist", ["Forward", "Lean", "Turn"]]);
   // The head is at the top of the view.
   await tap(0.5, 0.2);
   check("the head has its own sliders, then the whole body's under a heading with its own Reset", await run(`

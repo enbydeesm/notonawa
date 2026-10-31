@@ -57,8 +57,8 @@ import {
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
 import { loadSettings, saveDefaultShape } from "./settings.js";
-import { canDrag, dragTo, onPlane, DRAG_CHAINS } from "./pose-ik.js";
-import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody } from "./pose-skeleton.js";
+import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
+import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
@@ -67,6 +67,8 @@ import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
 import { saveFile } from "./download.js";
+/** The joints the Hips sliders turn: the pelvis, and the hips that keep the legs where they were. */
+const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip"]);
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -510,8 +512,11 @@ export async function editPose(start, { addToVisuals } = {}) {
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
         // A see-saw rope's other end moves to keep it the same length; let
         // go, any clash is settled (pose-contact.js).
-        apply: (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
-        settle: (before, after) => settleClashes(measuring, before, after, [joint.name]),
+        // The Hips turn the pelvis keeping both legs where they were (pose-skeleton.js).
+        apply: joint.name === "hips"
+          ? (p, v) => keepSeesaws(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
+          : (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
+        settle: (before, after) => settleClashes(measuring, before, after, joint.name === "hips" ? HIPS_MOVE : [joint.name]),
       }));
       if (joint.name !== "head") {
         sliders.replaceChildren(...own);
@@ -538,7 +543,8 @@ export async function editPose(start, { addToVisuals } = {}) {
     function resetSelected() {
       if (!selected) return;
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
-      commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } });
+      if (joint.name === "hips") commit(withHipsOn(measuring, history.pose, startJoints().hips));
+      else commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } });
     }
 
     /** Stands the whole body up, facing ahead, its feet on the floor for its body's height. */
@@ -997,7 +1003,7 @@ export async function editPose(start, { addToVisuals } = {}) {
         const target = onPlane(view.ray(x, y), limb.through, limb.normal);
         if (target) {
           limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target);
-          draft = keepSeesaws(history.pose, limbPose, DRAG_CHAINS[limb.bone].map(([name]) => name));
+          draft = keepSeesaws(history.pose, limbPose, dragJoints(limb.bone));
           drawSoon();
         }
         return;
@@ -1017,7 +1023,7 @@ export async function editPose(start, { addToVisuals } = {}) {
         // A limb dragged is one change, any clash settled (pose-contact.js);
         // let go of with a cancel, it's put back.
         if (draft && event.type === "pointerup") {
-          commit(settleClashes(measuring, history.pose, draft, DRAG_CHAINS[held].map(([name]) => name)));
+          commit(settleClashes(measuring, history.pose, draft, dragJoints(held)));
         } else if (draft) {
           draft = null;
           drawAll();

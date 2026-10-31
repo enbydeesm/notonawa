@@ -9,7 +9,7 @@ import {
 import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
 import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom } from "../../public/js/figure-rig.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
-import { makeSkeleton, posed, ropePoint, boneParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
+import { makeSkeleton, posed, ropePoint, boneParts, vertexParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
 
 /** @typedef {import("../../public/js/figure-body.js").Shape} Shape */
@@ -109,22 +109,46 @@ describe("the body's mesh", () => {
 describe("the skeleton", () => {
   it("gives each joint's turn out in full across its bones", () => {
     for (const [part, drive] of Object.entries(DRIVES)) {
+      // The Hips turn the pelvis itself (posed), not bones of their own.
+      if (part === "hips") continue;
+      // The toes all bend at once, each by the whole turn.
+      if (part.endsWith("_toes")) {
+        expect(drive.every(([, share]) => share === 1)).toBe(true);
+        continue;
+      }
       expect(drive.reduce((s, [, share]) => s + share, 0), part).toBeCloseTo(1);
     }
   });
 
-  it("puts every body bone in a part, fingers with the wrist and toes with the ankle", () => {
+  it("puts every body bone in a part, fingers with the wrist and toes with the toes", () => {
     const parts = ["pelvis", ...Object.keys(server.JOINTS)];
     const of = boneParts();
     const part = (/** @type {string} */ bone) => parts[of[BONES.indexOf(bone)]];
     expect(part("finger2-3.L")).toBe("l_wrist");
-    expect(part("toe1-2.R")).toBe("r_ankle");
+    expect(part("toe1-2.R")).toBe("r_toes");
+    expect(part("foot.R")).toBe("r_ankle");
     expect(part("clavicle.L")).toBe("chest");
     expect(part("eye.R")).toBe("head");
     expect(part("spine05")).toBe("pelvis");
     // The low belly is tapped as the hips; the waist above it as the waist.
     expect(part("spine04")).toBe("pelvis");
     expect(part("spine03")).toBe("spine");
+    // Tapped to pose: the hips pose the pelvis (the Hips joint).
+    const posing = boneParts({ posing: true });
+    for (const bone of ["root", "pelvis.L", "spine05", "spine04"]) expect(parts[posing[BONES.indexOf(bone)]], bone).toBe("hips");
+    expect(parts[posing[BONES.indexOf("spine03")]]).toBe("spine");
+  });
+
+  it("gives the top of the hips' area to the waist, by height, for posing", () => {
+    // Four vertices on the root (the hips), one on spine03 (the waist): the highest hips one goes to the waist.
+    const root = BONES.indexOf("root"), waist = BONES.indexOf("spine03");
+    const joints = new Uint8Array([root, 0, 0, 0, root, 0, 0, 0, root, 0, 0, 0, root, 0, 0, 0, waist, 0, 0, 0]);
+    const weights = new Uint8Array([255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0]);
+    const base = new Float32Array([0, 0, 0, 0, 5, 0, 0, 7.5, 0, 0, 10, 0, 0, 20, 0]);
+    const { names, of } = vertexParts({ joints, weights, vertices: 5, base }, { posing: true });
+    expect([...of].map((i) => names[i])).toEqual(["hips", "hips", "spine", "spine", "spine"]);
+    // For a rope point, the hips are the pelvis as before.
+    expect([...vertexParts({ joints, weights, vertices: 5, base }).of].map((i) => names[i])).toEqual(["pelvis", "pelvis", "pelvis", "pelvis", "spine"]);
   });
 
   it("moves its joints with the shape", () => {

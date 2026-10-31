@@ -62,6 +62,7 @@ export class Vector3 {
   project(camera: Camera): this;
   transformDirection(m: Matrix4): this;
   applyMatrix4(m: Matrix4): this;
+  applyQuaternion(q: Quaternion): this;
   multiplyScalar(s: number): this;
   length(): number;
   distanceTo(v: Vector3): number;

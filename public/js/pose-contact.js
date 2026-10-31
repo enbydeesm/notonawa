@@ -221,8 +221,11 @@ function limbOf(segment) {
   return `${side}_${ARM.includes(part) ? "arm" : "leg"}`;
 }
 
-/** The limb (or head) a joint moves, null for the trunk's. @param {string} joint */
-const limbOfJoint = (joint) => (joint in SEGMENT_OF && joint !== "pelvis" ? limbOf(SEGMENT_OF[/** @type {keyof typeof SEGMENT_OF} */ (joint)]) : null);
+/** The limb (or head) a joint moves, null for the trunk's (the toes are on the foot's segment). @param {string} joint */
+const limbOfJoint = (joint) => {
+  if (joint.endsWith("_toes")) return `${joint[0]}_leg`;
+  return joint in SEGMENT_OF && joint !== "pelvis" ? limbOf(SEGMENT_OF[/** @type {keyof typeof SEGMENT_OF} */ (joint)]) : null;
+};
 
 /**
  * The parts a move has pushed into each other (both of each pair), to

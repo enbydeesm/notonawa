@@ -21,6 +21,9 @@ A new rope icon and lots more model poser updates!
 - Your screen stays on while the poser is open.
 - A new rope icon appears in nav, ratings, and calendar views
 - When saving a body preset, you can save the arms as a preset too (and the other way round).
+- Tap the toes to bend them up or down at the ball of the foot, and point the ankle further, for a "Barbie foot".
+- The back bends further back, and the hips can tilt, hike and turn, keeping the legs where they were.
+- Dragging an arm or leg further than it can go brings the body along: the hips tilt to lift a leg higher, and the chest leans to reach further.
 
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 

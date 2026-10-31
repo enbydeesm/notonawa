@@ -59,8 +59,9 @@ export const FORMAT_VERSION = 1;
  * @type {Readonly<Record<string, readonly (readonly [number, number])[]>>}
  */
 export const JOINTS = Object.freeze({
-  spine: [[-30, 60], [-35, 35], [-35, 35]],
-  chest: [[-25, 45], [-30, 30], [-35, 35]],
+  hips: [[-30, 30], [-20, 20], [-30, 30]],
+  spine: [[-50, 60], [-35, 35], [-35, 35]],
+  chest: [[-40, 45], [-30, 30], [-35, 35]],
   head: [[-50, 70], [-45, 45], [-80, 80]],
   l_shoulder: [[-70, 180], [-30, 180], [-90, 90]],
   l_elbow: [[0, 150], [-80, 90]],
@@ -70,10 +71,12 @@ export const JOINTS = Object.freeze({
   r_wrist: [[-80, 80], [-30, 30]],
   l_hip: [[-30, 140], [-30, 90], [-45, 45]],
   l_knee: [[0, 155], [-35, 35]],
-  l_ankle: [[-50, 30]],
+  l_ankle: [[-65, 30]],
+  l_toes: [[-30, 80]],
   r_hip: [[-30, 140], [-30, 90], [-45, 45]],
   r_knee: [[0, 155], [-35, 35]],
-  r_ankle: [[-50, 30]],
+  r_ankle: [[-65, 30]],
+  r_toes: [[-30, 80]],
 });
 
 /** The body's sliders: gender, muscle, weight, height (cm). @type {readonly (readonly [number, number])[]} */

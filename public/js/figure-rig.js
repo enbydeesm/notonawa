@@ -81,15 +81,27 @@ function limbs(side) {
     // bends, and with the hip's no further than a leg can (joint-limits.js).
     { name: `${side}_knee`, label: `${name} knee`, parent: `${side}_hip`, offset: [0, -44, 0], order: "XYZ",
       moves: [move("Bend", "x", 1, 0, 155), move("Twist out", "y", out, -35, 35)] },
+    // Pointed as far as a dancer's (65°), for a "Barbie foot" with the toes up.
     { name: `${side}_ankle`, label: `${name} ankle`, parent: `${side}_knee`, offset: [0, -43, 0], order: "XYZ",
-      moves: [move("Toes up", "x", -1, -50, 30)] },
+      moves: [move("Toes up", "x", -1, -65, 30)] },
+    // The toes bend together at the ball of the foot: curled down, or up.
+    { name: `${side}_toes`, label: `${name} toes`, parent: `${side}_ankle`, offset: [0, -7, 13], order: "XYZ",
+      moves: [move("Up", "x", -1, -30, 80)] },
   ];
 }
 
 /** Every joint, parents before children. @type {readonly Joint[]} */
 export const JOINTS = Object.freeze([
-  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-30, 60], [-35, 35], [-35, 35]]) },
-  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-25, 45], [-30, 30], [-35, 35]]) },
+  // The pelvis tipped forward or back, one side hiked up, or turned, about
+  // the point between the hip joints, carrying the trunk and legs (its
+  // slider keeps the legs where they were: pose-skeleton.js's withHips).
+  {
+    name: "hips", label: "Hips", parent: "pelvis", offset: [0, 0, 0], order: "XZY",
+    moves: [move("Tilt", "x", 1, -30, 30), move("Hike", "z", 1, -20, 20), move("Turn", "y", 1, -30, 30)],
+  },
+  // A flexible back: bending back further than most people's.
+  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-50, 60], [-35, 35], [-35, 35]]) },
+  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-40, 45], [-30, 30], [-35, 35]]) },
   { name: "head", label: "Head", parent: "chest", offset: [0, 26, 0], order: "XZY", moves: trunk([[-50, 70], [-45, 45], [-80, 80]]) },
   ...limbs("l").slice(0, 3), ...limbs("r").slice(0, 3),
   ...limbs("l").slice(3), ...limbs("r").slice(3),
@@ -117,7 +129,9 @@ export const PART_LABELS = Object.freeze({ pelvis: "Hips", ...Object.fromEntries
  */
 export const DRIVES = Object.freeze({
   pelvis: [["root", 1]],
-  spine: [["spine04", 0.5], ["spine03", 0.5]],
+  // The pelvis turns the root itself (pose-skeleton.js), not a bone of its own.
+  hips: [],
+  spine: [["spine05", 0.34], ["spine04", 0.33], ["spine03", 0.33]],
   chest: [["spine02", 0.5], ["spine01", 0.5]],
   head: [["neck01", 0.3], ["neck02", 0.2], ["neck03", 0.2], ["head", 0.3]],
   ...Object.fromEntries(["L", "R"].flatMap((s) => {
@@ -127,6 +141,8 @@ export const DRIVES = Object.freeze({
       [`${side}_elbow`, [[`lowerarm01.${s}`, 1, 0.4], [`lowerarm02.${s}`, 0, 0.6]]], [`${side}_wrist`, [[`wrist.${s}`, 1]]],
       [`${side}_hip`, [[`upperleg01.${s}`, 1, 0.5], [`upperleg02.${s}`, 0, 0.5]]],
       [`${side}_knee`, [[`lowerleg01.${s}`, 1, 0.5], [`lowerleg02.${s}`, 0, 0.5]]], [`${side}_ankle`, [[`foot.${s}`, 1]]],
+      // The first bone of each toe, at the ball of the foot (the second toe's last: its rope points' anchor).
+      [`${side}_toes`, ["1", "3", "4", "5", "2"].map((t) => /** @type {[string, number]} */ ([`toe${t}-1.${s}`, 1]))],
     ];
   })),
 });
@@ -138,18 +154,20 @@ export const DRIVES = Object.freeze({
  * collarbones (which a raised arm lifts) are the chest's.
  * @type {Readonly<Record<string, string>>}
  */
-export const TAPPED_AS = Object.freeze({ "spine04": "pelvis", "clavicle.L": "chest", "clavicle.R": "chest" });
+export const TAPPED_AS = Object.freeze({ "spine05": "pelvis", "spine04": "pelvis", "clavicle.L": "chest", "clavicle.R": "chest" });
 
 /**
- * Body bones tapped (to pose) as another part than their rope points
- * are on: the hips aren't posed on their own (the whole body's sliders
- * are the head's), so tapping them poses the waist, which makes the waist
- * easy to tap. The chest keeps its own.
+ * Body bones tapped (to pose) as another part than their rope points are
+ * on: the hips pose the pelvis (the Hips joint); the top of their area is
+ * the waist's (pose-skeleton.js's vertexParts), so the waist is easy to tap.
  * @type {Readonly<Record<string, string>>}
  */
 export const POSED_AS = Object.freeze({
-  ...TAPPED_AS, "root": "spine", "pelvis.L": "spine", "pelvis.R": "spine", "spine05": "spine", "spine04": "spine",
+  ...TAPPED_AS, "root": "hips", "pelvis.L": "hips", "pelvis.R": "hips", "spine05": "hips", "spine04": "hips",
 });
+
+/** How much of the hips' area, from its top, poses the waist instead. */
+export const WAIST_SHARE_OF_HIPS = 0.3;
 
 /**
  * The body bone at a part's joint: its rope points are measured from that

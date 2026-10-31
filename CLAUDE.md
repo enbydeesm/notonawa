@@ -152,7 +152,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   bamboo is `[x, y, z, turn, length, inset]`, four numbers in older
   poses), ropes with `l` (cinches: tied to spots on other ropes,
   `["rope", index, segment, along]`) or `s` (see-saws),
-  `JOINTS` and their limits, the same as `public/js/figure-rig.js`'s and
+  `JOINTS` and their limits (with `hips`, the pelvis's tilt, hike and
+  turn, and each foot's `toes`; older poses have neither, read as at
+  rest), the same as `public/js/figure-rig.js`'s and
   `pose-format.js`'s, kept in step by a unit test, and the limits that
   depend on several movements, from `public/js/joint-limits.js` itself;
   20 an item), `db.js`,
@@ -427,9 +429,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   own pencil marks and `still`),
   `pose-ik.js` (dragging an arm or leg: the joints above the part held
   turn so it follows the finger, on a flat surface facing the camera,
-  within the joints' limits; damped least squares with three.js's math,
-  tested like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
-  only: where a joint or rope point is; tested), `pose-cinch.js` (a
+  within the joints' limits; once the limb can't reach, the pelvis (for a
+  leg, the other leg kept) or the chest (for an arm) joins in, weighted
+  to move less; damped least squares with three.js's math, tested like
+  the presets), `pose-skeleton.js` (the bones posed, with three.js's math
+  only: where a joint or rope point is; the Hips joint turning the pelvis
+  about the point between the hip joints, and `withHips`/`withHipsOn`,
+  its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a
   cinch's ends and the upline's bend, ropes drawn in runs, hanging
   stretches straight; three.js's math only, tested), `pose-constraints.js`
   (moving the body to keep uplines' lengths: a cinch's "Move the body",

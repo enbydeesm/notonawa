@@ -1880,6 +1880,36 @@ about 6 minutes, too slow to run after every change.
   keeping the lowest point is exact for kneeling and lying too. Presets
   saved before this kept the height of the body they were saved on.
 
+## Poser: toes, a flexible back, the pelvis, and the trunk following a drag (October 2026)
+
+**Status:** built (2026-10-31, on the `anny-body` branch)
+
+- **Toes**: each foot has a Toes joint (Up, −30 curled to 80 up), bending
+  the first bone of all five toes at the ball of the foot (Anny's own toe
+  bones), for a "Barbie foot" with the ankle pointed, which now goes to
+  65° (a dancer's), from 50°. Tapping the toes selects them; dragging them
+  moves the leg as the foot does.
+- **A flexible back**: the waist bends back 50° (from 30°) over the lower
+  back's three vertebrae (the lowest, spine05, unused before, now shares
+  it), and the chest 40° (from 25°), so a deep backbend curves.
+- **The pelvis (Hips)**: Tilt (±30), Hike (±20) and Turn (±30) turn the
+  pelvis and all on it about the point between the hip joints, stored as
+  the `hips` joint; the hips' angles stay the pelvis's to the thigh, so
+  their limits stay a real hip's. Its sliders keep both legs pointing
+  where they were (the hips' angles making up for it, `withHips`) and the
+  body's lowest point where it was: tilting keeps both feet exactly,
+  hiking lifts the other leg, turning slides the feet a few centimetres.
+  The hips are their own tap area again, the top 30% of it (by height)
+  the waist's, so the waist isn't small (`WAIST_SHARE_OF_HIPS`).
+- **The trunk following a drag**: once a dragged limb alone can't reach,
+  a leg tilts, turns and hikes the pelvis (the other leg kept, the body
+  kept on the floor), an arm bends, leans and turns the chest. The trunk's
+  angles are weighted to move less, a hike least (it lifts the other
+  foot). The waist was planned for legs too, but it bends the trunk above
+  the pelvis, which the legs hang from, so it can't move a leg; leaning the
+  whole body back over a planted foot is in roadmap.md ("Planting a foot").
+  The other arm turns with the chest (not kept, as the other leg is).
+
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)

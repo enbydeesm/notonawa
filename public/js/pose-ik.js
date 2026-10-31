@@ -8,6 +8,14 @@
 // the elbow's and knee's bend are used: the twists are left as they were,
 // as turning them while dragging makes the limb roll unexpectedly.
 //
+// When the limb alone can't reach (its joints at their limits), the trunk
+// joins in: a leg tilts, turns and hikes the pelvis (the other leg kept
+// pointing where it was, and the body kept on the floor); an arm bends,
+// leans and turns the chest. Those count for more than the limb's own
+// angles, so they move only as much as they must; a hike most of all, as
+// it lifts the other foot. (The waist can't help a leg: it bends the trunk
+// above the pelvis, which the legs hang from.)
+//
 // The solver nudges those angles a little at a time toward the target
 // (damped least squares, with the angles' effect worked out by trying a
 // small change in each), never past a joint's limits. A target out of
@@ -16,7 +24,7 @@
 
 import { jointNamed, clampJoint } from "./figure-rig.js";
 import { canReach } from "./joint-limits.js";
-import { makeSkeleton, posed, onBone } from "./pose-skeleton.js";
+import { makeSkeleton, posed, onBone, withHips, keptLowest } from "./pose-skeleton.js";
 
 /** @typedef {import("./vendor/three.js").Vector3} Vector3 */
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -33,12 +41,40 @@ export const DRAG_CHAINS = Object.freeze(Object.fromEntries(["l", "r"].flatMap((
   const knee = /** @type {Angle[]} */ ([...leg, [`${s}_knee`, 0]]);
   return [
     [`${s}_shoulder`, arm], [`${s}_elbow`, elbow], [`${s}_wrist`, elbow],
-    [`${s}_hip`, leg], [`${s}_knee`, knee], [`${s}_ankle`, knee],
+    [`${s}_hip`, leg], [`${s}_knee`, knee], [`${s}_ankle`, knee], [`${s}_toes`, knee],
   ];
 })));
 
 /** @param {string} bone @returns {boolean} whether holding this part drags it */
 export const canDrag = (bone) => bone in DRAG_CHAINS;
+
+/**
+ * The trunk's angles that join in once a limb alone can't reach, each with
+ * how freely it moves (smaller: less): for a leg, the pelvis's tilt, hike
+ * and turn; for an arm, the chest's bend, lean and turn.
+ * @param {string} bone the part held
+ * @returns {readonly [Angle, number][]}
+ */
+export function trunkFor(bone) {
+  if (/_(hip|knee|ankle|toes)$/.test(bone)) return [[["hips", 0], 0.35], [["hips", 1], 0.12], [["hips", 2], 0.2]];
+  return [[["chest", 0], 0.35], [["chest", 1], 0.35], [["chest", 2], 0.35]];
+}
+
+/** The other leg's hip, kept while a leg pulls the pelvis. @param {string} bone */
+const otherHip = (bone) => (/_(hip|knee|ankle|toes)$/.test(bone) ? `${bone[0] === "l" ? "r" : "l"}_hip` : null);
+
+/**
+ * Every joint a drag of a part can change.
+ * @param {string} bone
+ * @returns {string[]}
+ */
+export function dragJoints(bone) {
+  const other = otherHip(bone);
+  return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other] : []))];
+}
+
+/** How far off the target (cm) the limb alone must stay before the trunk joins in. */
+const TRUNK_AFTER = 1;
 
 /** How many rounds of nudging per target, and how close is close enough (cm). */
 const ROUNDS = 40;
@@ -78,15 +114,14 @@ export function onPlane({ origin, direction }, through, normal) {
  * @returns {Pose}
  */
 export function dragTo(pose, bone, cm, target) {
-  const chain = DRAG_CHAINS[bone];
-  if (!chain) throw new Error(`Can't drag ${bone}`);
+  const limb = DRAG_CHAINS[bone];
+  if (!limb) throw new Error(`Can't drag ${bone}`);
   /** @type {Record<string, number[]>} */
   const joints = Object.fromEntries(Object.entries(pose.joints).map(([name, a]) => [name, [...a]]));
   const trial = { ...pose, joints };
-  const limits = chain.map(([name, i]) => {
-    const move = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name)).moves[i];
-    return [move.min, move.max];
-  });
+  // The other leg, kept pointing where it was as the pelvis turns.
+  const other = otherHip(bone);
+  const keptLeg = other ? { ...pose, joints: { ...pose.joints } } : null;
 
   /** Where the held point is with the angles as they are now. */
   const skeleton = spare ??= makeSkeleton();
@@ -94,40 +129,73 @@ export function dragTo(pose, bone, cm, target) {
     posed(skeleton, trial);
     return onBone(skeleton, bone, cm);
   };
-  /** @param {number} k @param {number} angle */
-  const set = (k, angle) => {
-    const [name, i] = chain[k];
-    joints[name][i] = Math.min(limits[k][1], Math.max(limits[k][0], angle));
-  };
-  const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
 
-  for (let round = 0; round < ROUNDS; round++) {
-    const at = held();
-    const error = [target.x - at.x, target.y - at.y, target.z - at.z];
-    const distance = Math.hypot(...error);
-    if (distance < CLOSE) break;
-    // A short step toward a far target at a time, so the limb doesn't
-    // overshoot into a fold (and a target out of reach is approached, not
-    // flailed at).
-    if (distance > STEP) error.forEach((e, i) => { error[i] = e * STEP / distance; });
-    // How far the point moves for one degree of each angle (a column each).
-    const columns = chain.map((_, k) => {
-      const was = get(k);
-      // Probe away from a limit, so the change is real.
-      const step = was + PROBE > limits[k][1] ? -PROBE : PROBE;
-      set(k, was + step);
-      const moved = held();
-      set(k, was);
-      return [(moved.x - at.x) / step, (moved.y - at.y) / step, (moved.z - at.z) / step];
+  /**
+   * Nudges the angles of a chain toward the target, each weighted (how
+   * much it moves for its share of the work).
+   * @param {readonly Angle[]} chain
+   * @param {readonly number[]} weights
+   */
+  const solve = (chain, weights) => {
+    const limits = chain.map(([name, i]) => {
+      const move = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name)).moves[i];
+      return [move.min, move.max];
     });
-    const change = dampedSolve(columns, error);
-    const before = snapshot(joints, chain);
-    change.forEach((d, k) => set(k, get(k) + d));
-    keepReachable(joints, before);
+    /** @param {number} k @param {number} angle */
+    const set = (k, angle) => {
+      const [name, i] = chain[k];
+      joints[name][i] = Math.min(limits[k][1], Math.max(limits[k][0], angle));
+      if (name === "hips" && keptLeg && other) {
+        joints[other] = withHips(keptLeg, joints.hips, [other], { exact: true }).joints[other];
+      }
+    };
+    const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
+    const watched = other ? [...chain, /** @type {Angle} */ ([other, 0])] : chain;
+    let distance = Infinity;
+    for (let round = 0; round < ROUNDS; round++) {
+      const at = held();
+      const error = [target.x - at.x, target.y - at.y, target.z - at.z];
+      distance = Math.hypot(...error);
+      if (distance < CLOSE) break;
+      // A short step toward a far target at a time, so the limb doesn't
+      // overshoot into a fold (and a target out of reach is approached, not
+      // flailed at).
+      if (distance > STEP) error.forEach((e, i) => { error[i] = e * STEP / distance; });
+      // How far the point moves for one degree of each angle (a column
+      // each), scaled by its weight.
+      const columns = chain.map((_, k) => {
+        const was = get(k);
+        // Probe away from a limit, so the change is real.
+        const step = was + PROBE > limits[k][1] ? -PROBE : PROBE;
+        set(k, was + step);
+        const moved = held();
+        set(k, was);
+        const w = weights[k];
+        return [w * (moved.x - at.x) / step, w * (moved.y - at.y) / step, w * (moved.z - at.z) / step];
+      });
+      const change = dampedSolve(columns, error);
+      const before = snapshot(joints, watched);
+      change.forEach((d, k) => set(k, get(k) + weights[k] * d));
+      keepReachable(joints, before);
+    }
+    return distance;
+  };
+
+  // The limb alone first; then, still short of the target, the trunk too.
+  const trunk = trunkFor(bone);
+  let used = limb;
+  if (solve(limb, limb.map(() => 1)) > TRUNK_AFTER) {
+    used = [...limb, ...trunk.map(([angle]) => angle)];
+    solve(used, [...limb.map(() => 1), ...trunk.map(([, weight]) => weight)]);
   }
   const rounded = { ...pose.joints };
-  for (const [name] of chain) rounded[name] = clampJoint(name, joints[name], pose.joints[name], rounded);
-  return { ...pose, joints: rounded };
+  for (const name of new Set([...used.map(([n]) => n), ...(other && used !== limb ? [other] : [])])) {
+    rounded[name] = clampJoint(name, joints[name], pose.joints[name], rounded);
+  }
+  const done = { ...pose, joints: rounded };
+  // A pelvis hiked or turned can push the other foot into the floor: the
+  // body's lowest point is kept where it was.
+  return other && used !== limb ? keptLowest(skeleton, pose, done) : done;
 }
 
 /**
