@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.10.30.0536";
+export const APP_VERSION = "2026.10.31.0137";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,22 @@ export const APP_VERSION = "2026.10.30.0536";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.10.31.0124",
+    "intro": [
+      "A new rope icon and lots more model poser updates!"
+    ],
+    "notes": [
+      "The figure is now a realistic body that bends at the joints like a human person theoretically does.",
+      "Open \"Body shape\" in the Pose panel to change the body's genderness (masculine to feminine), muscle, weight and height. Save a body shape as your default.",
+      "Save and name your own body and arms preset positions to quickly come back to ones you use often",
+      "Limbs now avoid collisions and clips. When colliding, the body parts will turn red. Releasing the movement will either shift the other body part or set the moved part to its maximum allowed position.",
+      "Tap the head to make adjustments to the whole body",
+      "Your screen stays on while the poser is open.",
+      "A new rope icon appears in nav, ratings, and calendar views",
+      "When saving a body preset, you can save the arms as a preset too (and the other way round)."
+    ]
+  },
   {
     "version": "2026.10.28.001",
     "intro": [
