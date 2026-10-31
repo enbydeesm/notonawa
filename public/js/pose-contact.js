@@ -18,8 +18,15 @@ import { setJoint, HASHIRA_SIZE } from "./pose-format.js";
 /** @typedef {import("./pose-skeleton.js").Skeleton} Skeleton */
 /** @typedef {import("./pose-format.js").Pose} Pose */
 
-/** How far two segments can overlap before it counts (cm): the skin gives a little. */
+/**
+ * How far two segments can overlap before it counts (cm): the skin gives a
+ * little. An arm against the trunk gives more (capsules are rounder than a
+ * body, and arms rest on it), most against the back, where a box tie's
+ * forearms lie.
+ */
 const GIVE = 1.5;
+const ARM_ON_TRUNK = 3;
+const ARM_ON_BACK = 5;
 
 /** @param {string} name */
 const segment = (name) => SEGMENTS.findIndex((s) => s.name === name);
@@ -56,12 +63,23 @@ function pairs() {
   return out;
 }
 const PAIRS = pairs();
+/**
+ * How far a pair can overlap before it counts (cm).
+ * @param {boolean} armOnTrunk an arm against the trunk
+ * @param {Vector3} away from the trunk's nearest point to the arm's
+ * @param {Vector3} facing the way the trunk faces
+ * @returns {number}
+ */
+export const skinGive = (armOnTrunk, away, facing) => (!armOnTrunk ? GIVE : away.dot(facing) < 0 ? ARM_ON_BACK : ARM_ON_TRUNK);
+
+/** Which pairs are an arm (first) against the trunk (second). */
+const ARM_TRUNK = PAIRS.map(([i, j]) => ARM.includes(SEGMENTS[i].name.split("_")[1]) && TORSO.includes(SEGMENTS[j].name));
 
 /**
  * The capsules, posed: each a line and its radius (the torso's three
  * apiece, side by side).
  * @param {Skeleton} skeleton posed
- * @returns {{ a: Vector3, b: Vector3, r: number }[][]} SEGMENTS order
+ * @returns {{ a: Vector3, b: Vector3, r: number, f: Vector3 }[][]} SEGMENTS order (f: the way its first bone faces)
  */
 export function capsules(skeleton) {
   const sizes = segmentSizes(skeleton.shape);
@@ -79,9 +97,10 @@ export function capsules(skeleton) {
     const bone = /** @type {import("./vendor/three.js").Object3D} */ (skeleton.all.get(seg.a[0]));
     const origin = bone.localToWorld(new Vector3());
     const shifts = side > 0 ? [-side, 0, side] : [0];
+    const f = bone.localToWorld(new Vector3(0, 0, 1)).sub(origin);
     return shifts.map((x) => {
       const by = bone.localToWorld(new Vector3(x, 0, forward)).sub(origin);
-      return { a: a.clone().add(by), b: b.clone().add(by), r };
+      return { a: a.clone().add(by), b: b.clone().add(by), r, f };
     });
   });
 }
@@ -91,10 +110,20 @@ export function capsules(skeleton) {
  * @param {Vector3} p1 @param {Vector3} q1 @param {Vector3} p2 @param {Vector3} q2
  */
 export function segmentGap(p1, q1, p2, q2) {
+  const [on1, on2] = closestPoints(p1, q1, p2, q2);
+  return on1.sub(on2).length();
+}
+
+/**
+ * The nearest points of two line segments to each other, one on each.
+ * @param {Vector3} p1 @param {Vector3} q1 @param {Vector3} p2 @param {Vector3} q2
+ * @returns {[Vector3, Vector3]}
+ */
+function closestPoints(p1, q1, p2, q2) {
   const d1 = q1.clone().sub(p1), d2 = q2.clone().sub(p2), r = p1.clone().sub(p2);
   const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
   let s, t;
-  if (a < 1e-9 && e < 1e-9) return r.length();
+  if (a < 1e-9 && e < 1e-9) return [p1.clone(), p2.clone()];
   if (a < 1e-9) {
     s = 0;
     t = Math.min(1, Math.max(0, f / e));
@@ -116,7 +145,7 @@ export function segmentGap(p1, q1, p2, q2) {
       }
     }
   }
-  return p1.clone().addScaledVector(d1, s).sub(p2.clone().addScaledVector(d2, t)).length();
+  return [p1.clone().addScaledVector(d1, s), p2.clone().addScaledVector(d2, t)];
 }
 
 /**
@@ -133,7 +162,11 @@ export function depths(skeleton, pose) {
   PAIRS.forEach(([i, j], k) => {
     let deepest = 0;
     for (const x of caps[i]) {
-      for (const y of caps[j]) deepest = Math.max(deepest, x.r + y.r - segmentGap(x.a, x.b, y.a, y.b) - GIVE);
+      for (const y of caps[j]) {
+        const [onX, onY] = closestPoints(x.a, x.b, y.a, y.b);
+        const away = onX.clone().sub(onY);
+        deepest = Math.max(deepest, x.r + y.r - away.length() - skinGive(ARM_TRUNK[k], away, y.f));
+      }
     }
     out[k] = deepest;
   });

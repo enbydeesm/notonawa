@@ -21,16 +21,17 @@ import { MAX_PRESETS, inPreset, bodyPresetFrom, armsPresetFrom } from "./figure-
 
 /**
  * A picker's dialog: its heading row (the heading, anything beside it, ✕),
- * then what's put in it.
- * @param {{ id: string, title: string, beside?: HTMLElement[], body: HTMLElement[] }} options
+ * then what's put in it. A searchable one keeps one height at the top of
+ * the screen (app.css).
+ * @param {{ id: string, title: string, beside?: HTMLElement[], body: HTMLElement[], searchable?: boolean }} options
  * @returns {{ dialog: HTMLDialogElement, heading: HTMLHeadingElement, closed: Promise<void> }}
  */
-function pickerDialog({ id, title, beside = [], body }) {
+function pickerDialog({ id, title, beside = [], body, searchable = false }) {
   const heading = h("h2", { id: `${id}-title` }, title);
   /** @type {() => void} */
   let resolve = () => {};
   const closed = new Promise((r) => { resolve = () => r(undefined); });
-  const dialog = h("dialog", { className: "picker", id, "aria-labelledby": `${id}-title`, onclose: () => { dialog.remove(); resolve(); } },
+  const dialog = h("dialog", { className: searchable ? "preset-picker searchable" : "preset-picker", id, "aria-labelledby": `${id}-title`, onclose: () => { dialog.remove(); resolve(); } },
     dialogHeader(heading, [...beside, iconButton("close", { label: "Close", id: `${id}-close`, onclick: () => dialog.close() })]),
     ...body);
   document.body.append(dialog);
@@ -46,9 +47,9 @@ function pickerDialog({ id, title, beside = [], body }) {
  * @returns {HTMLElement}
  */
 function pickerRow({ id, name, current, choose: pick, icons = [] }) {
-  return opensOnTap(h("div", { className: current ? "picker-row current" : "picker-row", id },
-    h("button", { type: "button", className: "picker-name", "aria-current": current ? "true" : "false", onclick: pick }, name),
-    icons.length ? h("span", { className: "picker-icons" }, icons) : null), pick);
+  return opensOnTap(h("div", { className: current ? "preset-row current" : "preset-row", id },
+    h("button", { type: "button", className: "preset-name", "aria-current": current ? "true" : "false", onclick: pick }, name),
+    icons.length ? h("span", { className: "preset-icons" }, icons) : null), pick);
 }
 
 const KIND_WORDS = /** @type {const} */ ({
@@ -61,31 +62,32 @@ const KIND_WORDS = /** @type {const} */ ({
  * @param {{
  *   kind: "body" | "arms",
  *   builtIn: readonly { name: string }[],
- *   posture: () => Posture,
+ *   posture: (kind: "body" | "arms") => Posture,
  *   apply: (preset: Record<string, any>) => void,
- * }} options posture: the figure now (a body as it would be on the default body, as body presets are);
- *   apply: puts a preset on it
+ * }} options posture: the figure now, for presets of a kind (for body ones, as it would be on the
+ *   default body, as body presets are); apply: puts a preset on it
  * @returns {Promise<void>} once closed
  */
 export function pickPreset({ kind, builtIn, posture, apply }) {
   const id = `pose-${kind}-presets`;
   const words = KIND_WORDS[kind];
-  /** The figure's angles now, as a preset of this kind (without a name). */
-  const now = () => {
-    const { name: _name, ...data } = kind === "body" ? bodyPresetFrom(posture(), "") : armsPresetFrom(posture(), "");
+  const other = kind === "body" ? "arms" : "body";
+  /** The figure's angles now, as a preset of a kind (without a name). */
+  const now = (/** @type {"body" | "arms"} */ k = kind) => {
+    const { name: _name, ...data } = k === "body" ? bodyPresetFrom(posture(k), "") : armsPresetFrom(posture(k), "");
     return data;
   };
-  const matches = (/** @type {Record<string, any>} */ data) => inPreset(kind, posture(), /** @type {any} */ (data), { liftWithin: 1 });
+  const matches = (/** @type {Record<string, any>} */ data) => inPreset(kind, posture(kind), /** @type {any} */ (data), { liftWithin: 1 });
 
   /** @type {SavedPreset[]} */
   let mine = [];
   const search = privateField(h("input", {
     type: "search", id: `${id}-search`, placeholder: "Search", "aria-label": "Search presets", oninput: () => draw(),
   }));
-  const list = h("div", { className: "picker-list", id: `${id}-list` });
+  const list = h("div", { className: "preset-list", id: `${id}-list` });
   const message = h("p", { className: "message", id: `${id}-message`, "aria-live": "polite" });
-  const saveButton = h("button", { type: "button", className: "tool picker-save", id: `${id}-save`, onclick: () => saveNew() }, "Save as preset");
-  const { dialog, closed } = pickerDialog({ id, title: words.title, beside: [saveButton], body: [search, list, message] });
+  const saveButton = h("button", { type: "button", className: "tool preset-save", id: `${id}-save`, onclick: () => saveNew() }, "Save as preset");
+  const { dialog, closed } = pickerDialog({ id, title: words.title, beside: [saveButton], body: [search, list, message], searchable: true });
 
   /** Chooses one: the figure moves into it and the picker closes. */
   const pick = (/** @type {Record<string, any>} */ data) => {
@@ -104,7 +106,7 @@ export function pickPreset({ kind, builtIn, posture, apply }) {
     /** @type {HTMLElement[]} */
     const rows = shown.builtIn.map(({ p, i }) => pickerRow({ id: `${id}-b${i}`, name: p.name, current: matches(p), choose: () => pick(p) }));
     if (shown.mine.length) {
-      rows.push(h("div", { className: "picker-divider", role: "separator" }, h("span", {}, "My presets")));
+      rows.push(h("div", { className: "preset-divider", role: "separator" }, h("span", {}, "My presets")));
       for (const preset of shown.mine) rows.push(mineRow(preset));
     }
     if (rows.length === 0) rows.push(h("p", { className: "hint" }, "No presets have that in their name."));
@@ -129,13 +131,23 @@ export function pickPreset({ kind, builtIn, posture, apply }) {
       showMessage(message, `You can keep up to ${MAX_PRESETS} presets. Delete one to save another.`, true);
       return;
     }
-    const data = now();
+    const data = now(), otherData = now(other);
+    let both = false;
     const done = await askPresetName({
       title: kind === "body" ? "Save this body as a preset" : "Save these arms as a preset", action: "Save preset",
-      save: async (name) => { await savePreset(kind, name, data); },
+      also: `Save ${other} as a preset too?`,
+      save: async (name, also) => {
+        // Both or neither: refused before either is saved when there's room for one.
+        if (also && mine.length + 2 > MAX_PRESETS) {
+          throw new Error(`there's room for one more preset (you can keep up to ${MAX_PRESETS}). Untick "Save ${other}" or delete one.`);
+        }
+        await savePreset(kind, name, data);
+        if (also) await savePreset(other, name, otherData);
+        both = also;
+      },
     });
     if (done) {
-      showMessage(message, "Saved, for any pose.");
+      showMessage(message, both ? `Saved, with the ${other} as a preset too, for any pose.` : "Saved, for any pose.");
       draw();
     }
   }
@@ -201,7 +213,7 @@ export function pickPreset({ kind, builtIn, posture, apply }) {
  */
 export function pickTurn({ orientations, body, apply }) {
   const id = "pose-turn";
-  const list = h("div", { className: "picker-list", id: `${id}-list` });
+  const list = h("div", { className: "preset-list", id: `${id}-list` });
   const { dialog, closed } = pickerDialog({ id, title: "Turn body", body: [list] });
   list.replaceChildren(...orientations.map((o, i) => pickerRow({
     id: `${id}-${i}`, name: o.name, current: o.body.every((n, k) => Math.abs(n - body[k]) < 0.05),

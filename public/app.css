@@ -284,22 +284,30 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel .hint { margin: 0; }
 .pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
 .pose-menus .pose-picker { flex: 1 1 6.5rem; min-width: 0; }
-/* "My presets": each saved poser preset, with Rename and Delete. */
-/* The poser's pickers (preset-picker.js): Body, Arms and Turn body. */
-.picker-save { flex: none; margin-right: 4px; padding: 4px 10px; font-size: 0.85rem; }
-.picker input[type="search"] { width: 100%; margin-bottom: 8px; }
-.picker-list { display: flex; flex-direction: column; }
-.picker-row { display: flex; align-items: center; gap: 4px; min-height: 44px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+/* The poser's pickers (preset-picker.js): Body, Arms and Turn body. The
+   searchable ones keep to the top of the screen at one height, only their
+   list scrolling, so they don't jump as a search shortens the list, and
+   the rows stay above a phone's keyboard. */
+dialog.preset-picker.searchable[open] {
+  display: flex; flex-direction: column; box-sizing: border-box; width: 100%;
+  margin: 12px auto auto; height: min(640px, calc(100dvh - 24px)); max-height: none;
+}
+.preset-picker.searchable .preset-list { flex: 1; min-height: 0; overflow-y: auto; }
+.preset-also { margin-top: 10px; }
+.preset-save { flex: none; margin-right: 4px; padding: 4px 10px; font-size: 0.85rem; }
+.preset-picker input[type="search"] { width: 100%; margin-bottom: 8px; }
+.preset-list { display: flex; flex-direction: column; }
+.preset-row { display: flex; align-items: center; gap: 4px; min-height: 44px; border-bottom: 1px solid var(--line); border-radius: 6px; }
 /* The one the figure's in already: a faint tint of the accent. */
-.picker-row.current { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-.picker-name {
+.preset-row.current { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.preset-name {
   flex: 1; min-width: 0; padding: 10px 8px; border: none; background: none; color: var(--text);
   text-align: left; overflow-wrap: anywhere;
 }
-.picker-icons { display: flex; flex: none; gap: 2px; }
+.preset-icons { display: flex; flex: none; gap: 2px; }
 /* Between the built-in ones and mine: a thin line, with a small label. */
-.picker-divider { display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; color: var(--muted); font-size: 0.8rem; }
-.picker-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.preset-divider { display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; color: var(--muted); font-size: 0.8rem; }
+.preset-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .pose-part-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pose-part { margin: 0; font-size: 1rem; }
 .pose-part-row .tool { flex: none; }

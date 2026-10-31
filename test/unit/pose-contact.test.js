@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { Vector3 } from "../../public/js/vendor/three.js";
 import { makeSkeleton, posed } from "../../public/js/pose-skeleton.js";
-import { segmentGap, capsules, clashingParts, settleClashes, behindBody } from "../../public/js/pose-contact.js";
+import { segmentGap, capsules, clashingParts, settleClashes, behindBody, skinGive } from "../../public/js/pose-contact.js";
 import { SEGMENTS } from "../../public/js/figure-body.js";
 import { newPose, setJoint, setHardpoint, HASHIRA_SIZE } from "../../public/js/pose-format.js";
 
@@ -129,5 +129,15 @@ describe("behindBody", () => {
   it("leaves the usual place for a body lying face down", () => {
     const pose = { ...newPose(), body: /** @type {[number, number, number]} */ ([90, 0, 0]) };
     expect(behindBody(makeSkeleton(), pose)).toBeNull();
+  });
+});
+
+describe("skinGive", () => {
+  it("lets an arm into the trunk further than other parts, and furthest at the back", () => {
+    const facing = new Vector3(0, 0, 1);
+    expect(skinGive(false, new Vector3(0, 0, -1), facing)).toBe(1.5);
+    expect(skinGive(true, new Vector3(0, 0, 1), facing)).toBe(3);
+    expect(skinGive(true, new Vector3(1, 0, 0.2), facing)).toBe(3);
+    expect(skinGive(true, new Vector3(0.3, 0, -1), facing)).toBe(5);
   });
 });

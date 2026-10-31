@@ -118,8 +118,8 @@ export default async function () {
   const openPicker = (button, dialog) =>
     `$("${button}").click(); for (let i = 0; i < 50 && !document.querySelector("${dialog}[open]"); i++) await wait(100); await wait(200);`;
   // Each row's name, and whether it's tinted as the one the figure's in (the divider's words, and false).
-  const pickerRows = (dialog) => `[...document.querySelectorAll("${dialog} .picker-list > *")]
-    .map((el) => [el.querySelector(".picker-name")?.textContent ?? el.textContent, el.classList.contains("current")])`;
+  const pickerRows = (dialog) => `[...document.querySelectorAll("${dialog} .preset-list > *")]
+    .map((el) => [el.querySelector(".preset-name")?.textContent ?? el.textContent, el.classList.contains("current")])`;
   const BODY_NAMES = ["Standing", "Kneeling (seiza)", "Kneeling up", "One leg folded (futomomo)", "Face down", "Face up", "On their side", "Upside down"];
   check("Arms… opens Arms Presets: Save as preset and ✕ on its heading's row, on the heading (no keyboard), the one the figure's in tinted and Save greyed out; ✕ changes nothing", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
@@ -133,11 +133,15 @@ export default async function () {
   [["Arms Presets", "Save as preset", "Close"], "pose-arms-presets-title", "Search", true,
     [["At sides", true], ["Boxtie", false], ["Bunny ears", false], ["Tengu", false], ["Tenshi", false], ["Crossed (hug)", false]], true, [],
     false, true]);
-  check("searching narrows the list; tapping a row anywhere chooses it and closes the picker, as one change to undo", await run(`
+  check("searching narrows the list, the picker staying where it is at the same height; tapping a row anywhere chooses it and closes it, as one change to undo", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
+    const box = () => { const r = $("#pose-arms-presets").getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; };
+    const opened = box();
     const search = $("#pose-arms-presets-search");
     search.value = "BOX"; search.dispatchEvent(new Event("input")); await wait(100);
     const found = ${pickerRows("#pose-arms-presets")};
+    const searched = box();
+    const steady = opened[0] === searched[0] && opened[1] === searched[1] && opened[0] < 40;
     $("#pose-arms-presets-b1").click(); await wait(300);
     const after = [!!$("#pose-arms-presets"), $("#pose-undo").disabled];
     $("#pose-undo").click(); await wait(200);
@@ -146,7 +150,7 @@ export default async function () {
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
     const now = [$("#pose-arms-presets-b1").classList.contains("current"), $("#pose-arms-presets-save").disabled];
     $("#pose-arms-presets-close").click(); await wait(200);
-    return [found, after, undone, now];`), [[["Boxtie", false]], [false, false], false, [true, true]]);
+    return [steady, found, after, undone, now];`), [true, [["Boxtie", false]], [false, false], false, [true, true]]);
   check("Turn body…: the same kind of picker, no search or Save, the way the body faces tinted", await run(`
     ${openPicker("#pose-orientation", "#pose-turn")}
     const result = [$("#pose-turn h2").textContent, !!$("#pose-turn input"), ${pickerRows("#pose-turn")}.filter(([, on]) => on).length];
@@ -165,29 +169,33 @@ export default async function () {
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     const enabled = !$("#pose-body-presets-save").disabled;
     $("#pose-body-presets-save").click(); await wait(300);
-    const asked = [$("#pose-preset-title").textContent, document.activeElement?.id, leakyFields()];
+    const asked = [$("#pose-preset-title").textContent, document.activeElement?.id, $("#pose-preset-also").closest("label").textContent,
+      $("#pose-preset-also").checked, leakyFields()];
     set("#pose-preset-name", " Standing tall "); $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
     await wait(200);
     return [enabled, asked, $("#pose-body-presets-message").textContent, ${pickerRows("#pose-body-presets")},
       $("#pose-body-presets-save").disabled, await ${myPresets}];`),
-  [true, ["Save this body as a preset", "pose-preset-name", []], "Saved, for any pose.",
+  [true, ["Save this body as a preset", "pose-preset-name", " Save arms as a preset too?", false, []], "Saved, for any pose.",
     [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, false]]]);
-  check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left", await run(`
+  check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left; saving with the arms too adds an arms preset", await run(`
     $("#pose-body-presets-b2").click(); await wait(300);
     ${slide("pose-head-0", -10)}
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     $("#pose-body-presets-save").click(); await wait(300);
-    set("#pose-preset-name", "Kneel, head down"); $("#pose-preset-save").click();
+    set("#pose-preset-name", "Kneel, head down"); $("#pose-preset-also").checked = true; $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
     await wait(200);
-    const row = [...document.querySelectorAll("#pose-body-presets .picker-row")].pop();
-    const icons = [...row.querySelectorAll(".picker-icons button")].map((b) => [b.getAttribute("aria-label"), b.classList.contains("danger")]);
-    return [${pickerRows("#pose-body-presets")}.slice(BODY_NAMES_LENGTH), icons];`.replace("BODY_NAMES_LENGTH", String(BODY_NAMES.length))),
+    const kinds = (await (await fetch("/api/pose-presets")).json()).map((p) => p.kind);
+    const said = $("#pose-body-presets-message").textContent;
+    const row = [...document.querySelectorAll("#pose-body-presets .preset-row")].pop();
+    const icons = [...row.querySelectorAll(".preset-icons button")].map((b) => [b.getAttribute("aria-label"), b.classList.contains("danger")]);
+    return [${pickerRows("#pose-body-presets")}.slice(BODY_NAMES_LENGTH), icons, kinds, said];`.replace("BODY_NAMES_LENGTH", String(BODY_NAMES.length))),
   [[["My presets", false], ["Kneel, head down", true], ["Standing tall", false]],
-    [["Save this body over Standing tall", false], ["Rename Standing tall", false], ["Delete Standing tall", true]]]);
+    [["Save this body over Standing tall", false], ["Rename Standing tall", false], ["Delete Standing tall", true]],
+    ["body", "body", "arms"], "Saved, with the arms as a preset too, for any pose."]);
   // Each icon by its name: the last row's (Standing tall), and the first of mine.
-  const icon = (label) => `[...document.querySelectorAll("#pose-body-presets .picker-icons button")].find((b) => b.getAttribute("aria-label") === "${label}")`;
+  const icon = (label) => `[...document.querySelectorAll("#pose-body-presets .preset-icons button")].find((b) => b.getAttribute("aria-label") === "${label}")`;
   check("saving over one asks first, then holds the body as it is; renaming one; deleting one asks first", await run(`
     ${icon("Save this body over Standing tall")}.click(); await wait(300);
     const overAsked = ${topDialog}.querySelector("h2").textContent;

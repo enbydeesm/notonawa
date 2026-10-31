@@ -211,7 +211,7 @@ export async function editPose(start, { addToVisuals } = {}) {
     // (pose-skeleton.js): Standing stands on the floor whatever the height.
     const openPresets = (kind) => pickPreset({
       kind, builtIn: kind === "body" ? BODY_PRESETS : ARMS_PRESETS,
-      posture: () => (kind === "body" ? onDefaultBody(measuring, history.pose) : history.pose),
+      posture: (of) => (of === "body" ? onDefaultBody(measuring, history.pose) : history.pose),
       apply: (preset) => commit(kind === "body"
         ? withBodyPresetOn(measuring, history.pose, /** @type {BodyPreset} */ (preset))
         : withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset)))),

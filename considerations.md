@@ -1855,6 +1855,20 @@ about 6 minutes, too slow to run after every change.
   is greyed out while the figure's in any of them. "Manage my presets" is
   gone: its renaming and deleting are on the rows. Saving over is `PUT`
   with `{ data }`, checked as the preset's own kind.
+- **The Body and Arms pickers keep one height at the top of the screen**,
+  only their list scrolling, so searching doesn't shrink the window
+  downwards, and the rows stay above a phone's keyboard. Turn body, with
+  no search, keeps its own height.
+- **Saving a preset can save the other half too**: an unticked "Save arms
+  as a preset too?" (or body) under the name saves both with the same
+  name; with room for only one more, neither is saved, and it says so.
+- **Arms against the trunk are forgiven more**: 3 cm of overlap before it
+  counts (other pairs 1.5 cm), 5 cm against the back (which side, from the
+  trunk's facing at the nearest point), where a box tie's forearms lie.
+- Considered and left for now: settling a clash by going back along the
+  move to the furthest clear spot (exactly as far as it could go), in place
+  of stepping the moved joint back in 6°, 3°, 1° steps (which can stop a
+  few degrees short of the limit, or past where the move started).
 - **Body presets on any body's height**: a body preset's height (built-in
   or saved) is for the default body. Choosing one puts the body in it on
   the default body, then gives it its own shape, keeping its lowest point

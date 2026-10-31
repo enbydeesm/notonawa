@@ -20,6 +20,7 @@ A new rope icon and lots more model poser updates!
 - Tap the head to make adjustments to the whole body
 - Your screen stays on while the poser is open.
 - A new rope icon appears in nav, ratings, and calendar views
+- When saving a body preset, you can save the arms as a preset too (and the other way round).
 
 ## 2026.10.28.001
 Share with other people who use NōtoNawa! 
