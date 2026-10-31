@@ -82,7 +82,7 @@ describe("adding a pose", () => {
     const bad = [
       { ...pose(), v: 2 },
       { ...pose(), joints: { tail: [1] } },
-      { ...pose(), joints: { l_elbow: [-10] } },
+      { ...pose(), joints: { l_elbow: [-11] } },
       { ...pose(), lift: 900 },
       { ...pose(), shift: [0, 500] },
       { ...pose(), ring: null },

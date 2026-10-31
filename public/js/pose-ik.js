@@ -22,7 +22,7 @@
 // reach gets the point as near as it can. Angles stay fractional while
 // solving and are rounded to whole degrees, as poses keep them, at the end.
 
-import { jointNamed, clampJoint } from "./figure-rig.js";
+import { jointNamed, clampJoint, keepsToReach } from "./figure-rig.js";
 import { canReach } from "./joint-limits.js";
 import { makeSkeleton, posed, onBone, withHips, keptLowest } from "./pose-skeleton.js";
 
@@ -209,11 +209,12 @@ export const snapshot = (joints, chain) => Object.fromEntries(chain.map(([name])
 /**
  * Takes back a step for any joint it took out of reach (a shoulder or
  * hip pointing or twisting where a body can't, joint-limits.js), so
- * solving stays within reach.
+ * solving stays within reach; nothing while those limits are off.
  * @param {Record<string, number[]>} joints changed in place
  * @param {Record<string, number[]>} before the angles before the step
  */
 export function keepReachable(joints, before) {
+  if (!keepsToReach()) return;
   for (const [name, was] of Object.entries(before)) if (!canReach(name, joints[name], joints)) joints[name] = was;
 }
 

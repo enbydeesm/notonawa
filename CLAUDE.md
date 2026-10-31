@@ -155,9 +155,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `JOINTS` and their limits (with `hips`, the pelvis's tilt, hike and
   turn, and each foot's `toes`; older poses have neither, read as at
   rest), the same as `public/js/figure-rig.js`'s and
-  `pose-format.js`'s, kept in step by a unit test, and the limits that
-  depend on several movements, from `public/js/joint-limits.js` itself;
-  20 an item), `db.js`,
+  `pose-format.js`'s, kept in step by a unit test (the limits that
+  depend on several movements, `public/js/joint-limits.js`, aren't
+  checked: the poser can allow anything within these); 20 an item), `db.js`,
   `routes.js` (the same routes as drawings, under `/api/poses`).
 - `src/pose-presets/`: saved poser presets, each account's own body and
   arms positions for any pose (migration 0025). `parse.js` (pure: kind
@@ -416,11 +416,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   capsules), `pose-skinning.js` (pure: dual-quaternion skinning, as shader
   code and on the CPU for taps, so bends round off), `joint-limits.js`
   (pure, no imports: the shoulders' and hips' limits that depend on
-  several movements; the server imports this same file),
+  several movements; kept to only while "Allow collisions" is unticked,
+  `setReachRules` in `figure-rig.js`; the server doesn't check them),
   `pose-contact.js` (the body as capsules: while a move is made, the parts
-  it pushes into each other (shown red); let go (a slider or a limb
-  dragged), `settleClashes` moves another limb or the head aside, or brings
-  a limb pushed into the trunk back out; `behindBody`: where a new hashira
+  it pushes into each other (orange with "Allow collisions" ticked, the
+  default, and left as they are; red unticked); let go unticked,
+  `settleClashes` moves another limb or the head aside, or brings
+  a limb pushed into the trunk back out; `contactAccepted`,
+  `clashesLeft` and `fixClashes`: unticking with clashes left fixes or
+  leaves them; `behindBody`: where a new hashira
   goes, 3 cm behind the trunk, head and arms), `wake-lock.js` (keeping the
   screen on while the poser is open),
   `pose-format.js` (pure: a pose, changing it, the hardpoints, panning,
@@ -489,6 +493,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
   Analytics, Education (`CAP_PATHS`, the cap, also on People's educators),
+  then the poser's button (the poser on its own, `standalone`: Add to
+  visuals and Save pose greyed out; disabled while locked),
   sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
   data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `person-rows.js` (a form's

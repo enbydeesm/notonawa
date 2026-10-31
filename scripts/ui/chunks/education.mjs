@@ -17,12 +17,13 @@ export default async function () {
     // On one row: every item overlaps every other top to bottom (they're centered, and not all the same height).
     const oneRow = Math.max(...shown.map((r) => r.top)) < Math.min(...shown.map((r) => r.bottom));
     return [oneRow, nav.scrollWidth <= nav.clientWidth, shown[shown.length - 1].right <= nav.getBoundingClientRect().right + 1];`;
-  check("the nav has Education after Analytics and before +, marked as the current tab", await run(`
+  check("the nav has Education after Analytics, then the poser's button before +, Education marked as the current tab", await run(`
     const tabs = [...document.querySelectorAll("nav .nav-tab")].map((a) => a.getAttribute("aria-label"));
-    const education = $("nav a[href='/education']");
-    return [tabs, education.nextElementSibling.classList.contains("nav-add"), $("nav a[aria-current=page]")?.getAttribute("aria-label"),
-      document.title];`),
-    [["Ties", "Plans", "People", "Locations", "Calendar", "Analytics", "Education"], true, "Education", "Education · NotoNawa"]);
+    const education = $("nav a[href='/education']"), poser = education.nextElementSibling;
+    return [tabs, poser.id, poser.tagName, !!poser.querySelector(".pose-icon"), poser.nextElementSibling.classList.contains("nav-add"),
+      $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
+    [["Ties", "Plans", "People", "Locations", "Calendar", "Analytics", "Education", "Poser"], "nav-poser", "BUTTON", true, true,
+      "Education", "Education · NotoNawa"]);
   check("all of the nav fits on one row at this width", await run(navFits), [true, true, true]);
   for (const width of [375, 320]) {
     await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: true });

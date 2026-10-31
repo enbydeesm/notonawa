@@ -129,6 +129,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   const skinColor = cssColor("pose-figure");
   const selectedColor = cssColor("pose-selected");
   const clashColor = cssColor("pose-clash");
+  // A clash with collisions allowed: a warning, not refused.
+  const warnColor = cssColor("pose-warn");
 
   // The pelvis is the figure's root, moved and turned as the whole body.
   const skeleton = makeSkeleton(new Group());
@@ -209,16 +211,17 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
    * other (pose-contact.js).
    * @param {string | null} part
    * @param {Set<string> | null} clash
+   * @param {boolean} warn collisions are allowed: the clash shows orange, not red
    */
-  function paint(part, clash) {
-    const key = `${part}|${clash ? [...clash].sort().join() : ""}`;
+  function paint(part, clash, warn) {
+    const key = `${part}|${clash ? [...clash].sort().join() : ""}|${warn}`;
     if (key === painted) return;
     painted = key;
     const colors = /** @type {Float32Array} */ (tint.array);
     const chosen = part === null ? -1 : posedParts.names.indexOf(part);
     const clashing = new Set([...(clash ?? [])].map((p) => parts.names.indexOf(p)));
     for (let v = 0; v < parts.of.length; v++) {
-      const c = clashing.has(parts.of[v]) ? clashColor : posedParts.of[v] === chosen ? selectedColor : skinColor;
+      const c = clashing.has(parts.of[v]) ? (warn ? warnColor : clashColor) : posedParts.of[v] === chosen ? selectedColor : skinColor;
       colors[v * 3] = c.r;
       colors[v * 3 + 1] = c.g;
       colors[v * 3 + 2] = c.b;
@@ -341,15 +344,16 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   /**
    * Shows a pose (and the rope being laid, the part being posed, the rope
-   * chosen, and the parts a move is pushing into each other).
+   * chosen, and the parts a move is pushing into each other: orange with
+   * `warn`, as collisions are allowed, or red).
    * @param {Pose} pose
-   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null }} [extras]
+   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null, warn?: boolean }} [extras]
    */
-  function show(pose, { laying = null, selected = null, rope = -1, clash = null } = {}) {
+  function show(pose, { laying = null, selected = null, rope = -1, clash = null, warn = false } = {}) {
     shown = pose;
     posed(skeleton, pose);
     fitSkin();
-    paint(selected, clash);
+    paint(selected, clash, warn);
 
     ring.visible = !!pose.ring;
     if (pose.ring) {

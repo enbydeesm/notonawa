@@ -1806,6 +1806,40 @@ about 6 minutes, too slow to run after every change.
   - Known limits: capsules, not the skin, so a centimetre or so either
     way; a limb moved aside can carry its ropes off where they were put.
 
+## Poser: allowing collisions, a flexible body, the nav's poser (October 2026)
+
+**Status:** built (2026-10-31, on the `anny-body` branch)
+
+- **"Allow collisions"**, a checkbox bottom right of the view, ticked by
+  default and kept while the page is open (not saved with the pose or
+  the account). Ticked, nothing is settled and the limits that depend on
+  several movements (`joint-limits.js`) are off (`setReachRules` in
+  `figure-rig.js`); each movement's own range still holds. Clashes show
+  orange only while a move is made, as the red did.
+- **Unticking with clashes left** asks Fix them now or Leave them.
+  What counts as a clash left: anything pushed in further than the
+  contact accepted (`contactAccepted`): what the pose opened with,
+  lowered as parts are pulled apart, reset by a preset, a part's Reset or
+  a new body shape. Fix brings every joint within reach and moves each
+  limb in a clash out of it (`fixClashes`), as one change. Leave changes
+  nothing; a limb moved again is settled against the accepted contact,
+  so it comes out then.
+- **The server no longer checks the limits that depend on several
+  movements**, only each movement's own range, so a pose made with
+  collisions allowed saves. This reverses "Enforced on the server too"
+  in "Poser: shoulders, bends, limits and contact" below (the user chose
+  it). `readPose` and import (`jointsInRange`, was `jointsInReach`) bring
+  joints within ranges only.
+- **The ranges widened** about a fifth to a third for a flexible person;
+  elbows and knees go 10° past straight. The reach rules loosened to
+  match (a shoulder twists ±110° low, an arm swings back 90°, a leg goes
+  out 120° forward and 60° behind; hip and knee twists 80° together).
+- **The poser in the nav**, after Education: a button (it opens a dialog
+  over the view, as + does), disabled while locked. Opened there it has
+  nothing to save to, so Add to visuals and Save pose are greyed out and
+  Cancel is Close; Download still works. Asking which tie, plan or
+  workshop it's for is for later.
+
 ## Poser: the account's default body (October 2026)
 
 **Status:** built (2026-10-30, on the `anny-body` branch)

@@ -12,7 +12,7 @@ import { pickTags } from "../tag-picker.js";
 import { TIE_TYPES } from "../ties-view.js";
 import { capitalise } from "../format.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "../links.js";
-import { albumLink, editTie } from "../tie-card.js";
+import { visualsRow, editTie } from "../tie-card.js";
 import { openShareItem } from "../share-item-dialog.js";
 import { iconButton } from "../dialog-icons.js";
 import { errorMessage } from "../api.js";
@@ -161,8 +161,8 @@ export function mount(_root, { signal }) {
 
     // A card like a tie's: the title (which opens the dialog, as tapping
     // the card does) and the plan type; the tie type and what it's a
-    // variation of, and the difficulty in hanks; how many photos and how
-    // many ties it's on; the album; the tags. Its description and notes
+    // variation of, and the difficulty in hanks; how many photos, then
+    // on the right the album and how many ties it's on; the tags. Its description and notes
     // are in the dialog only.
     renderItem: (plan, plans, edit) => {
       const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
@@ -176,9 +176,7 @@ export function mount(_root, { signal }) {
         plan.est_difficulty != null
           ? h("div", { className: "tie-rating" }, ratingHanks(plan.est_difficulty, `Difficulty ${plan.est_difficulty}/5`))
           : null,
-        h("div", { className: "plan-photos" }, plan.photo_count ? (plan.photo_count === 1 ? "1 photo" : `${plan.photo_count} photos`) : null),
-        h("div", { className: "plan-ties" }, tieCountText(count)),
-        albumLink(plan.album_url, "tie-album"),
+        visualsRow(plan.photo_count, plan.album_url, h("span", { className: "plan-ties" }, tieCountText(count))),
         plan.tags?.length
           ? h("div", { className: "tag-row tie-tags" }, plan.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
           : null,

@@ -8,7 +8,7 @@
 // the file's poses only if it has none yet: a failed import can be run
 // again to finish, without making copies.
 
-import { jointsInReach } from "./figure-rig.js";
+import { jointsInRange } from "./figure-rig.js";
 
 /**
  * A pose listed in an export: its data (checked by the server when
@@ -70,7 +70,7 @@ function readEntries(list) {
     .filter((d) => d && typeof d.data === "object" && d.data !== null && typeof d.data.joints === "object")
     .map((d, i) => ({
       // One exported before the joints' limits changed is brought within them.
-      data: jointsInReach(d.data),
+      data: jointsInRange(d.data),
       caption: typeof d.caption === "string" && d.caption.trim() !== "" ? d.caption : null,
       position: Number.isFinite(d.position) ? d.position : i,
     }))

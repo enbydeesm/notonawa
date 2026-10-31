@@ -183,7 +183,7 @@ export function ropesOntoBody(ropes) {
 }
 
 /**
- * A pose as saved, made whole: every joint listed and within its limits
+ * A pose as saved, made whole: every joint listed and within its ranges
  * (older or partial poses, e.g. from an import, open like this). One saved
  * before the body had a shape gets the in-between one, its ropes moved
  * onto it.
@@ -195,7 +195,9 @@ export function readPose(saved) {
   const joints = restJoints();
   for (const j of JOINTS) {
     const angles = saved.joints?.[j.name];
-    if (Array.isArray(angles)) joints[j.name] = clampJoint(j.name, angles, undefined, joints);
+    // Within each movement's range only: a pose made with collisions
+    // allowed opens as it was saved.
+    if (Array.isArray(angles)) joints[j.name] = clampJoint(j.name, angles, undefined, joints, false);
   }
   const camera = /** @type {Camera} */ ([...(saved.camera ?? fresh.camera), 0, 0].slice(0, 6));
   return {

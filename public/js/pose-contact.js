@@ -6,7 +6,9 @@
 // just enough; a limb pushed into the trunk, which doesn't move aside,
 // comes back out to the nearest clear spot. Only what the move made worse
 // counts, so a pose that starts touching (hands at the thighs, a box tie's
-// forearms on the back) is left as it is. Approximate: capsules, not the
+// forearms on the back) is left as it is. With collisions allowed, the
+// poser shows them and settles nothing; turned off, fixClashes moves
+// what's left clashing out of it. Approximate: capsules, not the
 // skin, so a centimetre or so of overlap can show. Pure apart from
 // three.js's math.
 
@@ -296,6 +298,15 @@ const ASIDE_MOST = Object.freeze({ head: 20 });
 const LIMB_ASIDE_MOST = 30;
 
 /**
+ * The pairs touching a limb (or the head) in the set, PAIRS order.
+ * @param {Set<string | null>} limbs
+ */
+const touching = (limbs) => PAIRS.map((pair) => pair.some((i) => {
+  const limb = limbOf(SEGMENTS[i].name);
+  return limb !== null && limbs.has(limb);
+}));
+
+/**
  * A move settled when it's let go: if it pushed parts into each other,
  * another limb (or the head) the move didn't touch moves aside; what's
  * still pushed in after that is settled by the joints moved coming back
@@ -306,13 +317,19 @@ const LIMB_ASIDE_MOST = 30;
  * @param {Pose} before the pose before the move
  * @param {Pose} after the move
  * @param {readonly string[]} moved the joints the move turned
+ * @param {Float64Array} [accepted] the contact counted as fine (contactAccepted); a
+ *   limb moved that was left clashing past it is brought out of it too
  * @returns {Pose}
  */
-export function settleClashes(skeleton, before, after, moved) {
+export function settleClashes(skeleton, before, after, moved, accepted) {
+  const movedLimbs = new Set(moved.map(limbOfJoint));
   const was = depths(skeleton, before);
+  if (accepted) {
+    const mine = touching(movedLimbs);
+    was.forEach((d, k) => { if (mine[k]) was[k] = Math.min(d, accepted[k]); });
+  }
   const worse = pushedIn(depths(skeleton, after), was);
   if (!worse.length) return after;
-  const movedLimbs = new Set(moved.map(limbOfJoint));
   // The limbs on the other side of each clash, to move aside, and whether
   // any clash is with the trunk.
   const aside = new Set();
@@ -334,9 +351,77 @@ export function settleClashes(skeleton, before, after, moved) {
   }
   if (!clear(pose)) pose = ease(skeleton, pose, was, own, OWN_COST);
   // Still clashing: the move taken back the way it came, only as far as
-  // it has to (the pose before it was clear).
+  // it has to (the pose before it was clear, unless it was left clashing).
   if (!clear(pose)) pose = backTowards(skeleton, before, pose, was);
   return pose;
+}
+
+/**
+ * The contact a pose has that counts as fine: as deep as each pair
+ * already is, or as `accepted` was where that's less (a pair pulled apart
+ * counts again when it's pushed back in). The poser keeps it from when it
+ * opened, lowering it after each change, so a pose that starts touching
+ * isn't a clash.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @param {Float64Array} [accepted]
+ * @returns {Float64Array}
+ */
+export function contactAccepted(skeleton, pose, accepted) {
+  const now = depths(skeleton, pose);
+  return accepted ? now.map((d, k) => Math.min(d, accepted[k])) : now;
+}
+
+/**
+ * The parts pushed into each other further than `accepted`: what a pose
+ * made with collisions allowed has left clashing.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @param {Float64Array} accepted
+ * @returns {Set<string>} parts (figure-rig.js's names)
+ */
+export function clashesLeft(skeleton, pose, accepted) {
+  return clashingParts(skeleton, pose, pose, accepted);
+}
+
+/** Each limb's (and the head's) joints, every movement of them: what fixing a clash may turn. */
+const LIMB_JOINTS = Object.freeze({
+  head: ["head"],
+  ...Object.fromEntries(["l", "r"].flatMap((s) => [
+    [`${s}_arm`, [`${s}_shoulder`, `${s}_elbow`, `${s}_wrist`]],
+    [`${s}_leg`, [`${s}_hip`, `${s}_knee`, `${s}_ankle`]],
+  ])),
+});
+
+/**
+ * A pose's clashes fixed (anything pushed in further than `accepted`):
+ * each limb (or the head) in one moves out of it as little as it can,
+ * the trunk staying where it is.
+ * @param {Skeleton} skeleton
+ * @param {Pose} pose
+ * @param {Float64Array} accepted
+ * @returns {Pose}
+ */
+export function fixClashes(skeleton, pose, accepted) {
+  /** @type {Set<keyof typeof LIMB_JOINTS>} */
+  const limbs = new Set();
+  for (const k of pushedIn(depths(skeleton, pose), accepted)) {
+    for (const i of PAIRS[k]) {
+      const limb = limbOf(SEGMENTS[i].name);
+      if (limb) limbs.add(/** @type {keyof typeof LIMB_JOINTS} */ (limb));
+    }
+  }
+  if (!limbs.size) return pose;
+  const angles = [...limbs].flatMap((limb) => LIMB_JOINTS[limb])
+    .flatMap((name) => pose.joints[name].map((_, i) => /** @type {[string, number]} */ ([name, i])));
+  // A few goes, as one may stop short where a small step doesn't help.
+  let fixed = pose;
+  for (let go = 0; go < 4 && excess(depths(skeleton, fixed), accepted) > 0; go++) {
+    const next = ease(skeleton, fixed, accepted, angles, OWN_COST);
+    if (next === fixed) break;
+    fixed = next;
+  }
+  return fixed;
 }
 
 /**

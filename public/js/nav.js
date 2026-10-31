@@ -1,5 +1,7 @@
 // The view links at the top of the app, as icons (each named for screen
-// readers and in its tooltip), then the + button and the menu button (☰),
+// readers and in its tooltip), the poser's button after them (the poser on
+// its own, over the view: nothing it makes is saved yet), then the + button
+// and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
 // their own dialog), the account and "Your data" links, Bug and feedback,
 // What's new (the release notes), the privacy policy, Sign Out and the
@@ -14,7 +16,8 @@ import { openWhatsNew } from "./whats-new.js";
 import { openFeedback } from "./feedback-dialog.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
-import { lock } from "./vault.js";
+import { lock, isUnlocked } from "./vault.js";
+import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
 import { currentTheme } from "./settings.js";
 import { HANK_PATH } from "./rope-rating.js";
 
@@ -50,6 +53,8 @@ export function preloadMenuLogo() {
 let current = null;
 /** @type {HTMLElement | null} */
 let navElement = null;
+/** @type {HTMLButtonElement | null} */
+let poserButton = null;
 
 /** Draws the nav at the top of <main>, once. */
 export function renderNav() {
@@ -61,10 +66,22 @@ export function renderNav() {
     else navigate("/");
   }
 
+  // The poser, loaded only once it's wanted (three.js is big). Opened
+  // here, there's no tie, plan or workshop to save the pose on (roadmap.md).
+  async function openPoser() {
+    const { editPose } = await import("./pose-editor.js");
+    await editPose(null, { standalone: true });
+  }
+  poserButton = h("button", {
+    type: "button", className: "nav-tab nav-poser", id: "nav-poser", "aria-label": "Poser", title: "Poser",
+    "aria-haspopup": "dialog", onclick: openPoser,
+  }, VISUAL_ICONS.pose());
+
   const nav = h(
     "nav",
     {},
     PAGES.map(([href, label, icon]) => h("a", { href, className: "nav-tab", "aria-label": label, title: label }, icon())),
+    poserButton,
     h("button", { type: "button", className: "nav-add", "aria-label": "Add a tie", title: "Add a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
@@ -91,6 +108,8 @@ export function showNav(shown) {
  */
 export function setCurrent(path) {
   current = path;
+  // The poser reads my presets and default body, sealed: only once unlocked.
+  if (poserButton) poserButton.disabled = !isUnlocked();
   for (const link of navElement?.querySelectorAll("a") ?? []) {
     if (link.getAttribute("href") === path) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");

@@ -1,9 +1,10 @@
 // Limits that depend on more than one movement of a joint: how far a
 // shoulder or hip can twist or reach depends on where the arm or leg
 // points. Each movement's own range is figure-rig.js's (and
-// src/poses/parse.js's); these are on top of them. Pure, with no imports,
-// so the server (src/poses/parse.js, src/pose-presets/parse.js) checks
-// poses with this same file.
+// src/poses/parse.js's); these are on top of them, and only the poser
+// keeps to them, when "Allow collisions" is unticked: the server checks
+// only each movement's own range, so a pose made with it ticked saves.
+// Pure, with no imports.
 //
 // Angles are the joint's own, in its moves' order ([forward, out, twist]
 // for a shoulder or hip, [bend, twist] for a knee), whole degrees, the same
@@ -41,39 +42,39 @@ export function raised(forward, out) {
  */
 
 /** The most a leg's hip and knee twist add up to, either way: how far a foot turns. */
-const LEG_TWIST = 60;
+const LEG_TWIST = 80;
 /** The most a knee twists, bent right up; straight, it hardly does. */
-const KNEE_TWIST = 35;
+const KNEE_TWIST = 45;
 
 /** @type {Readonly<Record<"shoulder" | "hip" | "knee", Rules>>} */
 const RULES = Object.freeze({
   shoulder: {
     at: 2,
-    // A shoulder twists ±90° with the arm low, less as it rises past
-    // shoulder height: about ±55° straight up.
+    // A flexible shoulder twists ±110° with the arm low, less as it rises
+    // past shoulder height: about ±66° straight up.
     twist([forward, out]) {
       const k = 1 - 0.4 * between((raised(forward, out) - 90) / 90, 0, 1);
-      return [-90 * k, 90 * k];
+      return [-110 * k, 110 * k];
     },
-    // An arm swings back 70° hanging down, but once raised out to the
-    // side only about 40° behind the body.
+    // An arm swings back 90° hanging down, but once raised out to the
+    // side only about 55° behind the body.
     reaches([forward, out]) {
-      const back = 70 - 30 * between((raised(forward, out) - 70) / 40, 0, 1);
+      const back = 90 - 35 * between((raised(forward, out) - 70) / 40, 0, 1);
       return forward >= -back;
     },
   },
   hip: {
     at: 2,
-    // ±45°, and with the knee's no more than LEG_TWIST all told.
+    // ±60°, and with the knee's no more than LEG_TWIST all told.
     twist(_angles, joints, side) {
       const knee = joints[`${side}_knee`]?.[1] ?? 0;
-      return [Math.max(-45, -LEG_TWIST - knee), Math.min(45, LEG_TWIST - knee)];
+      return [Math.max(-60, -LEG_TWIST - knee), Math.min(60, LEG_TWIST - knee)];
     },
-    // A leg goes out 90° once forward, but only 45° behind the body; and
-    // it crosses the other only once it's forward.
+    // A flexible leg goes out 120° once forward, but only 60° behind the
+    // body; and it crosses the other far only once it's forward.
     reaches([forward, out]) {
-      const outMost = 45 + 45 * between(forward / 30, 0, 1);
-      const inMost = -15 - 15 * between((forward - 15) / 30, 0, 1);
+      const outMost = 60 + 60 * between(forward / 30, 0, 1);
+      const inMost = -20 - 25 * between((forward - 15) / 30, 0, 1);
       return out <= outMost && out >= inMost;
     },
   },

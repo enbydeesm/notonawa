@@ -27,7 +27,7 @@
      things hang from, a bamboo, a wooden hashira), the same in both modes,
      as the paper is, so a pose's picture looks the same whichever is on.
      Ropes use the inks above. */
-  --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-clash: #e0605a; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
+  --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-clash: #e0605a; --pose-warn: #f0962e; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
   --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
@@ -67,11 +67,18 @@ nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom
 nav[hidden] { display: none; }
 nav .nav-tab { display: inline-flex; flex: none; width: 32px; height: 34px; padding: 4px 3px; }
 nav .nav-tab svg { display: block; width: 100%; height: 100%; }
+/* The poser's button, after the tabs, drawn as one of them (it opens a dialog, not a view). */
+nav .nav-poser { background: transparent; border: 0; border-radius: 0; color: var(--muted); }
+nav .nav-poser .pose-icon { display: block; width: 100%; height: 100%; }
+nav .nav-poser:disabled { opacity: 0.4; }
 /* Phones: closer together, and on narrow ones smaller, so the seven tabs,
    the + and the ☰ still fit on one row (down to 320px wide). */
-@media (max-width: 420px) { nav { gap: 4px 6px; } }
-@media (max-width: 374px) { nav .nav-tab { width: 28px; padding: 4px 2px; } }
-@media (max-width: 340px) { nav { gap: 4px 3px; } }
+@media (max-width: 420px) { nav { gap: 4px; } nav .nav-tab { width: 30px; padding: 4px 2px; } }
+@media (max-width: 374px) { nav .nav-tab { width: 28px; } }
+@media (max-width: 340px) {
+  nav { gap: 4px 2px; } nav .nav-tab { width: 26px; padding: 4px 1px; }
+  nav .nav-add, nav .nav-icon { width: 28px; height: 28px; }
+}
 
 /* The app's logo: on Sign in, Unlock and Consent, which have no nav, and
    as a banner (the name on the bamboo) at the top of the menu. Each comes
@@ -125,14 +132,18 @@ nav .nav-tab svg { display: block; width: 100%; height: 100%; }
 .tie-with { font-size: 0.95rem; white-space: nowrap; overflow: hidden; }
 .tie-more { color: var(--muted); font-weight: 600; }
 .tie-tags { margin-top: 6px; gap: 6px; }
-.tie-photos { grid-column: 1 / -1; color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
-.tie-album { grid-column: 1 / -1; font-size: 0.9rem; margin-top: 4px; }
+/* How many photos on the left, the album link (and a plan's tie count) on the right. */
+.tie-visuals {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  font-size: 0.9rem; margin-top: 4px;
+}
+.tie-photos { color: var(--muted); }
+.tie-visuals-end { display: flex; gap: 12px; white-space: nowrap; }
 /* A card that opens when tapped anywhere (dom.js, opensOnTap). */
 .tappable { cursor: pointer; }
 /* A plan, as a card like a tie's (views/plans.js): its type where a tie's
    date goes, and how many photos and ties on one line, the ties right. */
-.plan-photos { grid-column: 1; color: var(--muted); font-size: 0.9rem; }
-.plan-card .plan-ties { grid-column: 2; justify-self: end; white-space: nowrap; color: var(--muted); font-size: 0.9rem; }
+.plan-card .plan-ties { color: var(--muted); }
 
 /* Photos: a grid of square thumbnails with their captions, and the viewer. */
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -267,6 +278,12 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
   position: absolute; left: 8px; top: 8px; right: 5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* "Allow collisions", bottom right, as muted as the hint. */
+.pose-allow {
+  position: absolute; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 4px; margin: 0;
+  font-size: 0.75rem; color: var(--ink-grey); font-weight: normal;
+}
+.pose-allow input { margin: 0; width: auto; }
 /* The views, narrow so the hint fits on one line, on the floor's grey (the
    3D view's colors are the same in both modes). */
 .pose-frame select.pose-view-menu {

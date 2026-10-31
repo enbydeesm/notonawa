@@ -20,8 +20,8 @@ function renderLabel(label) {
 
 /**
  * A tie as a card (tap it to edit; its title is the button): title and date; type and location, and the
- * rating; who took part, on one line; its tags; how many photos, and its
- * album link. Call fitPeople() on its container once it's on the page.
+ * rating; who took part, on one line; its tags; how many photos, with its
+ * album link on the right. Call fitPeople() on its container once it's on the page.
  * @param {Record<string, any>} tie as POST /api/ties/search returns it, opened
  * @param {(id: string) => void} onEdit runs when the card is tapped
  */
@@ -45,11 +45,24 @@ export function tieCard(tie, onEdit) {
     tie.tags.length
       ? h("div", { className: "tag-row tie-tags" }, tie.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
       : null,
-    tie.photo_count
-      ? h("div", { className: "tie-photos" }, tie.photo_count === 1 ? "1 photo" : `${tie.photo_count} photos`)
-      : null,
-    albumLink(tie.album_url, "tie-album")
+    visualsRow(tie.photo_count, tie.album_url)
   ), () => onEdit(tie.id));
+}
+
+/**
+ * A card's row of how many photos (left) and its album link (right), null
+ * when it has neither. Anything else (a plan's tie count) goes after the
+ * link, at the end.
+ * @param {number} count
+ * @param {unknown} url opened
+ * @param {...any} after
+ */
+export function visualsRow(count, url, ...after) {
+  const album = albumLink(url, "tie-album");
+  if (!count && !album && !after.length) return null;
+  return h("div", { className: "tie-visuals" },
+    h("span", { className: "tie-photos" }, count ? (count === 1 ? "1 photo" : `${count} photos`) : ""),
+    h("span", { className: "tie-visuals-end" }, album, ...after));
 }
 
 /**
@@ -60,7 +73,7 @@ export function tieCard(tie, onEdit) {
  */
 export function albumLink(url, className) {
   if (!isWebLink(url)) return null;
-  return h("div", { className },
+  return h("span", { className },
     h("a", { href: /** @type {string} */ (url), target: "_blank", rel: "noopener noreferrer" }, "Open album"));
 }
 

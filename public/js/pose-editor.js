@@ -45,7 +45,9 @@ import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
   PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withArmsPreset,
+  setReachRules, clampJoint,
 } from "./figure-rig.js";
+import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
   COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
@@ -60,7 +62,7 @@ import { loadSettings, saveDefaultShape } from "./settings.js";
 import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
 import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
-import { depths, clashingParts, settleClashes, behindBody } from "./pose-contact.js";
+import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchEnds, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -107,20 +109,29 @@ const HARDPOINT_SLIDERS = /** @type {const} */ ({
 let lastColor = "red";
 /** @type {Width} */
 let lastWidth = 2;
+// "Allow collisions", ticked until it's unticked, kept while the page is
+// open: a part goes wherever it's put (each movement's own range aside),
+// clashes showing orange while the move is made. Unticked, moves keep to
+// the limits that depend on several movements (joint-limits.js) and
+// clashes, shown red, are settled when let go (pose-contact.js).
+let allowCollisions = true;
 
 /**
  * Opens the poser on a pose (or a new one, standing, in the account's
  * default body if one's saved).
  * @param {Pose | null} start
- * @param {{ addToVisuals?: (picture: Blob) => Promise<void> }} [options] addToVisuals:
- *   puts a picture of the pose (a PNG) into the item's visuals (the button's left out without it)
+ * @param {{ addToVisuals?: (picture: Blob) => Promise<void>, standalone?: boolean }} [options] addToVisuals:
+ *   puts a picture of the pose (a PNG) into the item's visuals (the button's left out without it);
+ *   standalone: opened on its own (the nav's button), not from an item, so there's nowhere to
+ *   save it: Add to visuals and Save pose show, greyed out, and Cancel is Close
  * @returns {Promise<Pose | null>} the new pose, or null if cancelled
  */
-export async function editPose(start, { addToVisuals } = {}) {
+export async function editPose(start, { addToVisuals, standalone = false } = {}) {
   /** The body new poses start with (null: the in-between one). @type {Shape | null} */
   let defaultShape = (await loadSettings().catch(() => null))?.default_shape ?? null;
   const fresh = () => (defaultShape ? withShape(makeSkeleton(), newPose(), defaultShape) : newPose());
   return new Promise((resolve) => {
+    setReachRules(!allowCollisions);
     let history = startHistory(start ? readPose(start) : fresh());
     /** A slider being dragged: its pose, not yet a change (it is when let go). @type {Pose | null} */
     let draft = null;
@@ -145,6 +156,13 @@ export async function editPose(start, { addToVisuals } = {}) {
     let erasingMarks = false;
     /** The skeleton the poser measures ropes with (the view has its own). */
     const measuring = makeSkeleton();
+    /**
+     * The contact counted as fine (pose-contact.js): what the pose opened
+     * with, lowered as parts are pulled apart; a preset, a reset or a new
+     * body shape is fine as it comes. What goes past it with collisions
+     * allowed is a clash left, which unticking offers to fix.
+     */
+    let accepted = contactAccepted(measuring, history.pose);
     /** @type {Color} */
     let color = lastColor;
     /** @type {Width} */
@@ -186,8 +204,13 @@ export async function editPose(start, { addToVisuals } = {}) {
     const undoButton = iconButton("pose-undo", "Undo", "undo", doUndo);
     const redoButton = iconButton("pose-redo", "Redo", "redo", doRedo);
     const downloadButton = iconButton("pose-download", "Download picture", "download", download);
-    const addVisualButton = addToVisuals
-      ? h("button", { type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture }, "Add to visuals") : null;
+    // Opened on its own, Add to visuals is there, greyed out, until the
+    // poser can ask which tie, plan or workshop it's for (roadmap.md).
+    const addVisualButton = addToVisuals || standalone
+      ? h("button", {
+        type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture, disabled: standalone,
+        title: standalone ? "Open the poser from a tie, plan or workshop to add a picture to its visuals" : undefined,
+      }, "Add to visuals") : null;
     const viewMenu = h("select", { id: "pose-view-choice", className: "tool pose-view-menu", "aria-label": "View from", onchange: () => {
       const chosen = VIEWS[Number(viewMenu.value)];
       viewMenu.value = "";
@@ -198,10 +221,13 @@ export async function editPose(start, { addToVisuals } = {}) {
     } }, h("option", { value: "" }, "View"), VIEWS.map(([name], i) => h("option", { value: String(i) }, name)));
     // The hint top left, the views top right, over the 3D view and its
     // pencil marks.
+    // "Allow collisions" bottom right, as muted as the hint.
     const marks = marksLayer();
+    const allowBox = h("input", { type: "checkbox", id: "pose-allow-collisions", checked: allowCollisions, onchange: () => setAllowed(allowBox.checked) });
     const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
       h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · 2 fingers to pan · pinch to zoom"),
-      viewMenu);
+      viewMenu,
+      h("label", { className: "pose-allow", htmlFor: "pose-allow-collisions" }, allowBox, "Allow collisions"));
 
     // --- the Pose panel ----------------------------------------------------------
 
@@ -216,7 +242,7 @@ export async function editPose(start, { addToVisuals } = {}) {
       posture: (of) => (of === "body" ? onDefaultBody(measuring, history.pose) : history.pose),
       apply: (preset) => commit(kind === "body"
         ? withBodyPresetOn(measuring, history.pose, /** @type {BodyPreset} */ (preset))
-        : withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset)))),
+        : withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset))), true),
     });
     const pickerButton = (/** @type {string} */ id, /** @type {string} */ label, /** @type {() => void} */ onclick) =>
       h("button", { type: "button", className: "tool pose-picker", id, "aria-haspopup": "dialog", onclick }, label);
@@ -320,14 +346,18 @@ export async function editPose(start, { addToVisuals } = {}) {
       panels,
       message,
       h("div", { className: "drawing-actions" },
-        h("button", { type: "button", id: "pose-cancel", onclick: cancel }, "Cancel"),
-        h("button", { type: "button", className: "primary", id: "pose-save", onclick: save }, "Save pose")));
+        h("button", { type: "button", id: "pose-cancel", onclick: cancel }, standalone ? "Close" : "Cancel"),
+        h("button", {
+          type: "button", className: "primary", id: "pose-save", onclick: save, disabled: standalone,
+          title: standalone ? "Open the poser from a tie, plan or workshop to save a pose on it" : undefined,
+        }, "Save pose")));
 
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
       cancel();
     });
     dialog.addEventListener("close", () => {
+      setReachRules(true);
       letSleep();
       resized.disconnect();
       view.dispose();
@@ -360,7 +390,9 @@ export async function editPose(start, { addToVisuals } = {}) {
         const pose = current();
         // A move being made shows the parts it pushes into each other.
         const clash = draft && mode === "pose" ? clashingParts(measuring, history.pose, draft, depthsBefore()) : null;
-        view.show(pose, { laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1, clash });
+        view.show(pose, {
+          laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1, clash, warn: allowCollisions,
+        });
         view.draw();
         marks.draw([...(marksShow(pose.marks, pose.camera) ? /** @type {import("./pose-marks.js").Marks} */ (pose.marks).strokes : []),
           ...(markLine ? [markLine] : [])]);
@@ -391,11 +423,54 @@ export async function editPose(start, { addToVisuals } = {}) {
     // --- changes ---------------------------------------------------------------
 
     /** @param {Pose} pose a change, to undo back from */
-    function commit(pose) {
+    /**
+     * @param {Pose} pose
+     * @param {boolean} [fine] its contact all counts as fine (a preset, a reset): see accepted
+     */
+    function commit(pose, fine = false) {
       draft = null;
+      // A new body shape is fine as it comes too: a bigger body touches more.
+      accepted = contactAccepted(measuring, pose, fine || !sameShape(pose.shape, history.pose.shape) ? undefined : accepted);
       history = change(history, pose);
       say("");
       drawAll();
+    }
+
+    /**
+     * A move let go of: as it is with collisions allowed, or else with any
+     * clash it made settled (pose-contact.js), and a limb left clashing
+     * brought out too, now it's moved again.
+     * @param {Pose} before @param {Pose} after @param {readonly string[]} moved
+     */
+    const settle = (before, after, moved) => (allowCollisions ? after : settleClashes(measuring, before, after, moved, accepted));
+
+    /**
+     * Ticking or unticking "Allow collisions". Unticked with clashes left,
+     * or a joint further than a body can go: fixing them (as one change,
+     * undone with Undo) or leaving them, until each is moved again.
+     * @param {boolean} on
+     */
+    async function setAllowed(on) {
+      allowCollisions = on;
+      setReachRules(!on);
+      drawSoon();
+      if (on) return;
+      const pose = history.pose;
+      const tooFar = Object.entries(pose.joints).some(([name, angles]) => !canReach(name, angles, pose.joints));
+      if (!tooFar && clashesLeft(measuring, pose, accepted).size === 0) return;
+      const choice = await choose({
+        title: "Fix the collisions?",
+        message: "Some body parts are pushed into each other, or bent further than a body can go. "
+          + "Fix them now, or leave them as they are until you move them again.",
+        choices: [{ label: "Fix them now", value: "fix" }],
+        cancelLabel: "Leave them",
+      });
+      if (choice !== "fix" || allowCollisions) return;
+      /** @type {Record<string, number[]>} */
+      const joints = { ...pose.joints };
+      for (const [name, angles] of Object.entries(pose.joints)) joints[name] = clampJoint(name, angles, undefined, joints, true);
+      commit(fixClashes(measuring, { ...pose, joints }, accepted));
+      say("Fixed: the body parts are back within reach and apart.");
     }
 
     /** @param {number[]} camera */
@@ -516,7 +591,7 @@ export async function editPose(start, { addToVisuals } = {}) {
         apply: joint.name === "hips"
           ? (p, v) => keepSeesaws(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
           : (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
-        settle: (before, after) => settleClashes(measuring, before, after, joint.name === "hips" ? HIPS_MOVE : [joint.name]),
+        settle: (before, after) => settle(before, after, joint.name === "hips" ? HIPS_MOVE : [joint.name]),
       }));
       if (joint.name !== "head") {
         sliders.replaceChildren(...own);
@@ -543,8 +618,8 @@ export async function editPose(start, { addToVisuals } = {}) {
     function resetSelected() {
       if (!selected) return;
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
-      if (joint.name === "hips") commit(withHipsOn(measuring, history.pose, startJoints().hips));
-      else commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } });
+      if (joint.name === "hips") commit(withHipsOn(measuring, history.pose, startJoints().hips), true);
+      else commit({ ...history.pose, joints: { ...history.pose.joints, [joint.name]: startJoints()[joint.name] } }, true);
     }
 
     /** Stands the whole body up, facing ahead, its feet on the floor for its body's height. */
@@ -1023,7 +1098,7 @@ export async function editPose(start, { addToVisuals } = {}) {
         // A limb dragged is one change, any clash settled (pose-contact.js);
         // let go of with a cancel, it's put back.
         if (draft && event.type === "pointerup") {
-          commit(settleClashes(measuring, history.pose, draft, dragJoints(held)));
+          commit(settle(history.pose, draft, dragJoints(held)));
         } else if (draft) {
           draft = null;
           drawAll();
@@ -1116,7 +1191,11 @@ export async function editPose(start, { addToVisuals } = {}) {
 
     async function cancel() {
       if (history.past.length > 0 || laying?.p.length) {
-        const choice = await choose({
+        const choice = await choose(standalone ? {
+          title: "Close the poser?",
+          message: "A pose made here isn't saved yet: Download keeps a picture of it.",
+          choices: [{ label: "Close", value: "discard", style: "solid-danger" }],
+        } : {
           title: "Discard your changes?",
           message: "What you've changed since opening this won't be saved.",
           choices: [{ label: "Discard changes", value: "discard", style: "solid-danger" }],
@@ -1127,6 +1206,7 @@ export async function editPose(start, { addToVisuals } = {}) {
     }
 
     function save() {
+      if (standalone) return;
       endRope();
       result = forSaving(history.pose);
       dialog.close();

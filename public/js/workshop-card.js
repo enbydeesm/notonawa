@@ -5,7 +5,7 @@ import { h, opensOnTap } from "./dom.js";
 import { ratingHanks } from "./rope-rating.js";
 import { participantLabel } from "./ties-view.js";
 import { roleName } from "./roles.js";
-import { albumLink } from "./tie-card.js";
+import { visualsRow } from "./tie-card.js";
 import { dateRangeText } from "./workshops-view.js";
 
 /**
@@ -27,7 +27,7 @@ function peopleLine(label, people) {
 /**
  * A workshop as a card (tap it to edit; its title is the button): title and dates; location and how
  * many attended, and the rating; its educators and participants, a line
- * each; its tags; how many photos, and its album link.
+ * each; its tags; how many photos, with its album link on the right.
  * @param {Record<string, any>} workshop as GET /api/workshops lists it, opened
  * @param {(id: string) => void} onEdit runs when the card is tapped
  */
@@ -50,9 +50,6 @@ export function workshopCard(workshop, onEdit) {
     workshop.tags.length
       ? h("div", { className: "tag-row tie-tags" }, workshop.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
       : null,
-    workshop.photo_count
-      ? h("div", { className: "tie-photos" }, workshop.photo_count === 1 ? "1 photo" : `${workshop.photo_count} photos`)
-      : null,
-    albumLink(workshop.album_url, "tie-album")
+    visualsRow(workshop.photo_count, workshop.album_url)
   ), () => onEdit(workshop.id));
 }

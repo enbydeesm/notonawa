@@ -3,7 +3,7 @@
 // figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
 // rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
 // a see-saw rope, a cinch and moving an upline along the bamboo, tapped on a pose made through the API, and the
-// tools in one row on a phone), saving with the tie,
+// tools in one row on a phone), "Allow collisions" (fixing or leaving clashes), the nav's poser, saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
 
@@ -62,6 +62,18 @@ export default async function () {
   })()`;
   const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Pose test").click(); await wait(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
+
+  check("the nav's poser button opens the poser on its own: Add to visuals and Save pose greyed out, Close in place of Cancel, Allow collisions ticked", await run(`
+    $("#nav-poser").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await wait(500);
+    const frame = $(".pose-frame").getBoundingClientRect(), allow = $(".pose-allow"), box = allow.getBoundingClientRect();
+    const result = [$("#pose-add-visual").disabled, $("#pose-save").disabled, $("#pose-cancel").textContent, $("#pose-allow-collisions").checked,
+      allow.textContent, frame.right - box.right < 16 && frame.bottom - box.bottom < 16,
+      getComputedStyle(allow).color === getComputedStyle($(".pose-hint")).color, leakyFields()];
+    $("#pose-cancel").click(); await wait(300);
+    return [...result, !!document.querySelector("dialog.pose-editor")];`),
+  [true, true, "Close", true, "Allow collisions", true, true, [], false]);
 
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
   check("the Visuals + offers the model poser", await run(`
@@ -483,6 +495,7 @@ export default async function () {
   await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);`);
 
   await ropes({ tap, slide, topDialog });
+  await collisions({ tap, slide, topDialog });
 }
 
 /**
@@ -623,4 +636,67 @@ async function ropes({ tap, slide, topDialog }) {
     const saved = (await ${tiePose}).data;
     return [labels, range, value, back, saved.ropes[1].p.at(-1), saved.ropes[2].p.at(-1), saved.ropes[3].l > 0];`),
   [["Along the bamboo (cm)"], ["-76", "76"], "-41", 6, ["bamboo", -410, 0, 0], ["bamboo", 0, 0, 0], true]);
+}
+
+/**
+ * "Allow collisions": a forearm folded into the belly is left where it's
+ * put while it's ticked; unticked, the poser offers to fix it (as one
+ * change) or leave it; and a move made while it's unticked is settled.
+ * @param {{ tap: (fx: number, fy: number) => Promise<void>, slide: (id: string, value: number) => string, topDialog: string }} helpers
+ */
+async function collisions({ tap, slide, topDialog }) {
+  const seeded = {
+    v: 1, joints: { l_shoulder: [20, 0, -80] }, body: [0, 0, 0], lift: 99, shift: [0, 0], camera: [0, 8, 380, 110, 0, 0],
+    ring: null, bamboo: null, hashira: null, ropes: [],
+  };
+  await run(`
+    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-03", title: "Collision test" });
+    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+  await go("/");
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Collision test").click(); await wait(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); $("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await wait(500);`);
+  // The left forearm, halfway along: where to tap to pose the elbow.
+  const forearm = await run(`
+    const three = await import("/js/vendor/three.js");
+    const { makeSkeleton, posed, onBone } = await import("/js/pose-skeleton.js");
+    const { readPose } = await import("/js/pose-format.js");
+    const data = readPose(${JSON.stringify(seeded)});
+    const skeleton = makeSkeleton(); posed(skeleton, data);
+    const point = onBone(skeleton, "l_elbow", [0, -12, 0]);
+    const r = $("#pose-view").getBoundingClientRect();
+    const camera = new three.PerspectiveCamera(38, r.width / r.height, 5, 5000);
+    const [yaw, pitch, distance, height] = data.camera;
+    const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+    camera.position.set(Math.sin(y) * Math.cos(p) * distance, height + Math.sin(p) * distance, Math.cos(y) * Math.cos(p) * distance);
+    camera.lookAt(0, height, 0);
+    camera.updateMatrixWorld();
+    const at = point.project(camera);
+    return [(at.x + 1) / 2, (1 - at.y) / 2];`);
+  await tap(forearm[0], forearm[1]);
+  const buttonIn = `(label) => [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === label)`;
+  check("with Allow collisions ticked, a forearm folded into the belly stays where it's put", await run(`
+    const part = $("#pose-part").textContent;
+    ${slide("pose-l_elbow-0", 150)}
+    return [part, $("#pose-allow-collisions").checked, $("#pose-l_elbow-0").value];`), ["Left elbow", true, "150"]);
+  check("unticking it asks to fix the collisions; fixing them brings the forearm out, as one change to undo", await run(`
+    const box = $("#pose-allow-collisions"); box.click(); await wait(800);
+    const asked = [${topDialog}.querySelector("h2")?.textContent, !!(${buttonIn})("Leave them")];
+    (${buttonIn})("Fix them now").click(); await wait(800);
+    const fixed = [$("#pose-message").textContent, $("#pose-undo").disabled];
+    $("#pose-undo").click(); await wait(300);
+    return [asked, fixed, $("#pose-l_elbow-0").value, box.checked];`),
+  [["Fix the collisions?", true], ["Fixed: the body parts are back within reach and apart.", false], "150", false]);
+  check("leaving them changes nothing; a move made unticked is settled", await run(`
+    const box = $("#pose-allow-collisions"); box.click(); await wait(200); box.click(); await wait(800);
+    (${buttonIn})("Leave them").click(); await wait(500);
+    const left = $("#pose-l_elbow-0").value;
+    ${slide("pose-l_elbow-0", 0)}
+    ${slide("pose-l_elbow-0", 150)}
+    return [left, Number($("#pose-l_elbow-0").value) < 150];`), ["150", true]);
+  // Ticked again for the next time the poser opens, as it is by default.
+  await run(`$("#pose-allow-collisions").click(); await wait(200); $("#pose-cancel").click(); await wait(500);
+    (${buttonIn})("Discard changes")?.click(); await wait(500);`);
 }

@@ -34,8 +34,9 @@
 // and back to it (public/js/pose-format.js says more).
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
-// a unit test), and a shoulder or hip within the limits that depend on
-// several of its movements (public/js/joint-limits.js, shared). Lengths are whole centimetres, except a rope point's
+// a unit test). The limits that depend on several of a joint's movements
+// (public/js/joint-limits.js) aren't checked: the poser can be told to
+// allow any position within these. Lengths are whole centimetres, except a rope point's
 // offset, which is whole millimetres from its bone, so a rope stays on the
 // body when the figure is posed again. A point on the bamboo is how far
 // along it from its middle, and one on the hashira is where on the post,
@@ -45,9 +46,6 @@
 import { BadInput } from "../http.js";
 import { parseCaption } from "../media/parse.js";
 import { COLORS, WIDTHS } from "../drawings/parse.js";
-// The shoulders' and hips' limits that depend on several movements: the
-// page's own file, so the two can't differ (pure, no imports).
-import { canReach } from "../../public/js/joint-limits.js";
 
 // A caption is sealed in the browser, or empty, as a drawing's is.
 export { parseCaption, COLORS, WIDTHS };
@@ -59,24 +57,24 @@ export const FORMAT_VERSION = 1;
  * @type {Readonly<Record<string, readonly (readonly [number, number])[]>>}
  */
 export const JOINTS = Object.freeze({
-  hips: [[-30, 30], [-20, 20], [-30, 30]],
-  spine: [[-50, 60], [-35, 35], [-35, 35]],
-  chest: [[-40, 45], [-30, 30], [-35, 35]],
-  head: [[-50, 70], [-45, 45], [-80, 80]],
-  l_shoulder: [[-70, 180], [-30, 180], [-90, 90]],
-  l_elbow: [[0, 150], [-80, 90]],
-  l_wrist: [[-80, 80], [-30, 30]],
-  r_shoulder: [[-70, 180], [-30, 180], [-90, 90]],
-  r_elbow: [[0, 150], [-80, 90]],
-  r_wrist: [[-80, 80], [-30, 30]],
-  l_hip: [[-30, 140], [-30, 90], [-45, 45]],
-  l_knee: [[0, 155], [-35, 35]],
-  l_ankle: [[-65, 30]],
-  l_toes: [[-30, 80]],
-  r_hip: [[-30, 140], [-30, 90], [-45, 45]],
-  r_knee: [[0, 155], [-35, 35]],
-  r_ankle: [[-65, 30]],
-  r_toes: [[-30, 80]],
+  hips: [[-45, 45], [-30, 30], [-45, 45]],
+  spine: [[-70, 90], [-45, 45], [-50, 50]],
+  chest: [[-55, 60], [-40, 40], [-45, 45]],
+  head: [[-65, 80], [-60, 60], [-95, 95]],
+  l_shoulder: [[-90, 180], [-45, 180], [-110, 110]],
+  l_elbow: [[-10, 160], [-90, 100]],
+  l_wrist: [[-95, 95], [-45, 45]],
+  r_shoulder: [[-90, 180], [-45, 180], [-110, 110]],
+  r_elbow: [[-10, 160], [-90, 100]],
+  r_wrist: [[-95, 95], [-45, 45]],
+  l_hip: [[-50, 160], [-45, 120], [-60, 60]],
+  l_knee: [[-10, 165], [-45, 45]],
+  l_ankle: [[-80, 45]],
+  l_toes: [[-45, 90]],
+  r_hip: [[-50, 160], [-45, 120], [-60, 60]],
+  r_knee: [[-10, 165], [-45, 45]],
+  r_ankle: [[-80, 45]],
+  r_toes: [[-45, 90]],
 });
 
 /** The body's sliders: gender, muscle, weight, height (cm). @type {readonly (readonly [number, number])[]} */
@@ -199,10 +197,6 @@ export function parsePose(value) {
     const angles = padded(Object.hasOwn(sent, name) ? sent[name] : [], ranges);
     if (!fits(angles, ranges)) throw bad("a joint is bent further than a body can.");
     joints[name] = [.../** @type {number[]} */ (angles)];
-  }
-  // Checked once all are read: a knee's twist and its hip's depend on each other.
-  for (const [name, angles] of Object.entries(joints)) {
-    if (!canReach(name, angles, joints)) throw bad("a joint is bent further than a body can.");
   }
 
   const angle = /** @type {[number, number]} */ ([-BODY_ANGLE, BODY_ANGLE]);

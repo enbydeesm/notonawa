@@ -1,11 +1,14 @@
 // Keeping limbs out of the body (pose-contact.js): a move is shown with
 // the parts it pushes into each other, and settled when it's let go:
 // another limb or the head moves aside, a limb pushed into the trunk
-// comes back out, and nothing already touching before the move counts.
+// comes back out, and nothing already touching before the move counts;
+// with collisions allowed, what's left clashing is fixed when asked.
 import { describe, it, expect } from "vitest";
 import { Vector3 } from "../../public/js/vendor/three.js";
 import { makeSkeleton, posed } from "../../public/js/pose-skeleton.js";
-import { segmentGap, capsules, clashingParts, settleClashes, behindBody, skinGive } from "../../public/js/pose-contact.js";
+import {
+  segmentGap, capsules, clashingParts, settleClashes, behindBody, skinGive, contactAccepted, clashesLeft, fixClashes,
+} from "../../public/js/pose-contact.js";
 import { SEGMENTS } from "../../public/js/figure-body.js";
 import { newPose, setJoint, setHardpoint, HASHIRA_SIZE } from "../../public/js/pose-format.js";
 
@@ -87,6 +90,47 @@ describe("clashes", () => {
     expect(clashingParts(skeleton, before, settled).size).toBe(0);
     for (const a of settled.joints.head) expect(Math.abs(a)).toBeLessThanOrEqual(20);
     expect(changed(after, settled).every((j) => j === "head" || j === "l_elbow")).toBe(true);
+  });
+});
+
+describe("clashes left with collisions allowed", () => {
+  // A forearm folded into the belly, left there.
+  const before = J(J(newPose(), "l_shoulder", 0, 20), "l_shoulder", 2, -80);
+  const left = J(before, "l_elbow", 0, 150);
+
+  it("counts what the pose opened touching as fine, and what's pushed in past it as left", () => {
+    const skeleton = makeSkeleton();
+    const accepted = contactAccepted(skeleton, before);
+    expect(clashesLeft(skeleton, before, accepted).size).toBe(0);
+    // Each change lowers it, never raises it: a clash made stays a clash.
+    const still = contactAccepted(skeleton, left, accepted);
+    expect(clashesLeft(skeleton, left, still).has("l_wrist")).toBe(true);
+    // Fine as it comes (a preset), it's nothing left.
+    expect(clashesLeft(skeleton, left, contactAccepted(skeleton, left)).size).toBe(0);
+  });
+
+  it("fixes them, moving only the limbs in them", () => {
+    const skeleton = makeSkeleton();
+    const accepted = contactAccepted(skeleton, before);
+    const fixed = fixClashes(skeleton, left, accepted);
+    expect(clashesLeft(skeleton, fixed, accepted).size).toBe(0);
+    expect(changed(left, fixed).every((j) => j.startsWith("l_"))).toBe(true);
+    // Nothing left, nothing moves.
+    expect(fixClashes(skeleton, before, accepted)).toBe(before);
+  });
+
+  it("leaves one alone until its limb moves again, then settles it", () => {
+    const skeleton = makeSkeleton();
+    const accepted = contactAccepted(skeleton, before);
+    // The other arm moved: the clash left stays as it is.
+    const other = J(left, "r_shoulder", 0, 30);
+    expect(settleClashes(skeleton, left, other, ["r_shoulder"], accepted)).toBe(other);
+    // The arm in it moved, a little: brought out of it.
+    const nudged = J(other, "l_shoulder", 0, 22);
+    const settled = settleClashes(skeleton, other, nudged, ["l_shoulder"], accepted);
+    expect(clashesLeft(skeleton, settled, accepted).size).toBe(0);
+    // Without the clash left being known, a move that didn't make it worse is left as it is.
+    expect(settleClashes(skeleton, other, nudged, ["l_shoulder"])).toBe(nudged);
   });
 });
 
