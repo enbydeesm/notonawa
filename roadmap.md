@@ -196,3 +196,4 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 - update people and location search: advanced. let keywords look in notes? 
 
 
+- unchecking allow collisions is not accounting for body change, e.g. hands will stay embedded in thighs

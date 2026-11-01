@@ -280,6 +280,13 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
   position: absolute; left: 8px; top: 8px; right: 5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* The head's hint, bottom left, before "Allow collisions"; on a narrow
+   phone it wraps to a second line rather than run into it. */
+.pose-head-hint {
+  position: absolute; left: 8px; bottom: 6px; right: 7.5rem; margin: 0; font-size: 0.75rem; line-height: 1.25;
+  color: var(--ink-grey); pointer-events: none;
+}
+.pose-head-hint[hidden] { display: none; }
 /* "Allow collisions", bottom right, as muted as the hint. */
 .pose-allow {
   position: absolute; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 4px; margin: 0;
@@ -392,13 +399,19 @@ dialog.preset-picker.searchable[open] {
    one search over ties, plans and workshops, chips for one kind, and rows
    marked with each kind's tab icon; + Tie, + Plan and + Workshop below,
    side by side, or one under another when they'd be called what's typed. */
-/* "Add pose to…": never taller than the screen; the heading, search and
+/* "Add pose to…": as tall as the screen, whatever it lists, so it stays
+   put as the list changes; the heading, search and
    chips stay, the list scrolls, and the new ones' bar is pinned to the
    bottom over it, a little see-through. */
+dialog.add-to-sheet { height: calc(100dvh - 32px); }
 dialog.add-to-sheet[open] { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
-.add-to-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -20px; padding: 0 20px; }
+/* A column, so the bar sits at the bottom even under a short list. */
+.add-to-scroll {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 -20px; padding: 0 20px;
+}
 .add-to-foot {
-  position: sticky; bottom: 0; margin: 14px -20px 0; padding: 2px 20px 20px;
+  position: sticky; bottom: 0; margin: auto -20px 0; padding: 2px 20px 20px;
   background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(3px);
   border-top: 1px solid var(--line);
 }
@@ -408,7 +421,7 @@ dialog.add-to-sheet[open] { display: flex; flex-direction: column; overflow: hid
 .add-to-filters { margin-top: 10px; }
 .add-to-label { margin: 14px 0 4px; color: var(--muted); font-size: 0.85rem; }
 .add-to-label[hidden] { display: none; }
-.add-to-list { display: flex; flex-direction: column; gap: 6px; }
+.add-to-list { flex: none; display: flex; flex-direction: column; gap: 6px; }
 .add-to-row { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px; }
 .add-to-row svg, .add-to-make svg { flex: none; width: 20px; height: 20px; color: var(--muted); }
 .add-to-row .item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

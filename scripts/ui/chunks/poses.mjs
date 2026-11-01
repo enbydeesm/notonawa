@@ -122,6 +122,16 @@ export default async function () {
     $("#pose-hardpoint-settings").open = false;
     $("#pose-undo").click(); await wait(200); $("#pose-mode-pose").click(); await wait(200);
     return result;`), [1, true, true, true, "none"]);
+  check("on a phone, the head's hint is bottom left on one line, clear of Allow collisions, and only in Pose mode", await run(`
+    const hint = $("#pose-head-hint"), box = hint.getBoundingClientRect(), allow = $(".pose-allow").getBoundingClientRect();
+    const frame = $(".pose-frame").getBoundingClientRect();
+    const shown = [hint.textContent, box.height < 20, box.right <= allow.left, frame.bottom - box.bottom < 12 && box.left - frame.left < 12,
+      getComputedStyle(hint).color === getComputedStyle($(".pose-hint")).color];
+    $("#pose-mode-rope").click(); await wait(200);
+    const inRope = hint.checkVisibility();
+    $("#pose-mode-pose").click(); await wait(200);
+    return [...shown, inRope, hint.checkVisibility()];`),
+  ["Drag head for height · tap for whole body", true, true, true, true, false, true]);
   await send("Emulation.clearDeviceMetricsOverride");
   await sleep(500);
   const pictures = path.join(workDir, "downloads-pose-picture");
@@ -625,14 +635,19 @@ async function standalone({ topDialog }) {
     const sheet = $(".add-to-sheet"), box = sheet.getBoundingClientRect(), foot = $("#add-to-foot").getBoundingClientRect();
     const close = $("#add-to-close").getBoundingClientRect(), head = $(".add-to-head").getBoundingClientRect();
     const scroll = $("#add-to-scroll");
-    const layout = [box.height <= innerHeight, Math.abs(box.bottom - foot.bottom) < 2, getComputedStyle($("#add-to-foot")).position,
+    // Filtered to few, it stays where it was, as tall.
+    $("#add-to-filter-workshop").click(); await wait(200);
+    const filtered = sheet.getBoundingClientRect();
+    $("#add-to-filter-all").click(); await wait(200);
+    const layout = [Math.abs(box.height - (innerHeight - 32)) < 2, filtered.top === box.top && filtered.height === box.height,
+      Math.abs(box.bottom - foot.bottom) < 2, getComputedStyle($("#add-to-foot")).position,
       getComputedStyle(scroll).overflowY, Math.abs(head.right - close.right) < 2, !!$(".add-to-sheet .dialog-cancel"),
       $("#add-to-close").getAttribute("aria-label")];
     $("#add-to-close").click(); await wait(300);
     const closed = !document.querySelector(".add-to-sheet");
     $("#pose-cancel").click(); await wait(500);
     return [said, poses, first, layout, closed, !!document.querySelector("dialog.pose-editor[open]")];`),
-  ["Saved on the new tie.", 1, "Hip harness", [true, true, "sticky", "auto", true, false, "Close"], true, false]);
+  ["Saved on the new tie.", 1, "Hip harness", [true, true, true, "sticky", "auto", true, false, "Close"], true, false]);
 
   check("+ Plan from Add to visuals opens the plan form over the poser: named, the picture in its visuals, Not saved yet", await run(`
     $("#nav-poser").click();

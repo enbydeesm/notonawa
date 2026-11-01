@@ -22,7 +22,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Every joint bends a little further than before, for a fairly flexible person.
 - The poser has its own button in the top bar, after Education. Opened from there, Save pose and Add to visuals ask which tie, plan or workshop to put it on: search all three at once, or tap the one you used last, at the top of the list. Or make a new one: its form opens with the pose already in it, ready to save.
 - On tie, plan and workshop cards, "Open album" is now on the right of the photo count.
-- Drag the head up or down to lift or lower the whole body, as the Height slider does.
+- Drag the head up or down to lift or lower the whole body, as the Height slider does. A hint at the bottom left of the view says so.
 - The feet follow gravity: as the body lifts or a leg bends, a foot rises onto its ball with the toes still on the floor, then points en pointe once it leaves the floor. Back down, it lands flat. Its ankle and toes are yours to set while it's in the air.
 - Bug and feedback sends again: since the app's new version numbers, it was refusing to.
 

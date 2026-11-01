@@ -235,8 +235,12 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     // "Allow collisions" bottom right, as muted as the hint.
     const marks = marksLayer();
     const allowBox = h("input", { type: "checkbox", id: "pose-allow-collisions", checked: allowCollisions, onchange: () => setAllowed(allowBox.checked) });
+    // The head's own hint, bottom left, in Pose mode only (setMode).
+    const headHint = h("p", { className: "pose-head-hint", id: "pose-head-hint", "aria-hidden": "true" },
+      "Drag head for height · tap for whole body");
     const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
       h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · 2 fingers to pan · pinch to zoom"),
+      headHint,
       viewMenu,
       h("label", { className: "pose-allow", htmlFor: "pose-allow-collisions" }, allowBox, "Allow collisions"));
 
@@ -851,6 +855,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       posePanel.hidden = mode !== "pose";
       ropePanel.hidden = mode !== "rope";
       drawPanel.hidden = mode !== "draw";
+      headHint.hidden = mode !== "pose";
       // In pencil mode the marks take the view's taps, so fingers only draw.
       marks.svg.classList.toggle("drawing", mode === "draw");
       if (mode === "rope") setErasing(false);
