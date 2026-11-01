@@ -1,28 +1,26 @@
-// Wires up a page for plans, people or locations: an add/edit form (on the
+// Wires up a page for people or locations: an add/edit form (on the
 // page, or in a dialog) and a list with Edit / Archive / Delete (or Restore /
 // Delete when showing archived), or, with actionsInDialog, those as icons on
 // the dialog's heading row.
 
 import { api, errorMessage } from "./api.js";
 import { h, $, showMessage, opensOnTap } from "./dom.js";
-import { open, sealOne, forgetSearch } from "./vault.js";
-import { visualSection } from "./visuals-ui.js";
+import { open, sealOne } from "./vault.js";
 import { listTools } from "./list-tools.js";
 import { orderList } from "./list-order.js";
 import { dialogIcon, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
-import { startEntry } from "./new-entry-start.js";
 
-// Each resource's kind of record, for sealing and opening its notes (and a
-// plan's description) in the crypto Worker.
-/** @type {Record<"plans" | "people" | "locations", import("./crypto/fields.js").RecordKind>} */
-const KINDS = { plans: "plan", people: "person", locations: "location" };
+// Each resource's kind of record, for sealing and opening its notes in the
+// crypto Worker. (Plans have a form of their own, plan-form.js.)
+/** @type {Record<"people" | "locations", import("./crypto/fields.js").RecordKind>} */
+const KINDS = { people: "person", locations: "location" };
 
 /**
  * @typedef {Record<string, any> & { id: string, archived_at: string | null }} Item
  * @typedef {{ archive: true } | { query: string } | null} DeleteChoice
  * @typedef {{
- *   resource: "plans" | "people" | "locations",
+ *   resource: "people" | "locations",
  *   form: HTMLFormElement,
  *   list: HTMLElement,
  *   archivedToggle: HTMLInputElement,
@@ -46,10 +44,8 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * form: its named fields match the API's fields. Elements with data-add-only
  *   are hidden while editing. Needs a .message, a submit button and a
  *   [data-cancel-edit] button (in the dialog's heading row, with a dialog:
- *   its ✕). A [data-photos] element (plans only) gets the
- *   Visuals section; a new item's visuals are
- *   saved once it is.
- * signal: aborts when the view is left (its photos are revoked then).
+ *   its ✕).
+ * signal: aborts when the view is left.
  * onEdit: runs whenever the form switches to editing an item, or back to
  *   adding one (null), after it's reset.
  * canRemove: false hides an item's Archive and Delete buttons (my own
@@ -58,8 +54,8 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  * searchable: puts a search box (by name) and sort buttons (A–Z, date
  *   added; newest first to start) above the list, or in slot. pinned items
  *   stay at the top (my own profile).
- * prepare: turns the form's fields into what's sent, before it's sealed
- *   (a plan's tags, and checking its album link); throws to refuse it.
+ * prepare: turns the form's fields into what's sent, before it's sealed;
+ *   throws to refuse it.
  * confirmDelete: resolves to { query } to delete (query is appended to the
  *   DELETE URL), { archive: true } to archive instead, or null to cancel.
  * dialog: the form is in this dialog, with its heading: add() and Edit
@@ -71,12 +67,10 @@ const KINDS = { plans: "plan", people: "person", locations: "location" };
  *   Delete and Archive (or Restore) are icons in the dialog's heading row
  *   instead, in its [data-item-actions] element, for the item being edited.
  * extraActions: more icon buttons for the item being edited, after Delete
- *   and Archive, with actionsInDialog (Share).
- * changeState: what else counts as a change, beside the form's fields
- *   (a plan's tags).
- * itemClass: the rows' class, in place of "item" (plans are cards, like ties).
- * filter: what the page's own search finds (plans); redraw() after it
- *   changes.
+ *   and Archive, with actionsInDialog (Share my profile).
+ * changeState: what else counts as a change, beside the form's fields.
+ * itemClass: the rows' class, in place of "item".
+ * filter: what a page's own search finds; redraw() after it changes.
  */
 
 /**
@@ -95,52 +89,23 @@ export function setupResourcePage(config) {
   }
   const addLabel = submit.textContent;
   const addHeading = heading.textContent;
-  // "Edit plan" in a dialog, where the heading is all there is to say what it's for.
+  // "Edit person" in a dialog, where the heading is all there is to say what it's for.
   const editHeading = dialog ? `Edit ${KINDS[resource]}` : "Edit";
   /** @type {string | null} */
   let editingId = null;
   /** @type {Item[]} */
   let items = [];
-  const photoSlot = /** @type {HTMLElement | null} */ (form.querySelector("[data-photos]"));
-  /** @type {ReturnType<typeof visualSection> | null} */
-  let visuals = null;
   const tools = config.searchable ? listTools({ noun: config.searchable.noun, onChange: draw }) : null;
   if (tools) {
     if (config.searchable?.slot) config.searchable.slot.append(tools.element);
     else list.before(tools.element);
   }
   const itemActions = config.actionsInDialog ? $("[data-item-actions]", dialog ?? form) : null;
-  /** A new plan made from the poser on its own, while its form is open. @type {ReturnType<typeof startEntry> | null} */
-  let fromPoser = null;
   const changes = watchChanges({
-    form, button: submit, editing: () => editingId !== null, ignore: photoSlot, signal: config.signal,
-    extra: () => [config.changeState?.(), visuals?.waiting],
-    unsaved: () => !!fromPoser?.unsaved(),
+    form, button: submit, editing: () => editingId !== null, signal: config.signal,
+    extra: () => [config.changeState?.()],
   });
-  const close = dialog ? guardClose(dialog, changes.changed, () => fromPoser?.discard() ?? null) : null;
-
-  /**
-   * A fresh Visuals section for the item being edited (or a new one).
-   * @param {string | null} id
-   */
-  function showPhotos(id) {
-    if (!photoSlot) return;
-    visuals?.close();
-    visuals = visualSection({ item: id ? { plan_id: id } : null, idPrefix: "plan" });
-    photoSlot.replaceChildren(visuals.element);
-  }
-
-  /**
-   * Shows the form as editing this id, keeping what's typed (a new item
-   * that saved, but whose photos didn't all upload).
-   * @param {string} id
-   */
-  function markEditing(id) {
-    editingId = id;
-    heading.textContent = editHeading;
-    submit.textContent = "Save changes";
-    cancel.hidden = false;
-  }
+  const close = dialog ? guardClose(dialog, changes.changed) : null;
 
   /** @param {Item | null} item */
   function setEditing(item) {
@@ -155,7 +120,6 @@ export function setupResourcePage(config) {
     form.reset();
     itemActions?.replaceChildren(...(item ? dialogActions(item) : []));
     config.onEdit?.(item);
-    showPhotos(item ? item.id : null);
     if (item) {
       config.beforeFill?.(item);
       for (const el of fields()) {
@@ -208,8 +172,6 @@ export function setupResourcePage(config) {
   async function act(fn, errorPrefix) {
     try {
       await fn();
-      // A plan's title is searched in, with the ties it's on.
-      forgetSearch();
       await load();
     } catch (err) {
       alert(`${errorPrefix}: ${errorMessage(err)}`);
@@ -312,10 +274,6 @@ export function setupResourcePage(config) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!changes.canSave()) return; // editing, with nothing changed
-    if (visuals?.busy) {
-      showMessage(message, "Wait for the visuals to finish, then save.", true);
-      return;
-    }
     changes.busy(true);
     showMessage(message, "Saving…");
     try {
@@ -328,17 +286,6 @@ export function setupResourcePage(config) {
       } else {
         id = /** @type {string} */ ((await api(`/api/${resource}`, { method: "POST", body })).id);
       }
-      forgetSearch();
-      if (visuals?.waiting) {
-        const problem = await visuals.savePending({ plan_id: id });
-        if (problem) {
-          markEditing(id);
-          showMessage(message, `Saved, but a visual couldn't be saved: ${problem} Save again to try again.`, true);
-          await load();
-          return;
-        }
-      }
-      fromPoser?.saved(id);
       if (dialog) {
         dialog.close();
       } else {
@@ -353,22 +300,9 @@ export function setupResourcePage(config) {
     }
   });
   cancel.addEventListener("click", () => (close ? close() : setEditing(null)));
-  // Closed (saved, Cancel or Esc): photos picked but not saved are let go,
-  // and it opens fresh next time.
+  // Closed (saved, Cancel or Esc): it opens fresh next time.
   dialog?.addEventListener("close", () => {
-    visuals?.close();
-    visuals = null;
     editingId = null;
-    leavePoserStart();
-  });
-
-  /** The form's no longer the new plan from the poser: its bar goes. */
-  function leavePoserStart() {
-    fromPoser = null;
-    form.querySelector(".unsaved-bar")?.remove();
-  }
-  config.signal?.addEventListener("abort", () => {
-    visuals?.close();
   });
   archivedToggle.addEventListener("change", load);
 
@@ -378,21 +312,8 @@ export function setupResourcePage(config) {
     reload: load,
     items: () => items,
     redraw: draw,
-    /**
-     * Opens the dialog to add one; with start, a new plan from the poser on
-     * its own (plans only: their form has the Visuals section).
-     * @param {import("./new-entry-start.js").EntryStart} [start]
-     */
-    add: (start) => {
-      leavePoserStart();
-      openForm(null);
-      if (start && visuals) {
-        fromPoser = startEntry({
-          start, kind: "plan", form, visuals, titleInput: /** @type {HTMLInputElement} */ ($("[name=title]", form)),
-        });
-        changes.reset();
-      }
-    },
+    /** Opens the dialog to add one. */
+    add: () => openForm(null),
     /** The item the form is editing (null: adding one, or closed). */
     editing: () => editingId,
   };

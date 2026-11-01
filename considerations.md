@@ -2007,9 +2007,10 @@ about 6 minutes, too slow to run after every change.
   filled in and the pose waiting in its Visuals like any visual added to a
   new item, with "Not saved yet. Save this … to keep the pose." at the top,
   and closing it asks "Discard this new …?" even with nothing else changed
-  (`unsaved` in `form-changes.js`). Ties and workshops open over the poser,
-  which is still there after; a plan's form lives on the Plans view, so a
-  new plan goes there (`handPlanOver`), which closes the poser.
+  (`unsaved` in `form-changes.js`). It opens over the poser, which is
+  still there after. (At first a new plan went to the Plans view, where
+  its form lived, closing the poser; see "The plan form, a dialog of its
+  own" below.)
 - **Drafts saved in the database were weighed and not built**: a tie needs
   a type and a workshop a start date (the API, and for ties triggers,
   refuse one without), so a draft would mean loosening those, then
@@ -2020,6 +2021,32 @@ about 6 minutes, too slow to run after every change.
 - **Considered**: three new-item forms inside the sheet (three forms to
   keep in step with the real ones), and choosing the kind first (an extra
   step, and the wrong list when you're not sure).
+
+## The plan form, a dialog of its own (October 2026)
+
+**Status:** built (2026-10-31, on the `anny-body` branch)
+
+- **Why**: the plan form's markup was in the Plans view's template, wired
+  to the list by `resource-page.js`, so it only existed on that view, and
+  opening it from the poser meant going to Plans, which closes every
+  dialog, the poser too. The tie and workshop forms were already dialogs
+  built in code, opened from anywhere.
+- **`plan-form.js`**, like `tie-form.js`: `openPlanForm(plan, { start })`
+  builds the whole dialog (ids still `plan-…`, the form `#plan-form`
+  rather than `#form`, so it can't clash with People's or Locations'
+  form when it opens over them), with Delete (asking about linked ties),
+  Archive or Restore, Share and ✕ on its heading's row; Variation of
+  loads the active plans itself; a linked tie opens in the tie form over
+  it, and the linked ties are loaded again after. It resolves true when
+  something a list of plans shows changed (saved, archived, restored,
+  deleted, or a linked tie edited), so the Plans view reloads.
+- **The Plans view** keeps the Add a Plan card, the search and the list,
+  now its own (loading, Show archived, cards that open when tapped)
+  rather than `resource-page.js`'s, which serves People and Locations
+  only, unchanged for them. Nothing looks different on the page.
+- **Not done (yet)**: a tie's linked plan opening in the plan form, as a
+  plan's linked ties open in the tie form. Easy now, left out to keep the
+  change to the refactor.
 
 ## Sharing between accounts (October 2026)
 

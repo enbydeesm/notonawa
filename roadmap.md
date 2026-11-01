@@ -107,6 +107,10 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 ## Ideas, not yet committed
 
+- **A tie's linked plan opens the plan form**, over the tie, as a plan's
+  linked ties open in the tie form (possible since the plan form became a
+  dialog of its own, `plan-form.js`).
+
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.
 - Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
 - Delete account wording: “THIS CAN’T BE UNDONE.” on its own line, in bold capitals.

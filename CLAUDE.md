@@ -462,9 +462,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `add-to-choices.js` (pure: what it lists, when to offer a new one called
   what's typed, the new item's words); saved at once on one there already,
   the poser staying open; a new one's form opens through
-  `new-entry-start.js` with the name and the pose waiting in its Visuals,
-  "Not saved yet" at the top and closing asking first (a new plan goes to
-  the Plans view, `handPlanOver`)), `item-targets.js` (loading the ties,
+  `new-entry-start.js`, over the poser, with the name and the pose
+  waiting in its Visuals, "Not saved yet" at the top and closing asking
+  first), `item-targets.js` (loading the ties,
   plans and workshops to choose from, for it and Copy to…), `import-poses.js`
   (pure: an import's poses), `pose-presets.js` (my saved presets: read
   once, names opened, dropped on lock; saving, renaming, saving over,
@@ -512,7 +512,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
   data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
-  `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `person-rows.js` (a form's
+  `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
+  form, a dialog of its own like the tie form's, opened from the Plans
+  view and from anywhere else (the poser on its own): Delete (asking about
+  linked ties), Archive or Restore, Share and ✕ on its heading's row,
+  Variation of (loading the active plans itself), tags, Visuals, and Linked
+  ties, each opening in the tie form over it; resolves true when a list of
+  plans should reload), `person-rows.js` (a form's
   person-and-role rows, with "(person deleted)" rows: the tie form's
   People, a workshop's Educators and Participants), `workshop-form.js`
   (the "Add a workshop" dialog; educators are only people marked
@@ -537,13 +543,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   outlines), `tie-card.js` (a tie as a card, shared by the
   Ties list and Analytics; `editTie`), `tie-list-dialog.js` (Calendar and
   Analytics: the ties behind a day, bar or slice), `multi-select.js`,
-  `resource-page.js` (list/edit pages; with `dialog`, the form is in a
-  dialog that + and tapping a row open, as on Plans, People and Locations;
-  with `actionsInDialog`, the rows have no buttons, tapping one anywhere
-  opens it, archived ones too, and Delete and Archive (or Restore) are
-  icons on the dialog's heading row, as on all three; `extraActions`:
-  Share after them (a plan's; Share my profile on "Me"); `changeState`:
-  what else counts as a change (a plan's tags); `itemClass`: Plans' rows are cards like ties'), `aliases.js` (pure: a person's social and scene
+  `resource-page.js` (People's and Locations' list/edit pages; with
+  `dialog`, the form is in a dialog that + and tapping a row open, as on
+  both; with `actionsInDialog`, the rows have no buttons, tapping one
+  anywhere opens it, archived ones too, and Delete and Archive (or Restore) are
+  icons on the dialog's heading row, as on both; `extraActions`:
+  Share my profile on "Me", after them; `changeState`: what else counts as
+  a change; `itemClass`: the rows' class. Plans have their own list in
+  `views/plans.js` and their own form, `plan-form.js`), `aliases.js` (pure: a person's social and scene
   names, sealed as one JSON field; `personMatch`, what a people search
   finds and shows), `list-tools.js` and `list-order.js`
   (People and Locations: the search box and sort buttons, and the pure

@@ -2,17 +2,15 @@
 // or workshop yet, so Save pose and Add to visuals ask where to put it
 // ("Add pose to…", add-to-picker.js). On one already there, it's saved at
 // once and the poser stays open, to carry on or add more. A new one's form
-// opens with the pose waiting in its Visuals until it's saved
-// (new-entry-start.js): ties and workshops over the poser, plans on the
-// Plans view (their form lives there), which closes the poser.
+// opens over the poser, with the pose waiting in its Visuals until it's
+// saved (new-entry-start.js); the poser's still there after.
 
-import { navigate } from "./navigate.js";
 import { openTieForm } from "./tie-form.js";
+import { openPlanForm } from "./plan-form.js";
 import { openWorkshopForm } from "./workshop-form.js";
 import { savePose } from "./poses-ui.js";
 import { preparePhoto } from "./photo-prep.js";
 import { uploadPhoto } from "./photo-upload.js";
-import { handPlanOver } from "./new-entry-start.js";
 import { chooseAddTarget, rememberTarget, forgetTarget } from "./add-to-picker.js";
 import { itemOf, kindName } from "./add-to-choices.js";
 import { TIE_SAVED, PLAN_SAVED, WORKSHOP_SAVED } from "./nav.js";
@@ -73,14 +71,8 @@ export async function place(placing, busy) {
       rememberTarget({ kind, id, title: title || `Untitled ${kind}`, meta: "", recent: new Date().toISOString() });
     },
   };
-  if (kind === "plan") {
-    // Its form is on the Plans view: going there closes the poser.
-    handPlanOver(start);
-    navigate("/plans");
-    return null;
-  }
-  const opened = kind === "tie" ? openTieForm(null, { start }) : openWorkshopForm(null, { start });
-  await opened;
+  const forms = { tie: openTieForm, plan: openPlanForm, workshop: openWorkshopForm };
+  await forms[kind](null, { start });
   if (!newId) return { text: `The new ${kind} wasn't saved, so neither was the ${isPose ? "pose" : "picture"}.`, saved: false };
   document.dispatchEvent(new CustomEvent(SAVED_EVENTS[kind]));
   return { text: `Saved on the new ${kind}.`, saved: true };

@@ -146,7 +146,7 @@ export default async function () {
   check("a new plan's photo waits for the plan to be saved", await pickPhoto("plan", 800, 600, "plan.jpg"), [true, 1, ""]);
   check("…is uploaded when it's saved, closing the form, and counted in the list", await run(`
     await submit(); await wait(2000);
-    return [$("#plan-dialog").open, items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
+    return [!!document.querySelector("#plan-dialog[open]"), items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
     [false, true]);
   check("editing the plan shows its photo", await run(`
     await clickIn("Photo plan", "Edit"); await wait(1500);

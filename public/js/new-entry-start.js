@@ -56,23 +56,3 @@ export function startEntry({ start, kind, form, titleInput, visuals }) {
     },
   };
 }
-
-/**
- * A new plan from the poser, handed to the Plans view: its form is on that
- * view, so the app goes there (which closes the poser) and the view opens
- * it with this. Only in memory, and taken once.
- * @type {EntryStart | null}
- */
-let handedPlan = null;
-
-/** @param {EntryStart} start */
-export function handPlanOver(start) {
-  handedPlan = start;
-}
-
-/** The new plan handed over from the poser, if there is one (once). */
-export function takeHandedPlan() {
-  const start = handedPlan;
-  handedPlan = null;
-  return start;
-}

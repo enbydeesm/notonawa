@@ -1009,7 +1009,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         const pose = history.pose;
         const placing = await make();
         const placed = await place(placing, () => say(working));
-        if (!dialog.open) return; // gone to a new plan's form
+        if (!dialog.open) return; // closed meanwhile (the journal locked)
         say(placed?.text ?? "", placed ? !placed.saved : false);
         if (placed?.saved) placedPose = pose;
       } catch (err) {

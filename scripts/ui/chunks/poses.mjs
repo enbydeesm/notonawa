@@ -611,6 +611,31 @@ async function standalone({ topDialog }) {
     $("#pose-cancel").click(); await wait(500);
     return [said, poses, first, !!document.querySelector("dialog.pose-editor[open]")];`),
   ["Saved on the new tie.", 1, "Hip harness", false]);
+
+  check("+ Plan from Add to visuals opens the plan form over the poser: named, the picture in its visuals, Not saved yet", await run(`
+    $("#nav-poser").click();
+    ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
+    await wait(500);
+    $("#pose-add-visual").click();
+    ${waitFor(`${rows}.length`)}
+    const search = $("#add-to-search");
+    search.value = "Ladder plan"; search.dispatchEvent(new Event("input")); await wait(600);
+    $("#add-to-new-plan").click();
+    ${waitFor(`document.querySelector("#plan-visuals .visual-photo")`)}
+    return [$("#plan-title").value, document.querySelectorAll("#plan-visuals .visual-photo").length,
+      $("#plan-form-unsaved").textContent, !!document.querySelector("dialog.pose-editor[open]"), location.pathname];`),
+  ["Ladder plan", 1, "Not saved yet. Save this plan to keep the picture of the pose.", true, "/"]);
+
+  check("saving it saves the picture with it, back in the poser, still open", await run(`
+    $("#plan-save").click();
+    ${waitFor(`!document.querySelector("#plan-dialog") && $("#pose-message").textContent`)}
+    const said = $("#pose-message").textContent;
+    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Ladder plan");
+    const media = plan ? await (await fetch("/api/media?plan_id=" + plan.id)).json() : null;
+    const open = !!document.querySelector("dialog.pose-editor[open]");
+    $("#pose-cancel").click(); await wait(500);
+    return [said, media?.length, open, !!document.querySelector("dialog.pose-editor[open]")];`),
+  ["Saved on the new plan.", 1, true, false]);
 }
 
 /**

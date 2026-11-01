@@ -198,7 +198,7 @@ export const AREAS = [
   },
   {
     name: "plans",
-    files: ["public/js/views/plans.js", "public/js/plans-view.js"],
+    files: ["public/js/views/plans.js", "public/js/plans-view.js", "public/js/plan-form.js"],
     tests: ["test/api/resources.test.js", "test/unit/plans-view.test.js"],
     ui: ["plans"],
   },
