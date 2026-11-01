@@ -446,7 +446,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a
   cinch's points pulled in and the uplines' bends, an added rope's start
   on the rope as drawn, ropes drawn in runs, hanging stretches straight or
-  sagging with slack; three.js's math only, tested), `pose-constraints.js`
+  sagging with slack; three.js's math only, tested), `pose-gravity.js`
+  (`grounded`: a foot a change moved, its shin pointing down, lands flat,
+  rises onto its ball as the heel lifts, and goes en pointe once the
+  change takes it out of reach; feet not moved are left as set; tested),
+  `pose-constraints.js`
   (moving the body to keep uplines' lengths: a cinch's "Move the body",
   see-saw ropes; the drag solver's method, tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
@@ -460,7 +464,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `standalone-poser.js` (the poser opened from the nav: Save pose and Add
   to visuals ask where, through `add-to-picker.js` ("Add pose to…": one
   search over ties, plans and workshops, chips, the one added to last
-  first, + Tie / Plan / Workshop; kept in memory, forgotten on lock) and
+  first, + Tie / Plan / Workshop pinned to its foot under the scrolling
+  list, ✕ to close; kept in memory, forgotten on lock) and
   `add-to-choices.js` (pure: what it lists, when to offer a new one called
   what's typed, the new item's words); saved at once on one there already,
   the poser staying open; a new one's form opens through

@@ -7,7 +7,10 @@
 //         the part held turn to follow the finger); the hips
 //         move the whole body (tipping it over, turning it, lifting it,
 //         moving it across and front to back), and the head has the
-//         lifting and moving too.
+//         lifting and moving too; dragging the head lifts or lowers the
+//         whole body, as its Height slider does. The feet follow gravity
+//         (pose-gravity.js): flat on the floor, onto their balls as the
+//         heels lift, en pointe once off it.
 //         A starting position for the body, and one for the arms (each
 //         keeping the other), or a quick turn of the whole body, from the
 //         menus. The body and arms menus also have my saved presets, and
@@ -64,6 +67,7 @@ import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody, withHi
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchPoints, spotOn } from "./pose-cinch.js";
+import { grounded } from "./pose-gravity.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
@@ -453,6 +457,9 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
      */
     function commit(pose, fine = false) {
       draft = null;
+      // Gravity on the feet the change moved (pose-gravity.js); a preset or
+      // a reset is as it comes.
+      if (!fine) pose = grounded(measuring, history.pose, pose);
       // A new body shape is fine as it comes too: a bigger body touches more.
       accepted = contactAccepted(measuring, pose, fine || !sameShape(pose.shape, history.pose.shape) ? undefined : accepted);
       history = change(history, pose);
@@ -543,7 +550,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       }));
       const input = privateField(h("input", { type: "range", id, min: String(min), max: String(max), step: "1", value: String(value) }));
       input.addEventListener("input", () => {
-        draft = apply(history.pose, Number(input.value));
+        draft = grounded(measuring, history.pose, apply(history.pose, Number(input.value)));
         typed.value = input.value;
         drawSoon();
       });
@@ -1117,9 +1124,10 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     /**
      * A limb being dragged (Pose mode, one finger that started on an arm or
      * a leg): the part held, the point held on it, and the flat surface
-     * facing the camera it moves on.
+     * facing the camera it moves on. The head held moves the whole body up
+     * and down (its Height), on an upright surface facing the camera.
      * @type {{ bone: string, cm: [number, number, number], through: import("./vendor/three.js").Vector3,
-     *   normal: import("./vendor/three.js").Vector3 } | null}
+     *   normal: import("./vendor/three.js").Vector3, lifting?: boolean } | null}
      */
     let limb = null;
     /** The dragged limb's pose, before any see-saw follows it. @type {Pose | null} */
@@ -1134,8 +1142,17 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
      */
     function grab(x, y) {
       const hit = view.pick(x, y);
-      if (hit?.kind !== "body" || !canDrag(hit.bone)) return null;
+      if (hit?.kind !== "body") return null;
       const cm = /** @type {[number, number, number]} */ (hit.mm.map((n) => n / 10));
+      if (hit.bone === "head") {
+        // Upright, so only up and down counts; a view from straight above
+        // has none, and turns instead.
+        const { direction } = view.ray(x, y);
+        const normal = direction.clone().set(direction.x, 0, direction.z);
+        if (normal.length() < 0.1) return null;
+        return { bone: "head", cm, through: hit.point, normal: normal.multiplyScalar(1 / normal.length()), lifting: true };
+      }
+      if (!canDrag(hit.bone)) return null;
       return { bone: hit.bone, cm, through: hit.point, normal: view.ray(x, y).direction };
     }
 
@@ -1197,9 +1214,13 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         // The part dragged is selected, so its sliders show the angles after.
         selected = limb.bone;
         const target = onPlane(view.ray(x, y), limb.through, limb.normal);
-        if (target) {
+        if (target && limb.lifting) {
+          // Only the height: the head and chest stay as they are.
+          draft = grounded(measuring, history.pose, setLift(history.pose, Math.round(history.pose.lift + target.y - limb.through.y)));
+          drawSoon();
+        } else if (target) {
           limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target, { from: history.pose });
-          draft = keepSeesaws(history.pose, limbPose, dragJoints(limb.bone));
+          draft = grounded(measuring, history.pose, keepSeesaws(history.pose, limbPose, dragJoints(limb.bone)));
           drawSoon();
         }
         return;
@@ -1213,13 +1234,14 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       pointers.delete(event.pointerId);
       if (pointers.size < 2) pinch = null;
       if (limb) {
-        const held = limb.bone;
+        const held = limb.bone, lifting = limb.lifting;
         limb = null;
         limbPose = null;
         // A limb dragged is one change, any clash settled (pose-contact.js);
-        // let go of with a cancel, it's put back.
+        // the body lifted by its head, one change too; let go of with a
+        // cancel, it's put back.
         if (draft && event.type === "pointerup") {
-          commit(settle(history.pose, draft, dragJoints(held)));
+          commit(lifting ? draft : settle(history.pose, draft, dragJoints(held)));
         } else if (draft) {
           draft = null;
           drawAll();

@@ -261,6 +261,16 @@ export default async function () {
     return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent),
       $("#pose-whole").textContent, $("#pose-reset-whole").parentElement === $("#pose-whole").parentElement];`),
   ["Head", ["Forward", "Lean", "Turn", "Tip body", "Turn body", "Roll body", "Height (cm)", "Front to back (cm)", "Across (cm)"], "Whole body", true]);
+  // Dragging the head up lifts the whole body: its Height, nothing else of
+  // the head's; off the floor, the feet go en pointe.
+  const heightBefore = await run(`return $("#pose-lift").value;`);
+  await drag(0.5, 0.5, 0.2, 0.08);
+  check("dragging the head up lifts the whole body, as one change: the head's own sliders as they were, and the feet pointed off the floor", await run(`
+    const lifted = [$("#pose-part").textContent, Number($("#pose-lift").value) > ${Number(heightBefore)} + 5,
+      ["pose-head-0", "pose-head-1", "pose-head-2"].map((id) => $("#" + id).value), $("#pose-undo").disabled];
+    $("#pose-undo").click(); await wait(200);
+    return [...lifted, $("#pose-lift").value];`),
+  ["Head", true, ["0", "0", "0"], false, heightBefore]);
   const turned = `$("#pose-body-1").value`;
   check("a slider moves the body, as one change to undo", await run(`
     ${slide("pose-body-1", 20)}
@@ -542,10 +552,13 @@ async function standalone({ topDialog }) {
       ["all", "tie", "plan", "workshop"].map((k) => [$("#add-to-filter-" + k).textContent, $("#add-to-filter-" + k).getAttribute("aria-pressed")]),
       $("#add-to-list-label").textContent, !!tie.querySelector("svg"), tie.querySelector(".badge").textContent,
       $("#add-to-new-label").textContent,
-      [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => [b.textContent, !!b.querySelector("svg")]), leakyFields()];`),
+      [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => [b.textContent, !!b.querySelector("svg")]),
+      // + Workshop has the most room, its label clear of its edges.
+      (() => { const [t, , w] = [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => b.getBoundingClientRect().width); return w > t; })(),
+      [...document.querySelectorAll("#add-to-new .add-to-make")].every((b) => b.scrollWidth <= b.clientWidth), leakyFields()];`),
   ["Add pose to…", true, "Search ties, plans, workshops",
     [["All", "true"], ["Ties", "false"], ["Plans", "false"], ["Workshops", "false"]],
-    "Recent", true, "Tie", "Create new", [["+Tie", true], ["+Plan", true], ["+Workshop", true]], []]);
+    "Recent", true, "Tie", "Create new", [["+Tie", true], ["+Plan", true], ["+Workshop", true]], true, true, []]);
 
   const posesBefore = (await run(`return await ${onTie("Collision test", "poses")};`)).length;
   check("nothing's said while choosing; choosing a tie saves the pose on it at once, the poser staying open", await run(`
@@ -607,10 +620,19 @@ async function standalone({ topDialog }) {
     $("#pose-save").click();
     ${waitFor(`${rows}.length`)}
     const first = ${rows}[0].querySelector(".item-title").textContent;
-    $(".add-to-sheet .dialog-cancel").click(); await wait(300);
+    // A phone's screen, short: the sheet fits it, the list scrolling under
+    // the new ones' bar, pinned to the bottom; ✕ top right closes it.
+    const sheet = $(".add-to-sheet"), box = sheet.getBoundingClientRect(), foot = $("#add-to-foot").getBoundingClientRect();
+    const close = $("#add-to-close").getBoundingClientRect(), head = $(".add-to-head").getBoundingClientRect();
+    const scroll = $("#add-to-scroll");
+    const layout = [box.height <= innerHeight, Math.abs(box.bottom - foot.bottom) < 2, getComputedStyle($("#add-to-foot")).position,
+      getComputedStyle(scroll).overflowY, Math.abs(head.right - close.right) < 2, !!$(".add-to-sheet .dialog-cancel"),
+      $("#add-to-close").getAttribute("aria-label")];
+    $("#add-to-close").click(); await wait(300);
+    const closed = !document.querySelector(".add-to-sheet");
     $("#pose-cancel").click(); await wait(500);
-    return [said, poses, first, !!document.querySelector("dialog.pose-editor[open]")];`),
-  ["Saved on the new tie.", 1, "Hip harness", false]);
+    return [said, poses, first, layout, closed, !!document.querySelector("dialog.pose-editor[open]")];`),
+  ["Saved on the new tie.", 1, "Hip harness", [true, true, "sticky", "auto", true, false, "Close"], true, false]);
 
   check("+ Plan from Add to visuals opens the plan form over the poser: named, the picture in its visuals, Not saved yet", await run(`
     $("#nav-poser").click();

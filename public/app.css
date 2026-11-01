@@ -65,7 +65,9 @@ nav a { text-decoration: none; color: var(--muted); padding: 4px 0; }
 nav a[aria-current="page"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); }
 /* display: flex above would otherwise override [hidden] (see showNav). */
 nav[hidden] { display: none; }
-nav .nav-tab { display: inline-flex; flex: none; width: 32px; height: 34px; padding: 4px 3px; }
+/* The room left over is shared out after each tab, so the poser's button
+   is as far from + as the tabs are from each other. */
+nav .nav-tab { display: inline-flex; flex: none; width: 32px; height: 34px; padding: 4px 3px; margin-right: auto; }
 nav .nav-tab svg { display: block; width: 100%; height: 100%; }
 /* The poser's button, after the tabs, drawn as one of them (it opens a dialog, not a view). */
 nav .nav-poser { background: transparent; border: 0; border-radius: 0; color: var(--muted); }
@@ -390,8 +392,18 @@ dialog.preset-picker.searchable[open] {
    one search over ties, plans and workshops, chips for one kind, and rows
    marked with each kind's tab icon; + Tie, + Plan and + Workshop below,
    side by side, or one under another when they'd be called what's typed. */
+/* "Add pose to…": never taller than the screen; the heading, search and
+   chips stay, the list scrolls, and the new ones' bar is pinned to the
+   bottom over it, a little see-through. */
+dialog.add-to-sheet[open] { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.add-to-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -20px; padding: 0 20px; }
+.add-to-foot {
+  position: sticky; bottom: 0; margin: 14px -20px 0; padding: 2px 20px 20px;
+  background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(3px);
+  border-top: 1px solid var(--line);
+}
 .add-to-head { display: flex; align-items: center; gap: 10px; }
-.add-to-head h2 { margin: 0; }
+.add-to-head h2 { flex: 1; min-width: 0; margin: 0; }
 .add-to-icon { flex: none; width: 32px; height: 32px; color: var(--muted); }
 .add-to-filters { margin-top: 10px; }
 .add-to-label { margin: 14px 0 4px; color: var(--muted); font-size: 0.85rem; }
@@ -403,8 +415,10 @@ dialog.preset-picker.searchable[open] {
 .add-to-row .item-meta { flex: none; }
 .add-to-row .badge { flex: none; margin-left: 0; }
 .add-to-new { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
+/* Tie, Plan and Workshop: the longest word gets the most room. */
+.add-to-new.all-kinds { grid-template-columns: 1fr 1fr 1.4fr; }
 .add-to-new.named { grid-template-columns: 1fr; }
-.add-to-make { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; }
+.add-to-make { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; min-width: 0; }
 .add-to-new.named .add-to-make { justify-content: flex-start; }
 .add-to-plus { font-weight: 600; }
 /* A new tie, plan or workshop from the poser, until it's saved. */
@@ -508,13 +522,13 @@ dialog p { margin: 0 0 16px; }
 nav { align-items: center; }
 
 /* The menu button (☰) in the top-right corner, after the +: a plain icon in
-   the text color. The + before it is pushed right. */
+   the text color. */
 .nav-icon {
   flex: none; width: 32px; height: 32px; padding: 3px;
   background: transparent; border: 1px solid transparent; color: var(--text);
 }
 .nav-icon svg { display: block; width: 100%; height: 100%; }
-nav .nav-add { margin-left: auto; }
+
 
 /* The menu: a full-height panel on the right that slides in. Each row is a
    small icon with a label beside it. */

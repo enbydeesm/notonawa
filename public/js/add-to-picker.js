@@ -3,8 +3,9 @@
 // for ties, plans and workshops: a search box over all three, chips to show
 // only one kind, and the list (add-to-choices.js), each marked with its
 // tab's icon and kind. The one chosen last comes first, so adding several
-// poses to the same one is a tap each. Below, + Tie, + Plan and + Workshop
-// make a new one, called what was typed when nothing has that title.
+// poses to the same one is a tap each. Below, pinned to the sheet's foot
+// with the list scrolling under it, + Tie, + Plan and + Workshop make a new
+// one, called what was typed when nothing has that title. ✕ closes it.
 //
 // The last one chosen and the chip are kept in memory only, and forgotten
 // on lock.
@@ -12,6 +13,7 @@
 import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
 import { onLock } from "./vault.js";
+import { iconButton } from "./dialog-icons.js";
 import { tabIcon } from "./nav.js";
 import { loadTies, loadPlans, loadWorkshops } from "./item-targets.js";
 import { TARGET_KINDS, kindName, listChoices, offerNew, newKinds } from "./add-to-choices.js";
@@ -106,18 +108,19 @@ export function chooseAddTarget({ what }) {
     const dialog = h("dialog", { className: "form-dialog add-to-sheet", "aria-labelledby": "add-to-heading" },
       h("div", { className: "add-to-head" },
         h("span", { className: "pose-icon add-to-icon", "aria-hidden": "true" }),
-        h("h2", { id: "add-to-heading" }, "Add pose to…")),
+        h("h2", { id: "add-to-heading" }, "Add pose to…"),
+        iconButton("close", { id: "add-to-close", label: "Close", onclick: () => dialog.close() })),
       h("p", { className: "hint" }, what === "pose"
         ? "The pose goes in its visuals, to open in the poser again later."
         : "A picture of the pose, as you see it now, goes in its visuals as a photo."),
       search,
       h("div", { className: "tool-group add-to-filters", role: "group", "aria-label": "Show" }, chipButtons),
-      message,
-      listLabel,
-      list,
-      newLabel,
-      newList,
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"));
+      // The list scrolls; the new ones' bar stays at the bottom over it.
+      h("div", { className: "add-to-scroll", id: "add-to-scroll" },
+        message,
+        listLabel,
+        list,
+        h("div", { className: "add-to-foot", id: "add-to-foot" }, newLabel, newList)));
     dialog.addEventListener("close", () => {
       clearTimeout(typing);
       dialog.remove();
@@ -160,6 +163,7 @@ export function chooseAddTarget({ what }) {
       const named = loaded && offerNew(all, q, filter);
       newLabel.textContent = named ? `Create “${q}” as a new…` : "Create new";
       newList.classList.toggle("named", named);
+      newList.classList.toggle("all-kinds", !named && newKinds(filter).length === TARGET_KINDS.length);
       newList.replaceChildren(...newKinds(filter).map((kind) => h("button", {
         type: "button", className: "add-to-make", id: `add-to-new-${kind}`,
         "aria-label": named ? `New ${kindName(kind).toLowerCase()} called ${q}` : `New ${kindName(kind).toLowerCase()}`,
