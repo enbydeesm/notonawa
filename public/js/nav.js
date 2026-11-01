@@ -71,7 +71,7 @@ let navElement = null;
 /** @type {HTMLButtonElement | null} */
 let poserButton = null;
 
-/** Draws the nav at the top of <main>, once. */
+/** Draws the nav at the top of <main>, once, hidden until showNav. */
 export function renderNav() {
   // For now + always logs a tie. Later it will ask what to add (see
   // roadmap.md).
@@ -104,6 +104,9 @@ export function renderNav() {
       "aria-haspopup": "dialog", onclick: openMenu,
     }, menuIcon())
   );
+  // Hidden until the first view that has it is shown (showNav): a page
+  // loading, still locked, mustn't show it before Unlock is drawn.
+  nav.hidden = true;
   $("main").prepend(nav);
   navElement = nav;
   return nav;

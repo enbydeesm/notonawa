@@ -281,11 +281,14 @@ const PAGE_HELPERS = `
   // Whether this page has fetched a file (by path).
   const fetched = (path) => performance.getEntriesByName(new URL(path, location.href).href).length > 0;
   // The logo in sel, app.css's background for the mode: whether its file
-  // has loaded, its name for screen readers, and its file.
+  // has loaded, its name for screen readers, and its file. An image the
+  // page before showed comes from Chrome's memory cache, which leaves no
+  // timing entry, but an image of it is complete at once.
+  const loadedImage = (path) => { const img = new Image(); img.src = path; return img.complete && img.naturalWidth > 0; };
   const logo = (sel) => {
     const el = $(sel);
     const file = el ? new URL(getComputedStyle(el).backgroundImage.slice(5, -2)).pathname : null;
-    return [file !== null && fetched(file), el?.getAttribute("aria-label") ?? null, file];
+    return [file !== null && (fetched(file) || loadedImage(file)), el?.getAttribute("aria-label") ?? null, file];
   };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);

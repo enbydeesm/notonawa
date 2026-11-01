@@ -1,6 +1,6 @@
 // The walkthrough's lock chunk. Locking and unlocking: the passkey, the recovery code, setting up a key, and after the operator's reset.
 
-import { HELP_LINE, account, check, freshAccount, go, run, script, sleep, sql } from "../harness.mjs";
+import { HELP_LINE, account, check, freshAccount, go, run, script, send, sleep, sql } from "../harness.mjs";
 
 export default async function () {
   const recoveryCode = await freshAccount();
@@ -11,10 +11,19 @@ export default async function () {
   // What the visible view is: its heading, and the Unlock card showing (if any).
   const shown = `return [document.title, $("#view h1").textContent || $("#view h1 .logo")?.getAttribute("aria-label"), getComputedStyle($("nav")).display === "none",
     [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id ?? null, $("#tie-count") !== null];`;
+  // Watching from the page's very start whether the nav is ever shown
+  // while it loads (it's drawn before the view is chosen).
+  const { identifier } = await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+    window.navShownWhileLoading = false;
+    new MutationObserver(() => {
+      const nav = document.querySelector("main > nav");
+      if (nav && !nav.hidden) window.navShownWhileLoading = true;
+    }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });` });
   await go("/plans", { unlock: false });
-  check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav", await run(`
-    return [location.pathname, ...(() => { ${shown} })()];`),
-    ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false]);
+  await send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+  check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav, not even while it loads", await run(`
+    return [location.pathname, ...(() => { ${shown} })(), window.navShownWhileLoading];`),
+    ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false, false]);
   check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", "/img/logo-dark.avif"]);
   check("Unlock says who to email for help, on its own centred line", await run(HELP_LINE),
     ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
