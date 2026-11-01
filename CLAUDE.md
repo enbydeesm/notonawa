@@ -418,8 +418,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   capsules), `pose-skinning.js` (pure: dual-quaternion skinning, as shader
   code and on the CPU for taps, so bends round off), `joint-limits.js`
   (pure, no imports: the shoulders' and hips' limits that depend on
-  several movements; kept to only while "Allow collisions" is unticked,
-  `setReachRules` in `figure-rig.js`; the server doesn't check them),
+  several movements; the poser always keeps to them, whether or not it
+  allows collisions; the server doesn't check them),
   `pose-contact.js` (the body as capsules: while a move is made, the parts
   it pushes into each other (orange with "Allow collisions" ticked, the
   default, and left as they are; red unticked); let go unticked,
@@ -435,10 +435,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   own pencil marks and `still`),
   `pose-ik.js` (dragging an arm or leg: the joints above the part held
   turn so it follows the finger, on a flat surface facing the camera,
-  within the joints' limits; once the limb can't reach, the pelvis (for a
-  leg, the other leg kept) or the chest (for an arm) joins in, weighted
-  to move less; damped least squares with three.js's math, tested like
-  the presets), `pose-skeleton.js` (the bones posed, with three.js's math
+  within the joints' limits; once the limb is well short (`TRUNK_AFTER`),
+  the pelvis's tilt and turn (for a leg, never its hike; the other leg
+  kept, within its own limits) or the chest (for an arm) joins in,
+  weighted to move less and only a little from where the drag began
+  (`trunkFor`'s caps); damped least squares with three.js's math, tested
+  like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
   only: where a joint or rope point is; the Hips joint turning the pelvis
   about the point between the hip joints, and `withHips`/`withHipsOn`,
   its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a

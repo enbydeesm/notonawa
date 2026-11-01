@@ -6,6 +6,7 @@ import { newPose, setJoint } from "../../public/js/pose-format.js";
 import { JOINTS } from "../../public/js/figure-rig.js";
 import { makeSkeleton, posed, onBone, withHips, withHipsOn } from "../../public/js/pose-skeleton.js";
 import { DRAG_CHAINS, canDrag, dragTo, dragJoints, onPlane, dampedSolve } from "../../public/js/pose-ik.js";
+import { canReach } from "../../public/js/joint-limits.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
 
@@ -130,17 +131,45 @@ describe("the trunk joining in", () => {
   /** The foot's place with the leg at `deg` from straight down, nearly its full length. @param {number} deg */
   const legAt = (deg) => new Vector3(foot.x, hip.y - 0.95 * length * Math.cos(deg * Math.PI / 180), hip.z + 0.95 * length * Math.sin(deg * Math.PI / 180));
 
-  it("tips the pelvis back to lift a leg higher than the hip alone goes, keeping the other foot on the floor", () => {
+  it("tips the pelvis back a little to lift a leg higher than the hip alone goes, keeping the other foot on the floor", () => {
     const target = legAt(160);
+    let alone = raised;
+    for (let k = 0; k < 6; k++) alone = dragTo({ ...alone, joints: { ...alone.joints, hips: [0, 0, 0] } }, "l_ankle", [0, 0, 0], target);
     let moved = raised;
-    for (let k = 0; k < 6; k++) moved = dragTo(moved, "l_ankle", [0, 0, 0], target);
-    expect(at(moved, "l_ankle").distanceTo(target)).toBeLessThan(1.5);
+    for (let k = 0; k < 6; k++) moved = dragTo(moved, "l_ankle", [0, 0, 0], target, { from: raised });
+    expect(at(moved, "l_ankle").distanceTo(target)).toBeLessThan(at(alone, "l_ankle").distanceTo(target) - 3);
     expect(moved.joints.hips[0]).toBeLessThan(-10);
+    expect(moved.joints.hips[0]).toBeGreaterThanOrEqual(-15);
     withinLimits(moved);
     // The other leg points where it did, its foot still on the floor.
     const other = at(moved, "r_ankle"), was = at(raised, "r_ankle");
     expect(Math.abs(other.y - was.y)).toBeLessThan(1.5);
     expect(Math.hypot(other.x - was.x, other.z - was.z)).toBeLessThan(4);
+  });
+
+  it("moves the pelvis only a little however far a leg is pulled, never hiking it or twisting the other leg past its limits", () => {
+    const start = newPose();
+    const foot0 = at(start, "l_ankle");
+    // Far up, out to the side and behind: much further than a leg goes.
+    const target = new Vector3(foot0.x + 120, foot0.y + 150, foot0.z - 80);
+    let moved = start;
+    for (let k = 0; k < 12; k++) moved = dragTo(moved, "l_ankle", [0, 0, 0], target, { from: start });
+    const [tilt, hike, turn] = moved.joints.hips;
+    expect(Math.abs(tilt)).toBeLessThanOrEqual(15);
+    expect(hike).toBe(0);
+    expect(Math.abs(turn)).toBeLessThanOrEqual(10);
+    expect(canReach("r_hip", moved.joints.r_hip, moved.joints)).toBe(true);
+    withinLimits(moved);
+    expect(Math.abs(at(moved, "r_ankle").y - at(start, "r_ankle").y)).toBeLessThan(1.5);
+  });
+
+  it("leaves the pelvis alone when the leg is only a little short of the finger", () => {
+    // 5 cm past the leg's reach straight forward: closer than TRUNK_AFTER (pose-ik.js).
+    const start = setJoint(newPose(), "l_hip", 0, 90);
+    const toe = at(start, "l_ankle");
+    const target = new Vector3(toe.x, toe.y, toe.z + 5);
+    const moved = dragTo(start, "l_ankle", [0, 0, 0], target, { from: start });
+    expect(moved.joints.hips).toEqual([0, 0, 0]);
   });
 
   it("leaves the trunk alone while the limb can reach", () => {

@@ -45,7 +45,7 @@ import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
 import {
   PART_LABELS, startJoints, BODY_PRESETS, ARMS_PRESETS, ORIENTATIONS, BODY_MOVES, LIFT_RANGE, jointNamed, withArmsPreset,
-  setReachRules, clampJoint,
+  clampJoint,
 } from "./figure-rig.js";
 import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
@@ -110,10 +110,11 @@ let lastColor = "red";
 /** @type {Width} */
 let lastWidth = 2;
 // "Allow collisions", ticked until it's unticked, kept while the page is
-// open: a part goes wherever it's put (each movement's own range aside),
-// clashes showing orange while the move is made. Unticked, moves keep to
-// the limits that depend on several movements (joint-limits.js) and
-// clashes, shown red, are settled when let go (pose-contact.js).
+// open: body parts can go into each other, clashes showing orange while
+// the move is made. Unticked, clashes, shown red, are settled when let go
+// (pose-contact.js). Either way, joints keep to their ranges and to the
+// limits that depend on several movements (joint-limits.js): at first
+// ticking it turned those off too, which allowed horrific poses.
 let allowCollisions = true;
 
 /**
@@ -136,7 +137,6 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
   let defaultShape = (await loadSettings().catch(() => null))?.default_shape ?? null;
   const fresh = () => (defaultShape ? withShape(makeSkeleton(), newPose(), defaultShape) : newPose());
   return new Promise((resolve) => {
-    setReachRules(!allowCollisions);
     let history = startHistory(start ? readPose(start) : fresh());
     /** A slider being dragged: its pose, not yet a change (it is when let go). @type {Pose | null} */
     let draft = null;
@@ -381,7 +381,6 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       cancel();
     });
     dialog.addEventListener("close", () => {
-      setReachRules(true);
       letSleep();
       resized.disconnect();
       view.dispose();
@@ -477,7 +476,6 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
      */
     async function setAllowed(on) {
       allowCollisions = on;
-      setReachRules(!on);
       drawSoon();
       if (on) return;
       const pose = history.pose;
@@ -1200,7 +1198,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         selected = limb.bone;
         const target = onPlane(view.ray(x, y), limb.through, limb.normal);
         if (target) {
-          limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target);
+          limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target, { from: history.pose });
           draft = keepSeesaws(history.pose, limbPose, dragJoints(limb.bone));
           drawSoon();
         }

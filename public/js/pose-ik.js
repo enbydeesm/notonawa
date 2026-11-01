@@ -8,13 +8,18 @@
 // the elbow's and knee's bend are used: the twists are left as they were,
 // as turning them while dragging makes the limb roll unexpectedly.
 //
-// When the limb alone can't reach (its joints at their limits), the trunk
-// joins in: a leg tilts, turns and hikes the pelvis (the other leg kept
-// pointing where it was, and the body kept on the floor); an arm bends,
-// leans and turns the chest. Those count for more than the limb's own
-// angles, so they move only as much as they must; a hike most of all, as
-// it lifts the other foot. (The waist can't help a leg: it bends the trunk
-// above the pelvis, which the legs hang from.)
+// When the limb alone is well short of the target (its joints at their
+// limits), the trunk joins in, a little: a leg tilts and turns the pelvis
+// (the other leg kept pointing where it was, within its own limits, and
+// the body kept on the floor); an arm bends, leans and turns the chest.
+// Those count for more than the limb's own angles, so they move only as
+// much as they must, and a drag moves each only so far from where it was
+// when the drag began (TRUNK_CAPS); the Hips and Chest sliders have their
+// full ranges. A drag never hikes the pelvis: that lifts the other foot.
+// (The waist can't help a leg: it bends the trunk above the pelvis, which
+// the legs hang from.) At first the trunk joined in 1 cm short, up to its
+// sliders' full ranges and with a hike, the other leg's hip unlimited: a
+// leg pulled the whole body round and the other foot off the floor.
 //
 // The solver nudges those angles a little at a time toward the target
 // (damped least squares, with the angles' effect worked out by trying a
@@ -22,7 +27,7 @@
 // reach gets the point as near as it can. Angles stay fractional while
 // solving and are rounded to whole degrees, as poses keep them, at the end.
 
-import { jointNamed, clampJoint, keepsToReach } from "./figure-rig.js";
+import { jointNamed, clampJoint } from "./figure-rig.js";
 import { canReach } from "./joint-limits.js";
 import { makeSkeleton, posed, onBone, withHips, keptLowest } from "./pose-skeleton.js";
 
@@ -50,14 +55,16 @@ export const canDrag = (bone) => bone in DRAG_CHAINS;
 
 /**
  * The trunk's angles that join in once a limb alone can't reach, each with
- * how freely it moves (smaller: less): for a leg, the pelvis's tilt, hike
- * and turn; for an arm, the chest's bend, lean and turn.
+ * how freely it moves (smaller: less) and how far a drag can take it from
+ * where it was when the drag began (degrees, TRUNK_CAPS): for a leg, the
+ * pelvis's tilt and turn (not its hike); for an arm, the chest's bend,
+ * lean and turn.
  * @param {string} bone the part held
- * @returns {readonly [Angle, number][]}
+ * @returns {readonly [Angle, number, number][]}
  */
 export function trunkFor(bone) {
-  if (/_(hip|knee|ankle|toes)$/.test(bone)) return [[["hips", 0], 0.35], [["hips", 1], 0.12], [["hips", 2], 0.2]];
-  return [[["chest", 0], 0.35], [["chest", 1], 0.35], [["chest", 2], 0.35]];
+  if (/_(hip|knee|ankle|toes)$/.test(bone)) return [[["hips", 0], 0.35, 15], [["hips", 2], 0.2, 10]];
+  return [[["chest", 0], 0.35, 15], [["chest", 1], 0.35, 10], [["chest", 2], 0.35, 10]];
 }
 
 /** The other leg's hip, kept while a leg pulls the pelvis. @param {string} bone */
@@ -74,7 +81,7 @@ export function dragJoints(bone) {
 }
 
 /** How far off the target (cm) the limb alone must stay before the trunk joins in. */
-const TRUNK_AFTER = 1;
+export const TRUNK_AFTER = 8;
 
 /** How many rounds of nudging per target, and how close is close enough (cm). */
 const ROUNDS = 40;
@@ -111,14 +118,19 @@ export function onPlane({ origin, direction }, through, normal) {
  * @param {string} bone the part held (one of DRAG_CHAINS)
  * @param {[number, number, number]} cm the point held, from the bone's joint, in its own directions
  * @param {Vector3} target where it should go, in the room (cm)
+ * @param {{ from?: Pose }} [options] from: the pose when the drag began
+ *   (the trunk moves only so far from it; the poser calls this again on
+ *   each move, from the last); pose if left out
  * @returns {Pose}
  */
-export function dragTo(pose, bone, cm, target) {
+export function dragTo(pose, bone, cm, target, { from = pose } = {}) {
   const limb = DRAG_CHAINS[bone];
   if (!limb) throw new Error(`Can't drag ${bone}`);
   /** @type {Record<string, number[]>} */
   const joints = Object.fromEntries(Object.entries(pose.joints).map(([name, a]) => [name, [...a]]));
   const trial = { ...pose, joints };
+  /** How far a drag can take each trunk angle, by "joint.index". */
+  const caps = new Map(trunkFor(bone).map(([[name, i], , cap]) => [`${name}.${i}`, cap]));
   // The other leg, kept pointing where it was as the pelvis turns.
   const other = otherHip(bone);
   const keptLeg = other ? { ...pose, joints: { ...pose.joints } } : null;
@@ -139,14 +151,23 @@ export function dragTo(pose, bone, cm, target) {
   const solve = (chain, weights) => {
     const limits = chain.map(([name, i]) => {
       const move = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name)).moves[i];
-      return [move.min, move.max];
+      const cap = caps.get(`${name}.${i}`);
+      if (cap === undefined) return [move.min, move.max];
+      const began = from.joints[name]?.[i] ?? 0;
+      return [Math.max(move.min, began - cap), Math.min(move.max, began + cap)];
     });
     /** @param {number} k @param {number} angle */
     const set = (k, angle) => {
       const [name, i] = chain[k];
+      const was = joints[name][i];
       joints[name][i] = Math.min(limits[k][1], Math.max(limits[k][0], angle));
       if (name === "hips" && keptLeg && other) {
-        joints[other] = withHips(keptLeg, joints.hips, [other], { exact: true }).joints[other];
+        // The other leg kept pointing where it was, if its hip can: if not,
+        // the pelvis stays put rather than twisting that leg.
+        const kept = withHips(keptLeg, joints.hips, [other], { exact: true }).joints[other];
+        const allowed = clampJoint(other, kept, undefined, joints);
+        if (kept.every((a, n) => Math.abs(a - allowed[n]) <= 1)) joints[other] = kept;
+        else joints[name][i] = was;
       }
     };
     const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
@@ -181,7 +202,7 @@ export function dragTo(pose, bone, cm, target) {
     return distance;
   };
 
-  // The limb alone first; then, still short of the target, the trunk too.
+  // The limb alone first; then, still well short of the target, the trunk too.
   const trunk = trunkFor(bone);
   let used = limb;
   if (solve(limb, limb.map(() => 1)) > TRUNK_AFTER) {
@@ -209,12 +230,11 @@ export const snapshot = (joints, chain) => Object.fromEntries(chain.map(([name])
 /**
  * Takes back a step for any joint it took out of reach (a shoulder or
  * hip pointing or twisting where a body can't, joint-limits.js), so
- * solving stays within reach; nothing while those limits are off.
+ * solving stays within reach.
  * @param {Record<string, number[]>} joints changed in place
  * @param {Record<string, number[]>} before the angles before the step
  */
 export function keepReachable(joints, before) {
-  if (!keepsToReach()) return;
   for (const [name, was] of Object.entries(before)) if (!canReach(name, joints[name], joints)) joints[name] = was;
 }
 

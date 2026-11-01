@@ -1979,6 +1979,38 @@ about 6 minutes, too slow to run after every change.
   folded under Hardpoint Settings. Body shape's buttons are as tall as its
   heading.
 
+## Poser: flexibility turned down, and drags that move the body less (November 2026)
+
+**Status:** built (2026-11-01, on the `anny-body` branch)
+
+Tried in the app, "a flexible body" and "the trunk following a drag" went
+too far: horrific poses, and a leg pulled the whole body round.
+
+- **"Allow collisions" only lets body parts overlap.** Ticking it used to
+  turn off the limits that depend on several movements too
+  (`joint-limits.js`: a raised arm twisting less, a leg out less behind
+  the body), so with it ticked by default the joints stacked up into
+  poses no body makes. They're always kept now; the toggle
+  (`setReachRules`) is gone. "Fix them now" still fixes both.
+- **Ranges about halfway back** between the typical body's and the very
+  flexible one's (e.g. the waist back 55° and forward 70°, a hip forward
+  150° and out 100°, a shoulder's twist ±95°, the pelvis ±35°), keeping a
+  75° pointed foot and elbows and knees 5° past straight; the limits that
+  depend on several movements likewise (a foot turning 70° all told, a
+  leg out 100° in front and 50° behind). The server's ranges match.
+  Poses saved with the wider ranges open within the new ones, and
+  Duplicate and Copy to… bring them within before sending (`savePose`),
+  as the server would refuse them.
+- **A drag moves the trunk only as a last resort, and only a little.** It
+  joins in once the limb is 8 cm short (it was 1 cm), a drag takes the
+  pelvis at most 15° tilt and 10° turn from where it was when the drag
+  began (and the chest 15° bend, 10° lean and turn), never hikes the
+  pelvis (which lifted the other foot), and the other leg's hip stays
+  within its own limits: if keeping that leg would take more, the pelvis
+  stops. The Hips and Chest sliders keep their full ranges.
+- **Considered, not now**: a "Flexible body" checkbox to turn the wider
+  ranges back on.
+
 ## Poser: "Add pose to…", from the nav's poser (October 2026)
 
 **Status:** built (2026-10-31, on the `anny-body` branch)

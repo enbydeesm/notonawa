@@ -95,7 +95,7 @@ describe("clashes", () => {
 
 describe("clashes left with collisions allowed", () => {
   // A forearm folded into the belly, left there.
-  const before = J(J(newPose(), "l_shoulder", 0, 20), "l_shoulder", 2, -80);
+  const before = J(J(newPose(), "l_shoulder", 0, 20), "l_shoulder", 2, -70);
   const left = J(before, "l_elbow", 0, 150);
 
   it("counts what the pose opened touching as fine, and what's pushed in past it as left", () => {

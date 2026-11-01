@@ -65,28 +65,28 @@ function limbs(side) {
   return [
     {
       name: `${side}_shoulder`, label: `${name} shoulder`, parent: "chest", offset: [17 * s, 22, 0], order: "ZXY",
-      moves: [move("Forward", "x", -1, -90, 180), move("Out", "z", out, -45, 180), move("Twist out", "y", out, -110, 110)],
+      moves: [move("Forward", "x", -1, -80, 180), move("Out", "z", out, -35, 180), move("Twist out", "y", out, -95, 95)],
     },
     // The forearm's twist turns the palm: out is palm forward (from facing
     // the thigh), in is palm back.
     { name: `${side}_elbow`, label: `${name} elbow`, parent: `${side}_shoulder`, offset: [0, -29, 0], order: "XYZ",
-      moves: [move("Bend", "x", -1, -10, 160), move("Twist out", "y", out, -90, 100)] },
+      moves: [move("Bend", "x", -1, -5, 155), move("Twist out", "y", out, -85, 95)] },
     { name: `${side}_wrist`, label: `${name} wrist`, parent: `${side}_elbow`, offset: [0, -25, 0], order: "ZXY",
-      moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -95, 95), move("Tilt", "x", 1, -45, 45)] },
+      moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -85, 85), move("Tilt", "x", 1, -35, 35)] },
     {
       name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "ZXY",
-      moves: [move("Forward", "x", -1, -50, 160), move("Out", "z", out, -45, 120), move("Twist out", "y", out, -60, 60)],
+      moves: [move("Forward", "x", -1, -35, 150), move("Out", "z", out, -35, 100), move("Twist out", "y", out, -50, 50)],
     },
     // The lower leg's twist turns the foot out or in: only once the knee
     // bends, and with the hip's no further than a leg can (joint-limits.js).
     { name: `${side}_knee`, label: `${name} knee`, parent: `${side}_hip`, offset: [0, -44, 0], order: "XYZ",
-      moves: [move("Bend", "x", 1, -10, 165), move("Twist out", "y", out, -45, 45)] },
-    // Pointed as far as a flexible dancer's (80°), for a "Barbie foot" with the toes up.
+      moves: [move("Bend", "x", 1, -5, 160), move("Twist out", "y", out, -40, 40)] },
+    // Pointed further than most (75°), for a "Barbie foot" with the toes up.
     { name: `${side}_ankle`, label: `${name} ankle`, parent: `${side}_knee`, offset: [0, -43, 0], order: "XYZ",
-      moves: [move("Toes up", "x", -1, -80, 45)] },
+      moves: [move("Toes up", "x", -1, -75, 35)] },
     // The toes bend together at the ball of the foot: curled down, or up.
     { name: `${side}_toes`, label: `${name} toes`, parent: `${side}_ankle`, offset: [0, -7, 13], order: "XYZ",
-      moves: [move("Up", "x", -1, -45, 90)] },
+      moves: [move("Up", "x", -1, -35, 85)] },
   ];
 }
 
@@ -97,13 +97,14 @@ export const JOINTS = Object.freeze([
   // slider keeps the legs where they were: pose-skeleton.js's withHips).
   {
     name: "hips", label: "Hips", parent: "pelvis", offset: [0, 0, 0], order: "XZY",
-    moves: [move("Tilt", "x", 1, -45, 45), move("Hike", "z", 1, -30, 30), move("Turn", "y", 1, -45, 45)],
+    moves: [move("Tilt", "x", 1, -35, 35), move("Hike", "z", 1, -25, 25), move("Turn", "y", 1, -35, 35)],
   },
-  // The ranges are a flexible person's, further than most people's, and the
-  // elbows and knees go a little past straight.
-  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-70, 90], [-45, 45], [-50, 50]]) },
-  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-55, 60], [-40, 40], [-45, 45]]) },
-  { name: "head", label: "Head", parent: "chest", offset: [0, 26, 0], order: "XZY", moves: trunk([[-65, 80], [-60, 60], [-95, 95]]) },
+  // The ranges are a little further than most people's (about halfway
+  // between a typical body and a very flexible one: a very flexible one
+  // allowed horrific poses), and the elbows and knees go 5° past straight.
+  { name: "spine", label: "Waist", parent: "pelvis", offset: [0, 8, 0], order: "XZY", moves: trunk([[-55, 70], [-40, 40], [-40, 40]]) },
+  { name: "chest", label: "Chest", parent: "spine", offset: [0, 16, 0], order: "XZY", moves: trunk([[-45, 50], [-35, 35], [-40, 40]]) },
+  { name: "head", label: "Head", parent: "chest", offset: [0, 26, 0], order: "XZY", moves: trunk([[-55, 75], [-50, 50], [-85, 85]]) },
   ...limbs("l").slice(0, 3), ...limbs("r").slice(0, 3),
   ...limbs("l").slice(3), ...limbs("r").slice(3),
 ]);
@@ -217,32 +218,18 @@ export const START_JOINTS = Object.freeze({ l_shoulder: [0, 4, 0], r_shoulder: [
 export const startJoints = () => ({ ...restJoints(), ...Object.fromEntries(Object.entries(START_JOINTS).map(([n, a]) => [n, [...a]])) });
 
 /**
- * Whether joints are kept to the limits that depend on several movements
- * (joint-limits.js). The poser turns them off while "Allow collisions" is
- * ticked, and back on when it closes; each movement's own range always
- * holds.
- */
-let reachRules = true;
-/** @param {boolean} on */
-export function setReachRules(on) {
-  reachRules = on;
-}
-/** Whether the limits that depend on several movements are kept to now. */
-export const keepsToReach = () => reachRules;
-
-/**
  * A joint's angles kept within its limits (whole degrees): each
- * movement's own range, then (unless they're off) the shoulders' and
+ * movement's own range, then (unless reach is false) the shoulders' and
  * hips' limits that depend on several (joint-limits.js), stopping where
  * it last could on the way from `from`.
  * @param {string} name
  * @param {readonly number[]} angles
  * @param {readonly number[]} [from] what the joint was (rest if left out)
  * @param {Readonly<Record<string, readonly number[]>>} [joints] the rest of the pose (a knee's twist and its hip's depend on each other)
- * @param {boolean} [reach] keep to the limits that depend on several movements (setReachRules's choice if left out)
+ * @param {boolean} [reach] keep to the limits that depend on several movements (false: only each one's own range)
  * @returns {number[]}
  */
-export function clampJoint(name, angles, from, joints, reach = reachRules) {
+export function clampJoint(name, angles, from, joints, reach = true) {
   const joint = BY_NAME.get(name);
   if (!joint) throw new Error(`No joint ${name}`);
   // A movement left out (an older pose's elbow or knee, from before they

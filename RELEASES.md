@@ -17,9 +17,9 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - The hardpoint's sliders are folded under Hardpoint Settings.
 - Tap the toes to bend them up or down at the ball of the foot, and point the ankle further, for a "Barbie foot".
 - The back bends further back, and the hips can tilt, hike and turn, keeping the legs where they were.
-- Dragging an arm or leg further than it can go brings the body along: the hips tilt to lift a leg higher, and the chest leans to reach further.
-- "Allow collisions", bottom right of the poser's view, is on to begin with: body parts go wherever you put them, turning orange while they move into each other. Turn it off to keep parts apart (they turn red, and settle when you let go), and choose to fix any collisions left or leave them until you move those parts again.
-- Every joint bends further, for a flexible person.
+- Dragging an arm or leg well past where it can go brings the body along a little: the hips tilt to lift a leg higher, and the chest leans to reach further. The other foot stays on the floor.
+- "Allow collisions", bottom right of the poser's view, is on to begin with: body parts can move into each other, turning orange while they do. Turn it off to keep parts apart (they turn red, and settle when you let go), and choose to fix any collisions left or leave them until you move those parts again. Either way, joints only bend as far as a body can.
+- Every joint bends a little further than before, for a fairly flexible person.
 - The poser has its own button in the top bar, after Education. Opened from there, Save pose and Add to visuals ask which tie, plan or workshop to put it on: search all three at once, or tap the one you used last, at the top of the list. Or make a new one: its form opens with the pose already in it, ready to save.
 - On tie, plan and workshop cards, "Open album" is now on the right of the photo count.
 - Bug and feedback sends again: since the app's new version numbers, it was refusing to.

@@ -101,10 +101,10 @@ describe("parsePose", () => {
   });
 
   it("takes a pointed foot with its toes up, a tipped pelvis and a deep backbend; an older pose has them at rest", () => {
-    const barbie = { ...ok, joints: { ...ok.joints, l_ankle: [-80], l_toes: [90], hips: [-45, 30, 45], spine: [-70, 0, 0], chest: [-55, 0, 0] } };
+    const barbie = { ...ok, joints: { ...ok.joints, l_ankle: [-75], l_toes: [85], hips: [-35, 25, 35], spine: [-55, 0, 0], chest: [-45, 0, 0] } };
     expect(server.parsePose(barbie)).toEqual(barbie);
-    expect(page.readPose(barbie).joints.l_toes).toEqual([90]);
-    for (const [name, angles] of /** @type {[string, number[]][]} */ ([["l_toes", [91]], ["l_ankle", [-81]], ["hips", [46, 0, 0]], ["spine", [-71, 0, 0]], ["chest", [-56, 0, 0]]])) {
+    expect(page.readPose(barbie).joints.l_toes).toEqual([85]);
+    for (const [name, angles] of /** @type {[string, number[]][]} */ ([["l_toes", [86]], ["l_ankle", [-76]], ["hips", [36, 0, 0]], ["spine", [-56, 0, 0]], ["chest", [-46, 0, 0]]])) {
       expect(() => server.parsePose({ ...ok, joints: { ...ok.joints, [name]: angles } }), name).toThrow();
     }
     const { hips: _h, l_toes: _l, r_toes: _r, ...older } = ok.joints;
@@ -209,9 +209,9 @@ describe("saved presets", () => {
 
 describe("the figure's joints", () => {
   it("keep their angles within limits, as whole degrees", () => {
-    expect(clampJoint("l_elbow", [200])).toEqual([160, 0]);
-    expect(clampJoint("l_elbow", [-13, 120])).toEqual([-10, 100]);
-    expect(clampJoint("spine", [10.4, -99])).toEqual([10, -45, 0]);
+    expect(clampJoint("l_elbow", [200])).toEqual([155, 0]);
+    expect(clampJoint("l_elbow", [-13, 120])).toEqual([-5, 95]);
+    expect(clampJoint("spine", [10.4, -99])).toEqual([10, -40, 0]);
     expect(() => clampJoint("tail", [1])).toThrow();
   });
 
@@ -419,7 +419,7 @@ describe("the figure, posed", () => {
 describe("changing a pose", () => {
   it("sets joints, the body, the lift and the view within their limits", () => {
     let p = page.setJoint(page.newPose(), "r_knee", 0, 999);
-    expect(p.joints.r_knee).toEqual([165, 0]);
+    expect(p.joints.r_knee).toEqual([160, 0]);
     p = page.setBody(p, 2, 200);
     expect(p.body).toEqual([0, 0, 180]);
     expect(page.setLift(p, -4).lift).toBe(0);
@@ -551,7 +551,7 @@ describe("changing a pose", () => {
 
   it("opens a saved pose whole, even one missing joints or with angles out of reach", () => {
     const opened = page.readPose(/** @type {any} */ ({ joints: { l_knee: [400] }, ring: [0, 280, 0], camera: [1, 2, 300, 4] }));
-    expect(opened.joints.l_knee).toEqual([165, 0]);
+    expect(opened.joints.l_knee).toEqual([160, 0]);
     expect([opened.camera, opened.bamboo, opened.hashira]).toEqual([[1, 2, 300, 4, 0, 0], null, null]);
     expect(opened.joints.head).toEqual([0, 0, 0]);
     expect(opened.ring).toEqual([0, 280, 0]);

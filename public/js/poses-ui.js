@@ -19,6 +19,7 @@ import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
 import { open, sealOne } from "./vault.js";
 import { MAX_POSES } from "./pose-format.js";
+import { jointsInRange } from "./figure-rig.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
 import { viewerParts } from "./visual-viewer.js";
 
@@ -47,7 +48,9 @@ const FULL = { width: 900, height: 1200, type: "image/png" };
  */
 export async function savePose(item, { data, caption }) {
   const { caption: sealed } = await sealOne("pose", { caption });
-  return (await api("/api/poses", { method: "POST", body: { ...item, data, caption: sealed } })).id;
+  // A pose saved when the joints went further (Duplicate, Copy to…) is
+  // brought within today's ranges first, as the server refuses one past them.
+  return (await api("/api/poses", { method: "POST", body: { ...item, data: jointsInRange(data), caption: sealed } })).id;
 }
 
 /** The 3D code, fetched the first time it's needed. */
