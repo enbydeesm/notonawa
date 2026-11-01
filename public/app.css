@@ -290,9 +290,11 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
   position: absolute; right: 6px; top: 6px; width: 4.25rem; padding: 4px 6px;
   background-color: var(--pose-floor); color: var(--ink-black); border-color: var(--ink-grey);
 }
-.pose-rope-tools .pose-finish { margin-left: auto; padding: 6px 10px; font-size: 0.85rem; }
+.pose-rope-ends { display: flex; gap: 4px; margin-left: auto; }
+.pose-rope-tools .pose-cancel-rope { padding: 6px 8px; font-size: 0.8rem; }
+.pose-rope-tools .pose-finish { padding: 6px 8px; font-size: 0.8rem; }
 /* A rope being laid: Finish rope outlined, a reminder to end it first. */
-.pose-rope-tools .pose-finish:not(:disabled) { border: 2px solid var(--accent); padding: 5px 9px; }
+.pose-rope-tools .pose-finish:not(:disabled) { border: 2px solid var(--accent); padding: 5px 7px; }
 .pose-panels { flex: none; max-height: 37dvh; overflow-y: auto; }
 /* More below: the bottom edge fades out (pose-editor.js sets it). */
 .pose-panels.more-below { mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
@@ -336,10 +338,11 @@ dialog.preset-picker.searchable[open] {
 .pose-shape > .fold { margin: 0; }
 /* Over the fold's heading row: Save as my default in its middle, Reset at its end. */
 .pose-shape-actions {
-  position: absolute; top: 0; left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: center; pointer-events: none;
+  position: absolute; top: 0; left: 0; right: 0; height: 32px; display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: stretch; pointer-events: none;
 }
-.pose-shape-actions .tool { pointer-events: auto; padding: 2px 10px; font-size: 0.85rem; }
+/* As tall as the heading's row (the fold's summary: 4px padding round a 24px line). */
+.pose-shape-actions .tool { pointer-events: auto; box-sizing: border-box; height: 32px; padding: 0 10px; font-size: 0.85rem; line-height: 1; }
 .pose-shape-save { grid-column: 2; }
 .pose-shape-reset { grid-column: 3; justify-self: end; }
 /* Too narrow for the middle to clear the fold's heading: next to Reset instead. */
@@ -353,6 +356,14 @@ dialog.preset-picker.searchable[open] {
 .pose-step { padding: 0 6px; font-size: 0.6rem; line-height: 1.5; }
 /* The rope chosen in Rope mode: a see-saw's box, Cinch from here, a cinch's length. */
 .pose-rope-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+/* Add cinch left, Move on bamboo in the middle (when there is one), Add rope right: they don't move. */
+.pose-rope-actions { align-self: stretch; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.pose-rope-actions .pose-add-cinch { grid-column: 1; justify-self: start; }
+.pose-rope-actions .pose-move-bamboo { grid-column: 2; }
+.pose-rope-actions .pose-add-rope { grid-column: 3; justify-self: end; }
+.pose-seesaw:empty, .pose-rope-note:empty { display: none; }
+.pose-rope-note { margin: 0; }
+.pose-hardpoint-fold { margin: 0; }
 .pose-rope-options:empty { display: none; }
 .pose-rope-options .pose-sliders { align-self: stretch; }
 .pose-check { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.9rem; color: var(--text); }

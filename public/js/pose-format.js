@@ -30,11 +30,16 @@
 //            points `segment` and `segment + 1`, `along` thousandths of
 //            the way.
 //            A cinch (one with `l`, its length in cm) is a rope tied
-//            between two spots: at least one on an upline's hanging
-//            stretch (between the ring or bamboo and the point next to it),
-//            which it pulls toward the other end (pose-cinch.js); the other
-//            on another rope, or on the body. A rope has one cinch at most,
-//            and a cinch is never on a cinch.
+//            through two or more spots, on ropes (the same one or others)
+//            or the body, at least one on an upline's hanging stretch
+//            (between the ring or bamboo and the point next to it), which
+//            it pulls in (pose-cinch.js). A rope can have any number of
+//            cinches; a cinch is never on a cinch.
+//            A rope added to another (not a cinch) starts at a spot on it,
+//            ["rope", …] as its first point (on a rope before it in
+//            `ropes`), and goes on as any rope does.
+//            `k` (cm) is a rope's slack: its hanging stretches sag (drawn
+//            only: nothing it's tied to moves).
 //            `s` (true) marks a rope running over the ring or bamboo, from
 //            the body and back to it: a see-saw, keeping its length as one
 //            end moves (pose-constraints.js).
@@ -54,7 +59,7 @@ import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./fig
 /**
  * A rope; `still` (a cinch's "Move the body" unticked) is the poser's
  * own, never saved (forSaving).
- * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, still?: true }} Rope
+ * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, k?: number, still?: true }} Rope
  */
 /** @typedef {[number, number, number, number, number, number]} Camera */
 /** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
@@ -101,6 +106,8 @@ export const BAMBOO_RANGE = /** @type {const} */ ([[-300, 300], [0, 450], [-300,
 export const OLDER_BAMBOO = /** @type {const} */ ([150, 8]);
 /** How near the middle a bamboo's hangers can come, each side, cm. */
 export const BAMBOO_MIDDLE = 5;
+/** A rope's slack, cm. */
+export const SLACK_RANGE = /** @type {const} */ ([0, 100]);
 /** A cinch's length, cm. */
 export const CINCH_RANGE = /** @type {const} */ ([0, 1000]);
 /** The hashira's: x, z, and its turn (a square post looks the same every 90°). */
@@ -313,6 +320,9 @@ const onUplineHardpoint = (point) => point[0] === RING || point[0] === BAMBOO;
 /** @param {Rope} rope @returns {boolean} whether it's a cinch */
 export const isCinch = (rope) => rope.l !== undefined;
 
+/** @param {Rope} rope @returns {boolean} whether it's a rope added to another (starting at a spot on it) */
+export const isAdded = (rope) => !isCinch(rope) && rope.p[0]?.[0] === ROPE;
+
 /**
  * Whether a rope's segment hangs from the ring or the bamboo (an upline's
  * hanging stretch, which a cinch pulls aside).
@@ -331,27 +341,45 @@ export const isUpline = (rope) => !isCinch(rope) && rope.p.some(onUplineHardpoin
  * @param {Rope} rope
  */
 export function canSeesaw(rope) {
-  if (isCinch(rope)) return false;
+  if (isCinch(rope) || isAdded(rope)) return false;
   const tops = rope.p.flatMap((p, i) => (onUplineHardpoint(p) ? [i] : []));
   return tops.length === 1 && tops[0] > 0 && tops[0] < rope.p.length - 1;
 }
 
 /**
- * Whether a cinch's points are on ropes there (by index in `ropes`), each
- * on a segment of it, at least one hanging, and on two different ropes.
+ * Whether a spot (a ["rope", …] point) is on a rope there that isn't a
+ * cinch, on one of its segments.
+ * @param {(Rope | null)[]} ropes
+ * @param {RopePoint} spot
+ */
+const onRope = (ropes, [, i, segment]) => {
+  const rope = ropes[i];
+  return !!rope && !isCinch(rope) && segment >= 0 && segment + 1 < rope.p.length;
+};
+
+/**
+ * Whether a cinch's points are where they can be: two or more, on ropes
+ * there or the body (not a hardpoint), at least one on a hanging stretch.
  * @param {(Rope | null)[]} ropes
  * @param {Rope} cinch
  */
 function cinchFits(ropes, cinch) {
   const on = cinch.p.filter((p) => p[0] === ROPE);
-  if (on.length === 0 || cinch.p.length !== 2) return false;
-  // The other end is on the body, not a hardpoint.
+  if (cinch.p.length < 2 || on.length === 0) return false;
   if (cinch.p.some((p) => HARDPOINTS.includes(/** @type {Hardpoint} */ (p[0])))) return false;
-  if (on.length === 2 && on[0][1] === on[1][1]) return false;
-  return on.every(([, i, segment]) => {
-    const rope = ropes[i];
-    return !!rope && !isCinch(rope) && segment >= 0 && segment + 1 < rope.p.length;
-  }) && on.some(([, i, segment]) => hangs(/** @type {Rope} */ (ropes[i]), segment));
+  return on.every((p) => onRope(ropes, p)) && on.some(([, i, segment]) => hangs(/** @type {Rope} */ (ropes[i]), segment));
+}
+
+/**
+ * Whether a rope added to another is on a rope there, before it, and has
+ * no other spot on a rope.
+ * @param {(Rope | null)[]} ropes
+ * @param {Rope} rope
+ * @param {number} index its own
+ */
+function addedFits(ropes, rope, index) {
+  const [first, ...rest] = rope.p;
+  return first[1] < index && onRope(ropes, first) && rest.every((p) => p[0] !== ROPE);
 }
 
 /**
@@ -364,18 +392,27 @@ function cinchFits(ropes, cinch) {
  * @returns {Rope[]}
  */
 function relink(ropes, next) {
-  const kept = next.map((rope) => {
-    if (!rope || !isCinch(rope)) return rope;
-    const same = rope.p.every((p) => p[0] !== ROPE || next[p[1]]?.p.length === ropes[p[1]]?.p.length);
-    return same && cinchFits(next, rope) ? rope : null;
-  });
+  // A cinch or added rope goes with what it's on, which can be one going
+  // too: dropped until none more go.
+  let kept = next;
+  for (let changed = true; changed;) {
+    const now = kept;
+    kept = now.map((rope, i) => {
+      if (!rope || !(isCinch(rope) || isAdded(rope))) return rope;
+      const same = rope.p.every((p) => p[0] !== ROPE || now[p[1]]?.p.length === ropes[p[1]]?.p.length);
+      return same && (isCinch(rope) ? cinchFits(now, rope) : addedFits(now, rope, i)) ? rope : null;
+    });
+    changed = kept.some((rope, i) => rope !== now[i]);
+  }
   /** @type {number[]} */
   const index = [];
   let n = 0;
   for (const rope of kept) index.push(rope ? n++ : -1);
   return kept.flatMap((rope) => {
     if (!rope) return [];
-    if (isCinch(rope)) return [{ ...rope, p: rope.p.map((p) => /** @type {RopePoint} */ (p[0] === ROPE ? [ROPE, index[p[1]], p[2], p[3]] : p)) }];
+    const renumbered = (/** @type {Rope} */ r) => ({ ...r, p: r.p.map((p) => /** @type {RopePoint} */ (p[0] === ROPE ? [ROPE, index[p[1]], p[2], p[3]] : p)) });
+    if (isCinch(rope)) return [renumbered(rope)];
+    if (isAdded(rope)) return [renumbered(rope)];
     if (rope.s && !canSeesaw(rope)) {
       const { s: _, ...plain } = rope;
       return [plain];
@@ -519,7 +556,10 @@ export function cantAdd(pose, rope) {
  * The same point twice in a row adds nothing (a double tap).
  * @param {RopePoint} a @param {RopePoint} b
  */
-const samePoint = (a, b) => a[0] === b[0] && Math.hypot(a[1] - b[1], a[2] - b[2], a[3] - b[3]) < 5;
+const samePoint = (a, b) => a[0] === b[0] && (a[0] === ROPE
+  // A spot on a rope: the same rope and segment, and nearly as far along.
+  ? a[1] === b[1] && a[2] === b[2] && Math.abs(a[3] - b[3]) < 5
+  : Math.hypot(a[1] - b[1], a[2] - b[2], a[3] - b[3]) < 5);
 
 /**
  * A rope being laid, with a point added. The rope isn't in the pose until
@@ -554,42 +594,84 @@ export function finishRope(pose, rope) {
 export const removeRope = (pose, index) => ({ ...pose, ropes: relink(pose.ropes, pose.ropes.map((r, i) => (i === index ? null : r))) });
 
 /**
- * The cinch on a rope, if it has one.
+ * The cinches on a rope.
  * @param {Pose} pose
  * @param {number} index the rope's
- * @returns {number} the cinch's index, or -1
+ * @returns {number[]} the cinches' indexes
  */
-export const cinchOn = (pose, index) => pose.ropes.findIndex((r) => isCinch(r) && r.p.some((p) => p[0] === ROPE && p[1] === index));
+export const cinchesOn = (pose, index) => pose.ropes.flatMap((r, i) => (isCinch(r) && r.p.some((p) => p[0] === ROPE && p[1] === index) ? [i] : []));
 
 /**
- * Why a cinch can't go from `from` to `to`, or null if it can.
+ * Why a point can't be a cinch's next one (while it's being laid), or null if it can.
  * @param {Pose} pose
- * @param {RopePoint} from
- * @param {RopePoint} to
+ * @param {RopePoint} point
  * @returns {string | null}
  */
-export function cantCinch(pose, from, to) {
-  if (pose.ropes.length >= MAX_ROPES) return `A pose can have at most ${MAX_ROPES} ropes.`;
-  const on = [from, to].filter((p) => p[0] === ROPE);
-  if (on.some((p) => !pose.ropes[p[1]])) return "That rope isn't there any more.";
-  if (on.some((p) => isCinch(pose.ropes[p[1]]))) return "A cinch can't go on another cinch.";
-  if (on.length === 2 && on[0][1] === on[1][1]) return "Cinch it to another rope, or to the body.";
-  if (on.some((p) => cinchOn(pose, p[1]) >= 0)) return "That rope has a cinch already. Erase it to add another.";
-  if (!cinchFits(pose.ropes, { c: "black", w: 1, p: [from, to], l: 0 })) return "A cinch needs one end on an upline, between the ring or bamboo and the body.";
+export function cantCinchAt(pose, point) {
+  if (HARDPOINTS.includes(/** @type {Hardpoint} */ (point[0]))) return `A cinch is tied to ropes and the body, not the ${point[0]}.`;
+  if (point[0] !== ROPE) return null;
+  const rope = pose.ropes[point[1]];
+  if (!rope) return "That rope isn't there any more.";
+  if (isCinch(rope)) return "A cinch can't go on another cinch.";
   return null;
 }
 
 /**
- * The pose with a cinch added, as long as the gap between its ends (taut).
+ * Why a cinch laid through these points can't be tied, or null if it can.
+ * @param {Pose} pose
+ * @param {RopePoint[]} points
+ * @returns {string | null}
+ */
+export function cantCinch(pose, points) {
+  if (pose.ropes.length >= MAX_ROPES) return `A pose can have at most ${MAX_ROPES} ropes.`;
+  for (const point of points) {
+    const problem = cantCinchAt(pose, point);
+    if (problem) return problem;
+  }
+  if (points.length < 2) return "Tap another rope or the body to tie the cinch to, then Finish rope.";
+  if (!cinchFits(pose.ropes, { c: "black", w: 1, p: points, l: 0 })) return "A cinch needs a point on an upline, between the ring or bamboo and the body.";
+  return null;
+}
+
+/**
+ * The pose with a cinch added through its points, as long as given (taut,
+ * when it's the length of its line: pose-cinch.js).
  * @param {Pose} pose
  * @param {{ c: Color, w: Width }} look
- * @param {RopePoint} from
- * @param {RopePoint} to
+ * @param {RopePoint[]} points
  * @param {number} length cm
  * @returns {Pose}
  */
-export const addCinch = (pose, { c, w }, from, to, length) =>
-  ({ ...pose, ropes: [...pose.ropes, { c, w, p: [from, to], l: clamp(length, CINCH_RANGE) }] });
+export const addCinch = (pose, { c, w }, points, length) =>
+  ({ ...pose, ropes: [...pose.ropes, { c, w, p: points.map((p) => /** @type {RopePoint} */ ([...p])), l: clamp(length, CINCH_RANGE) }] });
+
+/**
+ * Why a rope can't be added to this one, or null if it can.
+ * @param {Pose} pose
+ * @param {number} index the rope's
+ * @returns {string | null}
+ */
+export function cantAddTo(pose, index) {
+  const rope = pose.ropes[index];
+  if (!rope) return "That rope isn't there any more.";
+  if (isCinch(rope)) return "A rope can't be added to a cinch.";
+  return cantAdd(pose, null);
+}
+
+/**
+ * A rope's slack (its hanging stretches sag; drawn only).
+ * @param {Pose} pose @param {number} index @param {number} cm @returns {Pose}
+ */
+export function setSlack(pose, index, cm) {
+  return {
+    ...pose, ropes: pose.ropes.map((r, i) => {
+      if (i !== index || isCinch(r)) return r;
+      const { k: _, ...plain } = r;
+      const slack = clamp(Math.round(cm), SLACK_RANGE);
+      return slack > 0 ? { ...plain, k: slack } : plain;
+    }),
+  };
+}
 
 /**
  * A cinch made longer or shorter.

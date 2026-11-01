@@ -1944,6 +1944,41 @@ about 6 minutes, too slow to run after every change.
   whole body back over a planted foot is in roadmap.md ("Planting a foot").
   The other arm turns with the chest (not kept, as the other leg is).
 
+## Poser: more cinches, added ropes, slack (October 2026)
+
+**Status:** built (2026-10-31, on the `anny-body` branch)
+
+- **Cinches**: any number on a rope, on the same upline twice, and
+  through more than two points: after Add cinch, each tap on a rope or the
+  body adds a point (a bridge back and forth between uplines), and Finish
+  rope ties it, taut, to be shortened. Only a hardpoint (tied to directly)
+  and another cinch are refused, and it needs one point on a hanging
+  stretch. Shortened, each point on a hanging stretch moves toward those
+  beside it on the cinch, all the same share of the way, until the line
+  is the cinch's length (with two moving ends, they meet halfway at most);
+  the uplines bend at each point, in order along them. An approximation:
+  each cinch is worked out as if the others weren't pulling the same
+  uplines. Checking when a cinch on the same upline makes sense was offered
+  and not wanted: it's allowed.
+- **Add rope**: a new rope starting at the dot on any rope (not a cinch),
+  laid as any rope, its first point `["rope", …]` on a rope before it. It
+  follows that spot as drawn (through bends and sag), doesn't pull it, and
+  goes when that rope goes or its points change (as cinches do). Not a
+  see-saw.
+- **Slack** (0–100 cm, `k`): an upline's hanging stretches sag in a
+  parabola (down, as far as the run is across; one hanging straight down
+  bows forward), the slack shared by length. Drawn only: nothing moves,
+  and a cinch still pulls as if taut ("Move the body" ignores it).
+- **The rope panel**: the see-saw box above the help, messages about the
+  ropes under it (not under the buttons), Add cinch left, Move on bamboo
+  in the middle (when tied on the bamboo), Add rope right, fixed in place,
+  Move on bamboo's slider under them (the hardpoint's stay put), a black
+  dot where the rope was tapped (and where a cinch or added rope starts,
+  until it's finished), Cancel rope beside Finish rope (the two kept
+  together, on the next row if there isn't room), the hardpoint's sliders
+  folded under Hardpoint Settings. Body shape's buttons are as tall as its
+  heading.
+
 ## Sharing between accounts (October 2026)
 
 **Status:** planned (2026-10-24). Phase 1 (two notes fields on people)

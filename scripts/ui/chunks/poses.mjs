@@ -2,7 +2,7 @@
 // renaming and deleting my own presets, posing a part with a slider, the head's sliders moving the whole
 // figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
 // rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
-// a see-saw rope, a cinch and moving an upline along the bamboo, tapped on a pose made through the API, and the
+// a see-saw rope, cinches (one through three points), a rope added to an upline, slack, Cancel rope, moving an upline along the bamboo, tapped on a pose made through the API, and the
 // tools in one row on a phone), "Allow collisions" (fixing or leaving clashes), the nav's poser, saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
@@ -113,10 +113,12 @@ export default async function () {
     const row = [middle("#pose-mode-pose"), middle("#pose-mode-draw"), middle("#pose-download"), middle("#pose-add-visual")];
     const fits = $("#pose-add-visual").getBoundingClientRect().right <= innerWidth;
     $("#pose-mode-rope").click(); await wait(200); $("#pose-bamboo").click(); await wait(500);
+    $("#pose-hardpoint-settings").open = true; await wait(300);
     const panels = $("#pose-panels"), box = panels.getBoundingClientRect();
     const cut = [...document.querySelectorAll("#pose-hardpoint-sliders .pose-slider")]
       .some((r) => { const b = r.getBoundingClientRect(); return b.top < box.bottom && b.bottom > box.bottom; });
     const result = [new Set(row).size, fits, panels.classList.contains("more-below"), cut, getComputedStyle($("#pose-message")).display];
+    $("#pose-hardpoint-settings").open = false;
     $("#pose-undo").click(); await wait(200); $("#pose-mode-pose").click(); await wait(200);
     return result;`), [1, true, true, true, "none"]);
   await send("Emulation.clearDeviceMetricsOverride");
@@ -327,16 +329,18 @@ export default async function () {
 
   const hardpoints = `["ring", "bamboo", "hashira"].map((k) => [$("#pose-" + k).textContent, $("#pose-" + k).getAttribute("aria-pressed")])`;
   const hardpointLabels = `[...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent)`;
-  check("Rope mode: thickness, the eraser and Finish rope above the colors, and a ring, bamboo or hashira, the one there highlighted", await run(`
+  check("Rope mode: thickness, the eraser, Cancel rope and Finish rope above the colors, a ring, bamboo or hashira, the one there highlighted, its sliders folded under Hardpoint Settings", await run(`
     $("#pose-mode-rope").click(); await wait(200);
     const rows = [...$("#pose-panel-rope").children].map((c) => c.getAttribute("aria-label"));
     const finish = $("#pose-finish-rope"), row = finish.parentElement;
     const before = [$("#pose-panel-pose").hidden, ${hardpoints}, $("#pose-ring").parentElement.firstElementChild.textContent,
-      finish.disabled, row.lastElementChild === finish];
+      finish.disabled, row.lastElementChild === finish, finish.previousElementSibling === $("#pose-cancel-rope"), $("#pose-cancel-rope").disabled,
+      $("#pose-hardpoint-settings summary").textContent, $("#pose-hardpoint-settings").open];
     $("#pose-ring").click(); await wait(200);
     return [rows.slice(0, 2), ...before, ${hardpoints}, $("#pose-ring").title, getComputedStyle($("#pose-ring")).backgroundColor,
       ${hardpointLabels}, leakyFields()];`),
-  [["Rope thickness", "Rope color"], true, [["ring", "false"], ["bamboo", "false"], ["hashira", "false"]], "Hardpoint:", true, true,
+  [["Rope thickness", "Rope color"], true, [["ring", "false"], ["bamboo", "false"], ["hashira", "false"]], "Hardpoint:", true, true, true, true,
+    "Hardpoint Settings", false,
     [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]], "Remove ring", "rgb(254, 199, 98)",
     ["Across (cm)", "Height (cm)", "Front to back (cm)"], []]);
   check("a bamboo has a length and a hanger inset, 152 and 30 cm to begin with, the inset short of the middle", await run(`
@@ -362,6 +366,12 @@ export default async function () {
   check("Undo takes back the last point first", await run(`
     $("#pose-undo").click(); await wait(200); const one = $("#pose-rope-hint").textContent;
     return one;`), "Rope: 1 point. Keep tapping, then Finish rope.");
+  check("Cancel rope drops the rope being laid", await run(`
+    const on = !$("#pose-cancel-rope").disabled;
+    $("#pose-cancel-rope").click(); await wait(200);
+    return [on, $("#pose-finish-rope").disabled, $("#pose-cancel-rope").disabled, $("#pose-rope-hint").textContent.startsWith("Tap the body")];`),
+  [true, true, true, true]);
+  await tap(0.5, 0.5);
   await tap(0.5, 0.4);
   await run(`$("#pose-finish-rope").click(); await wait(200);`);
 
@@ -548,6 +558,10 @@ async function ropes({ tap, slide, topDialog }) {
     return [(at.x + 1) / 2, (1 - at.y) / 2];`);
   const tapRope = async (data, rope, segment, t) => {
     await sleep(300);
+    // The view changes size as the panel below it does: wait for it to settle.
+    await run(`let last = ""; for (let i = 0; i < 30; i++) {
+      const r = $("#pose-view").getBoundingClientRect(), now = r.width + "x" + r.height;
+      if (now === last) break; last = now; await wait(120); }`);
     const [fx, fy] = await spot(data, rope, segment, t);
     await tap(fx, fy);
   };
@@ -561,11 +575,16 @@ async function ropes({ tap, slide, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
     $("#pose-mode-rope").click(); await wait(300);`);
   await tapRope(stored, 0, 0, 0.5);
-  check("tapping a rope chooses it: one over the ring and back is a see-saw, ticked; and Cinch from here", await run(`
+  check("tapping a rope chooses it: one over the ring and back is a see-saw, ticked, above the help; Add cinch on the left, Add rope on the right, and its slack", await run(`
     const seesaw = $("#pose-seesaw");
-    return [seesaw?.checked, seesaw?.parentElement.textContent, !!$("#pose-cinch-start"), $("#pose-rope-hint").textContent.startsWith("Rope chosen"),
-      leakyFields()];`),
-  [true, "See-saw: runs over the ring", true, true, []]);
+    const panel = [...$("#pose-panel-rope").children];
+    const actions = $("#pose-cinch-start").parentElement.getBoundingClientRect();
+    return [seesaw?.checked, seesaw?.parentElement.textContent, panel.indexOf($("#pose-seesaw-slot")) < panel.indexOf($("#pose-rope-hint")),
+      $("#pose-cinch-start").textContent, $("#pose-added-start").textContent,
+      Math.round($("#pose-cinch-start").getBoundingClientRect().left) === Math.round(actions.left),
+      Math.round($("#pose-added-start").getBoundingClientRect().right) === Math.round(actions.right),
+      $("#pose-rope-hint").textContent.startsWith("Rope chosen"), !!$("#pose-slack"), leakyFields()];`),
+  [true, "See-saw: runs over the ring", true, "Add cinch", "Add rope", true, true, true, true, []]);
 
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`
@@ -598,10 +617,13 @@ async function ropes({ tap, slide, topDialog }) {
   await run(`$("#pose-cinch-start").click(); await wait(200);`);
   const cinchHint = await run(`return $("#pose-rope-hint").textContent;`);
   await tapRope(afterSeesaw, 2, 0, 0.5);
-  check("Cinch from here, then another upline, ties a cinch, taut, with Move the body ticked", [cinchHint, await run(`
+  check("Add cinch, another upline, then Finish rope ties a cinch, taut, with Move the body ticked; Finish with one point says what's missing", [cinchHint, await run(`
+    const tapped = $("#pose-rope-hint").textContent;
+    $("#pose-finish-rope").click(); await wait(300);
     const length = $("#pose-cinch-length");
-    return [$("#pose-message").textContent, length.value === length.max, Number(length.max) > 10, $("#pose-cinch-body").checked];`)],
-  ["Now tap another upline, a rope or the body to tie the cinch to.", ["Cinch tied. Shorten it to pull the upline aside.", true, true, true]]);
+    return [tapped, $("#pose-rope-note").textContent, length.value === length.max, Number(length.max) > 10, $("#pose-cinch-body").checked];`)],
+  ["Cinch: 1 point. Tap uplines, ropes or the body to tie it through, then Finish rope.",
+    ["Cinch: 2 points. Tap uplines, ropes or the body to tie it through, then Finish rope.", "Cinch tied. Shorten it to pull the upline aside.", true, true, true]]);
   check("shortening it pulls the uplines together, and the arms with them; saved with the pose", await run(`
     const max = Number($("#pose-cinch-length").max);
     { const el = $("#pose-cinch-length"); el.value = String(max - 10); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(500); }
@@ -612,30 +634,70 @@ async function ropes({ tap, slide, topDialog }) {
       saved.joints.l_shoulder.join() !== ${JSON.stringify(afterSeesaw.joints.l_shoulder.join())}];`),
   [true, [["rope", 1, 0], ["rope", 2, 0]], false, true]);
 
+  // A second cinch, a bridge: the left upline, the right, the left again.
+  const cinched = await run(`return (await ${tiePose}).data;`);
+  await run(`${editPose} $("#pose-mode-rope").click(); await wait(300);`);
+  await tapRope(cinched, 1, 0, 0.3);
+  await run(`$("#pose-cinch-start").click(); await wait(200);`);
+  await tapRope(cinched, 2, 0, 0.3);
+  await tapRope(cinched, 1, 0, 0.15);
+  check("a second cinch on the same uplines, through three points, back to the first", await run(`
+    $("#pose-finish-rope").click(); await wait(300);
+    ${savePose}
+    const saved = (await ${tiePose}).data;
+    return [saved.ropes.length, saved.ropes[4].p.map((p) => [p[0], p[1]]), saved.ropes[4].l > 0];`),
+  [5, [["rope", 1], ["rope", 2], ["rope", 1]], true]);
+
+  // A rope added to the right upline, out to the body; then slack on it.
+  const bridged = await run(`return (await ${tiePose}).data;`);
+  await run(`${editPose} $("#pose-mode-rope").click(); await wait(300);`);
+  await tapRope(bridged, 2, 0, 0.7);
+  await run(`$("#pose-added-start").click(); await wait(200);`);
+  const addedHint = await run(`return [$("#pose-rope-hint").textContent, $("#pose-cancel-rope").disabled];`);
+  await tap(0.5, 0.45);
+  check("Add rope starts a rope at the dot, laid as any rope, ended with Finish rope", [addedHint, await run(`
+    for (let i = 0; i < 50 && !$("#pose-rope-hint").textContent.includes("2 points"); i++) await wait(100);
+    const laid = $("#pose-rope-hint").textContent;
+    $("#pose-finish-rope").click(); await wait(300);
+    return [laid, $("#pose-finish-rope").disabled];`)],
+  [["Added rope: 1 point. Keep tapping, then Finish rope.", false], ["Added rope: 2 points. Keep tapping, then Finish rope.", true]]);
+  // The right upline above its two bends (the cinches), toward the ring.
+  await tapRope(bridged, 2, 2, 0.5);
+  check("…the slack, saved with the pose", await run(`
+    if (!$("#pose-slack")) return ["no slack slider", $("#pose-rope-hint").textContent];
+    ${slide("pose-slack", 30)}
+    ${savePose}
+    const saved = (await ${tiePose}).data;
+    return [saved.ropes.length, saved.ropes[5].p[0].slice(0, 2), saved.ropes[5].p.length, saved.ropes[2].k];`),
+  [6, ["rope", 2], 2, 30]);
+
   // On a bamboo in place of the ring (the uplines move to its middle).
   const onBamboo = setHardpoint(readPose(await run(`return (await ${tiePose}).data;`)), "bamboo");
   await run(`${editPose} $("#pose-mode-rope").click(); await wait(300); $("#pose-bamboo").click(); await wait(500);`);
   await sleep(300);
-  const [fx, fy] = await spot(onBamboo, 1, 0, 0.3);
+  // Above its three bends (the cinches), toward the bamboo.
+  const [fx, fy] = await spot(onBamboo, 1, 3, 0.5);
   const across = await run(`return $("#pose-view").getBoundingClientRect().width;`);
   // A finger's width to one side of the upline, not on it.
   await tap(fx + 12 / across, fy);
-  check("a tap beside an upline still chooses it; tied to a bamboo, it has Move along bamboo beside Cinch from here", await run(`
-    return [!!$("#pose-cinch-start"), $("#pose-along-start")?.textContent, $("#pose-along-start")?.parentElement === $("#pose-cinch-start")?.parentElement];`),
-  [true, "Move along bamboo", true]);
-  check("Move along bamboo swaps the bamboo's sliders for one, sliding the upline along it; Done brings them back", await run(`
+  check("a tap beside an upline still chooses it; tied to a bamboo, it has Move on bamboo between Add cinch and Add rope", await run(`
+    const at = (id) => $(id).getBoundingClientRect();
+    return [!!$("#pose-cinch-start"), $("#pose-along-start")?.textContent, $("#pose-along-start")?.parentElement === $("#pose-cinch-start")?.parentElement,
+      at("#pose-cinch-start").right < at("#pose-along-start").left && at("#pose-along-start").right < at("#pose-added-start").left];`),
+  [true, "Move on bamboo", true, true]);
+  check("Move on bamboo gives a slider under the buttons, sliding the upline along it; Done takes it away", await run(`
     $("#pose-along-start").click(); await wait(300);
-    const labels = [...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent);
+    const labels = [...document.querySelectorAll("#pose-rope-options label")].map((l) => l.textContent);
     const range = [$("#pose-along-bamboo").min, $("#pose-along-bamboo").max];
     ${slide("pose-along-bamboo", -40)}
     $("#pose-along-bamboo-down").click(); await wait(200);
     const value = $("#pose-along-bamboo").value;
     $("#pose-along-done").click(); await wait(200);
-    const back = document.querySelectorAll("#pose-hardpoint-sliders label").length;
+    const back = !!$("#pose-along-bamboo");
     ${savePose}
     const saved = (await ${tiePose}).data;
     return [labels, range, value, back, saved.ropes[1].p.at(-1), saved.ropes[2].p.at(-1), saved.ropes[3].l > 0];`),
-  [["Along the bamboo (cm)"], ["-76", "76"], "-41", 6, ["bamboo", -410, 0, 0], ["bamboo", 0, 0, 0], true]);
+  [["Along the bamboo (cm)", "Slack (cm)"], ["-76", "76"], "-41", false, ["bamboo", -410, 0, 0], ["bamboo", 0, 0, 0], true]);
 }
 
 /**

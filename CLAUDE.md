@@ -150,8 +150,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   in older poses, read as not panned sideways), at most one hardpoint
   (ring, bamboo or hashira; older poses have no bamboo or hashira; a
   bamboo is `[x, y, z, turn, length, inset]`, four numbers in older
-  poses), ropes with `l` (cinches: tied to spots on other ropes,
-  `["rope", index, segment, along]`) or `s` (see-saws),
+  poses), ropes with `l` (cinches: tied through two or more spots on
+  ropes, `["rope", index, segment, along]`, or the body, any number on a
+  rope), a rope added to another (its first point a spot on an earlier
+  rope), `k` (slack, cm) or `s` (see-saws),
   `JOINTS` and their limits (with `hips`, the pelvis's tilt, hike and
   turn, and each foot's `toes`; older poses have neither, read as at
   rest), the same as `public/js/figure-rig.js`'s and
@@ -440,8 +442,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   only: where a joint or rope point is; the Hips joint turning the pelvis
   about the point between the hip joints, and `withHips`/`withHipsOn`,
   its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a
-  cinch's ends and the upline's bend, ropes drawn in runs, hanging
-  stretches straight; three.js's math only, tested), `pose-constraints.js`
+  cinch's points pulled in and the uplines' bends, an added rope's start
+  on the rope as drawn, ropes drawn in runs, hanging stretches straight or
+  sagging with slack; three.js's math only, tested), `pose-constraints.js`
   (moving the body to keep uplines' lengths: a cinch's "Move the body",
   see-saw ropes; the drag solver's method, tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`

@@ -59,7 +59,7 @@ describe("adding a pose", () => {
     expect(Object.keys(stored.joints)).toEqual(Object.keys(JOINTS));
   });
 
-  it("keeps a bamboo's length and inset, a cinch and a see-saw, and an older bamboo as long as it was", async () => {
+  it("keeps a bamboo's length and inset, cinches, a see-saw, an added rope and slack, and an older bamboo as long as it was", async () => {
     const tie = await newTie();
     const data = {
       ...pose(), ring: null, bamboo: [0, 195, 0, 10, 120, 25],
@@ -73,8 +73,10 @@ describe("adding a pose", () => {
     const older = { ...pose(), ring: null, bamboo: [0, 195, 0, 10], ropes: [] };
     expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data: older } })).status).toBe(201);
     expect((await listOf({ tie_id: tie })).map((/** @type {any} */ d) => d.data)).toEqual([data, { ...older, bamboo: [0, 195, 0, 10, 150, 8] }]);
-    const twice = { ...data, ropes: [...data.ropes, data.ropes[2]] };
-    expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data: twice } })).status).toBe(400);
+    // A second cinch on the same ropes, a rope added to one, and slack on another.
+    const more = { ...data, ropes: [...data.ropes, data.ropes[2], { c: "black", w: 1, p: [["rope", 1, 0, 700], ["pelvis", 0, 0, 0]] },
+      { ...data.ropes[1], k: 25 }] };
+    expect((await call("/api/poses", { method: "POST", body: { tie_id: tie, data: more } })).status).toBe(201);
   });
 
   it("refuses poses that aren't in the format, and a caption that isn't encrypted", async () => {

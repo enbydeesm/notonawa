@@ -21,17 +21,18 @@ import {
   Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
 import { BONES, BODY_FILE, TURNS, readBody, bodyPositions, bindHeads, sameShape } from "./figure-body.js";
-import { ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
+import { ROPE, ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
 import { withDualQuatSkinning, toDualQuat, blendDualQuats, dqTransform } from "./pose-skinning.js";
 import {
   makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
 } from "./pose-skeleton.js";
-import { bends, ropeRuns } from "./pose-cinch.js";
+import { bends, ropeRuns, spotPoint } from "./pose-cinch.js";
 import { segmentDistance } from "./drawing-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./vendor/three.js").Object3D} Object3D */
 /** @typedef {import("./pose-format.js").Rope} Rope */
+/** @typedef {import("./pose-format.js").RopePoint} RopePoint */
 /**
  * What's under a point on the view (on the body, `point` is where in the room).
  * `bone` is the part a rope point there is on, `part` the part tapping there poses.
@@ -345,11 +346,13 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   /**
    * Shows a pose (and the rope being laid, the part being posed, the rope
    * chosen, and the parts a move is pushing into each other: orange with
-   * `warn`, as collisions are allowed, or red).
+   * `warn`, as collisions are allowed, or red), and a black dot at the spot
+   * chosen on a rope (where a cinch or an added rope goes).
    * @param {Pose} pose
-   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null, warn?: boolean }} [extras]
+   * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null, warn?: boolean,
+   *   spot?: RopePoint | null }} [extras]
    */
-  function show(pose, { laying = null, selected = null, rope = -1, clash = null, warn = false } = {}) {
+  function show(pose, { laying = null, selected = null, rope = -1, clash = null, warn = false, spot = null } = {}) {
     shown = pose;
     posed(skeleton, pose);
     fitSkin();
@@ -385,7 +388,16 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     clearRopes();
     const bent = bends(skeleton, pose);
     pose.ropes.forEach((r, i) => addRope(r, ropeRuns(skeleton, pose, i, bent), i, i === rope));
-    if (laying) addRope(laying, [laying.p.map((p) => ropePoint(skeleton, p, pose))], -1, false);
+    // A spot on a rope (a cinch's, or where an added rope starts) is where that rope's drawn.
+    const placed = (/** @type {RopePoint} */ p) => (p[0] === ROPE && pose.ropes[p[1]] ? spotPoint(skeleton, pose, p, bent) : ropePoint(skeleton, p, pose));
+    if (laying) addRope(laying, [laying.p.map(placed)], -1, false);
+    if (spot && pose.ropes[spot[1]]) {
+      const dot = new Mesh(sphere, marker);
+      dot.position.copy(placed(spot));
+      dot.scale.setScalar(2.2);
+      dot.userData.spot = true;
+      ropes.add(dot);
+    }
 
     // The camera circles a point above the floor, looking at it.
     const [yaw, pitch, distance, height, tx, tz] = pose.camera;

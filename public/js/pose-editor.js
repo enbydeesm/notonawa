@@ -54,7 +54,7 @@ import {
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
-  isCinch, isUpline, canSeesaw, setSeesaw, cinchOn, cantCinch, addCinch, setCinchLength, ropeSpot, forSaving, moveAlongBamboo,
+  isCinch, isUpline, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
@@ -63,7 +63,7 @@ import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
 import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
-import { cinchEnds, spotOn } from "./pose-cinch.js";
+import { cinchPoints, spotOn } from "./pose-cinch.js";
 import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
@@ -141,11 +141,16 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     let selected = null;
     /** The rope being laid. @type {Rope | null} */
     let laying = null;
+    /**
+     * What's being laid: a rope, a cinch (Add cinch: its points on ropes or
+     * the body, tied when finished) or a rope added to another (Add rope:
+     * its first point a spot on that one).
+     * @type {"rope" | "cinch" | "added"}
+     */
+    let layingKind = "rope";
     let erasing = false;
     /** The rope chosen (tapped in Rope mode), and where on it. @type {{ index: number, segment: number, along: number } | null} */
     let chosen = null;
-    /** A cinch being tied: its first end, waiting for the second. @type {RopePoint | null} */
-    let cinching = null;
     /**
      * "Move along bamboo": the chosen rope's point on the bamboo being slid
      * along it, which its one slider shows in place of the bamboo's.
@@ -296,23 +301,41 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     const widthButtons = WIDTHS.map((w) => toggle(`pose-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
       h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
     const eraserButton = toggle("pose-eraser", "Eraser: tap a rope to take it out", "", () => setErasing(!erasing), "Eraser");
-    const finishButton = h("button", { type: "button", className: "pose-finish", id: "pose-finish-rope", onclick: () => { endRope(); drawAll(); } }, "Finish rope");
+    const finishButton = h("button", { type: "button", className: "pose-finish", id: "pose-finish-rope", onclick: () => { endRope(true); drawAll(); } }, "Finish rope");
+    // Drops the rope, cinch or added rope being laid.
+    const cancelButton = h("button", { type: "button", className: "pose-cancel-rope", id: "pose-cancel-rope", onclick: () => {
+      cancelRope();
+      sayRope("");
+      drawAll();
+    } }, "Cancel rope");
     // The pose's hardpoint is pressed (tapping it again takes it away).
     const hardpointButtons = HARDPOINTS.map((kind) => h("button", {
       type: "button", className: "tool", id: `pose-${kind}`, "aria-pressed": "false", onclick: () => toggleHardpoint(kind),
     }, kind));
+    // The hardpoint's sliders, folded away under Hardpoint Settings until wanted.
     const hardpointSliders = h("div", { className: "pose-sliders", id: "pose-hardpoint-sliders" });
+    const hardpointFold = h("details", { className: "fold pose-hardpoint-fold", id: "pose-hardpoint-settings" },
+      h("summary", {}, "Hardpoint Settings"), hardpointSliders);
+    // The chosen rope's see-saw box, above what to do next and any message about the ropes.
+    const seesawSlot = h("div", { className: "pose-seesaw", id: "pose-seesaw-slot" });
     const ropeHint = h("p", { className: "hint", id: "pose-rope-hint" });
-    // The rope chosen: a see-saw's box, Cinch from here, a cinch's length.
+    const ropeNote = h("p", { className: "message pose-rope-note", id: "pose-rope-note", "aria-live": "polite" });
+    /** A message about the ropes, under the help. @param {string} text @param {boolean} [isError] */
+    const sayRope = (text, isError = false) => showMessage(ropeNote, text, isError);
+    // The rope chosen: Add cinch, Move on bamboo, Add rope, its slack; a cinch's length.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
-      h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton, finishButton),
+      h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton,
+        // Together at the end of the row, or together on the next if there isn't room.
+        h("span", { className: "pose-rope-ends" }, cancelButton, finishButton)),
       h("div", { className: "tool-group", role: "group", "aria-label": "Rope color" }, colorButtons),
+      seesawSlot,
       ropeHint,
+      ropeNote,
       ropeOptions,
       h("div", { className: "tool-group", role: "group", "aria-labelledby": "pose-hardpoint-label" },
         h("span", { className: "pose-row-label", id: "pose-hardpoint-label" }, "Hardpoint:"), hardpointButtons),
-      hardpointSliders);
+      hardpointFold);
 
     // --- the Pencil panel ---------------------------------------------------------
 
@@ -392,6 +415,7 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
         const clash = draft && mode === "pose" ? clashingParts(measuring, history.pose, draft, depthsBefore()) : null;
         view.show(pose, {
           laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1, clash, warn: allowCollisions,
+          spot: mode === "rope" ? chosenSpot() : null,
         });
         view.draw();
         marks.draw([...(marksShow(pose.marks, pose.camera) ? /** @type {import("./pose-marks.js").Marks} */ (pose.marks).strokes : []),
@@ -404,7 +428,7 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       // An undo can take the rope chosen away.
       if (chosen && chosen.index >= current().ropes.length) chosen = null;
       drawSoon();
-      undoButton.disabled = history.past.length === 0 && !laying?.p.length && !cinching;
+      undoButton.disabled = history.past.length === 0 && !laying?.p.length;
       redoButton.disabled = history.future.length === 0;
       drawPosePanel();
       drawRopePanel();
@@ -481,28 +505,21 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     }
 
     function doUndo() {
-      // Tying a cinch: Undo stops it.
-      if (cinching) {
-        cinching = null;
-        drawAll();
-        return;
-      }
-      // Laying a rope: the last point goes first.
+      // Laying a rope: the last point goes first (a cinch's or added rope's first, and it's stopped).
       if (laying?.p.length) {
         laying = { ...laying, p: laying.p.slice(0, -1) };
+        if (!laying.p.length && layingKind !== "rope") cancelRope();
         drawAll();
         return;
       }
       history = undo(history);
       chosen = null;
-      cinching = null;
       drawAll();
     }
 
     function doRedo() {
       history = redo(history);
       chosen = null;
-      cinching = null;
       drawAll();
     }
 
@@ -636,35 +653,21 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
         button.title = `${on ? "Remove" : "Add"} ${HARDPOINTS[i]}`;
       }
       finishButton.disabled = !laying?.p.length;
+      cancelButton.disabled = !laying;
       const rope = chosen ? pose.ropes[chosen.index] : null;
+      const points = laying?.p.length ?? 0;
+      const count = `${points} ${points === 1 ? "point" : "points"}`;
       ropeHint.textContent = erasing ? "Tap a rope to take it out."
-        : cinching ? "Now tap another upline, a rope or the body to tie the cinch to."
-          : laying?.p.length ? `Rope: ${laying.p.length} ${laying.p.length === 1 ? "point" : "points"}. Keep tapping, then Finish rope.`
-            : rope && isCinch(rope) ? "Shorten the cinch to pull the upline aside. Tap the view anywhere else to let it go."
-              : rope ? "Rope chosen. Cinch from here ties a cinch from where you tapped it. Tap anywhere else to let it go."
-                : kind === "hashira" ? "Tap the body to lay a rope, point by point. Tap the hashira to tie to it. Tap a rope to choose it."
-                  : kind ? `Tap the body to lay a rope, point by point. Tap the ${kind} for an upline. Tap a rope to choose it.`
-                    : "Tap the body to lay a rope, point by point. Add a ring, bamboo or hashira to tie to.";
+        : layingKind === "cinch" ? `Cinch: ${count}. Tap uplines, ropes or the body to tie it through, then Finish rope.`
+          : layingKind === "added" ? `Added rope: ${count}. Keep tapping, then Finish rope.`
+            : points ? `Rope: ${count}. Keep tapping, then Finish rope.`
+              : rope && isCinch(rope) ? "Shorten the cinch to pull the upline aside. Tap the view anywhere else to let it go."
+                : rope ? "Rope chosen: Add cinch or Add rope start from the dot. Tap anywhere else to let it go."
+                  : kind === "hashira" ? "Tap the body to lay a rope, point by point. Tap the hashira to tie to it. Tap a rope to choose it."
+                    : kind ? `Tap the body to lay a rope, point by point. Tap the ${kind} for an upline. Tap a rope to choose it.`
+                      : "Tap the body to lay a rope, point by point. Add a ring, bamboo or hashira to tie to.";
       if (draft) return;
       drawRopeOptions(pose);
-      // Moving along the bamboo ends when the rope's let go (or gone).
-      if (sliding && (chosen?.index !== sliding.index || pose.ropes[sliding.index]?.p[sliding.point]?.[0] !== "bamboo" || !pose.bamboo)) {
-        sliding = null;
-      }
-      if (sliding && pose.bamboo) {
-        const { index, point } = sliding;
-        const half = Math.floor(pose.bamboo[4] / 2);
-        hardpointSliders.replaceChildren(
-          slider({
-            id: "pose-along-bamboo", label: "Along the bamboo (cm)", min: -half, max: half,
-            value: Math.round(pose.ropes[index].p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
-          }),
-          h("button", { type: "button", className: "tool pose-along-done", id: "pose-along-done", onclick: () => {
-            sliding = null;
-            drawAll();
-          } }, "Done"));
-        return;
-      }
       if (!kind) {
         hardpointSliders.replaceChildren();
         return;
@@ -684,24 +687,32 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     }
 
     /**
-     * The chosen rope's options: whether it's a see-saw, Cinch from here;
-     * or a cinch's length, and whether it moves the body.
+     * The chosen rope's options: its see-saw box (above the help), Add
+     * cinch, Move on bamboo and Add rope in fixed places, the slider for
+     * sliding it along the bamboo, its slack; or a cinch's length, and
+     * whether it moves the body.
      * @param {Pose} pose
      */
     function drawRopeOptions(pose) {
       const rope = chosen ? pose.ropes[chosen.index] : null;
-      if (!chosen || !rope) {
+      // Sliding along the bamboo ends when the rope's let go (or gone).
+      if (sliding && (chosen?.index !== sliding.index || pose.ropes[sliding.index]?.p[sliding.point]?.[0] !== "bamboo" || !pose.bamboo)) {
+        sliding = null;
+      }
+      if (!chosen || !rope || laying) {
+        seesawSlot.replaceChildren();
         ropeOptions.replaceChildren();
         return;
       }
       const index = chosen.index;
       if (isCinch(rope)) {
+        seesawSlot.replaceChildren();
         posed(measuring, pose);
-        const gap = Math.max(1, Math.round(cinchEnds(measuring, pose, index).gap));
+        const span = Math.max(1, Math.round(cinchPoints(measuring, pose, index).span));
         const still = !!rope.still;
         ropeOptions.replaceChildren(
           h("div", { className: "pose-sliders" }, slider({
-            id: "pose-cinch-length", label: "Cinch length (cm)", min: 0, max: gap, value: Math.min(/** @type {number} */ (rope.l), gap),
+            id: "pose-cinch-length", label: "Cinch length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
             apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
           })),
           checkbox("pose-cinch-body", "Move the body", !still, (on) => commit({
@@ -714,25 +725,47 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
         return;
       }
       const top = rope.p.find((p) => p[0] === "ring" || p[0] === "bamboo")?.[0] ?? "hardpoint";
-      const cinched = cinchOn(pose, index) >= 0;
+      seesawSlot.replaceChildren(...(canSeesaw(rope)
+        ? [checkbox("pose-seesaw", `See-saw: runs over the ${top}`, !!rope.s, (on) => commit(setSeesaw(history.pose, index, on)))] : []));
       const onBamboo = bambooEnd(rope, chosen.segment);
-      ropeOptions.replaceChildren(...[
-        canSeesaw(rope) ? checkbox("pose-seesaw", `See-saw: runs over the ${top}`, !!rope.s, (on) => commit(setSeesaw(history.pose, index, on))) : null,
-        h("div", { className: "tool-group" },
-          h("button", {
-            type: "button", className: "tool", id: "pose-cinch-start", disabled: cinched,
-            title: cinched ? "This rope has a cinch already" : "Tie a cinch from where you tapped the rope", onclick: startCinch,
-          }, "Cinch from here"),
-          onBamboo >= 0 ? h("button", {
-            type: "button", className: "tool", id: "pose-along-start", "aria-pressed": String(sliding?.index === index),
-            title: "Slide where it's tied along the bamboo", onclick: () => {
-              sliding = sliding?.index === index ? null : { index, point: onBamboo };
-              drawAll();
-            },
-          }, "Move along bamboo") : null),
-        cinched ? h("p", { className: "hint" }, "This rope has a cinch already: erase it to tie another.")
-          : !isUpline(rope) ? h("p", { className: "hint" }, "Its other end goes on an upline.") : null,
-      ].filter((el) => el !== null));
+      /** @type {HTMLElement[]} */
+      const rows = [h("div", { className: "pose-rope-actions" },
+        h("button", {
+          type: "button", className: "tool pose-add-cinch", id: "pose-cinch-start",
+          title: "Tie a cinch from the dot, through uplines, ropes or the body", onclick: startCinch,
+        }, "Add cinch"),
+        onBamboo >= 0 ? h("button", {
+          type: "button", className: "tool pose-move-bamboo", id: "pose-along-start", "aria-pressed": String(sliding?.index === index),
+          title: "Slide where it's tied along the bamboo", onclick: () => {
+            sliding = sliding?.index === index ? null : { index, point: onBamboo };
+            drawAll();
+          },
+        }, "Move on bamboo") : null,
+        h("button", {
+          type: "button", className: "tool pose-add-rope", id: "pose-added-start",
+          title: "Start a new rope tied on at the dot", onclick: startAdded,
+        }, "Add rope"))];
+      if (sliding && pose.bamboo) {
+        const { point } = sliding;
+        const half = Math.floor(pose.bamboo[4] / 2);
+        rows.push(h("div", { className: "pose-sliders" },
+          slider({
+            id: "pose-along-bamboo", label: "Along the bamboo (cm)", min: -half, max: half,
+            value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
+          }),
+          h("button", { type: "button", className: "tool pose-along-done", id: "pose-along-done", onclick: () => {
+            sliding = null;
+            drawAll();
+          } }, "Done")));
+      }
+      // An upline can be given slack: its hanging stretches sag (drawn only).
+      if (isUpline(rope)) {
+        rows.push(h("div", { className: "pose-sliders" }, slider({
+          id: "pose-slack", label: "Slack (cm)", min: SLACK_RANGE[0], max: SLACK_RANGE[1], value: rope.k ?? 0,
+          apply: (p, v) => setSlack(p, index, v),
+        })));
+      }
+      ropeOptions.replaceChildren(...rows);
     }
 
     /**
@@ -757,13 +790,44 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       return h("label", { className: "pose-check", htmlFor: id }, box, label);
     }
 
-    /** "Cinch from here": the cinch's first end, where the rope chosen was tapped. */
+    /** The spot chosen on a rope (the dot), or a cinch's or added rope's first point while it's laid. @returns {RopePoint | null} */
+    function chosenSpot() {
+      if (laying && layingKind !== "rope") return laying.p[0] ?? null;
+      if (!chosen) return null;
+      return isCinch(current().ropes[chosen.index]) ? null : ropeSpot(chosen.index, chosen.segment, chosen.along);
+    }
+
+    /** "Add cinch": a cinch laid from the dot, point by point, tied when finished. */
     function startCinch() {
       if (!chosen) return;
-      cinching = ropeSpot(chosen.index, chosen.segment, chosen.along);
+      laying = { c: color, w: width, p: [ropeSpot(chosen.index, chosen.segment, chosen.along)] };
+      layingKind = "cinch";
       chosen = null;
-      say("");
+      sliding = null;
+      sayRope("");
       drawAll();
+    }
+
+    /** "Add rope": a new rope tied on at the dot, laid as any rope is. */
+    function startAdded() {
+      if (!chosen) return;
+      const problem = cantAddTo(history.pose, chosen.index);
+      if (problem) {
+        sayRope(problem, true);
+        return;
+      }
+      laying = { c: color, w: width, p: [ropeSpot(chosen.index, chosen.segment, chosen.along)] };
+      layingKind = "added";
+      chosen = null;
+      sliding = null;
+      sayRope("");
+      drawAll();
+    }
+
+    /** Drops what's being laid. */
+    function cancelRope() {
+      laying = null;
+      layingKind = "rope";
     }
 
     // --- modes and tools -------------------------------------------------------
@@ -773,7 +837,6 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       if (next !== "rope") {
         endRope();
         chosen = null;
-        cinching = null;
       }
       mode = next;
       poseTab.setAttribute("aria-pressed", String(mode === "pose"));
@@ -822,7 +885,6 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       if (on) {
         endRope();
         chosen = null;
-        cinching = null;
       }
       erasing = on;
       for (const [i, button] of colorButtons.entries()) button.setAttribute("aria-pressed", String(!on && COLORS[i] === color));
@@ -832,13 +894,40 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       drawAll();
     }
 
-    /** Ends the rope being laid: it's a change if it has two points or more. */
-    function endRope() {
+    /**
+     * Ends the rope being laid: it's a change if it has two points or more.
+     * A cinch is tied, taut (as long as its line), and chosen, to be
+     * shortened; one that can't be is kept to go on with when Finish rope
+     * was tapped, or dropped (leaving Rope mode, say).
+     * @param {boolean} [asked] Finish rope was tapped
+     */
+    function endRope(asked = false) {
       if (!laying) return;
       const rope = laying;
-      laying = null;
+      const kind = layingKind;
+      if (kind === "cinch") {
+        const problem = cantCinch(history.pose, rope.p);
+        if (problem) {
+          if (asked) {
+            sayRope(problem, true);
+            return;
+          }
+          cancelRope();
+          sayRope("That cinch wasn't finished, so it was left out.");
+          return;
+        }
+        cancelRope();
+        const taut = addCinch(history.pose, { c: rope.c, w: rope.w }, rope.p, 0);
+        const index = taut.ropes.length - 1;
+        posed(measuring, taut);
+        commit(setCinchLength(taut, index, Math.round(cinchPoints(measuring, taut, index).span)));
+        chosen = { index, segment: 0, along: 0.5 };
+        sayRope("Cinch tied. Shorten it to pull the upline aside.");
+        return;
+      }
+      cancelRope();
       if (rope.p.length >= 2) commit(finishRope(history.pose, rope));
-      else if (rope.p.length === 1) say("A rope needs two points or more, so that one was left out.");
+      else if (rope.p.length === 1) sayRope("A rope needs two points or more, so that one was left out.");
     }
 
     /**
@@ -849,7 +938,6 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     async function toggleHardpoint(kind) {
       endRope();
       chosen = null;
-      cinching = null;
       const now = hardpointOf(history.pose);
       const next = now === kind ? null : kind;
       const lost = hardpointPointsLost(history.pose, next);
@@ -919,8 +1007,9 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
         if (hit?.kind === "rope") commit(removeRope(history.pose, hit.index));
         return;
       }
-      if (cinching) {
-        tieCinch(cinching, view.pick(x, y, { ropes: true }));
+      // Laying a cinch: a rope tapped is a spot on it, the body a point on it.
+      if (laying && layingKind === "cinch") {
+        addCinchPoint(view.pick(x, y, { ropes: true }));
         return;
       }
       // Not laying a rope: tapping one chooses it (and tapping it again,
@@ -930,7 +1019,7 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
         if (onRope?.kind === "rope") {
           posed(measuring, history.pose);
           chosen = chosen?.index === onRope.index ? null : { index: onRope.index, ...spotOn(measuring, history.pose, onRope.index, onRope.point) };
-          say("");
+          sayRope("");
           drawAll();
           return;
         }
@@ -944,49 +1033,43 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       if (!hit || hit.kind === "rope") return;
       const problem = cantAdd(history.pose, laying);
       if (problem) {
-        say(problem, true);
+        sayRope(problem, true);
         return;
       }
       const point = hit.kind === "ring" ? RING_POINT
         : hit.kind === "bamboo" ? bambooPoint(hit.along, /** @type {number[]} */ (history.pose.bamboo)[4])
           : hit.kind === "hashira" ? hashiraPoint(hit.mm) : bonePoint(hit.bone, hit.mm);
       laying = addPoint(laying ?? { c: color, w: width, p: [] }, point);
-      say("");
+      sayRope("");
       drawAll();
     }
 
     /**
-     * Ties the cinch being started to what was tapped (another rope, or
-     * the body), as long as the gap between its ends: taut, to be shortened.
-     * @param {RopePoint} from its first end
+     * The next point of the cinch being laid: a spot on the rope tapped
+     * (where it's drawn, nearest the tap), or a point on the body.
      * @param {import("./pose-scene.js").Hit | null} hit
      */
-    function tieCinch(from, hit) {
+    function addCinchPoint(hit) {
+      if (!laying) return;
       /** @type {RopePoint | null} */
-      let to = null;
+      let point = null;
       if (hit?.kind === "rope") {
         posed(measuring, history.pose);
         const { segment, along } = spotOn(measuring, history.pose, hit.index, hit.point);
-        to = ropeSpot(hit.index, segment, along);
+        point = ropeSpot(hit.index, segment, along);
       } else if (hit?.kind === "body") {
-        to = bonePoint(hit.bone, hit.mm);
+        point = bonePoint(hit.bone, hit.mm);
+      } else if (hit) {
+        point = hit.kind === "ring" ? RING_POINT : hit.kind === "bamboo" ? ["bamboo", 0, 0, 0] : ["hashira", 0, 0, 0];
       }
-      if (!to) {
-        say("Tap another upline, a rope or the body to tie the cinch to.", true);
-        return;
-      }
-      const problem = cantCinch(history.pose, from, to);
+      if (!point) return;
+      const problem = cantCinchAt(history.pose, point) ?? cantAdd(history.pose, laying);
       if (problem) {
-        say(problem, true);
+        sayRope(problem, true);
         return;
       }
-      cinching = null;
-      const taut = addCinch(history.pose, { c: color, w: width }, from, to, 0);
-      const index = taut.ropes.length - 1;
-      posed(measuring, taut);
-      commit(setCinchLength(taut, index, Math.round(cinchEnds(measuring, taut, index).gap)));
-      chosen = { index, segment: 0, along: 0.5 };
-      say("Cinch tied. Shorten it to pull the upline aside.");
+      laying = addPoint(laying, point);
+      sayRope("");
       drawAll();
     }
 

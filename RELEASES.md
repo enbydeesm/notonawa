@@ -11,6 +11,10 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
+- Ropes in the poser: tie more than one cinch on an upline, cinch an upline to itself, and tap back and forth to make a cinch through several points before Finish rope.
+- Add rope starts a new rope from the spot you tapped on another rope. A black dot shows the spot.
+- Give an upline slack to make it sag. Cancel rope drops the rope you're laying.
+- The hardpoint's sliders are folded under Hardpoint Settings.
 - Tap the toes to bend them up or down at the ball of the foot, and point the ankle further, for a "Barbie foot".
 - The back bends further back, and the hips can tilt, hike and turn, keeping the legs where they were.
 - Dragging an arm or leg further than it can go brings the body along: the hips tilt to lift a leg higher, and the chest leans to reach further.
