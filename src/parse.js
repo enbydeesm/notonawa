@@ -13,6 +13,15 @@ export function cleanText(value) {
 // An encrypted field as the browser seals it (public/js/crypto/fields.js;
 // a unit test keeps the two in step): "e1.", a 12-byte IV, ".", and the
 // ciphertext with its 16-byte tag, base64url.
+/**
+ * A version of the app, as scripts/releases-lib.mjs writes them: a deploy's
+ * UTC date and time (2026.10.28.2104), or, in older ones, a release's
+ * number that day (2026.10.19.001). The feedback form sends the page's,
+ * and What's new saves the last one seen. Kept the same as releases-lib's
+ * VERSION_FORMAT by a unit test.
+ */
+export const APP_VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.(\d{3}|\d{4})$/;
+
 const ENCRYPTED_FORMAT = /^e1\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{22,}$/;
 export const MAX_ENCRYPTED_LENGTH = 100_000;
 

@@ -11,6 +11,9 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 
+## Next
+- Bug and feedback sends again: since the app's new version numbers, it was refusing to.
+
 ## 2026.10.31.0124
 A new rope icon and lots more model poser updates!
 - The figure is now a realistic body that bends at the joints like a human person theoretically does.

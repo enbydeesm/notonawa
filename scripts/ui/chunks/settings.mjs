@@ -146,7 +146,7 @@ export default async function () {
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
     await closeDiscarding("#tie-close"); await wait(300);
     return [saved, tieRoles];`),
-    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION, hide_welcome: true }],
+    [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }],
       ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
   await go("/analytics");
   check("…the Analytics role filter and numbers", await run(`
@@ -155,7 +155,7 @@ export default async function () {
   check("blank names go back to top and bottom", await run(`
     ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await wait(1200);
     return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
-    [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true }, ["As top", "As bottom"]]);
+    [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }, ["As top", "As bottom"]]);
   // Back to dark, the default.
   await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
