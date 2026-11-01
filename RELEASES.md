@@ -10,7 +10,7 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
+## 2026.11.01.2141
 - Ropes in the poser: tie more than one cinch on an upline, cinch an upline to itself, and tap back and forth to make a cinch through several points before Finish rope.
 - Add rope starts a new rope from the spot you tapped on another rope. A black dot shows the spot.
 - Give an upline slack to make it sag. Cancel rope drops the rope you're laying.

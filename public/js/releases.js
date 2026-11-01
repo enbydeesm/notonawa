@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.10.31.0137";
+export const APP_VERSION = "2026.11.01.2141";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,22 @@ export const APP_VERSION = "2026.10.31.0137";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.11.01.2141",
+    "notes": [
+      "Ropes in the poser: tie more than one cinch on an upline, cinch an upline to itself, and tap back and forth to make a cinch through several points before Finish rope.",
+      "Add rope starts a new rope from the spot you tapped on another rope. A black dot shows the spot.",
+      "Give an upline slack to make it sag. Cancel rope drops the rope you're laying.",
+      "The hardpoint's sliders are folded under Hardpoint Settings.",
+      "Barbie Foot! Tap the toes to bend them up or down at the ball of the foot.",
+      "The back bends further back, and the hips can tilt, hike and turn, keeping the legs where they were.",
+      "\"Allow collisions\", bottom right of the poser's view, is on to begin with: body parts can move into each other, turning orange while they do. Turn it off to keep parts apart (they turn red, and settle when you let go), and choose to fix any collisions left or leave them until you move those parts again. Either way, joints only bend as far as a body can.",
+      "Drag the head up or down to lift or lower the whole body, as the Height slider does. A hint at the bottom left of the view says so.",
+      "The feet follow gravity: as the body lifts or a leg bends, a foot rises onto its ball with the toes still on the floor, then points en pointe once it leaves the floor. Back down, it lands flat. Its ankle and toes are yours to set while it's in the air.",
+      "The poser has its own button in the top bar, after Education. Opened from there, Save pose and Add to visuals ask which tie, plan or workshop to put it on: search all three at once, or tap the one you used last, at the top of the list. Or make a new one: its form opens with the pose already in it, ready to save.",
+      "Bug and feedback sends again: since the app's new version numbers, it was refusing to."
+    ]
+  },
   {
     "version": "2026.10.31.0124",
     "intro": [
