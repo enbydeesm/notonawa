@@ -5,13 +5,12 @@
 // The form warns not to put journal details in them.
 
 import { BadInput } from "../http.js";
+import { APP_VERSION_FORMAT } from "../parse.js";
 
 export const FEEDBACK_KINDS = ["bug", "idea"];
 export const MAX_FEEDBACK_LENGTH = 2000;
 /** How many anyone can send in a day, so a stuck button can't fill the table. */
 export const FEEDBACK_PER_DAY = 10;
-/** A release's version, as scripts/releases-lib.mjs writes them. */
-const VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
 
 /**
  * @typedef {{ kind: string, message: string, app_version: string }} Feedback
@@ -20,7 +19,7 @@ const VERSION_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.\d{3}$/;
 /**
  * The body of POST /api/feedback: kind ("bug" or "idea"), message (up to
  * MAX_FEEDBACK_LENGTH characters) and app_version (the version the page is
- * running, e.g. 2026.10.20.001).
+ * running, e.g. 2026.10.31.0137, or 2026.10.20.001 in older ones).
  * @param {Record<string, unknown>} body
  * @returns {Feedback}
  */
@@ -33,7 +32,7 @@ export function parseFeedback(body) {
   if (message.length > MAX_FEEDBACK_LENGTH) {
     throw new BadInput(`Keep it to ${MAX_FEEDBACK_LENGTH} characters or fewer.`);
   }
-  if (typeof body.app_version !== "string" || !VERSION_FORMAT.test(body.app_version)) {
+  if (typeof body.app_version !== "string" || !APP_VERSION_FORMAT.test(body.app_version)) {
     throw new BadInput("That isn't a version of the app.");
   }
   return { kind: body.kind, message, app_version: body.app_version };

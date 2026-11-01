@@ -22,6 +22,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Every joint bends further, for a flexible person.
 - The poser has its own button in the top bar, after Education. Opened from there, Save pose and Add to visuals ask which tie, plan or workshop to put it on: search all three at once, or tap the one you used last, at the top of the list. Or make a new one: its form opens with the pose already in it, ready to save.
 - On tie, plan and workshop cards, "Open album" is now on the right of the photo count.
+- Bug and feedback sends again: since the app's new version numbers, it was refusing to.
 
 ## 2026.10.31.0124
 A new rope icon and lots more model poser updates!

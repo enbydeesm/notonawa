@@ -11,13 +11,11 @@
 // before the journal is unlocked.
 
 import { BadInput } from "../http.js";
-import { cleanText } from "../parse.js";
+import { cleanText, APP_VERSION_FORMAT } from "../parse.js";
 import { SHAPE_RANGES } from "../poses/parse.js";
 
 export const THEMES = ["light", "dark"];
 export const MAX_ROLE_NAME = 24;
-/** A version, as scripts/releases-lib.mjs writes them: a deploy's UTC date and time (2026.10.28.2104), or a release's number that day in older ones (2026.10.19.001). */
-const RELEASE_FORMAT = /^\d{4}\.\d{2}\.\d{2}\.(\d{3}|\d{4})$/;
 /** Words a role name can't be, as they'd be confused with another role. */
 const OTHER_ROLES = ["self tie", "spotter", "photographer"];
 
@@ -50,7 +48,7 @@ export function parseSettings(body, current) {
     change.theme = body.theme;
   }
   if (body.seen_release !== undefined) {
-    if (typeof body.seen_release !== "string" || !RELEASE_FORMAT.test(body.seen_release)) {
+    if (typeof body.seen_release !== "string" || !APP_VERSION_FORMAT.test(body.seen_release)) {
       throw new BadInput("That isn't a version of the app.");
     }
     change.seen_release = body.seen_release;
