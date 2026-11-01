@@ -386,6 +386,33 @@ dialog.preset-picker.searchable[open] {
 .copy-target .item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .copy-target .item-meta { flex: none; }
 
+/* "Add pose to…" (the poser on its own): the poser's icon by the heading,
+   one search over ties, plans and workshops, chips for one kind, and rows
+   marked with each kind's tab icon; + Tie, + Plan and + Workshop below,
+   side by side, or one under another when they'd be called what's typed. */
+.add-to-head { display: flex; align-items: center; gap: 10px; }
+.add-to-head h2 { margin: 0; }
+.add-to-icon { flex: none; width: 32px; height: 32px; color: var(--muted); }
+.add-to-filters { margin-top: 10px; }
+.add-to-label { margin: 14px 0 4px; color: var(--muted); font-size: 0.85rem; }
+.add-to-label[hidden] { display: none; }
+.add-to-list { display: flex; flex-direction: column; gap: 6px; }
+.add-to-row { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px; }
+.add-to-row svg, .add-to-make svg { flex: none; width: 20px; height: 20px; color: var(--muted); }
+.add-to-row .item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-to-row .item-meta { flex: none; }
+.add-to-row .badge { flex: none; margin-left: 0; }
+.add-to-new { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
+.add-to-new.named { grid-template-columns: 1fr; }
+.add-to-make { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; }
+.add-to-new.named .add-to-make { justify-content: flex-start; }
+.add-to-plus { font-weight: 600; }
+/* A new tie, plan or workshop from the poser, until it's saved. */
+.unsaved-bar {
+  margin: 0 0 12px; padding: 8px 12px; border-radius: 8px;
+  background: var(--line); color: var(--text); font-size: 0.9rem; font-weight: 600;
+}
+
 /* A video's playback speeds: a row of small buttons, the chosen one filled. */
 .speeds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .speeds .hint { margin: 0 4px 0 0; }

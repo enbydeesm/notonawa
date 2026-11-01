@@ -1835,10 +1835,10 @@ about 6 minutes, too slow to run after every change.
   match (a shoulder twists ±110° low, an arm swings back 90°, a leg goes
   out 120° forward and 60° behind; hip and knee twists 80° together).
 - **The poser in the nav**, after Education: a button (it opens a dialog
-  over the view, as + does), disabled while locked. Opened there it has
-  nothing to save to, so Add to visuals and Save pose are greyed out and
-  Cancel is Close; Download still works. Asking which tie, plan or
-  workshop it's for is for later.
+  over the view, as + does), disabled while locked. Cancel is Close;
+  Download still works. (At first it had nothing to save to, so Add to
+  visuals and Save pose were greyed out: now they ask where, see "Poser:
+  "Add pose to…", from the nav's poser" below.)
 
 ## Poser: the account's default body (October 2026)
 
@@ -1978,6 +1978,48 @@ about 6 minutes, too slow to run after every change.
   together, on the next row if there isn't room), the hardpoint's sliders
   folded under Hardpoint Settings. Body shape's buttons are as tall as its
   heading.
+
+## Poser: "Add pose to…", from the nav's poser (October 2026)
+
+**Status:** built (2026-10-31, on the `anny-body` branch)
+
+- **Opened from the nav**, Save pose and Add to visuals ask where the pose
+  (or a picture of it, as a photo) goes: one sheet, "Add pose to…"
+  (`add-to-picker.js`), with the poser's icon by the heading. Opened from
+  a tie, plan or workshop's "Add a visual from…", nothing changes: it
+  adds to that one.
+- **One search over ties, plans and workshops**, rather than choosing
+  the kind first: people remember a name more than which list it's in.
+  Chips (All, Ties, Plans, Workshops) narrow it, All to start; the chip
+  chosen is kept until the journal locks. Each row has its tab's icon and
+  its kind. Without a search, Recent: the most recently changed first
+  (ties' search now returns `updated_at` for this), and the one added to
+  last always at the top, so adding several poses to the same one is a
+  tap each. Kept in memory only, forgotten on lock (`add-to-choices.js`
+  is the pure part).
+- **Making a new one** is at the bottom: + Tie, + Plan, + Workshop, each
+  with its icon. When what's typed matches no title exactly, it reads
+  "Create "…" as a new…" and the new one is called that.
+- **On one already there**, the pose or picture is saved at once and the
+  poser stays open, saying where it went; Close only asks if the pose has
+  changed since it was last saved or added.
+- **A new one opens its own form** (`new-entry-start.js`), the name
+  filled in and the pose waiting in its Visuals like any visual added to a
+  new item, with "Not saved yet. Save this … to keep the pose." at the top,
+  and closing it asks "Discard this new …?" even with nothing else changed
+  (`unsaved` in `form-changes.js`). Ties and workshops open over the poser,
+  which is still there after; a plan's form lives on the Plans view, so a
+  new plan goes there (`handPlanOver`), which closes the poser.
+- **Drafts saved in the database were weighed and not built**: a tie needs
+  a type and a workshop a start date (the API, and for ties triggers,
+  refuse one without), so a draft would mean loosening those, then
+  keeping drafts out of the lists, Calendar, Analytics, search, export,
+  import and shares. The form holding the pose until it's saved, and
+  asking before it's closed, covers the same worry, except the app being
+  closed part-way.
+- **Considered**: three new-item forms inside the sheet (three forms to
+  keep in step with the real ones), and choosing the kind first (an extra
+  step, and the wrong list when you're not sure).
 
 ## Sharing between accounts (October 2026)
 

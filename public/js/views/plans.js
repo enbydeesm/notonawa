@@ -7,6 +7,8 @@
 import { h, $, showMessage } from "../dom.js";
 import { choose } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
+import { takeHandedPlan } from "../new-entry-start.js";
+import { PLAN_SAVED } from "../nav.js";
 import { ratingField, ratingHanks } from "../rope-rating.js";
 import { pickTags } from "../tag-picker.js";
 import { TIE_TYPES } from "../ties-view.js";
@@ -198,6 +200,11 @@ export function mount(_root, { signal }) {
   });
 
   $("#add-plan").addEventListener("click", () => page.add(), { signal });
+  // A new plan from the poser on its own ("Add pose to…"), with its pose.
+  const fromPoser = takeHandedPlan();
+  if (fromPoser) page.add(fromPoser);
+  // A plan's pose added from the poser opened on its own.
+  document.addEventListener(PLAN_SAVED, () => page.reload(), { signal });
 
   // The search's inputs. Types are fixed lists, so their ids are the values.
   /** @type {HTMLInputElement} */

@@ -120,13 +120,18 @@ let allowCollisions = true;
  * Opens the poser on a pose (or a new one, standing, in the account's
  * default body if one's saved).
  * @param {Pose | null} start
- * @param {{ addToVisuals?: (picture: Blob) => Promise<void>, standalone?: boolean }} [options] addToVisuals:
+ * @param {{
+ *   addToVisuals?: (picture: Blob) => Promise<void>,
+ *   standalone?: boolean,
+ *   place?: (placing: { pose: Pose } | { picture: Blob }, busy: () => void) => Promise<{ text: string, saved: boolean } | null>,
+ * }} [options] addToVisuals:
  *   puts a picture of the pose (a PNG) into the item's visuals (the button's left out without it);
- *   standalone: opened on its own (the nav's button), not from an item, so there's nowhere to
- *   save it: Add to visuals and Save pose show, greyed out, and Cancel is Close
- * @returns {Promise<Pose | null>} the new pose, or null if cancelled
+ *   standalone: opened on its own (the nav's button), not from an item: Cancel is Close, and
+ *   Save pose and Add to visuals ask place where to put the pose or its picture
+ *   (standalone-poser.js; it calls busy once it's chosen, while it saves), staying open after
+ * @returns {Promise<Pose | null>} the new pose, or null if cancelled (always null standalone)
  */
-export async function editPose(start, { addToVisuals, standalone = false } = {}) {
+export async function editPose(start, { addToVisuals, standalone = false, place } = {}) {
   /** The body new poses start with (null: the in-between one). @type {Shape | null} */
   let defaultShape = (await loadSettings().catch(() => null))?.default_shape ?? null;
   const fresh = () => (defaultShape ? withShape(makeSkeleton(), newPose(), defaultShape) : newPose());
@@ -209,13 +214,10 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     const undoButton = iconButton("pose-undo", "Undo", "undo", doUndo);
     const redoButton = iconButton("pose-redo", "Redo", "redo", doRedo);
     const downloadButton = iconButton("pose-download", "Download picture", "download", download);
-    // Opened on its own, Add to visuals is there, greyed out, until the
-    // poser can ask which tie, plan or workshop it's for (roadmap.md).
-    const addVisualButton = addToVisuals || standalone
-      ? h("button", {
-        type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture, disabled: standalone,
-        title: standalone ? "Open the poser from a tie, plan or workshop to add a picture to its visuals" : undefined,
-      }, "Add to visuals") : null;
+    // Opened on its own, Add to visuals asks which tie, plan or workshop
+    // the picture's for ("Add pose to…").
+    const addVisualButton = addToVisuals || (standalone && place)
+      ? h("button", { type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture }, "Add to visuals") : null;
     const viewMenu = h("select", { id: "pose-view-choice", className: "tool pose-view-menu", "aria-label": "View from", onchange: () => {
       const chosen = VIEWS[Number(viewMenu.value)];
       viewMenu.value = "";
@@ -371,8 +373,7 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       h("div", { className: "drawing-actions" },
         h("button", { type: "button", id: "pose-cancel", onclick: cancel }, standalone ? "Close" : "Cancel"),
         h("button", {
-          type: "button", className: "primary", id: "pose-save", onclick: save, disabled: standalone,
-          title: standalone ? "Open the poser from a tie, plan or workshop to save a pose on it" : undefined,
+          type: "button", className: "primary", id: "pose-save", onclick: save, disabled: standalone && !place,
         }, "Save pose")));
 
     dialog.addEventListener("cancel", (event) => {
@@ -963,9 +964,22 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     }
 
     let adding = false;
+    /**
+     * Opened on its own: the pose as it was when last put somewhere (Save
+     * pose, or Add to visuals for its picture), so Close only asks when
+     * it's changed since.
+     * @type {Pose | null}
+     */
+    let placedPose = null;
+
     /** "Add to visuals": a picture of the pose as it is now. */
     async function addPicture() {
-      if (!addToVisuals || adding) return;
+      if (adding) return;
+      if (standalone && place) {
+        await placeIt(async () => ({ picture: await picture() }), "Adding a picture to the visuals…");
+        return;
+      }
+      if (!addToVisuals) return;
       adding = true;
       /** @type {HTMLButtonElement} */ (addVisualButton).disabled = true;
       try {
@@ -977,6 +991,32 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
       } finally {
         adding = false;
         /** @type {HTMLButtonElement} */ (addVisualButton).disabled = false;
+      }
+    }
+
+    /**
+     * Opened on its own: asks where to put the pose or its picture, and
+     * says how it went, the poser staying open.
+     * @param {() => Promise<{ pose: Pose } | { picture: Blob }>} make
+     * @param {string} working what to say while it's saved
+     */
+    async function placeIt(make, working) {
+      if (!place || adding) return;
+      adding = true;
+      const buttons = [addVisualButton, /** @type {HTMLButtonElement | null} */ (dialog.querySelector("#pose-save"))];
+      for (const b of buttons) if (b) b.disabled = true;
+      try {
+        const pose = history.pose;
+        const placing = await make();
+        const placed = await place(placing, () => say(working));
+        if (!dialog.open) return; // gone to a new plan's form
+        say(placed?.text ?? "", placed ? !placed.saved : false);
+        if (placed?.saved) placedPose = pose;
+      } catch (err) {
+        if (dialog.open) say("Couldn't save it: " + (err instanceof Error ? err.message : String(err)), true);
+      } finally {
+        adding = false;
+        for (const b of buttons) if (b) b.disabled = false;
       }
     }
 
@@ -1273,10 +1313,13 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     // --- leaving -----------------------------------------------------------------
 
     async function cancel() {
-      if (history.past.length > 0 || laying?.p.length) {
+      const unchanged = standalone ? history.pose === placedPose || (!placedPose && history.past.length === 0) : history.past.length === 0;
+      if (!unchanged || laying?.p.length) {
         const choice = await choose(standalone ? {
           title: "Close the poser?",
-          message: "A pose made here isn't saved yet: Download keeps a picture of it.",
+          message: placedPose
+            ? "What you've changed since you last saved or added it isn't saved: Save pose or Add to visuals keeps it."
+            : "This pose isn't saved yet: Save pose or Add to visuals keeps it, and Download keeps a picture of it.",
           choices: [{ label: "Close", value: "discard", style: "solid-danger" }],
         } : {
           title: "Discard your changes?",
@@ -1289,7 +1332,11 @@ export async function editPose(start, { addToVisuals, standalone = false } = {})
     }
 
     function save() {
-      if (standalone) return;
+      if (standalone) {
+        endRope();
+        placeIt(async () => ({ pose: forSaving(history.pose) }), "Saving the pose…");
+        return;
+      }
       endRope();
       result = forSaving(history.pose);
       dialog.close();

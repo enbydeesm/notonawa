@@ -454,7 +454,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   dialog like the drawing pad, with Pose, Rope and pencil modes and ▲▼
   beside each slider; "Add to visuals" puts a picture of the pose, with
   any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
-  (poses: the poser, their pictures, and the viewer), `import-poses.js`
+  (poses: the poser, their pictures, and the viewer),
+  `standalone-poser.js` (the poser opened from the nav: Save pose and Add
+  to visuals ask where, through `add-to-picker.js` ("Add pose to…": one
+  search over ties, plans and workshops, chips, the one added to last
+  first, + Tie / Plan / Workshop; kept in memory, forgotten on lock) and
+  `add-to-choices.js` (pure: what it lists, when to offer a new one called
+  what's typed, the new item's words); saved at once on one there already,
+  the poser staying open; a new one's form opens through
+  `new-entry-start.js` with the name and the pose waiting in its Visuals,
+  "Not saved yet" at the top and closing asking first (a new plan goes to
+  the Plans view, `handPlanOver`)), `item-targets.js` (loading the ties,
+  plans and workshops to choose from, for it and Copy to…), `import-poses.js`
   (pure: an import's poses), `pose-presets.js` (my saved presets: read
   once, names opened, dropped on lock; saving, renaming, saving over,
   deleting), `pose-presets-ui.js` (naming one), `preset-picker.js` (the
@@ -469,7 +480,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   over the form, not a view, so the form isn't closed), `drawings-ui.js`
   (drawings: the drawing pad, and the viewer's Edit, Duplicate, Copy to…;
   `saveDrawing`), `drawing-copy.js` (Copy to…'s
-  picker of ties, plans and workshops), `import-drawings.js` (pure: an
+  picker of ties, plans and workshops, loaded by `item-targets.js`), `import-drawings.js` (pure: an
   import's drawings, taken off and saved once the rest is),
   `vendor/` (libraries copied from node_modules by
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them; three.js
@@ -486,7 +497,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   an edit form has changes since it opened: editing a saved tie, plan,
   person, location or workshop, Save changes is muted and does nothing until
   it has (a new one's Save stays on); ✕ and Esc ask "Discard your
-  changes?" first, `guardClose`),
+  changes?" first, `guardClose`; `unsaved`: a new item from the nav's
+  poser counts as changed until it's saved, and asks its own question),
   `format.js`, `ties-view.js` and `tie-search.js` (pure; the Ties,
   Plans and Education searches show only the keyword, the rest folded
   under "More options", a `details.fold` like a plan's Linked ties; Ties
@@ -496,8 +508,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `nav.js` (the tabs, as icons with their
   names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
   Analytics, Education (`CAP_PATHS`, the cap, also on People's educators),
-  then the poser's button (the poser on its own, `standalone`: Add to
-  visuals and Save pose greyed out; disabled while locked),
+  then the poser's button (the poser on its own, `standalone-poser.js`:
+  Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
   data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `person-rows.js` (a form's

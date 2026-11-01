@@ -20,7 +20,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Dragging an arm or leg further than it can go brings the body along: the hips tilt to lift a leg higher, and the chest leans to reach further.
 - "Allow collisions", bottom right of the poser's view, is on to begin with: body parts go wherever you put them, turning orange while they move into each other. Turn it off to keep parts apart (they turn red, and settle when you let go), and choose to fix any collisions left or leave them until you move those parts again.
 - Every joint bends further, for a flexible person.
-- The poser has its own button in the top bar, after Education. Opened from there, a pose can't be saved or added to visuals yet, but you can download a picture of it.
+- The poser has its own button in the top bar, after Education. Opened from there, Save pose and Add to visuals ask which tie, plan or workshop to put it on: search all three at once, or tap the one you used last, at the top of the list. Or make a new one: its form opens with the pose already in it, ready to save.
 - On tie, plan and workshop cards, "Open album" is now on the right of the photo count.
 
 ## 2026.10.31.0124

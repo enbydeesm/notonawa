@@ -3,7 +3,8 @@
 // figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
 // rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
 // a see-saw rope, cinches (one through three points), a rope added to an upline, slack, Cancel rope, moving an upline along the bamboo, tapped on a pose made through the API, and the
-// tools in one row on a phone), "Allow collisions" (fixing or leaving clashes), the nav's poser, saving with the tie,
+// tools in one row on a phone), "Allow collisions" (fixing or leaving clashes), the nav's poser (and its "Add pose
+// to…": on a tie there already, or a new one), saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
 // so a 3D view that doesn't draw, or picks the wrong thing, shows up here.
 
@@ -63,7 +64,7 @@ export default async function () {
   const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Pose test").click(); await wait(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
-  check("the nav's poser button opens the poser on its own: Add to visuals and Save pose greyed out, Close in place of Cancel, Allow collisions ticked", await run(`
+  check("the nav's poser button opens the poser on its own: Add to visuals and Save pose there to use, Close in place of Cancel, Allow collisions ticked", await run(`
     $("#nav-poser").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await wait(500);
@@ -73,7 +74,7 @@ export default async function () {
       getComputedStyle(allow).color === getComputedStyle($(".pose-hint")).color, leakyFields()];
     $("#pose-cancel").click(); await wait(300);
     return [...result, !!document.querySelector("dialog.pose-editor")];`),
-  [true, true, "Close", true, "Allow collisions", true, true, [], false]);
+  [false, false, "Close", true, "Allow collisions", true, true, [], false]);
 
   await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
   check("the Visuals + offers the model poser", await run(`
@@ -506,6 +507,110 @@ export default async function () {
 
   await ropes({ tap, slide, topDialog });
   await collisions({ tap, slide, topDialog });
+  await standalone({ topDialog });
+}
+
+/**
+ * The poser opened on its own (the nav's button): Save pose and Add to
+ * visuals ask where ("Add pose to…"), on a tie there already or a new one,
+ * and the one chosen last comes first next time. Uses "Collision test",
+ * made through the API by collisions().
+ * @param {{ topDialog: string }} helpers
+ */
+async function standalone({ topDialog }) {
+  const onTie = (/** @type {string} */ title, /** @type {string} */ what) => `(async () => {
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "${title}");
+    return tie ? (await fetch("/api/${what}?tie_id=" + tie.id)).json() : null;
+  })()`;
+  const waitFor = (/** @type {string} */ expr) => `for (let i = 0; i < 100 && !(${expr}); i++) await wait(100);`;
+  const rows = `[...document.querySelectorAll("#add-to-list .add-to-row")]`;
+  const row = (/** @type {string} */ title) => `${rows}.find((r) => r.querySelector(".item-title").textContent === "${title}")`;
+  const buttonIn = `(label) => [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === label)`;
+
+  // "Collision test"'s form is still open from collisions(): the nav's
+  // poser is opened from the view, with nothing over it.
+  await run(`$("#tie-close")?.click(); await wait(500); (${buttonIn})("Discard changes")?.click(); await wait(300);`);
+  check("the nav's poser: Save pose asks where, in one sheet: the poser's icon, one search, All chosen, Recent with each kind's tab icon, and + Tie, + Plan, + Workshop", await run(`
+    $("#nav-poser").click();
+    ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
+    await wait(500);
+    $("#pose-save").click();
+    ${waitFor(row("Collision test"))}
+    const tie = ${row("Collision test")};
+    return [$("#add-to-heading").textContent, !!$(".add-to-head .pose-icon"), $("#add-to-search").placeholder,
+      ["all", "tie", "plan", "workshop"].map((k) => [$("#add-to-filter-" + k).textContent, $("#add-to-filter-" + k).getAttribute("aria-pressed")]),
+      $("#add-to-list-label").textContent, !!tie.querySelector("svg"), tie.querySelector(".badge").textContent,
+      $("#add-to-new-label").textContent,
+      [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => [b.textContent, !!b.querySelector("svg")]), leakyFields()];`),
+  ["Add pose to…", true, "Search ties, plans, workshops",
+    [["All", "true"], ["Ties", "false"], ["Plans", "false"], ["Workshops", "false"]],
+    "Recent", true, "Tie", "Create new", [["+Tie", true], ["+Plan", true], ["+Workshop", true]], []]);
+
+  const posesBefore = (await run(`return await ${onTie("Collision test", "poses")};`)).length;
+  check("nothing's said while choosing; choosing a tie saves the pose on it at once, the poser staying open", await run(`
+    const asking = $("#pose-message").textContent;
+    ${row("Collision test")}.click();
+    ${waitFor(`$("#pose-message").textContent.startsWith("Pose")`)}
+    return [asking, $("#pose-message").textContent, !!document.querySelector("dialog.pose-editor[open]"), !document.querySelector(".add-to-sheet"),
+      (await ${onTie("Collision test", "poses")}).length];`),
+  ["", "Pose added to tie “Collision test”.", true, true, posesBefore + 1]);
+
+  check("Add to visuals asks too, the tie chosen last first; choosing it adds a picture of the pose as a photo", await run(`
+    $("#pose-add-visual").click();
+    ${waitFor(`${rows}.length`)}
+    const first = ${rows}[0].querySelector(".item-title").textContent;
+    ${rows}[0].click();
+    ${waitFor(`$("#pose-message").textContent.startsWith("Picture")`)}
+    return [first, $("#pose-message").textContent, (await ${onTie("Collision test", "media")}).length];`),
+  ["Collision test", "Picture added to tie “Collision test”.", 1]);
+
+  check("…and both kept, Close doesn't ask", await run(`
+    $("#pose-cancel").click(); await wait(500);
+    return !!document.querySelector("dialog.pose-editor[open]");`), false);
+
+  check("typing a name nothing has offers to make one called that, of each kind; a chip offers only its own", await run(`
+    $("#nav-poser").click();
+    ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
+    await wait(500);
+    $("#pose-save").click();
+    ${waitFor(`${rows}.length`)}
+    const search = $("#add-to-search");
+    search.value = "Hip harness"; search.dispatchEvent(new Event("input")); await wait(600);
+    const all = [$("#add-to-new-label").textContent, [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => b.textContent),
+      $("#add-to-message").textContent];
+    $("#add-to-filter-workshop").click(); await wait(100);
+    const one = [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => b.textContent);
+    $("#add-to-filter-all").click(); await wait(100);
+    return [all, one];`),
+  [["Create “Hip harness” as a new…", ["+Tie", "+Plan", "+Workshop"], "Nothing matches."], ["+Workshop"]]);
+
+  check("+ Tie opens the tie form over the poser: named, the pose in its visuals, and Not saved yet at the top", await run(`
+    $("#add-to-new-tie").click();
+    ${waitFor(`document.querySelector("#tie-visuals .visual-pose")`)}
+    return [$("#tie-title").value, document.querySelectorAll("#tie-visuals .visual-pose").length, $("#tie-form").firstElementChild.className,
+      $("#tie-form-unsaved").textContent, !!document.querySelector("dialog.pose-editor[open]")];`),
+  ["Hip harness", 1, "unsaved-bar", "Not saved yet. Save this tie to keep the pose.", true]);
+
+  check("closing it asks first, even with nothing else changed", await run(`
+    $("#tie-close").click(); await wait(400);
+    const asked = [${topDialog}.querySelector("h2").textContent, !!(${buttonIn})("Discard tie")];
+    (${buttonIn})("Keep editing").click(); await wait(300);
+    return [...asked, !!$("#tie-form")];`), ["Discard this new tie?", true, true]);
+
+  check("saving it saves the pose with it, back in the poser; next time the new tie is first", await run(`
+    set("#tie-tie_type", "floor");
+    $("#tie-save").click();
+    ${waitFor(`!document.querySelector("#tie-form") && $("#pose-message").textContent`)}
+    const said = $("#pose-message").textContent;
+    const poses = (await ${onTie("Hip harness", "poses")})?.length;
+    $("#pose-save").click();
+    ${waitFor(`${rows}.length`)}
+    const first = ${rows}[0].querySelector(".item-title").textContent;
+    $(".add-to-sheet .dialog-cancel").click(); await wait(300);
+    $("#pose-cancel").click(); await wait(500);
+    return [said, poses, first, !!document.querySelector("dialog.pose-editor[open]")];`),
+  ["Saved on the new tie.", 1, "Hip harness", false]);
 }
 
 /**

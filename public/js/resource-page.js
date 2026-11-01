@@ -11,6 +11,7 @@ import { listTools } from "./list-tools.js";
 import { orderList } from "./list-order.js";
 import { dialogIcon, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
+import { startEntry } from "./new-entry-start.js";
 
 // Each resource's kind of record, for sealing and opening its notes (and a
 // plan's description) in the crypto Worker.
@@ -109,11 +110,14 @@ export function setupResourcePage(config) {
     else list.before(tools.element);
   }
   const itemActions = config.actionsInDialog ? $("[data-item-actions]", dialog ?? form) : null;
+  /** A new plan made from the poser on its own, while its form is open. @type {ReturnType<typeof startEntry> | null} */
+  let fromPoser = null;
   const changes = watchChanges({
     form, button: submit, editing: () => editingId !== null, ignore: photoSlot, signal: config.signal,
     extra: () => [config.changeState?.(), visuals?.waiting],
+    unsaved: () => !!fromPoser?.unsaved(),
   });
-  const close = dialog ? guardClose(dialog, changes.changed) : null;
+  const close = dialog ? guardClose(dialog, changes.changed, () => fromPoser?.discard() ?? null) : null;
 
   /**
    * A fresh Visuals section for the item being edited (or a new one).
@@ -334,6 +338,7 @@ export function setupResourcePage(config) {
           return;
         }
       }
+      fromPoser?.saved(id);
       if (dialog) {
         dialog.close();
       } else {
@@ -354,7 +359,14 @@ export function setupResourcePage(config) {
     visuals?.close();
     visuals = null;
     editingId = null;
+    leavePoserStart();
   });
+
+  /** The form's no longer the new plan from the poser: its bar goes. */
+  function leavePoserStart() {
+    fromPoser = null;
+    form.querySelector(".unsaved-bar")?.remove();
+  }
   config.signal?.addEventListener("abort", () => {
     visuals?.close();
   });
@@ -366,8 +378,21 @@ export function setupResourcePage(config) {
     reload: load,
     items: () => items,
     redraw: draw,
-    /** Opens the dialog to add one. */
-    add: () => openForm(null),
+    /**
+     * Opens the dialog to add one; with start, a new plan from the poser on
+     * its own (plans only: their form has the Visuals section).
+     * @param {import("./new-entry-start.js").EntryStart} [start]
+     */
+    add: (start) => {
+      leavePoserStart();
+      openForm(null);
+      if (start && visuals) {
+        fromPoser = startEntry({
+          start, kind: "plan", form, visuals, titleInput: /** @type {HTMLInputElement} */ ($("[name=title]", form)),
+        });
+        changes.reset();
+      }
+    },
     /** The item the form is editing (null: adding one, or closed). */
     editing: () => editingId,
   };

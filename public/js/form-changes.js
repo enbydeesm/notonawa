@@ -37,20 +37,22 @@ function formState(form, ignore, extra) {
  *   editing: () => boolean,
  *   ignore?: Element | null,
  *   extra?: () => unknown,
+ *   unsaved?: () => boolean,
  *   signal?: AbortSignal,
  * }} options
  *   button: its Save, muted (aria-disabled) while editing a saved item
  *   without changes, and disabled while busy; editing: whether it's a
  *   saved item; ignore: a part whose fields don't count; extra: more of
- *   its state, as JSON
+ *   its state, as JSON; unsaved: counts as changed whatever's in it, while
+ *   true (a new item that opened with a pose from the poser in it)
  * @returns {{ changed: () => boolean, canSave: () => boolean, reset: () => void, busy: (on: boolean) => void }}
  */
-export function watchChanges({ form, button, editing, ignore, extra, signal }) {
+export function watchChanges({ form, button, editing, ignore, extra, unsaved, signal }) {
   let start = formState(form, ignore, extra);
   let saving = false;
   button.classList.add("save-changes");
 
-  const changed = () => formState(form, ignore, extra) !== start;
+  const changed = () => !!unsaved?.() || formState(form, ignore, extra) !== start;
   const canSave = () => !editing() || changed();
   // Muted rather than disabled, so the form's submit still runs and asks
   // canSave() itself: a tap straight after typing can't beat the update.
@@ -81,11 +83,13 @@ export function watchChanges({ form, button, editing, ignore, extra, signal }) {
  * with Esc or with the close function this returns (its ✕).
  * @param {HTMLDialogElement} dialog
  * @param {() => boolean} changed
+ * @param {() => Discard | null} [asking] what to ask in place of "Discard
+ *   your changes?" (null: that), e.g. for a new item holding a pose
  * @returns {() => Promise<void>} closes it, asking first if there are changes
  */
-export function guardClose(dialog, changed) {
+export function guardClose(dialog, changed, asking) {
   async function close() {
-    if (changed() && !(await confirmDiscard())) return;
+    if (changed() && !(await confirmDiscard(asking?.() ?? undefined))) return;
     dialog.close();
   }
   dialog.addEventListener("cancel", (event) => {
@@ -96,12 +100,24 @@ export function guardClose(dialog, changed) {
   return close;
 }
 
-/** Asks whether to throw away what's changed. Resolves true to discard it. */
-async function confirmDiscard() {
+/** @typedef {{ title: string, message: string, label: string }} Discard */
+
+/** @type {Discard} */
+const DISCARD_CHANGES = {
+  title: "Discard your changes?",
+  message: "What you've changed since opening it won't be saved.",
+  label: "Discard changes",
+};
+
+/**
+ * Asks whether to throw away what's changed. Resolves true to discard it.
+ * @param {Discard} [text]
+ */
+async function confirmDiscard({ title, message, label } = DISCARD_CHANGES) {
   const choice = await choose({
-    title: "Discard your changes?",
-    message: "What you've changed since opening it won't be saved.",
-    choices: [{ label: "Discard changes", value: "discard", style: "danger" }],
+    title,
+    message,
+    choices: [{ label, value: "discard", style: "danger" }],
     cancelLabel: "Keep editing",
   });
   return choice === "discard";

@@ -180,6 +180,15 @@ describe("paging ties", () => {
     expect(await titles({ location_ids: [loc] })).toEqual(["Second", "First"]);
   });
 
+  it("says when each tie last changed, for the poser's \"Add pose to…\" list", async () => {
+    const loc = await create("/api/locations", { name: "Changed when" });
+    const id = await create("/api/ties", { title: "Changed", tie_type: "floor", tie_date: "2026-04-01", location_id: loc });
+    await sql("UPDATE ties SET updated_at = '2026-05-01T10:00:00Z' WHERE id = ?", id).run();
+
+    const [tie] = (await search({ location_ids: [loc] })).body.ties;
+    expect(tie.updated_at).toBe("2026-05-01T10:00:00Z");
+  });
+
   it("includes each tie's participants and plans on later pages", async () => {
     const loc = await create("/api/locations", { name: "Page two links" });
     const sam = await create("/api/people", { name: "Sam" });

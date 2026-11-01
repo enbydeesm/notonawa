@@ -18,6 +18,7 @@ import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
+import { startEntry } from "./new-entry-start.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -28,18 +29,21 @@ let openDialog = null;
  * or deleted (the dialog closes itself), or false if it's closed without
  * either. Opening it again while it's open returns the same promise.
  * @param {Record<string, any> | null} [tie]
+ * @param {{ start?: import("./new-entry-start.js").EntryStart }} [options]
+ *   start: a new tie made from the poser on its own, with its pose
  * @returns {Promise<boolean>}
  */
-export function openTieForm(tie = null) {
-  openDialog ??= showTieForm(tie).finally(() => { openDialog = null; });
+export function openTieForm(tie = null, { start } = {}) {
+  openDialog ??= showTieForm(tie, start ?? null).finally(() => { openDialog = null; });
   return openDialog;
 }
 
 /**
  * @param {Record<string, any> | null} tie
+ * @param {import("./new-entry-start.js").EntryStart | null} start
  * @returns {Promise<boolean>}
  */
-function showTieForm(tie) {
+function showTieForm(tie, start) {
   return new Promise((resolve) => {
     let saved = false;
     // The tie's id once it's saved: a new tie whose photos didn't all
@@ -145,11 +149,14 @@ function showTieForm(tie) {
     // Editing, Save changes waits for a change. Kept rows (deleted links)
     // have no fields, so they're counted here, with the tags and any
     // visuals waiting for a new tie to be saved.
+    /** Set once a tie from the poser is filled in, at the end. @type {ReturnType<typeof startEntry> | null} */
+    let fromPoser = null;
     const changes = watchChanges({
       form, button: saveButton, editing: () => !!tie, ignore: visuals.element,
       extra: () => [tags, [...form.querySelectorAll(".kept-deleted:not([hidden])")].length, visuals.waiting],
+      unsaved: () => !!fromPoser?.unsaved(),
     });
-    const close = guardClose(dialog, changes.changed);
+    const close = guardClose(dialog, changes.changed, () => fromPoser?.discard() ?? null);
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
@@ -380,6 +387,7 @@ function showTieForm(tie) {
             return;
           }
         }
+        fromPoser?.saved(/** @type {string} */ (savedId));
         dialog.close();
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
@@ -390,6 +398,11 @@ function showTieForm(tie) {
 
     if (tie) fill(tie);
     changes.reset();
+    if (!tie && start) {
+      fromPoser = startEntry({
+        start, kind: "tie", form, visuals, titleInput: /** @type {HTMLInputElement} */ ($("#tie-title", form)),
+      });
+    }
     document.body.append(dialog);
     dialog.showModal();
     // A saved tie opens on its heading, not a text box (which would open

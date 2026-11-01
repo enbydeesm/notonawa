@@ -1,20 +1,18 @@
 // "Copy to…": choosing the tie, plan or workshop to copy a drawing (or a
-// pose: poses-ui.js uses it too) to. Ties
-// are searched as on the Ties page (a keyword is searched for on the
-// device, and only the matching ids are sent), newest first; plans (not
-// archived) and workshops are all loaded and searched by title here.
+// pose: poses-ui.js uses it too) to. They're loaded by item-targets.js:
+// ties searched as on the Ties page, newest first; plans (not archived)
+// and workshops all at once, searched by title here.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { formatDate } from "./format.js";
-import { searchTies } from "./vault.js";
+import { loadTies, loadPlans, loadWorkshops } from "./item-targets.js";
+import { itemOf, titleMatches, SHOWN } from "./add-to-choices.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {"tie" | "plan" | "workshop"} Kind */
 /** @typedef {{ item: Item, title: string, meta: string }} Target */
 
 const KINDS = /** @type {const} */ ([["tie", "Tie"], ["plan", "Plan"], ["workshop", "Workshop"]]);
-const SHOWN = 20;
 
 /**
  * @param {{ exclude: Item | null, noun?: string }} options exclude: the item
@@ -82,20 +80,11 @@ export function chooseCopyTarget({ exclude, noun = "drawing" }) {
      * @returns {Promise<Target[]>}
      */
     async function find(k, q) {
-      if (k === "tie") {
-        const matchIds = q ? await searchTies(q) : null;
-        const { ties } = await api("/api/ties/search", {
-          method: "POST", body: { match_ids: matchIds, page: 1, page_size: SHOWN, sort: "newest" },
-        });
-        return ties.map((/** @type {any} */ t) => ({ item: { tie_id: t.id }, title: t.title || "Untitled tie", meta: formatDate(t.tie_date) }));
-      }
-      loaded[k] ??= k === "plan"
-        ? (await api("/api/plans?archived=false")).map((/** @type {any} */ p) => ({ item: { plan_id: p.id }, title: p.title, meta: "" }))
-        : (await api("/api/workshops")).map((/** @type {any} */ w) => ({
-          item: { workshop_id: w.id }, title: w.title, meta: formatDate(w.start_date),
-        }));
-      const words = q.toLowerCase();
-      return /** @type {Target[]} */ (loaded[k]).filter((t) => t.title.toLowerCase().includes(words));
+      /** @param {import("./add-to-choices.js").Target} t @returns {Target} */
+      const asTarget = (t) => ({ item: itemOf(t), title: t.title, meta: t.meta });
+      if (k === "tie") return (await loadTies(q)).targets.map(asTarget);
+      loaded[k] ??= (await (k === "plan" ? loadPlans() : loadWorkshops())).map(asTarget);
+      return /** @type {Target[]} */ (loaded[k]).filter((t) => titleMatches(t.title, q));
     }
 
     document.body.append(dialog);

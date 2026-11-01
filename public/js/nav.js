@@ -1,6 +1,6 @@
 // The view links at the top of the app, as icons (each named for screen
 // readers and in its tooltip), the poser's button after them (the poser on
-// its own, over the view: nothing it makes is saved yet), then the + button
+// its own, over the view: it asks where to save what it makes), then the + button
 // and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
 // their own dialog), the account and "Your data" links, Bug and feedback,
@@ -32,9 +32,24 @@ export const PAGES = /** @type {const} */ ([
   ["/education", "Education", capIcon],
 ]);
 
+/**
+ * The icon of the tab for a view, e.g. "/plans" (the "Add pose to…" sheet
+ * marks ties, plans and workshops with their tabs' icons).
+ * @param {string} path
+ * @returns {Element}
+ */
+export function tabIcon(path) {
+  const page = PAGES.find(([href]) => href === path);
+  return page ? page[2]() : lineIcon();
+}
+
 // Fired on document when a tie is saved from the + button on the Ties view,
 // so the list can reload.
 export const TIE_SAVED = "tie-saved";
+// The same for plans and workshops: fired when one changes from outside
+// its view (the poser on its own adding a pose to it), so the view reloads.
+export const PLAN_SAVED = "plan-saved";
+export const WORKSHOP_SAVED = "workshop-saved";
 
 // The menu's logo for each mode, as in app.css (.menu-title .logo).
 const MENU_LOGOS = { light: "/img/bamboo-logo-light.avif", dark: "/img/bamboo-logo-dark.avif" };
@@ -67,10 +82,11 @@ export function renderNav() {
   }
 
   // The poser, loaded only once it's wanted (three.js is big). Opened
-  // here, there's no tie, plan or workshop to save the pose on (roadmap.md).
+  // here, Save pose and Add to visuals ask which tie, plan or workshop
+  // they're for (standalone-poser.js).
   async function openPoser() {
-    const { editPose } = await import("./pose-editor.js");
-    await editPose(null, { standalone: true });
+    const { openStandalonePoser } = await import("./standalone-poser.js");
+    await openStandalonePoser();
   }
   poserButton = h("button", {
     type: "button", className: "nav-tab nav-poser", id: "nav-poser", "aria-label": "Poser", title: "Poser",

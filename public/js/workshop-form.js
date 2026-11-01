@@ -19,6 +19,7 @@ import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
+import { startEntry } from "./new-entry-start.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -29,10 +30,12 @@ let openDialog = null;
  * it's saved or deleted, false if it's closed without either. Opening it
  * again while it's open returns the same promise.
  * @param {Record<string, any> | null} [workshop]
+ * @param {{ start?: import("./new-entry-start.js").EntryStart }} [options]
+ *   start: a new workshop made from the poser on its own, with its pose
  * @returns {Promise<boolean>}
  */
-export function openWorkshopForm(workshop = null) {
-  openDialog ??= showWorkshopForm(workshop).finally(() => { openDialog = null; });
+export function openWorkshopForm(workshop = null, { start } = {}) {
+  openDialog ??= showWorkshopForm(workshop, start ?? null).finally(() => { openDialog = null; });
   return openDialog;
 }
 
@@ -50,9 +53,10 @@ export async function editWorkshop(id) {
 
 /**
  * @param {Record<string, any> | null} workshop
+ * @param {import("./new-entry-start.js").EntryStart | null} start
  * @returns {Promise<boolean>}
  */
-function showWorkshopForm(workshop) {
+function showWorkshopForm(workshop, start) {
   return new Promise((resolve) => {
     let saved = false;
     // Its id once saved: a new one whose photos didn't all upload stays
@@ -171,11 +175,14 @@ function showWorkshopForm(workshop) {
       ]),
       form);
     // As on the tie form: kept rows, tags and visuals waiting count too.
+    /** Set once a workshop from the poser is filled in, at the end. @type {ReturnType<typeof startEntry> | null} */
+    let fromPoser = null;
     const changes = watchChanges({
       form, button: saveButton, editing: () => !!workshop, ignore: visuals.element,
       extra: () => [tags, [...form.querySelectorAll(".kept-deleted:not([hidden])")].length, visuals.waiting],
+      unsaved: () => !!fromPoser?.unsaved(),
     });
-    const close = guardClose(dialog, changes.changed);
+    const close = guardClose(dialog, changes.changed, () => fromPoser?.discard() ?? null);
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
@@ -354,6 +361,7 @@ function showWorkshopForm(workshop) {
             return;
           }
         }
+        fromPoser?.saved(/** @type {string} */ (savedId));
         dialog.close();
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
@@ -364,6 +372,11 @@ function showWorkshopForm(workshop) {
 
     if (workshop) fill(workshop);
     changes.reset();
+    if (!workshop && start) {
+      fromPoser = startEntry({
+        start, kind: "workshop", form, visuals, titleInput: /** @type {HTMLInputElement} */ ($("#workshop-title", form)),
+      });
+    }
     document.body.append(dialog);
     dialog.showModal();
     // A saved workshop opens on its heading, not a text box (which would

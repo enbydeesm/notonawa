@@ -130,8 +130,9 @@ export function visualSection({ item, idPrefix }) {
   };
 
   const photos = photoKind(ctx);
+  const poses = poseKind(ctx);
   /** @type {Record<VisualKind, VisualKindModule>} */
-  const kinds = { media: photos, drawing: drawingKind(ctx), pose: poseKind(ctx) };
+  const kinds = { media: photos, drawing: drawingKind(ctx), pose: poses };
 
   const addButton = h("button", {
     type: "button", className: "label-add", id: `${idPrefix}-add-visual`, "aria-label": "Add visual", title: "Add visual", onclick: choose,
@@ -234,6 +235,20 @@ export function visualSection({ item, idPrefix }) {
     return null;
   }
 
+  /**
+   * A new tie, plan or workshop made from the poser on its own (the nav's
+   * button): starts with the pose, or a picture of it as a photo, waiting
+   * for the form to be saved like any visual added here.
+   * @param {{ pose?: import("./pose-format.js").Pose, picture?: Blob }} start
+   */
+  async function startWith({ pose, picture }) {
+    if (pose) await poses.adopt(pose);
+    if (picture) {
+      const problems = await photos.addFiles([new File([picture], "Pose.png", { type: "image/png" })]);
+      if (problems.length) say(problems.join(" "), true);
+    }
+  }
+
   /** Lets go of everything the section showed (when its form closes). */
   function close() {
     closed = true;
@@ -246,6 +261,7 @@ export function visualSection({ item, idPrefix }) {
   return {
     element,
     savePending,
+    startWith,
     close,
     /** Whether visuals are still being prepared or saved. */
     get busy() { return busyCount > 0; },

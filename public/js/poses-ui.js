@@ -331,5 +331,11 @@ export function poseKind(ctx) {
     /** @param {Entry} entry @param {Item} target */
     savePending: async (entry, target) => { entry.id = await savePose(target, entry); },
     forget: forgetPicture,
+    /**
+     * A pose made in the poser on its own (the nav's button), put on a new
+     * tie, plan or workshop: added last, waiting for it to be saved.
+     * @param {Pose} data
+     */
+    adopt: (data) => append(data, null),
   };
 }

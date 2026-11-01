@@ -99,7 +99,7 @@ export async function getTie(db, ownerId, id) {
 
 // A tie's own fields, its location's name and how many photos it has, for `ties t`.
 const TIE_COLUMNS = `
-  SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.album_url, t.created_at,
+  SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.album_url, t.created_at, t.updated_at,
          t.location_id, t.location_deleted, l.name AS location_name,
          (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count
     FROM ties t

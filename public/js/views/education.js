@@ -15,6 +15,7 @@ import { open } from "../vault.js";
 import { formatDate } from "../format.js";
 import { openWorkshopForm, editWorkshop } from "../workshop-form.js";
 import { workshopCard } from "../workshop-card.js";
+import { WORKSHOP_SAVED } from "../nav.js";
 import {
   EMPTY_SEARCH, TABS, hasWorkshopFilters, filterWorkshops, splitByMe, summarise, workshopCountText,
 } from "../workshops-view.js";
@@ -147,6 +148,8 @@ export function mount(_root, { signal }) {
   $("#add-workshop").addEventListener("click", async () => {
     if (await openWorkshopForm()) load();
   });
+  // A workshop added or changed from the poser opened on its own.
+  document.addEventListener(WORKSHOP_SAVED, () => load(), { signal });
 
   /** @param {string} id */
   async function openWorkshop(id) {
