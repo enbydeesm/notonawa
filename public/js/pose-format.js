@@ -49,7 +49,7 @@
 // Every change makes a new pose (one is never changed in place), so a
 // history is just the poses before and after.
 
-import { COLORS } from "./drawing-format.js";
+import { COLORS, PICK_COLORS } from "./drawing-format.js";
 import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, startJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
 import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./figure-body.js";
 
@@ -73,7 +73,7 @@ import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./fig
  * `marks` are the poser's pencil marks (pose-marks.js), never saved.
  */
 
-export { COLORS };
+export { COLORS, PICK_COLORS };
 export const FORMAT_VERSION = 1;
 export const RING = "ring";
 export const BAMBOO = "bamboo";

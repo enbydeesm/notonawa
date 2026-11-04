@@ -21,7 +21,7 @@
      looks the same whichever is on (the paper stays light in dark mode). */
   --paper: #fffdf8;
   --ink-black: #222; --ink-grey: #8a857e; --ink-red: #d63031; --ink-orange: #e8891c;
-  --ink-green: #2e9145; --ink-blue: #2f6bd6; --ink-purple: #7e51a2; --ink-pink: #e0559a;
+  --ink-green: #2e9145; --ink-blue: #2f6bd6; --ink-purple: #7e51a2; --ink-pink: #e0559a; --ink-jute: #b8925a;
   /* Poses (pose-scene.js reads these): the figure, the part being posed,
      parts a move is pushing into each other (pose-contact.js), the floor, the backdrop and the hardpoints (the ring, the jute lines
      things hang from, a bamboo, a wooden hashira), the same in both modes,
@@ -208,7 +208,7 @@ dialog.swipeable { touch-action: pan-y; }
    photos' grid and viewer, and the drawing pad filling the screen. */
 .ink-black { --ink: var(--ink-black); } .ink-grey { --ink: var(--ink-grey); } .ink-red { --ink: var(--ink-red); }
 .ink-orange { --ink: var(--ink-orange); } .ink-green { --ink: var(--ink-green); } .ink-blue { --ink: var(--ink-blue); }
-.ink-purple { --ink: var(--ink-purple); } .ink-pink { --ink: var(--ink-pink); }
+.ink-purple { --ink: var(--ink-purple); } .ink-pink { --ink: var(--ink-pink); } .ink-jute { --ink: var(--ink-jute); }
 .drawing-paper { display: block; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .drawing-paper .paper { fill: var(--paper); }
 .drawing-paper path { stroke: var(--ink); }
@@ -257,15 +257,10 @@ dialog.pose-editor {
   border: 0; border-radius: 0;
 }
 dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
-.pose-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-/* One row on a phone 375px wide or more: the modes, then undo, redo and
-   download just after, and Add to visuals at the end (on a narrower one it
-   goes to a row of its own rather than off the edge). */
-.pose-tools .tool-group { flex-wrap: nowrap; gap: 3px; }
-.pose-tools .tool { padding: 6px 7px; }
-.pose-tools .tool.icon-tool { padding: 4px; }
-.pose-tools #pose-add-visual { margin-left: auto; white-space: nowrap; }
-.pose-tools select.tool { width: auto; }
+/* Pose, Rope and Scene across the top: one switch, the tab shown filled. */
+.pose-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.pose-tabs .pose-tab { padding: 8px 4px; font-size: 1rem; border: 0; border-radius: 9px; }
 .pose-frame {
   position: relative; flex: 1; min-height: 180px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px;
   background: var(--pose-backdrop);
@@ -276,42 +271,68 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; touch-action: none; }
 .pose-marks.drawing { pointer-events: auto; cursor: crosshair; }
 .pose-marks.drawing.erasing { cursor: cell; }
-.pose-hint {
-  position: absolute; left: 8px; top: 8px; right: 5rem; margin: 0; font-size: 0.75rem; color: var(--ink-grey); pointer-events: none;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* Over the view, on the floor's light (the 3D view's colors are the same
+   in both modes): undo, redo and the pencil top left, the cube top right,
+   the hint and "Allow collisions" along the foot. */
+.pose-view-tools, .pose-frame .pose-view-menu {
+  position: absolute; top: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
+  background: color-mix(in srgb, var(--pose-backdrop) 90%, transparent); border: 1px solid var(--pose-floor); border-radius: 11px;
 }
-/* The head's hint, bottom left, before "Allow collisions"; on a narrow
-   phone it wraps to a second line rather than run into it. */
-.pose-head-hint {
-  position: absolute; left: 8px; bottom: 6px; right: 7.5rem; margin: 0; font-size: 0.75rem; line-height: 1.25;
-  color: var(--ink-grey); pointer-events: none;
+.pose-view-tools { left: 8px; }
+.pose-frame .pose-view-menu { right: 8px; gap: 0; padding: 3px 6px 3px 9px; height: 46px; box-sizing: border-box; color: var(--ink-black); }
+.pose-float-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-black); }
+.pose-view-tools .tool-icon-under { stroke: var(--pose-backdrop); }
+.pose-float-button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.pose-view-divider { width: 1px; height: 26px; margin: 0 3px; background: var(--pose-floor); }
+.pose-chevron { font-size: 0.75rem; line-height: 1; margin-left: 2px; }
+/* The cube's views, a short list under it. */
+.pose-view-list {
+  position: absolute; top: 58px; right: 8px; z-index: 2; display: flex; flex-direction: column; min-width: 9rem; padding: 4px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
 }
-.pose-head-hint[hidden] { display: none; }
-/* "Allow collisions", bottom right, as muted as the hint. */
+.pose-view-list[hidden] { display: none; }
+.pose-view-item { border: 0; text-align: left; padding: 10px 12px; font-weight: 500; }
+.pose-view-foot {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
+  pointer-events: none;
+}
+.pose-view-hint {
+  margin: 0; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; line-height: 1.3; color: var(--ink-black);
+  background: color-mix(in srgb, var(--pose-backdrop) 85%, transparent);
+}
+.pose-view-hint[hidden], .pose-allow[hidden] { display: none; }
+/* "Allow collisions", bottom right, muted. */
 .pose-allow {
-  position: absolute; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 4px; margin: 0;
-  font-size: 0.75rem; color: var(--ink-grey); font-weight: normal;
+  display: flex; align-items: center; gap: 4px; margin: 0; flex: none; pointer-events: auto;
+  font-size: 0.75rem; color: var(--ink-black); font-weight: normal;
 }
-.pose-allow input { margin: 0; width: auto; }
-/* The views, narrow so the hint fits on one line, on the floor's grey (the
-   3D view's colors are the same in both modes). */
-.pose-frame select.pose-view-menu {
-  position: absolute; right: 6px; top: 6px; width: 4.25rem; padding: 4px 6px;
-  background-color: var(--pose-floor); color: var(--ink-black); border-color: var(--ink-grey);
+.pose-allow input { margin: 0; width: auto; accent-color: var(--ink-grey); }
+/* A bar over the foot of the view: a rope being laid (its count, Cancel and
+   Finish), or the pencil's colors, widths, eraser and Done. */
+.pose-view-bar {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
 }
-.pose-rope-ends { display: flex; gap: 4px; margin-left: auto; }
-.pose-rope-tools .pose-cancel-rope { padding: 6px 8px; font-size: 0.8rem; }
-.pose-rope-tools .pose-finish { padding: 6px 8px; font-size: 0.8rem; }
-/* A rope being laid: Finish rope outlined, a reminder to end it first. */
-.pose-rope-tools .pose-finish:not(:disabled) { border: 2px solid var(--accent); padding: 5px 7px; }
+.pose-view-bar[hidden] { display: none; }
+.pose-bar-text { flex: 1; min-width: 8rem; padding-left: 6px; font-size: 0.85rem; font-weight: 600; }
+.pose-view-bar .pose-finish { margin-left: auto; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .pose-panels { flex: none; max-height: 37dvh; overflow-y: auto; }
 /* More below: the bottom edge fades out (pose-editor.js sets it). */
 .pose-panels.more-below { mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
 .pose-panel { display: flex; flex-direction: column; gap: 8px; }
 .pose-panel[hidden] { display: none; }
 .pose-panel .hint { margin: 0; }
-.pose-menus { display: flex; flex-wrap: wrap; gap: 8px; }
-.pose-menus .pose-picker { flex: 1 1 6.5rem; min-width: 0; }
+/* Positions (Body and Arms) and Facing (Turn), apart from each other, each
+   picker its icon, its name and ▾. */
+.pose-menus { display: flex; align-items: flex-end; gap: 12px; }
+.pose-menu-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pose-positions { flex: 1; }
+.pose-menu-buttons { display: flex; gap: 8px; }
+.pose-menu-divider { align-self: stretch; width: 1px; margin-top: 18px; background: var(--line); }
+.pose-picker { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; }
+.pose-positions .pose-picker { flex: 1; min-width: 0; }
+.pose-picker-name { flex: 1; text-align: left; }
+.pose-menus .pose-row-label { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
 /* The poser's pickers (preset-picker.js): Body, Arms and Turn body. The
    searchable ones keep to the top of the screen at one height, only their
    list scrolling, so they don't jump as a search shortens the list, and
@@ -343,21 +364,49 @@ dialog.preset-picker.searchable[open] {
 .pose-sliders { display: flex; flex-direction: column; gap: 4px; }
 /* The body's shape sliders, folded away until wanted, with "Save as
    default" at the right of the fold's heading row. */
-.pose-shape { position: relative; margin: 8px 0; }
-.pose-shape > .fold { margin: 0; }
-/* Over the fold's heading row: Save as my default in its middle, Reset at its end. */
-.pose-shape-actions {
-  position: absolute; top: 0; left: 0; right: 0; height: 32px; display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: stretch; pointer-events: none;
-}
-/* As tall as the heading's row (the fold's summary: 4px padding round a 24px line). */
-.pose-shape-actions .tool { pointer-events: auto; box-sizing: border-box; height: 32px; padding: 0 10px; font-size: 0.85rem; line-height: 1; }
-.pose-shape-save { grid-column: 2; }
-.pose-shape-reset { grid-column: 3; justify-self: end; }
-/* Too narrow for the middle to clear the fold's heading: next to Reset instead. */
-@media (max-width: 379px) {
-  .pose-shape-actions { grid-template-columns: 1fr auto auto; gap: 8px; }
-}
+/* The Scene tab: Hardpoint and Body shape, swapped with a switch like the
+   tabs', one step smaller. */
+.pose-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 11px; }
+.pose-switch .pose-switch-button { padding: 7px 4px; font-size: 0.95rem; border: 0; border-radius: 8px; }
+.pose-scene-part { display: flex; flex-direction: column; gap: 8px; }
+.pose-scene-part[hidden], .pose-sliders[hidden] { display: none; }
+/* The hardpoints: outlined chips, so they don't read as a third row of tabs. */
+.pose-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pose-chip { min-height: 40px; }
+.pose-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); border-color: var(--accent); }
+.pose-shape-actions { display: flex; justify-content: space-between; gap: 6px; }
+.pose-shape-actions .tool { min-height: 36px; }
+/* The one setting in play, in its box: outlined in the accent while sliding or on a cinch. */
+.pose-setting-box { padding: 4px 10px; border: 1px solid var(--line); border-radius: 12px; }
+.pose-setting-box.active { border-color: var(--accent); }
+/* The chosen rope's heading: its color, its name, Move the body (a cinch), ✕. */
+.pose-chosen-head { display: flex; align-items: center; gap: 8px; align-self: stretch; }
+.pose-chosen-head .pose-part { flex: 1; }
+.pose-chosen-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); }
+.pose-chosen-check { font-weight: 600; min-height: 40px; }
+/* Hardpoint: which, and Change in Scene. */
+.pose-scene-link { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; font-weight: 500; }
+.pose-scene-link[hidden], .pose-rope-tools-rows[hidden] { display: none; }
+.pose-scene-link-go { color: var(--accent-ink); font-weight: 600; }
+.pose-rope-tools-rows { display: flex; flex-direction: column; gap: 8px; }
+/* The foot: Close, Download, Add to visuals, Save pose. */
+.pose-actions .pose-foot-icon { flex: none; width: 48px; padding: 0; display: inline-grid; place-items: center; }
+.pose-actions button.primary { flex: 1.5; }
+/* The pencil's panel: the Rope tab's rows under a heading of its own,
+   outlined in the accent like the pencil's button on the view. */
+.pose-pencil-panel { padding: 8px 10px; border: 1px solid var(--accent); border-radius: 12px; }
+.pose-pencil-mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); }
+.pose-pencil-panel .pose-finish { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+/* The heading takes focus when the poser opens; it's hidden, so no ring. */
+#pose-heading:focus { outline: none; }
+/* The figures' icons are outlines: their middles in the button's own color. */
+.tool-icon-under { stroke: var(--card); }
+.tool-icon-under.filled { fill: var(--card); }
+.tool[aria-pressed="true"] .tool-icon-under { stroke: var(--accent); }
+.tool[aria-pressed="true"] .tool-icon-under.filled { fill: var(--accent); }
+.tool-icon.tool-icon-wide { width: 27px; }
 .pose-whole-row { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .pose-slider { display: grid; grid-template-columns: 7.5rem 1fr auto 4rem; align-items: center; gap: 8px; }
 /* ▲ and ▼ left of the value's box, stacked, each stepping it by one. */
@@ -366,17 +415,16 @@ dialog.preset-picker.searchable[open] {
 /* The rope chosen in Rope mode: a see-saw's box, Cinch from here, a cinch's length. */
 .pose-rope-options { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 /* Add cinch left, Move on bamboo in the middle (when there is one), Add rope right: they don't move. */
-.pose-rope-actions { align-self: stretch; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
-.pose-rope-actions .pose-add-cinch { grid-column: 1; justify-self: start; }
-.pose-rope-actions .pose-move-bamboo { grid-column: 2; }
-.pose-rope-actions .pose-add-rope { grid-column: 3; justify-self: end; }
-.pose-seesaw:empty, .pose-rope-note:empty { display: none; }
+/* Cinch, Slide and Add rope: as wide as each other, an icon over a name. */
+.pose-rope-actions { align-self: stretch; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 8px; }
+.pose-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 4px; }
+.pose-rope-options .pose-setting-box { align-self: stretch; }
+.pose-rope-note:empty { display: none; }
 .pose-rope-note { margin: 0; }
-.pose-hardpoint-fold { margin: 0; }
 .pose-rope-options:empty { display: none; }
 .pose-rope-options .pose-sliders { align-self: stretch; }
 .pose-check { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.9rem; color: var(--text); }
-.pose-check input { width: auto; margin: 0; }
+.pose-check input { width: auto; margin: 0; accent-color: var(--ink-grey); }
 .pose-slider label { margin: 0; font-size: 0.85rem; }
 .pose-slider input[type="range"] { width: 100%; margin: 0; padding: 0; }
 /* The value's box, to type a number into: 16px, so an iPhone doesn't zoom

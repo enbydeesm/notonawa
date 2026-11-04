@@ -20,7 +20,9 @@ export const FORMAT_VERSION = 1;
 /** The canvas, in the units the points are in: portrait, 3:4. */
 export const WIDTH = 900;
 export const HEIGHT = 1200;
-export const COLORS = /** @type {const} */ (["black", "grey", "red", "orange", "green", "blue", "purple", "pink"]);
+// Every color a line or rope can be saved in. Jute came last, for the
+// poser (its ropes and pencil), so older lines keep their colors.
+export const COLORS = /** @type {const} */ (["black", "grey", "red", "orange", "green", "blue", "purple", "pink", "jute"]);
 export const WIDTHS = /** @type {const} */ ([1, 2, 3]);
 /** Lines in one drawing. */
 export const MAX_STROKES = 2000;

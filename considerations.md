@@ -2840,3 +2840,71 @@ Unlock asked for, so installed apps showed broken images until closed.
 - **Not adopted (for now): keeping removed files for a release.** Old
   pages reload at their next lock, so a missing file only shows until
   then.
+
+## Poser: tabs, the view's own tools, a panel for the chosen rope (November 2026)
+
+The poser had grown a crowded top row (Pose, Rope, pencil, undo, redo,
+download and Add to visuals), the Rope mode was easy to miss, and the
+body's shape sat folded in the Pose panel among the sliders used all the
+time. Mocked up first, then built (`pose-editor.js`, with
+`pose-scene-panel.js`, `pose-rope-panel.js` and `pose-hints.js`).
+
+- **Three tabs: Pose, Rope and Scene**, filling the top row as one
+  switch, so Rope reads as a mode. Scene holds what's set once before
+  posing: the hardpoint and the body's shape, swapped with a smaller
+  switch of their own (Hardpoint | Body shape). "Scene" over Setup,
+  Space, Model or Rig: it covers both the rig and the figure in it, and
+  "model" is a role's old name.
+- **Undo, redo and the pencil float on the view's top left; a cube on its
+  top right** opens the quick views, in place of a select (a select can't
+  show an icon). They act on the view, so they sit on it.
+- **The pencil is a switch over any tab**, not a mode: drawing is the
+  same whichever tab is showing, and its colors, widths, eraser and Done
+  go in a bar over the view's foot, leaving the panel where it was.
+- **Download and Add to visuals moved to the foot** beside Save pose, as
+  icons (an arrow into a tray, a picture with a plus): all three get the
+  pose out. The foot's left button is always Close.
+- **Positions and Facing.** Body and Arms (presets) sit together under
+  "Positions" with figure icons (a futomomo, bunny ears) drawn like the
+  poser's high-kicking icon; Turn stands apart under "Facing", as it sets
+  which way the body faces rather than applying a stored position.
+  "Positions" over Presets: the word riggers use.
+- **Body shape: Save as my model, Load default, Reset.** Reset goes back
+  to my saved model (the app's body when there's none); Load default puts
+  the app's own body on. Before, the one Reset went to the app's body.
+- **Taking a hardpoint away, or swapping it, asks nothing**: the rope
+  points that can't move go with it, a line says how many, and Undo
+  brings them back. Tapping the one there takes it away; tapping it again
+  puts it back where a new one starts. Swapping a ring and a bamboo moves
+  uplines across, so it rarely loses any.
+- **The chosen rope has its own panel** in place of the thickness and
+  color tools: its color, "Rope selected" and ✕; Cinch, Slide (when it's
+  tied to the bamboo) and Add rope side by side as icons over names; and
+  one box for the setting in play: slack, its position along the bamboo
+  while sliding, or a cinch's length. The action in use is pressed and
+  tapping it again ends it, so Slide's Done went. A cinch shows Cinch
+  pressed, the other two dimmed, and Move the body in its heading.
+  Before, Add cinch, Move on bamboo and Add rope were spread across a row
+  and the sliders came and went in different places.
+- **Cancel and Finish show only while a rope is laid**, in a bar over the
+  view with its count, instead of sitting disabled most of the time.
+- **Jute, a ninth color, in grey's place.** `COLORS` (the page's
+  `drawing-format.js` and the server's `src/drawings/parse.js`) gained
+  "jute" at the end, so every older line and rope keeps its color. What
+  can be chosen is `PICK_COLORS`, one list for the drawing pad, ropes and
+  the pencil: jute in grey's spot. Grey stays saveable, so saved grey
+  lines and ropes still show grey. First tried: the poser drawing "grey"
+  as jute, stored as grey, but then one color had two names depending on
+  where it was looked at; then separate lists for the pad and the poser,
+  which there was no need for.
+- **The pencil reuses the Rope tab's rows.** At first its colors and
+  widths were a bar over the view, the same as Rope's below it; now,
+  while it's on, a Pencil panel takes the tab's place with those same
+  rows (one builder), under a heading with Done, outlined in the accent.
+  Tapping a tab puts it away too.
+- **See-saw is "Runs free"**, in the chosen rope's heading (where a cinch
+  has Move the body): it says what happens, the rope running over the
+  ring or bamboo so pulling one end moves the other. "Pulley" was clear
+  but mechanical; "Through the ring" didn't fit the bamboo.
+- **The heading takes focus when the poser opens**, as other dialogs'
+  do: before, the browser gave it to the Pose tab, which showed a ring.

@@ -10,6 +10,16 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- A new layout for the poser. Pose, Rope and Scene are tabs across the top. Undo, redo and the pencil sit on the view's top left, and a cube on its top right picks the view (front, sides, back or above).
+- Download and Add to visuals moved to the foot, beside Save pose, as icons.
+- Scene holds what you set up once: the hardpoint (tap the one there to take it away, again to put it back) and the body's shape, with Save as my model, Load default and Reset (back to your model).
+- Positions (Body, Arms) and Facing (Turn) each have their own spot in Pose.
+- Tap a rope and its own panel shows: Cinch, Slide (along the bamboo) and Add rope, and one box for its slack, its position or a cinch's length. Cancel and Finish only show while you're laying a rope.
+- The pencil works over any tab: while it's on, its panel (the same thickness, eraser and colors as ropes) takes the tab's place, with Done.
+- See-saw is now "Runs free", beside Rope selected.
+- A new jute color in place of grey, for ropes, the pencil and drawings (anything you made grey stays grey).
+
 ## 2026.11.01.2141
 - Ropes in the poser: tie more than one cinch on an upline, cinch an upline to itself, and tap back and forth to make a cinch through several points before Finish rope.
 - Add rope starts a new rope from the spot you tapped on another rope. A black dot shows the spot.

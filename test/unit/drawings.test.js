@@ -22,6 +22,21 @@ describe("the page and the server", () => {
   });
 });
 
+describe("the colors offered", () => {
+  it("jute is offered in grey's spot, and every color offered can be saved", () => {
+    expect(page.PICK_COLORS).toEqual(["black", "jute", "red", "orange", "green", "blue", "purple", "pink"]);
+    for (const c of page.PICK_COLORS) expect(page.COLORS).toContain(c);
+    // Jute came last, so grey and every older color keep their places.
+    expect(page.COLORS.indexOf("jute")).toBe(page.COLORS.length - 1);
+  });
+  it("a jute line is kept, and grey still is", () => {
+    for (const c of ["jute", "grey"]) {
+      const data = { v: 1, strokes: [stroke([0, 0, 10, 10], c)] };
+      expect(server.parseDrawing(data)).toEqual(data);
+    }
+  });
+});
+
 describe("parseDrawing", () => {
   const ok = { v: 1, strokes: [stroke([0, 0, 900, 1200]), stroke([5, 5], "black", 1)] };
 
@@ -87,7 +102,7 @@ describe("drawing-format", () => {
   });
 
   it("makes an SVG file with the colors given", () => {
-    const colors = { paper: "#fff", black: "#000", grey: "#888", red: "#f00", orange: "#f80", green: "#0f0", blue: "#00f", purple: "#808", pink: "#f8c" };
+    const colors = { paper: "#fff", black: "#000", grey: "#888", red: "#f00", orange: "#f80", green: "#0f0", blue: "#00f", purple: "#808", pink: "#f8c", jute: "#b8925a" };
     const file = page.svgFile(page.drawing([stroke([0, 0, 10, 10], "blue", 3)]), colors);
     expect(file).toContain('viewBox="0 0 900 1200"');
     expect(file).toContain('<rect width="900" height="1200" fill="#fff"/>');

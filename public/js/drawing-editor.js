@@ -11,7 +11,7 @@
 import { h, showMessage } from "./dom.js";
 import { capitalise, today } from "./format.js";
 import { choose } from "./dialog.js";
-import { COLORS, MAX_STROKES, MAX_LINE_NUMBERS, drawing, toCanvas, simplify, strokePath } from "./drawing-format.js";
+import { PICK_COLORS as COLORS, MAX_STROKES, MAX_LINE_NUMBERS, drawing, toCanvas, simplify, strokePath } from "./drawing-format.js";
 import { startHistory, change, undo, redo, strokeAt } from "./drawing-edit.js";
 import { drawingSvg, strokeElement, drawingPng } from "./drawing-svg.js";
 import { TOOL_ICONS } from "./tool-icons.js";

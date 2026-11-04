@@ -12,7 +12,13 @@ export const FORMAT_VERSION = 1;
 /** The canvas, in the units the points are in: portrait, 3:4. */
 export const WIDTH = 900;
 export const HEIGHT = 1200;
-export const COLORS = /** @type {const} */ (["black", "grey", "red", "orange", "green", "blue", "purple", "pink"]);
+// Every color a line or rope can be saved in (the server's list too);
+// PICK_COLORS are the ones to choose from, on the drawing pad and in the
+// poser alike: jute in grey's spot. Grey stays saveable, so older lines and
+// ropes keep it.
+export const COLORS = /** @type {const} */ (["black", "grey", "red", "orange", "green", "blue", "purple", "pink", "jute"]);
+/** The colors to choose from (drawing pad, ropes, pencil). @type {readonly Color[]} */
+export const PICK_COLORS = ["black", "jute", "red", "orange", "green", "blue", "purple", "pink"];
 /** Each width's thickness on the canvas. */
 export const LINE_UNITS = /** @type {const} */ ({ 1: 4, 2: 10, 3: 24 });
 /** The most drawings on one tie, plan or workshop (also checked by the server). */

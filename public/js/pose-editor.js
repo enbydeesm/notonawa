@@ -53,7 +53,7 @@ import {
 import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
-  COLORS, WIDTHS, HARDPOINTS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
+  PICK_COLORS as COLORS, WIDTHS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
@@ -72,6 +72,9 @@ import { cinchBody, keepSeesaws } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
+import { scenePanel } from "./pose-scene-panel.js";
+import { chosenRopeView } from "./pose-rope-panel.js";
+import { viewHint, ropeHint, hardpointLostNote } from "./pose-hints.js";
 import { saveFile } from "./download.js";
 /** The joints the Hips sliders turn: the pelvis, and the hips that keep the legs where they were. */
 const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip"]);
@@ -144,8 +147,10 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     let history = startHistory(start ? readPose(start) : fresh());
     /** A slider being dragged: its pose, not yet a change (it is when let go). @type {Pose | null} */
     let draft = null;
-    /** @type {"pose" | "rope" | "draw"} */
+    /** The tab shown. @type {"pose" | "rope" | "scene"} */
     let mode = "pose";
+    /** The pencil's on: fingers draw over the view, in any tab. */
+    let drawing = false;
     /** The part being posed. @type {string | null} */
     let selected = null;
     /** The rope being laid. @type {Rope | null} */
@@ -196,7 +201,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     /** @param {string} text @param {boolean} [isError] */
     const say = (text, isError = false) => showMessage(message, text, isError);
 
-    // --- the toolbar -----------------------------------------------------------
+    // --- the tabs and the view's own tools ---------------------------------------
 
     /**
      * @param {string} id @param {string} label @param {string} className
@@ -205,44 +210,53 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     const toggle = (id, label, className, onclick, ...children) => h("button", {
       type: "button", id, className: `tool ${className}`.trim(), "aria-label": label, title: label, "aria-pressed": "false", onclick,
     }, ...children);
-    const poseTab = toggle("pose-mode-pose", "Pose the figure", "", () => setMode("pose"), "Pose");
-    const ropeTab = toggle("pose-mode-rope", "Lay ropes", "", () => setMode("rope"), "Rope");
-    const drawTab = toggle("pose-mode-draw", "Draw over the view", "icon-tool", () => setMode("draw"), TOOL_ICONS.pencil());
+    // Pose, Rope and Scene across the top, as one switch.
+    const poseTab = toggle("pose-mode-pose", "Pose the figure", "pose-tab", () => setMode("pose"), "Pose");
+    const ropeTab = toggle("pose-mode-rope", "Lay ropes", "pose-tab", () => setMode("rope"), "Rope");
+    const sceneTab = toggle("pose-mode-scene", "The hardpoint and the body's shape", "pose-tab", () => setMode("scene"), "Scene");
     /**
      * A button showing an icon, its name in aria-label and title.
      * @param {string} id @param {string} label @param {import("./tool-icons.js").ToolIcon} kind @param {() => void} onclick
+     * @param {string} [className]
      */
-    const iconButton = (id, label, kind, onclick) => h("button", {
-      type: "button", className: "tool icon-tool", id, "aria-label": label, title: label, onclick,
+    const iconButton = (id, label, kind, onclick, className = "tool icon-tool") => h("button", {
+      type: "button", className, id, "aria-label": label, title: label, onclick,
     }, TOOL_ICONS[kind]());
-    const undoButton = iconButton("pose-undo", "Undo", "undo", doUndo);
-    const redoButton = iconButton("pose-redo", "Redo", "redo", doRedo);
-    const downloadButton = iconButton("pose-download", "Download picture", "download", download);
+    // Over the view, top left: undo, redo and the pencil (drawing over the
+    // view, in any tab).
+    const undoButton = iconButton("pose-undo", "Undo", "undo", doUndo, "tool icon-tool pose-float-button");
+    const redoButton = iconButton("pose-redo", "Redo", "redo", doRedo, "tool icon-tool pose-float-button");
+    const drawTab = toggle("pose-mode-draw", "Draw over the view", "icon-tool pose-float-button", () => setDrawing(!drawing), TOOL_ICONS.pencil());
+    // At the foot, beside Save pose: getting the picture out.
+    const downloadButton = iconButton("pose-download", "Download picture", "download", download, "tool icon-tool pose-foot-icon");
     // Opened on its own, Add to visuals asks which tie, plan or workshop
     // the picture's for ("Add pose to…").
     const addVisualButton = addToVisuals || (standalone && place)
-      ? h("button", { type: "button", className: "tool", id: "pose-add-visual", onclick: addPicture }, "Add to visuals") : null;
-    const viewMenu = h("select", { id: "pose-view-choice", className: "tool pose-view-menu", "aria-label": "View from", onchange: () => {
-      const chosen = VIEWS[Number(viewMenu.value)];
-      viewMenu.value = "";
-      if (!chosen) return;
-      const [, yaw, pitch] = chosen;
-      const [, , distance, height, x, z] = current().camera;
-      lookAt([yaw, pitch, distance, height, x, z]);
-    } }, h("option", { value: "" }, "View"), VIEWS.map(([name], i) => h("option", { value: String(i) }, name)));
-    // The hint top left, the views top right, over the 3D view and its
-    // pencil marks.
-    // "Allow collisions" bottom right, as muted as the hint.
+      ? iconButton("pose-add-visual", "Add to visuals", "addVisual", addPicture, "tool icon-tool pose-foot-icon") : null;
+    // Over the view, top right: the cube, opening the quick views.
+    const viewList = h("div", { className: "pose-view-list", id: "pose-view-list", role: "menu", hidden: true },
+      VIEWS.map(([name, yaw, pitch], i) => h("button", {
+        type: "button", className: "pose-view-item", id: `pose-view-${i}`, role: "menuitem", onclick: () => {
+          showViews(false);
+          const [, , distance, height, x, z] = current().camera;
+          lookAt([yaw, pitch, distance, height, x, z]);
+        },
+      }, name)));
+    const viewMenu = h("button", {
+      type: "button", className: "tool icon-tool pose-float-button pose-view-menu", id: "pose-view-choice", "aria-label": "View from",
+      title: "View from: front, side, back or above", "aria-haspopup": "menu", "aria-expanded": "false", onclick: () => showViews(viewList.hidden === true),
+    }, TOOL_ICONS.views(), h("span", { className: "pose-chevron", "aria-hidden": "true" }, "▾"));
+    /** @param {boolean} open */
+    function showViews(open) {
+      viewList.hidden = !open;
+      viewMenu.setAttribute("aria-expanded", String(open));
+    }
     const marks = marksLayer();
+    // "Allow collisions" bottom right, as muted as the hint (Pose only).
     const allowBox = h("input", { type: "checkbox", id: "pose-allow-collisions", checked: allowCollisions, onchange: () => setAllowed(allowBox.checked) });
-    // The head's own hint, bottom left, in Pose mode only (setMode).
-    const headHint = h("p", { className: "pose-head-hint", id: "pose-head-hint", "aria-hidden": "true" },
-      "Drag head for height · tap for whole body");
-    const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
-      h("p", { className: "pose-hint", "aria-hidden": "true" }, "Drag to turn · 2 fingers to pan · pinch to zoom"),
-      headHint,
-      viewMenu,
-      h("label", { className: "pose-allow", htmlFor: "pose-allow-collisions" }, allowBox, "Allow collisions"));
+    const allowLabel = h("label", { className: "pose-allow", htmlFor: "pose-allow-collisions" }, allowBox, "Allow collisions");
+    // The view's hint, bottom left: what fingers do in the tab (pose-hints.js).
+    const viewHintLine = h("p", { className: "pose-view-hint", id: "pose-view-hint", "aria-hidden": "true" });
 
     // --- the Pose panel ----------------------------------------------------------
 
@@ -259,130 +273,160 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         ? withBodyPresetOn(measuring, history.pose, /** @type {BodyPreset} */ (preset))
         : withPosture(history.pose, withArmsPreset(history.pose, /** @type {ArmsPreset} */ (preset))), true),
     });
-    const pickerButton = (/** @type {string} */ id, /** @type {string} */ label, /** @type {() => void} */ onclick) =>
-      h("button", { type: "button", className: "tool pose-picker", id, "aria-haspopup": "dialog", onclick }, label);
-    const bodyButton = pickerButton("pose-body-preset", "Body…", () => openPresets("body"));
-    const armsButton = pickerButton("pose-arms-preset", "Arms…", () => openPresets("arms"));
-    const turnButton = pickerButton("pose-orientation", "Turn body…", () => pickTurn({
+    /**
+     * A picker's button: its icon, its name, and ▾ (it opens a list).
+     * @param {string} id @param {string} label @param {import("./tool-icons.js").ToolIcon} icon @param {() => void} onclick
+     */
+    const pickerButton = (id, label, icon, onclick) => h("button", {
+      type: "button", className: "tool pose-picker", id, "aria-haspopup": "dialog", onclick,
+    }, TOOL_ICONS[icon](), h("span", { className: "pose-picker-name" }, label), h("span", { className: "pose-chevron", "aria-hidden": "true" }, "▾"));
+    const bodyButton = pickerButton("pose-body-preset", "Body", "bodyPosition", () => openPresets("body"));
+    const armsButton = pickerButton("pose-arms-preset", "Arms", "armsPosition", () => openPresets("arms"));
+    // Where the body faces is a different kind of choice, so it stands apart.
+    const turnButton = pickerButton("pose-orientation", "Turn", "facing", () => pickTurn({
       orientations: ORIENTATIONS, body: history.pose.body, apply: (body) => commit({ ...history.pose, body: /** @type {[number, number, number]} */ (body) }),
     }));
+    turnButton.setAttribute("aria-label", "Turn body");
     const partName = h("h3", { className: "pose-part", id: "pose-part" });
     const sliders = h("div", { className: "pose-sliders", id: "pose-sliders" });
     const resetPart = h("button", { type: "button", className: "tool", id: "pose-reset-part", onclick: resetSelected }, "Reset");
-    // The body's shape, folded away until wanted, with "Save as my
-    // default" in the middle of its heading's row and Reset at its end
-    // (beside the fold, not in it, so they show folded).
-    const shapeSliders = h("div", { className: "pose-sliders", id: "pose-shape-sliders" });
-    const saveShapeButton = h("button", {
-      type: "button", className: "tool pose-shape-save", id: "pose-shape-default", onclick: saveShapeAsDefault,
-    }, "Save as my default");
-    // Back to the app's own body; my saved default stays as it is.
-    const resetShapeButton = h("button", {
-      type: "button", className: "tool pose-shape-reset", id: "pose-shape-reset",
-      onclick: () => commit(withShape(measuring, history.pose, DEFAULT_SHAPE)),
-    }, "Reset");
-    const shapeFold = h("div", { className: "pose-shape" },
-      h("details", { className: "fold", id: "pose-shape" }, h("summary", {}, "Body shape"), shapeSliders),
-      h("div", { className: "pose-shape-actions" }, saveShapeButton, resetShapeButton));
+    // The part's name, with Reset at the end of the same row.
+    const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
+      h("div", { className: "pose-menus" },
+        h("div", { className: "pose-menu-group pose-positions", role: "group", "aria-labelledby": "pose-positions-label" },
+          h("span", { className: "pose-row-label", id: "pose-positions-label" }, "Positions"),
+          h("div", { className: "pose-menu-buttons" }, bodyButton, armsButton)),
+        h("span", { className: "pose-menu-divider", "aria-hidden": "true" }),
+        h("div", { className: "pose-menu-group", role: "group", "aria-labelledby": "pose-facing-label" },
+          h("span", { className: "pose-row-label", id: "pose-facing-label" }, "Facing"),
+          h("div", { className: "pose-menu-buttons" }, turnButton))),
+      h("div", { className: "pose-part-row" }, partName, resetPart), sliders);
 
-    /** Saves the body shown as the one new poses start with. */
+    // --- the Scene panel -----------------------------------------------------------
+
+    const scene = scenePanel({
+      onHardpoint: (kind) => toggleHardpoint(kind),
+      onSaveShape: saveShapeAsDefault,
+      onLoadDefault: () => commit(withShape(measuring, history.pose, DEFAULT_SHAPE)),
+      // Back to my model (the app's own if I haven't saved one).
+      onResetShape: () => commit(withShape(measuring, history.pose, defaultShape ?? DEFAULT_SHAPE)),
+    });
+
+    /** Saves the body shown as the one new poses start with ("Save as my model"). */
     async function saveShapeAsDefault() {
       const shape = /** @type {Shape} */ ([...current().shape]);
-      saveShapeButton.disabled = true;
+      scene.saveShapeButton.disabled = true;
       try {
         await saveDefaultShape(shape);
         defaultShape = shape;
-        say("Saved. New poses will start with this body.");
+        say("Saved as your model. New poses will start with this body.");
       } catch (err) {
-        say(`Couldn't save the default body: ${err instanceof Error ? err.message : "try again"}`, true);
+        say(`Couldn't save your model: ${err instanceof Error ? err.message : "try again"}`, true);
       }
-      drawShapePanel();
+      drawScenePanel();
     }
-    // The part's name, with Reset at the end of the same row.
-    const posePanel = h("div", { className: "pose-panel", id: "pose-panel-pose" },
-      h("div", { className: "pose-menus" }, bodyButton, armsButton, turnButton),
-      shapeFold,
-      h("div", { className: "pose-part-row" }, partName, resetPart), sliders);
 
     // --- the Rope panel ----------------------------------------------------------
 
-    const colorButtons = COLORS.map((c) => toggle(`pose-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => pickColor(c),
-      h("span", { className: "swatch-dot", "aria-hidden": "true" })));
-    const widthButtons = WIDTHS.map((w) => toggle(`pose-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
-      h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
-    const eraserButton = toggle("pose-eraser", "Eraser: tap a rope to take it out", "", () => setErasing(!erasing), "Eraser");
-    const finishButton = h("button", { type: "button", className: "pose-finish", id: "pose-finish-rope", onclick: () => { endRope(true); drawAll(); } }, "Finish rope");
+    /**
+     * The thickness, an eraser and the colors: the Rope tab's and the
+     * pencil's are the same rows, so they look the same; the color and
+     * width chosen are shared too.
+     * @param {string} prefix the buttons' ids, e.g. "pose" (pose-color-red) or "pose-mark"
+     * @param {string} what "Rope" or "Line", for their groups' names
+     * @param {string} eraserLabel @param {() => void} onEraser
+     */
+    const styleRows = (prefix, what, eraserLabel, onEraser) => {
+      const colors = COLORS.map((c) => toggle(`${prefix}-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => pickColor(c),
+        h("span", { className: "swatch-dot", "aria-hidden": "true" })));
+      const widths = WIDTHS.map((w) => toggle(`${prefix}-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
+        h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
+      const eraser = toggle(`${prefix}-eraser`, eraserLabel, "", onEraser, "Eraser");
+      const element = h("div", { className: "pose-rope-tools-rows" },
+        h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser),
+        h("div", { className: "tool-group", role: "group", "aria-label": `${what} color` }, colors));
+      return { element, colors, widths, eraser };
+    };
+    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing));
+    const { colors: colorButtons, widths: widthButtons, eraser: eraserButton } = ropeStyle;
+    // While a rope is laid: its count, Cancel and Finish, in a bar over the
+    // foot of the view (hidden otherwise).
+    const finishButton = h("button", {
+      type: "button", className: "tool pose-finish", id: "pose-finish-rope", onclick: () => { endRope(true); drawAll(); },
+    }, "Finish");
     // Drops the rope, cinch or added rope being laid.
-    const cancelButton = h("button", { type: "button", className: "pose-cancel-rope", id: "pose-cancel-rope", onclick: () => {
+    const cancelButton = h("button", { type: "button", className: "tool pose-cancel-rope", id: "pose-cancel-rope", onclick: () => {
       cancelRope();
       sayRope("");
       drawAll();
-    } }, "Cancel rope");
-    // The pose's hardpoint is pressed (tapping it again takes it away).
-    const hardpointButtons = HARDPOINTS.map((kind) => h("button", {
-      type: "button", className: "tool", id: `pose-${kind}`, "aria-pressed": "false", onclick: () => toggleHardpoint(kind),
-    }, kind));
-    // The hardpoint's sliders, folded away under Hardpoint Settings until wanted.
-    const hardpointSliders = h("div", { className: "pose-sliders", id: "pose-hardpoint-sliders" });
-    const hardpointFold = h("details", { className: "fold pose-hardpoint-fold", id: "pose-hardpoint-settings" },
-      h("summary", {}, "Hardpoint Settings"), hardpointSliders);
-    // The chosen rope's see-saw box, above what to do next and any message about the ropes.
-    const seesawSlot = h("div", { className: "pose-seesaw", id: "pose-seesaw-slot" });
-    const ropeHint = h("p", { className: "hint", id: "pose-rope-hint" });
+    } }, "Cancel");
+    const layingCount = h("span", { className: "pose-bar-text", id: "pose-laying-count" });
+    const layingBar = h("div", { className: "pose-view-bar", id: "pose-laying-bar", hidden: true }, layingCount, cancelButton, finishButton);
+    const ropeTools = ropeStyle.element;
+    const ropeHintLine = h("p", { className: "hint", id: "pose-rope-hint" });
     const ropeNote = h("p", { className: "message pose-rope-note", id: "pose-rope-note", "aria-live": "polite" });
     /** A message about the ropes, under the help. @param {string} text @param {boolean} [isError] */
     const sayRope = (text, isError = false) => showMessage(ropeNote, text, isError);
-    // The rope chosen: Add cinch, Move on bamboo, Add rope, its slack; a cinch's length.
+    // The rope chosen (pose-rope-panel.js), in place of the tools.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
+    // Which hardpoint there is, and a way to the Scene tab to change it.
+    const hardpointName = h("strong", { id: "pose-hardpoint-name" });
+    const hardpointLink = h("button", { type: "button", className: "pose-scene-link", id: "pose-hardpoint-link", onclick: () => setMode("scene") },
+      h("span", {}, "Hardpoint: ", hardpointName), h("span", { className: "pose-scene-link-go" }, "Change in Scene"));
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
-      h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": "Rope thickness" }, widthButtons, eraserButton,
-        // Together at the end of the row, or together on the next if there isn't room.
-        h("span", { className: "pose-rope-ends" }, cancelButton, finishButton)),
-      h("div", { className: "tool-group", role: "group", "aria-label": "Rope color" }, colorButtons),
-      seesawSlot,
-      ropeHint,
-      ropeNote,
-      ropeOptions,
-      h("div", { className: "tool-group", role: "group", "aria-labelledby": "pose-hardpoint-label" },
-        h("span", { className: "pose-row-label", id: "pose-hardpoint-label" }, "Hardpoint:"), hardpointButtons),
-      hardpointFold);
+      ropeTools, ropeOptions, ropeHintLine, ropeNote, hardpointLink);
 
-    // --- the Pencil panel ---------------------------------------------------------
+    // --- the Pencil panel ------------------------------------------------------------
 
-    // The same colors and widths as ropes, with an eraser of its own.
-    const markColorButtons = COLORS.map((c) => toggle(`pose-mark-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => pickColor(c),
-      h("span", { className: "swatch-dot", "aria-hidden": "true" })));
-    const markWidthButtons = WIDTHS.map((w) => toggle(`pose-mark-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
-      h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
-    const markEraserButton = toggle("pose-mark-eraser", "Eraser: tap or drag over a mark to take it out", "",
-      () => setErasingMarks(!erasingMarks), "Eraser");
-    const drawPanel = h("div", { className: "pose-panel", id: "pose-panel-draw", hidden: true },
-      h("div", { className: "tool-group", role: "group", "aria-label": "Line width" }, markWidthButtons, markEraserButton),
-      h("div", { className: "tool-group", role: "group", "aria-label": "Line color" }, markColorButtons),
-      h("p", { className: "hint", id: "pose-draw-hint" },
-        "Draw over the view with a finger. The marks go into the pictures Add to visuals and Download make, aren't saved " +
-        "with the pose, and hide when the view turns."));
+    // While the pencil's on, in place of the tab's panel: the Rope tab's
+    // rows (its own eraser, for marks), under a heading that says they're
+    // the pencil's, with Done; outlined in the accent like the pencil's
+    // button on the view.
+    const markStyle = styleRows("pose-mark", "Line", "Eraser: tap or drag over a mark to take it out", () => setErasingMarks(!erasingMarks));
+    const { colors: markColorButtons, widths: markWidthButtons, eraser: markEraserButton } = markStyle;
+    const drawPanel = h("div", { className: "pose-panel pose-pencil-panel", id: "pose-panel-draw", hidden: true },
+      h("div", { className: "pose-chosen-head" },
+        h("span", { className: "pose-pencil-mark", "aria-hidden": "true" }, TOOL_ICONS.pencil()),
+        h("h3", { className: "pose-part", id: "pose-pencil-title" }, "Pencil"),
+        h("button", { type: "button", className: "tool pose-finish", id: "pose-draw-done", onclick: () => setDrawing(false) }, "Done")),
+      markStyle.element,
+      h("p", { className: "hint", id: "pose-draw-hint" }, "Marks go in the pictures, aren't saved with the pose, and hide when the view turns."));
+
+    // The view, with its tools and bars over it.
+    const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
+      h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
+        undoButton, redoButton, h("span", { className: "pose-view-divider", "aria-hidden": "true" }), drawTab),
+      viewMenu, viewList,
+      h("div", { className: "pose-view-foot" }, viewHintLine, allowLabel),
+      layingBar);
 
     // The panels scroll when they're taller than their space: their bottom
     // edge fades while there's more below, so it's clear there is.
-    const panels = h("div", { className: "pose-panels", id: "pose-panels" }, posePanel, ropePanel, drawPanel);
+    const panels = h("div", { className: "pose-panels", id: "pose-panels" }, posePanel, ropePanel, scene.element, drawPanel);
     const fadePanels = () => panels.classList.toggle("more-below", panels.scrollTop + panels.clientHeight < panels.scrollHeight - 2);
     panels.addEventListener("scroll", fadePanels, { passive: true });
 
     const dialog = h("dialog", { className: "pose-editor", "aria-labelledby": "pose-heading" },
-      h("h2", { id: "pose-heading", className: "visually-hidden" }, start ? "Edit pose" : "New pose"),
-      h("div", { className: "pose-tools" },
-        h("div", { className: "tool-group", role: "group", "aria-label": "Mode" }, poseTab, ropeTab, drawTab),
-        h("div", { className: "tool-group" }, undoButton, redoButton, downloadButton),
-        addVisualButton),
+      // The heading takes focus when it opens, as other dialogs' do, so no
+      // button starts out ringed as if it had been tabbed to.
+      h("h2", { id: "pose-heading", className: "visually-hidden", tabIndex: -1, autofocus: true }, start ? "Edit pose" : "New pose"),
+      h("div", { className: "pose-tools pose-tabs", role: "group", "aria-label": "Mode" }, poseTab, ropeTab, sceneTab),
       frame,
       panels,
       message,
-      h("div", { className: "drawing-actions" },
-        h("button", { type: "button", id: "pose-cancel", onclick: cancel }, standalone ? "Close" : "Cancel"),
+      h("div", { className: "drawing-actions pose-actions" },
+        h("button", { type: "button", id: "pose-cancel", onclick: cancel }, "Close"),
+        downloadButton,
+        addVisualButton,
         h("button", {
           type: "button", className: "primary", id: "pose-save", onclick: save, disabled: standalone && !place,
         }, "Save pose")));
+    // Tapping anywhere but the cube closes its list.
+    dialog.addEventListener("pointerdown", (event) => {
+      if (!viewList.hidden && !viewList.contains(/** @type {Node} */ (event.target)) && !viewMenu.contains(/** @type {Node} */ (event.target))) {
+        showViews(false);
+      }
+    });
 
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
@@ -440,6 +484,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       redoButton.disabled = history.future.length === 0;
       drawPosePanel();
       drawRopePanel();
+      drawScenePanel();
+      viewHintLine.textContent = viewHint({ tab: mode, drawing, laying: !!laying, chosen: !!chosen });
+      // Allow collisions is the Pose tab's; the bars cover the foot of the view.
+      allowLabel.hidden = mode !== "pose" || drawing;
+      viewHintLine.hidden = !drawing && mode === "rope" && !!laying;
       fadePanels();
     }
 
@@ -584,21 +633,37 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       return h("div", { className: "pose-slider" }, h("label", { htmlFor: id }, label), input, steps, typed);
     }
 
-    function drawShapePanel() {
+    /** The Scene tab: the hardpoint pressed and its sliders, and the body's shape. */
+    function drawScenePanel() {
       const pose = current();
-      // Nothing to save when it's already the default.
-      saveShapeButton.disabled = sameShape(pose.shape, defaultShape ?? DEFAULT_SHAPE);
-      resetShapeButton.disabled = sameShape(pose.shape, DEFAULT_SHAPE);
+      const kind = hardpointOf(pose);
+      scene.draw({ hardpoint: kind, isDefault: sameShape(pose.shape, DEFAULT_SHAPE), isMine: sameShape(pose.shape, defaultShape ?? DEFAULT_SHAPE) });
+      // A slider being dragged keeps its place (redrawing it would drop the drag).
       if (draft) return;
-      shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
+      scene.shapeSliders.replaceChildren(...SHAPE_SLIDERS.map(({ label }, i) => slider({
         id: `pose-shape-${i}`, label, min: SHAPE_RANGES[i][0], max: SHAPE_RANGES[i][1], value: pose.shape[i],
         apply: (p, v) => withShape(measuring, p, /** @type {import("./figure-body.js").Shape} */ (p.shape.map((n, k) => (k === i ? v : n)))),
+      })));
+      if (!kind) {
+        scene.hardpointSliders.replaceChildren();
+        return;
+      }
+      const ranges = HARDPOINT_RANGES[kind];
+      // A bamboo's hangers stay on their own side of its middle.
+      const top = (/** @type {number} */ i) => (kind === "bamboo" && i === 5 ? maxInset(/** @type {number[]} */ (pose.bamboo)[4]) : ranges[i][1]);
+      scene.hardpointSliders.replaceChildren(...HARDPOINT_SLIDERS[kind].map((label, i) => slider({
+        id: `pose-${kind}-${i}`, label, min: ranges[i][0], max: top(i),
+        value: /** @type {number[]} */ (pose[kind])[i],
+        apply: (p, v) => {
+          const place = [.../** @type {number[]} */ (p[kind])];
+          place[i] = v;
+          return moveHardpoint(p, place);
+        },
       })));
     }
 
     function drawPosePanel() {
       const pose = current();
-      drawShapePanel();
       // A slider being dragged keeps its place (redrawing it would drop the drag).
       if (draft) return;
       if (!selected) {
@@ -657,125 +722,97 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     function drawRopePanel() {
       const pose = current();
       const kind = hardpointOf(pose);
-      for (const [i, button] of hardpointButtons.entries()) {
-        const on = HARDPOINTS[i] === kind;
-        button.setAttribute("aria-pressed", String(on));
-        button.title = `${on ? "Remove" : "Add"} ${HARDPOINTS[i]}`;
-      }
-      finishButton.disabled = !laying?.p.length;
-      cancelButton.disabled = !laying;
-      const rope = chosen ? pose.ropes[chosen.index] : null;
       const points = laying?.p.length ?? 0;
-      const count = `${points} ${points === 1 ? "point" : "points"}`;
-      ropeHint.textContent = erasing ? "Tap a rope to take it out."
-        : layingKind === "cinch" ? `Cinch: ${count}. Tap uplines, ropes or the body to tie it through, then Finish rope.`
-          : layingKind === "added" ? `Added rope: ${count}. Keep tapping, then Finish rope.`
-            : points ? `Rope: ${count}. Keep tapping, then Finish rope.`
-              : rope && isCinch(rope) ? "Shorten the cinch to pull the upline aside. Tap the view anywhere else to let it go."
-                : rope ? "Rope chosen: Add cinch or Add rope start from the dot. Tap anywhere else to let it go."
-                  : kind === "hashira" ? "Tap the body to lay a rope, point by point. Tap the hashira to tie to it. Tap a rope to choose it."
-                    : kind ? `Tap the body to lay a rope, point by point. Tap the ${kind} for an upline. Tap a rope to choose it.`
-                      : "Tap the body to lay a rope, point by point. Add a ring, bamboo or hashira to tie to.";
-      if (draft) return;
-      drawRopeOptions(pose);
-      if (!kind) {
-        hardpointSliders.replaceChildren();
-        return;
-      }
-      const ranges = HARDPOINT_RANGES[kind];
-      // A bamboo's hangers stay on their own side of its middle.
-      const top = (/** @type {number} */ i) => (kind === "bamboo" && i === 5 ? maxInset(/** @type {number[]} */ (pose.bamboo)[4]) : ranges[i][1]);
-      hardpointSliders.replaceChildren(...HARDPOINT_SLIDERS[kind].map((label, i) => slider({
-        id: `pose-${kind}-${i}`, label, min: ranges[i][0], max: top(i),
-        value: /** @type {number[]} */ (pose[kind])[i],
-        apply: (p, v) => {
-          const place = [.../** @type {number[]} */ (p[kind])];
-          place[i] = v;
-          return moveHardpoint(p, place);
-        },
-      })));
-    }
-
-    /**
-     * The chosen rope's options: its see-saw box (above the help), Add
-     * cinch, Move on bamboo and Add rope in fixed places, the slider for
-     * sliding it along the bamboo, its slack; or a cinch's length, and
-     * whether it moves the body.
-     * @param {Pose} pose
-     */
-    function drawRopeOptions(pose) {
-      const rope = chosen ? pose.ropes[chosen.index] : null;
+      const rope = chosen && !laying ? pose.ropes[chosen.index] : null;
       // Sliding along the bamboo ends when the rope's let go (or gone).
       if (sliding && (chosen?.index !== sliding.index || pose.ropes[sliding.index]?.p[sliding.point]?.[0] !== "bamboo" || !pose.bamboo)) {
         sliding = null;
       }
-      if (!chosen || !rope || laying) {
-        seesawSlot.replaceChildren();
+      // What's being laid: its count, Cancel and Finish over the view.
+      layingBar.hidden = !laying || drawing || mode !== "rope";
+      finishButton.disabled = !points;
+      const count = `${points} ${points === 1 ? "point" : "points"}`;
+      layingCount.textContent = layingKind === "cinch" ? `Cinch · ${count}` : layingKind === "added" ? `Added rope · ${count}` : `Laying rope · ${count}`;
+      ropeHintLine.textContent = ropeHint({
+        erasing, layingKind: laying ? layingKind : "rope", points, chosen: rope ? (isCinch(rope) ? "cinch" : "rope") : "none",
+        sliding: !!sliding, hardpoint: kind,
+      });
+      hardpointName.textContent = kind ?? "none";
+      // A rope chosen: its own panel in place of the tools.
+      ropeTools.hidden = !!rope;
+      hardpointLink.hidden = !!rope;
+      if (draft) return;
+      drawRopeOptions(pose);
+    }
+
+    /**
+     * The chosen rope's panel (pose-rope-panel.js): its see-saw box, Cinch,
+     * Slide (tied to the bamboo) and Add rope, and the setting in play:
+     * sliding it along the bamboo, its slack, or a cinch's length (and
+     * whether it moves the body).
+     * @param {Pose} pose
+     */
+    function drawRopeOptions(pose) {
+      const rope = chosen && !laying ? pose.ropes[chosen.index] : null;
+      if (!chosen || !rope) {
         ropeOptions.replaceChildren();
         return;
       }
       const index = chosen.index;
+      const letGo = () => {
+        chosen = null;
+        sliding = null;
+        drawAll();
+      };
       if (isCinch(rope)) {
-        seesawSlot.replaceChildren();
         posed(measuring, pose);
         const span = Math.max(1, Math.round(cinchPoints(measuring, pose, index).span));
         const still = !!rope.still;
-        ropeOptions.replaceChildren(
-          h("div", { className: "pose-sliders" }, slider({
-            id: "pose-cinch-length", label: "Cinch length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
-            apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
-          })),
-          checkbox("pose-cinch-body", "Move the body", !still, (on) => commit({
+        ropeOptions.replaceChildren(...chosenRopeView({
+          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo,
+          // Cinch is pressed: tapping it again is done with it.
+          onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
+          cinch: { still, onStill: (on) => commit({
             ...history.pose, ropes: history.pose.ropes.map((r, i) => {
               if (i !== index) return r;
               const { still: _, ...moving } = r;
-              return on ? moving : { ...moving, still: /** @type {true} */ (true) };
+              return on ? { ...moving, still: /** @type {true} */ (true) } : moving;
             }),
-          })));
+          }) },
+          settings: slider({
+            id: "pose-cinch-length", label: "Length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
+            apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
+          }),
+        }));
         return;
       }
       const top = rope.p.find((p) => p[0] === "ring" || p[0] === "bamboo")?.[0] ?? "hardpoint";
-      seesawSlot.replaceChildren(...(canSeesaw(rope)
-        ? [checkbox("pose-seesaw", `See-saw: runs over the ${top}`, !!rope.s, (on) => commit(setSeesaw(history.pose, index, on)))] : []));
       const onBamboo = bambooEnd(rope, chosen.segment);
-      /** @type {HTMLElement[]} */
-      const rows = [h("div", { className: "pose-rope-actions" },
-        h("button", {
-          type: "button", className: "tool pose-add-cinch", id: "pose-cinch-start",
-          title: "Tie a cinch from the dot, through uplines, ropes or the body", onclick: startCinch,
-        }, "Add cinch"),
-        onBamboo >= 0 ? h("button", {
-          type: "button", className: "tool pose-move-bamboo", id: "pose-along-start", "aria-pressed": String(sliding?.index === index),
-          title: "Slide where it's tied along the bamboo", onclick: () => {
-            sliding = sliding?.index === index ? null : { index, point: onBamboo };
-            drawAll();
-          },
-        }, "Move on bamboo") : null,
-        h("button", {
-          type: "button", className: "tool pose-add-rope", id: "pose-added-start",
-          title: "Start a new rope tied on at the dot", onclick: startAdded,
-        }, "Add rope"))];
+      /** @type {HTMLElement | null} */
+      let settings = null;
       if (sliding && pose.bamboo) {
         const { point } = sliding;
         const half = Math.floor(pose.bamboo[4] / 2);
-        rows.push(h("div", { className: "pose-sliders" },
-          slider({
-            id: "pose-along-bamboo", label: "Along the bamboo (cm)", min: -half, max: half,
-            value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
-          }),
-          h("button", { type: "button", className: "tool pose-along-done", id: "pose-along-done", onclick: () => {
-            sliding = null;
-            drawAll();
-          } }, "Done")));
-      }
-      // An upline can be given slack: its hanging stretches sag (drawn only).
-      if (isUpline(rope)) {
-        rows.push(h("div", { className: "pose-sliders" }, slider({
+        settings = slider({
+          id: "pose-along-bamboo", label: "Position (cm)", min: -half, max: half,
+          value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
+        });
+      } else if (isUpline(rope)) {
+        // An upline can be given slack: its hanging stretches sag (drawn only).
+        settings = slider({
           id: "pose-slack", label: "Slack (cm)", min: SLACK_RANGE[0], max: SLACK_RANGE[1], value: rope.k ?? 0,
           apply: (p, v) => setSlack(p, index, v),
-        })));
+        });
       }
-      ropeOptions.replaceChildren(...rows);
+      ropeOptions.replaceChildren(...chosenRopeView({
+        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings,
+        seesaw: canSeesaw(rope) ? { over: top, on: !!rope.s, onChange: (on) => commit(setSeesaw(history.pose, index, on)) } : null,
+        slide: onBamboo < 0 ? "none" : sliding?.index === index ? "on" : "off",
+        onSlide: () => {
+          sliding = sliding?.index === index ? null : { index, point: onBamboo };
+          drawAll();
+        },
+      }));
     }
 
     /**
@@ -788,16 +825,6 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     function bambooEnd(rope, segment) {
       const ends = [segment, segment + 1].filter((i) => rope.p[i]?.[0] === "bamboo");
       return ends.length ? ends[0] : rope.p.findIndex((p) => p[0] === "bamboo");
-    }
-
-    /**
-     * A checkbox with its label, as one change when ticked or unticked.
-     * @param {string} id @param {string} label @param {boolean} checked @param {(on: boolean) => void} onchange
-     */
-    function checkbox(id, label, checked, onchange) {
-      const box = h("input", { type: "checkbox", id, checked });
-      box.addEventListener("change", () => onchange(box.checked));
-      return h("label", { className: "pose-check", htmlFor: id }, box, label);
     }
 
     /** The spot chosen on a rope (the dot), or a cinch's or added rope's first point while it's laid. @returns {RopePoint | null} */
@@ -842,24 +869,48 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     // --- modes and tools -------------------------------------------------------
 
-    /** @param {"pose" | "rope" | "draw"} next */
+    /** @param {"pose" | "rope" | "scene"} next */
     function setMode(next) {
+      // A tab tapped while drawing puts the pencil away first.
+      if (drawing) setDrawing(false);
       if (next !== "rope") {
         endRope();
         chosen = null;
+        sliding = null;
       }
       mode = next;
       poseTab.setAttribute("aria-pressed", String(mode === "pose"));
       ropeTab.setAttribute("aria-pressed", String(mode === "rope"));
-      drawTab.setAttribute("aria-pressed", String(mode === "draw"));
-      posePanel.hidden = mode !== "pose";
-      ropePanel.hidden = mode !== "rope";
-      drawPanel.hidden = mode !== "draw";
-      headHint.hidden = mode !== "pose";
-      // In pencil mode the marks take the view's taps, so fingers only draw.
-      marks.svg.classList.toggle("drawing", mode === "draw");
+      sceneTab.setAttribute("aria-pressed", String(mode === "scene"));
+      showPanel();
       if (mode === "rope") setErasing(false);
-      if (mode === "draw") setErasingMarks(false);
+      drawAll();
+    }
+
+    /** The tab's panel, or the pencil's in its place while it's on. */
+    function showPanel() {
+      posePanel.hidden = drawing || mode !== "pose";
+      ropePanel.hidden = drawing || mode !== "rope";
+      scene.element.hidden = drawing || mode !== "scene";
+      drawPanel.hidden = !drawing;
+    }
+
+    /**
+     * The pencil on or off, over whichever tab is shown: while it's on, the
+     * marks take the view's taps, so fingers only draw, and its panel
+     * takes the tab's place.
+     * @param {boolean} on
+     */
+    function setDrawing(on) {
+      drawing = on;
+      drawTab.setAttribute("aria-pressed", String(on));
+      showPanel();
+      marks.svg.classList.toggle("drawing", on);
+      if (on) {
+        // A rope being laid is finished (or dropped) first, as leaving Rope does.
+        endRope();
+        setErasingMarks(false);
+      }
       drawAll();
     }
 
@@ -943,27 +994,21 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     /**
      * Adds this hardpoint in place of any other, or takes it away if it's
-     * there, asking first if rope points on the old one would go.
+     * there (and puts it back where it starts when tapped once more).
      * @param {import("./pose-format.js").Hardpoint} kind
      */
-    async function toggleHardpoint(kind) {
+    function toggleHardpoint(kind) {
       endRope();
       chosen = null;
+      sliding = null;
       const now = hardpointOf(history.pose);
       const next = now === kind ? null : kind;
+      // No question first: rope points that can't move go, and Undo brings them back.
       const lost = hardpointPointsLost(history.pose, next);
-      if (lost > 0) {
-        const choice = await choose({
-          title: `Take the ropes off the ${now}?`,
-          message: `${lost} rope ${lost === 1 ? "point is" : "points are"} on the ${now}. ` +
-            `${next ? `They can't move to a ${next}, so they'll` : "They'll"} be taken out (Undo brings them back).`,
-          choices: [{ label: next ? `Add ${next}` : `Remove ${now}`, value: "go" }],
-        });
-        if (choice !== "go") return;
-      }
       // A new hashira goes just behind the body, wherever it's standing.
       const place = next === "hashira" ? behindBody(measuring, history.pose) ?? undefined : undefined;
       commit(setHardpoint(history.pose, next, place));
+      if (now && lost > 0) say(hardpointLostNote(now, lost));
     }
 
     /** A picture of the pose as it is now, with the pencil marks showing on it. */
@@ -1289,7 +1334,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       marks.draw(erasedMarks);
     };
     marks.svg.addEventListener("pointerdown", (event) => {
-      if (mode !== "draw" || markPointer !== -1 || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (!drawing || markPointer !== -1 || (event.pointerType === "mouse" && event.button !== 0)) return;
       event.preventDefault();
       markPointer = event.pointerId;
       marks.svg.setPointerCapture(event.pointerId);

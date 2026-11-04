@@ -135,7 +135,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `src/drawings/`: drawings on ties, plans and workshops (migration 0019),
   kept as their lines, plain JSON in D1 (not encrypted, by choice; the
   caption is, as an encrypted column). `parse.js` (pure: the format
-  `{ v: 1, strokes: [{ c, w, p }] }`, `COLORS`, a 900 × 1200 canvas, 20 an
+  `{ v: 1, strokes: [{ c, w, p }] }`, `COLORS` (nine, jute last, grey kept for older lines; the page's `PICK_COLORS` are the eight the drawing pad and the poser offer), a 900 × 1200 canvas, 20 an
   item; `public/js/drawing-format.js` has the same rules, kept in step by
   a unit test), `db.js`, `routes.js` (`GET /api/drawings?tie_id=|plan_id=|
   workshop_id=`, `POST /api/drawings` (adding, duplicating and copying
@@ -457,8 +457,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (their layer over the view, and drawing them onto a picture),
   `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging
   lines; pictures of poses), `pose-editor.js` (the poser: a full-screen
-  dialog like the drawing pad, with Pose, Rope and pencil modes and ▲▼
-  beside each slider; "Add to visuals" puts a picture of the pose, with
+  dialog like the drawing pad, with Pose, Rope and Scene tabs, undo, redo
+  and the pencil (a switch over any tab) on the view, and ▲▼
+  beside each slider; `pose-scene-panel.js` (the Scene tab: Hardpoint |
+  Body shape, Save as my model, Load default, Reset), `pose-rope-panel.js`
+  (the chosen rope's panel: Cinch, Slide, Add rope and one setting's box)
+  and `pose-hints.js` (pure: the view's hint and the Rope tab's help); "Add to visuals" puts a picture of the pose, with
   any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer),
   `standalone-poser.js` (the poser opened from the nav: Save pose and Add

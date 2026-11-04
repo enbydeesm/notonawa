@@ -285,7 +285,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   /** @param {string} c */
   const ink = (c) => {
     let material = inks.get(c);
-    if (!material) inks.set(c, material = new MeshStandardMaterial({ color: cssColor(`ink-${c}`), roughness: 0.8 }));
+        if (!material) inks.set(c, material = new MeshStandardMaterial({ color: cssColor(`ink-${c}`), roughness: 0.8 }));
     return material;
   };
   const marker = new MeshBasicMaterial({ color: cssColor("ink-black") });

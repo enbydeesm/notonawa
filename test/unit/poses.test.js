@@ -72,6 +72,11 @@ describe("the page and the server", () => {
 
   it("agree that every preset, a new pose and every new hardpoint can be saved", () => {
     expect(server.parsePose(page.newPose())).toEqual(page.newPose());
+    // Jute ropes (the poser's) are kept, and older grey ones still are.
+    for (const c of ["jute", "grey"]) {
+      const roped = { ...page.newPose(), ring: [0, 195, 0], ropes: [{ c, w: 2, p: [["l_wrist", 0, -80, 0], page.RING_POINT] }] };
+      expect(server.parsePose(roped).ropes[0].c).toBe(c);
+    }
     for (const body of BODY_PRESETS) {
       for (const arms of ARMS_PRESETS) {
         const data = preset(body.name, arms.name);
