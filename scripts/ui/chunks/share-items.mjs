@@ -23,7 +23,7 @@ const MAKE = (/** @type {Record<string, string | boolean>} */ choices) => `
   for (let i = 0; i < 50 && !$("#share-code-link"); i++) await wait(100);
   const full = $("#share-code-link")?.value ?? "";
   const link = full.slice(full.indexOf("/open"));
-  $("#share-code-done").click(); await wait(200);`;
+  $("#share-code-done").click(); await calm(200);`;
 
 // Waits for /open to show what was shared, or say why not.
 const OPENED = `for (let i = 0; i < 80 && !$("#open-item") && !$("#open-said"); i++) await wait(100);`;
@@ -71,34 +71,34 @@ export default async function () {
   "The name shared for the 'Me' rows on this tie.", 1,
   "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "1d", "one", []]);
   check("it needs a name for me while people are shared", await run(`
-    set("#share-item-label", "For Sam"); $("#share-item-make").click(); await wait(500);
+    set("#share-item-label", "For Sam"); $("#share-item-make").click(); await calm(500);
     return $("#share-item-status").textContent;`), "Couldn't share it: Type the name to show for you.");
   const tieLink = await run(`${MAKE({ "#share-item-my-name": "Jude", "#share-item-album_url": false, "#share-item-uses": "any" })}
     return link;`);
   check("making it shows its code", /^\/open#[\w-]{22}\.[\w-]{43}$/.test(tieLink), true);
-  await run(`[...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await wait(300);`);
+  await run(`[...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await calm(300);`);
 
   await go("/plans");
   const planLink = await run(`
     for (let i = 0; i < 50 && !$(".plan-card"); i++) await wait(100);
     [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === "Hip harness").querySelector(".tie-place").click();
-    await wait(400); $("#plan-share").click();
+    await calm(400); $("#plan-share").click();
     for (let i = 0; i < 50 && !$("#share-item-make"); i++) await wait(100);
     const legend = [$("#share-item-always").textContent, !!$("#share-item-my-name")];
     ${MAKE({ "#share-item-label": "Plan for Sam" })}
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return [legend, link];`);
   check("a plan's Share says its title is always shared, and asks no name (it has no people)", planLink[0], ["Share title and…", false]);
 
   await go("/education");
   const workshopLink = await run(`
     for (let i = 0; i < 50 && !$(".workshop-card"); i++) await wait(100);
-    $(".workshop-card .tie-title").click(); await wait(1000);
+    $(".workshop-card .tie-title").click(); await calm(1000);
     $("#workshop-share").click();
     for (let i = 0; i < 50 && !$("#share-item-make"); i++) await wait(100);
     const people = [...document.querySelectorAll(".share-item .share-field")].find((l) => l.innerText.startsWith("Educators"))?.innerText;
     ${MAKE({ "#share-item-my-name": "Jude", "#share-item-label": "Workshop" })}
-    [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await wait(200);
+    [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await calm(200);
     return [people, link];`);
   check("a workshop's Share lists its educators and participants", workshopLink[0],
     "Educators and participants, with their roles: Sam (top), you (bottom)");
@@ -131,7 +131,7 @@ export default async function () {
       $("#open-person-1-name").value, $("#open-location").value, $("#open-plan-0").value];`),
   ["Jude Top · shared this", `person:${mine.jude}`, "Sam Bottom", "new", false, "Sam", mine.studio, "new"]);
   check("two people can't both be me", await run(`
-    set("#open-person-0", "me"); set("#open-person-1", "me"); $("#open-add").click(); await wait(300);
+    set("#open-person-0", "me"); set("#open-person-1", "me"); $("#open-add").click(); await calm(300);
     return $("#open-message").textContent;`), "Jude and Sam can't both be you: someone is on a tie once.");
   check("adding it with Sam as Me and Jude as a new person saves the tie, linked to my journal, its photo and its drawing, in order", await run(`
     set("#open-person-0", "new"); set("#open-person-1", "me");

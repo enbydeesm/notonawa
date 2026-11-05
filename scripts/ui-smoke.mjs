@@ -30,7 +30,7 @@ import { UI_CHUNKS, batches } from "./areas.mjs";
 
 const DEFAULT_JOBS = 3;
 // What a copy prints after each chunk, for the parent to pick up:
-// "@@chunk <name> <seconds> <failed checks>".
+// "@@chunk <name> <seconds> <failed checks> <skipped>".
 const MARKER = "@@chunk";
 
 const args = process.argv.slice(2);
@@ -57,8 +57,12 @@ const started = Date.now();
 const elapsed = () => `${Math.round((Date.now() - started) / 1000)}s`;
 
 const runs = batches(chunks, jobs);
+// Checks this machine can't run (skip() in scripts/ui/harness.mjs): not failures.
+let skipped = 0;
 const failures = runs.length > 1 ? await runInParallel(runs) : await runHere(chunks);
-console.log(failures ? `\n${failures} failure(s): failed checks, or runs that stopped (${elapsed()})` : `\nAll UI checks passed: ${chunks.join(", ")} (${elapsed()})`);
+const skippedNote = skipped ? ` (${skipped} group(s) of checks skipped on this machine, marked ↷)` : "";
+console.log(failures ? `\n${failures} failure(s): failed checks, or runs that stopped (${elapsed()})${skippedNote}`
+  : `\nAll UI checks passed: ${chunks.join(", ")} (${elapsed()})${skippedNote}`);
 process.exit(failures ? 1 : 0);
 
 /**
@@ -68,10 +72,10 @@ process.exit(failures ? 1 : 0);
  */
 async function runHere(names) {
   // Starts the app and Chrome (only once the arguments are known to be good).
-  const { addFailure, checkConsole, failureCount, stop } = await import("./ui/harness.mjs");
+  const { addFailure, checkConsole, failureCount, skippedCount, stop } = await import("./ui/harness.mjs");
   try {
     for (const name of names) {
-      const chunkStart = Date.now(), failedBefore = failureCount();
+      const chunkStart = Date.now(), failedBefore = failureCount(), skippedBefore = skippedCount();
       console.log(`\n=== ${name}`);
       try {
         await (await import(`./ui/chunks/${name}.mjs`)).default();
@@ -83,11 +87,13 @@ async function runHere(names) {
       checkConsole();
       const seconds = Math.round((Date.now() - chunkStart) / 1000);
       console.log(`  (${seconds}s)`);
-      if (report) console.log(`${MARKER} ${name} ${seconds} ${failureCount() - failedBefore}`);
+      if (report) console.log(`${MARKER} ${name} ${seconds} ${failureCount() - failedBefore} ${skippedCount() - skippedBefore}`);
     }
   } finally {
     stop();
   }
+  // A copy reporting to its parent counts its skips there, in the marker.
+  if (!report) skipped += skippedCount();
   return failureCount();
 }
 
@@ -115,14 +121,16 @@ async function runInParallel(batchList) {
         lines.push(line);
         return;
       }
-      const [, name, seconds, failedHere] = line.split(" ");
+      const [, name, seconds, failedHere, skippedHere] = line.split(" ");
       done++;
+      skipped += Number(skippedHere ?? 0);
       failed += Number(failedHere);
       failedInRun += Number(failedHere);
       if (Number(failedHere)) failedChunks.push(name);
       // The chunk's own lines, without the copy's blank line before it.
       console.log(`\n${lines.join("\n").trim()}`);
-      console.log(`${Number(failedHere) ? "✗" : "✓"} ${name} ${seconds}s (${done}/${chunks.length} done, ${elapsed()})`);
+      const skipNote = Number(skippedHere) ? `, ${skippedHere} skipped here` : "";
+      console.log(`${Number(failedHere) ? "✗" : "✓"} ${name} ${seconds}s${skipNote} (${done}/${chunks.length} done, ${elapsed()})`);
       lines = [];
     };
     readline.createInterface({ input: child.stdout }).on("line", onLine);

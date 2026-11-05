@@ -1,6 +1,6 @@
 // The walkthrough's photos chunk. Photos on ties and plans: prepared and sealed on the device, ordered, captioned, deleted.
 
-import { check, freshAccount, go, run } from "../harness.mjs";
+import { check, freshAccount, go, run, skip } from "../harness.mjs";
 
 export default async function () {
   await freshAccount();
@@ -20,16 +20,16 @@ export default async function () {
     const dt = new DataTransfer(); dt.items.add(file);
     $("#${prefix}-photo-input").files = dt.files; $("#${prefix}-photo-input").dispatchEvent(new Event("change"));
     // Until it's prepared (and uploaded, on a saved tie): up to 10 seconds.
-    await wait(300);
+    await calm(300);
     for (let i = 0; i < 100 && /Preparing|Uploading/.test($("#${prefix}-visuals-message").textContent); i++) await wait(100);
-    await wait(500);
+    await calm(500);
     return [new TextDecoder().decode(await file.arrayBuffer()).includes("SECRET-GPS"),
       document.querySelectorAll("#${prefix}-visuals .photo-tile img").length, $("#${prefix}-visuals-message").textContent];`);
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Photo test"); set("#tie-tie_type", "floor");`);
+  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Photo test"); set("#tie-tie_type", "floor");`);
   check("a new tie's photo is prepared and waits for the tie to be saved",
     await pickPhoto("tie", 3000, 1000, "camera.jpg"), [true, 1, ""]);
   check("…and is uploaded when it's saved, counted on the card", await run(`
-    $("#tie-save").click(); await wait(2500); await settle();
+    $("#tie-save").click(); await calm(2500); await settle();
     const c = [...document.querySelectorAll(".tie-card")].find((x) => x.querySelector(".tie-title").innerText === "Photo test");
     return [!!document.querySelector("dialog"), c?.querySelector(".tie-photos")?.innerText ?? null];`), [false, "1 photo"]);
   check("the server only has it encrypted", await run(`
@@ -41,8 +41,8 @@ export default async function () {
     return [photo.mime, sealed[0] === 0xff && sealed[1] === 0xd8, text.includes("SECRET-GPS"), text.includes("Exif"), text.includes("WEBP")];`),
     ["image/webp", false, false, false, false]);
   check("opened on the device: shrunk, with no metadata left", await run(`
-    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await wait(1500);
-    $("#tie-visuals .photo-thumb").click(); await wait(1500);
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await calm(1500);
+    $("#tie-visuals .photo-thumb").click(); await calm(1500);
     const img = $("dialog[open] .photo-full");
     // The bytes shown, read through the app (the CSP's connect-src keeps
     // fetch off blob: URLs).
@@ -61,9 +61,9 @@ export default async function () {
     return [...before, typed, back, $("#tie-photo-earlier").textContent, $("#tie-photo-later").textContent];`),
   [false, true, false, true, "← Move earlier", "Move later →"]);
   check("a caption is saved encrypted and shown under the thumbnail", await run(`
-    set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await wait(1000);
+    set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await calm(1000);
     const shown = $("#tie-visuals figcaption")?.textContent;
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
@@ -71,27 +71,27 @@ export default async function () {
   check("on a saved tie, a photo uploads straight away",
     (await pickPhoto("tie", 400, 600, "second.jpg")).slice(1), [2, ""]);
   check("swiping on the viewer goes to the next one and back", await run(`
-    $("#tie-visuals .photo-thumb").click(); await wait(1200);
+    $("#tie-visuals .photo-thumb").click(); await calm(1200);
     const swipe = async (dx) => {
       const d = [...document.querySelectorAll("dialog[open]")].pop(), r = d.getBoundingClientRect();
       const at = (x) => ({ bubbles: true, pointerId: 3, isPrimary: true, pointerType: "touch", clientX: x, clientY: r.top + 40 });
       d.dispatchEvent(new PointerEvent("pointerdown", at(r.left + r.width / 2)));
       d.dispatchEvent(new PointerEvent("pointerup", at(r.left + r.width / 2 + dx)));
-      await wait(1200);
+      await calm(1200);
       return $("#tie-photo-position").textContent;
     };
     const first = $("#tie-photo-position").textContent;
     const next = await swipe(-120);
     const back = await swipe(120);
     const stays = await swipe(120);
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     return [first, next, back, stays, document.querySelectorAll("dialog.photo-viewer").length];`),
   ["Photo: 1 of 2", "Photo: 2 of 2", "Photo: 1 of 2", "Photo: 1 of 2", 0]);
   check("…moved earlier, the new order is saved", await run(`
-    document.querySelectorAll("#tie-visuals .photo-thumb")[1].click(); await wait(1200);
-    $("#tie-photo-earlier").click(); await wait(800);
+    document.querySelectorAll("#tie-visuals .photo-thumb")[1].click(); await calm(1200);
+    $("#tie-photo-earlier").click(); await calm(800);
     const shown = [...document.querySelectorAll("#tie-visuals .photo-tile")].map((t) => t.querySelector("figcaption")?.textContent ?? "");
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
@@ -109,7 +109,7 @@ export default async function () {
     document.dispatchEvent(new PointerEvent("pointermove", at(b)));
     const marked = tiles()[1].classList.contains("drop-target");
     document.dispatchEvent(new PointerEvent("pointerup", at(b)));
-    await wait(800);
+    await calm(800);
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
@@ -123,40 +123,49 @@ export default async function () {
     const src = $("#tie-visuals .photo-thumb img").src;
     const loads = (url) => new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(true); i.onerror = () => resolve(false); i.src = url; });
     const before = await loads(src);
-    (await import("/js/vault.js")).lock(); await wait(500);
+    (await import("/js/vault.js")).lock(); await calm(500);
     return [before, await loads(src), [...document.querySelectorAll("img")].some((i) => i.src.startsWith("blob:"))];`), [true, false, false]);
   await go("/");
   check("deleting a photo asks first, then removes it", await run(`
-    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await wait(1500);
-    $("#tie-visuals .photo-thumb").click(); await wait(1200);
-    $("#tie-photo-delete").click(); await wait(300);
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await calm(1500);
+    $("#tie-visuals .photo-thumb").click(); await calm(1200);
+    $("#tie-photo-delete").click(); await calm(300);
     const asked = [...document.querySelectorAll("dialog")].pop().querySelector("h2").textContent;
-    [...[...document.querySelectorAll("dialog")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete photo").click(); await wait(1000);
+    [...[...document.querySelectorAll("dialog")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete photo").click(); await calm(1000);
     return [asked, document.querySelectorAll("#tie-visuals .photo-tile").length];`), ["Delete this photo?", 1]);
   check("…and deleting the tie deletes the rest", await run(`
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
     const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    $("#tie-delete").click(); await wait(300);
-    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await wait(1000);
+    $("#tie-delete").click(); await calm(300);
+    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
     return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 0 of 0 ties"]);
 
   await go("/plans");
-  await run(`$("#add-plan").click(); await wait(300); set("#plan-title", "Photo plan");`);
+  await run(`$("#add-plan").click(); await calm(300); set("#plan-title", "Photo plan");`);
   check("a new plan's photo waits for the plan to be saved", await pickPhoto("plan", 800, 600, "plan.jpg"), [true, 1, ""]);
   check("…is uploaded when it's saved, closing the form, and counted in the list", await run(`
-    await submit(); await wait(2000);
+    await submit(); await calm(2000);
     return [!!document.querySelector("#plan-dialog[open]"), items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
     [false, true]);
   check("editing the plan shows its photo", await run(`
-    await clickIn("Photo plan", "Edit"); await wait(1500);
+    await clickIn("Photo plan", "Edit"); await calm(1500);
     const shown = document.querySelectorAll("#plan-visuals .photo-tile img").length;
     const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Photo plan");
     const [photo] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
     const res = await fetch("/api/plans/" + plan.id + "?linked_ties=keep", { method: "DELETE" });
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return [shown, photo.mime, res.status, (await fetch("/api/media/" + photo.id + "/thumb")).status];`),
     [1, "image/webp", 204, 404]);
+
+  // Videos need Chrome to encode AAC sound, which Chrome on Claude's cloud
+  // machine (Linux) can't. There, and only there, they're skipped and said
+  // so, not failed; anywhere else (a Mac) they always run.
+  const aac = await run(`return (await AudioEncoder.isConfigSupported({ codec: "mp4a.40.2", sampleRate: 48000, numberOfChannels: 2, bitrate: 128000 })).supported;`);
+  if (!aac && process.env.CLAUDE_CODE_REMOTE === "true") {
+    skip("videos", "Chrome on Claude's cloud machine can't encode AAC sound");
+    return;
+  }
 
   // Videos. A clip made here as a camera would: an MP4 with sound, its
   // metadata tags and track names holding made-up secrets (made with the
@@ -190,12 +199,12 @@ export default async function () {
   const pickClip = () => run(`
     const dt = new DataTransfer(); dt.items.add(window.__clip);
     $("#tie-photo-input").files = dt.files; $("#tie-photo-input").dispatchEvent(new Event("change"));
-    await wait(300);
+    await calm(300);
     for (let i = 0; i < 500 && /Preparing|Uploading/.test($("#tie-visuals-message").textContent); i++) await wait(100);
-    await wait(500);
+    await calm(500);
     return [document.querySelectorAll("#tie-visuals .video-badge").length, $("#tie-visuals-message").textContent];`);
   const openVideoTie = `
-    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Video test").click(); await wait(1500);`;
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Video test").click(); await calm(1500);`;
   const listedVideo = `
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Video test");
@@ -204,8 +213,8 @@ export default async function () {
   await go("/");
   check("a camera-like clip holds its secrets before it's added",
     await makeClip({ seconds: 2, width: 1280, height: 720, fps: 30, sound: true }), true);
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Video test"); set("#tie-tie_type", "floor");
-    $("#tie-save").click(); await wait(2000); await settle(); ${openVideoTie}`);
+  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Video test"); set("#tie-tie_type", "floor");
+    $("#tie-save").click(); await calm(2000); await settle(); ${openVideoTie}`);
   check("the + takes videos, and one added to a saved tie is prepared and uploaded, marked ▶",
     await pickClip(), [1, ""]);
   check("the server only has it encrypted, as an MP4 video", await run(`${listedVideo}
@@ -234,7 +243,7 @@ export default async function () {
       $("#tie-photo-delete").textContent, leakyFields()];`),
     [true, true, 2, ["0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×"], 1.5, ["1.5×"], "Delete video", []]);
   check("a phone's upright clip (stored on its side, with a rotation) comes out upright, the rotation drawn in", await run(`
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     return true;`) && await makeClip({ seconds: 1, width: 1280, height: 720, fps: 30, sound: false, rotation: 90 }) && await pickClip()
     && await run(`
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
@@ -257,9 +266,9 @@ export default async function () {
     const dialog = asked();
     const text = dialog ? [dialog.querySelector("p").textContent, [...dialog.querySelectorAll("button")].map((b) => b.textContent)] : null;
     [...(dialog?.querySelectorAll("button") ?? [])].find((b) => b.textContent === ${JSON.stringify(answer)})?.click();
-    await wait(300);
+    await calm(300);
     for (let i = 0; i < 400 && /Preparing|Uploading/.test($("#tie-visuals-message").textContent); i++) await wait(100);
-    await wait(500);
+    await calm(500);
     AudioEncoder.isConfigSupported = window.__realAudioCheck;
     return [text, document.querySelectorAll("#tie-visuals .video-badge").length - before, $("#tie-visuals-message").textContent];`);
   check("when the sound can't be encoded, it asks first; Cancel leaves the clip out",
@@ -275,15 +284,15 @@ export default async function () {
     const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) });
     return [videos.length, !!(await input.getPrimaryVideoTrack()), await input.getPrimaryAudioTrack()];`), [3, true, null]);
   check("locking empties the video too", await run(`
-    $("#tie-visuals .photo-thumb").click(); await wait(1500);
-    (await import("/js/vault.js")).lock(); await wait(500);
+    $("#tie-visuals .photo-thumb").click(); await calm(1500);
+    (await import("/js/vault.js")).lock(); await calm(500);
     return [...document.querySelectorAll("video")].some((v) => v.src.startsWith("blob:") || v.poster.startsWith("blob:"));`), false);
   await go("/");
   check("a clip over 3 minutes is refused, saying how long it is", await run(`${openVideoTie}
     return true;`) && await makeClip({ seconds: 181, width: 32, height: 32, fps: 1, sound: false }) && await pickClip(),
   [3, "clip.mp4: That video is 3:01 long. Trim it to under 3 minutes and try again."]);
   check("deleting the tie deletes its video", await run(`${listedVideo}
-    $("#tie-delete").click(); await wait(300);
-    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await wait(1000);
+    $("#tie-delete").click(); await calm(300);
+    [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
     return (await fetch("/api/media/" + video.id + "/thumb")).status;`), 404);
 }

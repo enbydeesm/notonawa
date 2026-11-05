@@ -30,7 +30,7 @@ export default async function () {
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };
-    $("#unlock-passkey").click(); await wait(2500); window.fetch = realFetch;
+    $("#unlock-passkey").click(); await calm(2500); window.fetch = realFetch;
     const login = JSON.parse(sent.find(([url]) => url.endsWith("/api/auth/login/verify"))[1]);
     return [location.pathname, document.title, $("#view h1").textContent, login.prf, JSON.stringify(login.response.clientExtensionResults),
       sent.some(([, body]) => body.includes("results"))];`),
@@ -38,9 +38,9 @@ export default async function () {
   await go("/", { unlock: false });
   check("the recovery code unlocks too; a wrong one says so", await run(`
     [...document.querySelectorAll("[data-unlock-show=code]")][0].click(); await wait(100);
-    $("#unlock-code-input").value = "0000-0000-0000-0000-0000-0000-0000-0000"; $("#unlock-code-form button[type=submit]").click(); await wait(1200);
+    $("#unlock-code-input").value = "0000-0000-0000-0000-0000-0000-0000-0000"; $("#unlock-code-form button[type=submit]").click(); await calm(1200);
     const wrong = $("#unlock-code-message").textContent;
-    $("#unlock-code-input").value = ${JSON.stringify(account.currentCode)}; $("#unlock-code-form button[type=submit]").click(); await wait(1500);
+    $("#unlock-code-input").value = ${JSON.stringify(account.currentCode)}; $("#unlock-code-form button[type=submit]").click(); await calm(1500);
     return [wrong, $("#tie-count") !== null, leakyFields()];`),
     ["That recovery code doesn't unlock your journal.", true, []]);
   check("nothing is kept in the browser's storage but the theme", await run(`
@@ -52,10 +52,10 @@ export default async function () {
   sql(`DELETE FROM key_wraps WHERE user_id = '${userId}'`);
   await go("/", { unlock: false });
   check("an account without a key is asked to set one up after the passkey", await run(`
-    $("#unlock-passkey").click(); await wait(2500); return [...(() => { ${shown} })()].slice(3);`), ["unlock-setup", false]);
+    $("#unlock-passkey").click(); await calm(2500); return [...(() => { ${shown} })()].slice(3);`), ["unlock-setup", false]);
   const setupCode = await run(`
-    $("#unlock-setup-go").click(); await wait(2000); const code = $("#recovery-code")?.textContent;
-    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1500); return code;`);
+    $("#unlock-setup-go").click(); await calm(2000); const code = $("#recovery-code")?.textContent;
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await calm(1500); return code;`);
   check("setting up shows a new recovery code, then the journal", [setupCode !== recoveryCode, await run(`return $("#tie-count") !== null;`)], [true, true]);
   check("…and the key is wrapped for both again", await keysNow(), [true, true, true]);
   account.currentCode = setupCode ?? "";
@@ -65,9 +65,9 @@ export default async function () {
   check("after the operator's reset, the recovery wrap no longer matches the code", await keysNow(), [true, true, false]);
   await go("/", { unlock: false });
   const afterReset = await run(`
-    $("#unlock-passkey").click(); await wait(3000);
+    $("#unlock-passkey").click(); await calm(3000);
     const shownCode = $("#recovery-code")?.textContent; const intro = $("dialog[open] p")?.textContent;
-    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200);
+    $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await calm(1200);
     return [shownCode, intro, $("#tie-count") !== null];`);
   check("unlocking with the passkey then makes a new code, as the old one shouldn't keep working",
     [afterReset[0] !== operatorCode && /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(afterReset[0] ?? ""), afterReset[1], afterReset[2]],
@@ -88,7 +88,7 @@ export default async function () {
   const afterwards = async () => { await sleep(2500); return run(`return [window.oldPage === true, location.pathname, $("#unlock-choose") !== null];`); };
   await go("/plans", { unlock: false });
   check("Unlock doesn't reload when the server is on this page's version", await run(`
-    window.oldPage = true; document.dispatchEvent(new Event("visibilitychange")); await wait(800);
+    window.oldPage = true; document.dispatchEvent(new Event("visibilitychange")); await calm(800);
     return window.oldPage === true;`), true);
   await fakeNewer(`document.dispatchEvent(new Event("visibilitychange"));`);
   check("…but on a newer one, coming back to the page reloads it, still locked at the same address", await afterwards(), [false, "/plans", true]);

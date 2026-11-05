@@ -10,12 +10,12 @@ export default async function () {
   // Background colour, data-theme, the mode kept on this device, and the account's.
   const themeState = `return [getComputedStyle(document.body).backgroundColor, document.documentElement.dataset.theme ?? null,
     localStorage.getItem("theme"), (await (await fetch("/api/account/settings")).json()).theme];`;
-  const openSettings = `if (!$("dialog.menu-panel[open]")) await openMenu(); $(".menu-settings").click(); await wait(500);`;
+  const openSettings = `if (!$("dialog.menu-panel[open]")) await openMenu(); $(".menu-settings").click(); await calm(500);`;
   const settingsState = `return [$("dialog.menu-panel") === null, $("#settings-title")?.textContent ?? null,
     $("#settings-dark")?.getAttribute("aria-checked") ?? null,
     [...document.querySelectorAll(".settings-form label")].map((l) => l.textContent),
     [$("#settings-top")?.value, $("#settings-top")?.placeholder, $("#settings-bottom")?.value, $("#settings-bottom")?.placeholder]];`;
-  const menuGone = `await wait(300); return $("dialog") === null;`;
+  const menuGone = `await calm(300); return $("dialog") === null;`;
   // Real key presses and taps (not events made by the page), as the browser
   // handles Esc and the backdrop itself.
   const key = async (type) => send("Input.dispatchKeyEvent", { type, key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
@@ -52,7 +52,7 @@ export default async function () {
     const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
     return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);
   check("Bug and feedback opens its form in place of the menu: a warning, a blank kind to choose, the message, an email link", await run(`
-    $(".menu-feedback").click(); await wait(400);
+    $(".menu-feedback").click(); await calm(400);
     const d = $("dialog.feedback[open]");
     return [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, d.querySelector(".warning-note").textContent.startsWith("Please don't include journal details"),
       [...$("#feedback-kind").options].map((o) => o.text), $("#feedback-kind").value, $("#feedback-kind").required, $("#feedback-message").maxLength,
@@ -60,32 +60,32 @@ export default async function () {
     [true, "Bug and feedback", true, ["", "Bug", "Idea"], "", true, 2000,
       "mailto:contact@notonawa.app?subject=" + encodeURIComponent(`NotoNawa feedback (version ${APP_VERSION})`), ["Submit", "Cancel"], []]);
   check("it can't be sent without choosing bug or idea", await run(`
-    $("#feedback-message").value = "x"; $("#feedback-submit").click(); await wait(300);
+    $("#feedback-message").value = "x"; $("#feedback-submit").click(); await calm(300);
     return [$("#feedback-kind").validity.valueMissing, $("#feedback-status").textContent];`), [true, ""]);
   check("sent, it says thank you; the message is saved with the app's version", await run(`
     set("#feedback-kind", "bug"); $("#feedback-message").value = "Smoke test report"; $("#feedback-message").dispatchEvent(new Event("input"));
     const count = $("#feedback-count").textContent;
-    $("#feedback-submit").click(); await wait(800);
+    $("#feedback-submit").click(); await calm(800);
     const thanks = [$("dialog.feedback h2").textContent, $("#feedback-thanks").textContent];
-    $("#feedback-done").click(); await wait(300);
+    $("#feedback-done").click(); await calm(300);
     return [count, thanks, $("dialog") === null];`), ["17 / 2000", ["Thank you!", "We got your message."], true]);
   check("…which scripts/feedback.mjs lists", script("feedback.mjs").includes(`bug  from ${await run(`return (await (await fetch("/api/keys")).json()).user_id;`)}  (version ${APP_VERSION})\n  Smoke test report`), true);
   check("Cancel closes it", await run(`
-    await openMenu(); $(".menu-feedback").click(); await wait(300); $("#feedback-cancel").click(); await wait(300); return $("dialog") === null;`), true);
+    await openMenu(); $(".menu-feedback").click(); await calm(300); $("#feedback-cancel").click(); await calm(300); return $("dialog") === null;`), true);
   check("What's new shows the release notes, newest first, with intros and sub-bullets, in place of the menu", await run(`
-    await openMenu(); $(".menu-whats-new").click(); await wait(400);
+    await openMenu(); $(".menu-whats-new").click(); await calm(400);
     const d = $("dialog.whats-new[open]");
     const shown = [$("dialog.menu-panel") === null, d.querySelector("h2").textContent, [...d.querySelectorAll("h3")].map((h) => h.textContent),
       d.querySelectorAll(".release")[0].querySelectorAll(":scope > ul > li").length,
       d.querySelectorAll(".release")[0].querySelectorAll(".release-intro").length, d.querySelectorAll(".release")[0].querySelectorAll("li li").length];
-    $("#whats-new-ok").click(); await wait(300);
+    $("#whats-new-ok").click(); await calm(300);
     return [...shown, $("dialog") === null];`),
     [true, "What's new", RELEASES.slice(0, 10).map((r) => r.version), RELEASES[0].notes.length, RELEASES[0].intro?.length ?? 0,
       RELEASES[0].notes.reduce((n, note) => n + (typeof note === "string" ? 0 : note.sub.length), 0), true]);
   check("from the menu, What's new opens at the top, the newest, and its ✕ closes it", await run(`
-    await openMenu(); $(".menu-whats-new").click(); await wait(400);
+    await openMenu(); $(".menu-whats-new").click(); await calm(400);
     const d = $("dialog.whats-new[open]"), top = d.scrollTop, scrolls = d.scrollHeight > d.clientHeight;
-    $("#whats-new-close").click(); await wait(300);
+    $("#whats-new-close").click(); await calm(300);
     return [top, scrolls, $("dialog") === null];`), [0, true, true]);
   await run(`await openMenu();`);
   check("the panel is on the right, full height", await run(`
@@ -107,44 +107,44 @@ export default async function () {
   check("after an update, unlocking shows one dialog with every release since, newest first; closing it marks them seen", await run(`
     for (let i = 0; i < 20 && !$("dialog.whats-new[open]"); i++) await wait(100);
     const versions = [...document.querySelectorAll("dialog.whats-new[open] h3")].map((h) => h.textContent);
-    $("#whats-new-ok").click(); await wait(600);
+    $("#whats-new-ok").click(); await calm(600);
     return [versions, $("dialog") === null, (await (await fetch("/api/account/settings")).json()).seen_release];`),
     [RELEASES.slice(0, 10).map((r) => r.version), true, APP_VERSION]);
   await go("/");
-  check("…and not again", await run(`await wait(500); return $("dialog.whats-new") === null;`), true);
+  check("…and not again", await run(`await calm(500); return $("dialog.whats-new") === null;`), true);
   check("a new account is dark, on a light device too, and saved as dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
   check("Settings replaces the menu with its dialog: the dark mode switch, then the role names, empty with muted defaults",
     await run(`${openSettings} ${settingsState}`),
     [true, "Settings", "true", ["Dark mode", "Person tying is called:", "Person being tied is called:"], ["", "top", "", "bottom"]]);
   check("the switch changes the mode at once, and saves it to the account", await run(`
-    $("#settings-dark").click(); await wait(800);
+    $("#settings-dark").click(); await calm(800);
     return [$("#settings-dark").getAttribute("aria-checked"), ...(await (async () => { ${themeState} })())];`),
     ["false", LIGHT_BG, "light", "light", "light"]);
   check("Cancel closes the dialog, keeping the mode", await run(`
-    $(".settings-dialog .dialog-cancel").click(); await wait(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
+    $(".settings-dialog .dialog-cancel").click(); await calm(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
   check("in light mode the menu shows the light logo", await run(`
-    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await calm(300); return shown;`),
     [true, "NotoNawa", "/img/bamboo-logo-light.avif"]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
     [LIGHT_BG, "light", "light", "light"]);
   check("two roles can't have the same name", await run(`
-    ${openSettings} $("#settings-top").value = "Rope"; $("#settings-bottom").value = "rope"; $("#settings-save").click(); await wait(800);
+    ${openSettings} $("#settings-top").value = "Rope"; $("#settings-bottom").value = "rope"; $("#settings-save").click(); await calm(800);
     return [$(".settings-dialog .message").textContent, $(".settings-dialog") !== null];`),
     ["Couldn't save: Give the two roles different names.", true]);
   check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
-    $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await wait(1200);
+    $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await calm(1200);
     const saved = [$(".settings-dialog") === null, await (await fetch("/api/account/settings")).json()];
     // Saving redraws the view, which closes any dialog: wait for it to finish
     // before opening the tie form, then for the form's first role box.
-    await wait(1500);
-    $(".nav-add").click(); await wait(600);
+    await calm(1500);
+    $(".nav-add").click(); await calm(600);
     // A person row (with its role box) appears once one is added.
     $("#tie-add-participant").click();
     for (let i = 0; i < 50 && !document.querySelector("dialog[open] .role"); i++) await wait(100);
     const tieRoles = [...(document.querySelector("dialog[open] .role")?.options ?? [])].map((o) => o.textContent);
-    await closeDiscarding("#tie-close"); await wait(300);
+    await closeDiscarding("#tie-close"); await calm(300);
     return [saved, tieRoles];`),
     [[true, { top_label: "rigger", bottom_label: "Rope bunny", theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }],
       ["Choose Role", "Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer"]]);
@@ -153,13 +153,13 @@ export default async function () {
     return [[...$("#role").options].map((o) => o.text), [...document.querySelectorAll("#insights-stats dt")].map((d) => d.textContent).filter((t) => t.startsWith("As"))];`),
     [["All roles", "As rigger", "As Rope bunny", "As self tie", "As spotter", "As photographer"], ["As rigger", "As Rope bunny"]]);
   check("blank names go back to top and bottom", await run(`
-    ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await wait(1200);
+    ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await calm(1200);
     return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
     [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }, ["As top", "As bottom"]]);
   // Back to dark, the default.
-  await run(`${openSettings} $("#settings-dark").click(); await wait(800); $(".settings-dialog .dialog-cancel").click(); await wait(300);`);
+  await run(`${openSettings} $("#settings-dark").click(); await calm(800); $(".settings-dialog .dialog-cancel").click(); await calm(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
   check("…with the dark logo in the menu", await run(`
-    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await wait(300); return shown;`),
+    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await calm(300); return shown;`),
     [true, "NotoNawa", "/img/bamboo-logo-dark.avif"]);
 }

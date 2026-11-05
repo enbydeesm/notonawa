@@ -9,7 +9,7 @@ export default async function () {
   console.log("Ties: logging");
   await go("/");
   check("+ opens the log-a-tie dialog; pickers leave out archived items", await run(`
-    $(".nav-add").click(); await wait(600);
+    $(".nav-add").click(); await calm(600);
     $("#tie-add-participant").click(); $("#tie-add-plan").click();
     const firstPerson = [lastBox("#tie-participants").value, $(".role").value];
     const hiddenAtFirst = $("#tie-location").offsetParent === null;
@@ -47,10 +47,10 @@ export default async function () {
     second.closest(".picker-row").querySelector("button[aria-label=Remove]").click();
     return [listed, document.querySelectorAll("#tie-plans .picker-row").length];`),
     [["Hip harness, one-sided"], 1]);
-  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); set("#tie-tie_type", "floor"); await choosePick(lastBox("#tie-participants"), "Me", "Me (you)"); $("#tie-save").click(); await wait(500); return [lastBox("#tie-participants").value, $("#tie-message").textContent];`),
+  check("incomplete person row is caught", await run(`set("#tie-title", "Floor session"); set("#tie-tie_type", "floor"); await choosePick(lastBox("#tie-participants"), "Me", "Me (you)"); $("#tie-save").click(); await calm(500); return [lastBox("#tie-participants").value, $("#tie-message").textContent];`),
     ["Me (you)", "Couldn't save: Choose a person and a role for each row, or remove it."]);
   check("Edit tags opens an empty tag dialog", await run(`
-    $("#tie-add-tags").click(); await wait(600);
+    $("#tie-add-tags").click(); await calm(600);
     return [$("#tie-add-tags").getAttribute("aria-label"), $("#tags-heading").textContent, ["autocapitalize", "autocorrect", "spellcheck"].map((a) => $("#tags-search").getAttribute(a)), !!$("dialog[open] #tags-search"), $("#tags-list").innerText, $("#tags-search").placeholder, leakyFields()];`),
     ["Edit tags", "Edit tags", ["none", "off", "false"], true, "No tags yet. Type one and press +.", "search tags", []]);
   check("+ and Enter add tags; a different-capitals name picks the same tag", await run(`
@@ -64,7 +64,7 @@ export default async function () {
     document.querySelector(".tag-search .tag-x").click();
     const after = [tagChips(".tag-search"), tagBubbles()];
     [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === "Futomomo").click();
-    $("#tags-ok").click(); await wait(300);
+    $("#tags-ok").click(); await calm(300);
     return [after, tagChips("#tie-tags"), !!$("dialog[open] #tags-search")];`),
     [[["Floor"], ["Floor*", "Futomomo ×"]], ["Floor", "Futomomo"], false]);
   check("typing searches locations, offering to add a name that isn't one of them", await run(`
@@ -80,13 +80,13 @@ export default async function () {
     [["Studio", "Add to list | Add & archive"], ["Studio"], ["No matches.", "Add to list | Add & archive"], "", []]);
   check("'Add & archive' adds the typed name, archived, and picks it", await run(`
     const box = $("#tie-location"); box.focus(); box.value = "Garage"; box.dispatchEvent(new Event("input"));
-    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add & archive").click(); await wait(800);
+    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add & archive").click(); await calm(800);
     const saved = (await (await fetch("/api/locations?archived=true")).json()).map((l) => l.name);
     return [box.value, $("[name=location_id]").value !== "", $("#tie-location-list").hidden, saved.includes("Garage"), !!$("dialog[open] #tie-form")];`),
     ["Garage", true, true, true, true]);
   check("'Add to list' adds an active location, which the list then offers", await run(`
     const box = $("#tie-location"); box.focus(); box.value = "Back garden"; box.dispatchEvent(new Event("input"));
-    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add to list").click(); await wait(800);
+    [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add to list").click(); await calm(800);
     const picked = box.value;
     box.focus(); box.value = "back"; box.dispatchEvent(new Event("input"));
     const listed = [...document.querySelectorAll("#tie-location-list .combo-option")].map((li) => li.innerText);
@@ -119,7 +119,7 @@ export default async function () {
     document.querySelectorAll(".role")[0].value = "top";
     set("#tie-duration_minutes", "45"); set("#tie-notes", "Smooth transitions");
     set("#tie-album_url", "https://photos.app.goo.gl/floor");
-    $("#tie-save").click(); await wait(1000);
+    $("#tie-save").click(); await calm(1000);
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
     [false, "Floor session", [true, "Floor at Studio", 4, "With: Me (top), Sam (bottom)", ["Floor", "Futomomo"]]]);
   check("the card links to its album, which the server only has sealed", await run(`
@@ -128,59 +128,59 @@ export default async function () {
     return [link?.textContent, link?.href, link?.target, link?.rel, stored.album_url.startsWith("e1.")];`),
     ["Open album", "https://photos.app.goo.gl/floor", "_blank", "noopener noreferrer", true]);
   check("a tie needs a date: the form won't save without one", await run(`
-    $(".nav-add").click(); await wait(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
-    $("#tie-save").click(); await wait(600);
+    $(".nav-add").click(); await calm(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
+    $("#tie-save").click(); await calm(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_date").validity.valueMissing];
-    await closeDiscarding("#tie-close"); await wait(300);
+    await closeDiscarding("#tie-close"); await calm(300);
     return [stayed, titles()];`), [[true, true], ["Floor session"]]);
   check("a tie needs a type: the form won't save on –", await run(`
-    $(".nav-add").click(); await wait(600); set("#tie-title", "Typeless");
-    $("#tie-save").click(); await wait(600);
+    $(".nav-add").click(); await calm(600); set("#tie-title", "Typeless");
+    $("#tie-save").click(); await calm(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_type").value, $("#tie-tie_type").validity.valueMissing];
-    await closeDiscarding("#tie-close"); await wait(300);
+    await closeDiscarding("#tie-close"); await calm(300);
     return [stayed, titles()];`), [[true, "", true], ["Floor session"]]);
   check("✕ asks before throwing away what's typed: Keep editing stays, Discard changes closes without saving", await run(`
-    $(".nav-add").click(); await wait(600);
+    $(".nav-add").click(); await calm(600);
     const top = () => [...document.querySelectorAll("dialog[open]")].pop();
-    $("#tie-close").click(); await wait(300);
+    $("#tie-close").click(); await calm(300);
     const untouched = !document.querySelector("dialog[open]");
-    $(".nav-add").click(); await wait(600); set("#tie-title", "Not saved");
-    $("#tie-close").click(); await wait(300);
+    $(".nav-add").click(); await calm(600); set("#tie-title", "Not saved");
+    $("#tie-close").click(); await calm(300);
     const asked = [top().querySelector("h2").textContent, [...top().querySelectorAll("button")].map((b) => b.textContent)];
-    [...top().querySelectorAll("button")].find((b) => b.textContent === "Keep editing").click(); await wait(300);
+    [...top().querySelectorAll("button")].find((b) => b.textContent === "Keep editing").click(); await calm(300);
     const kept = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-title").value];
-    $("#tie-close").click(); await wait(300);
-    [...top().querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(600);
+    $("#tie-close").click(); await calm(300);
+    [...top().querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await calm(600);
     return [untouched, asked, kept, !!document.querySelector("dialog"), titles()];`),
     [true, ["Discard your changes?", ["Discard changes", "Keep editing"]], [true, "Not saved"], false, ["Floor session"]]);
 
   check("saving the tie created and linked its tags", await run(`return tagsJson();`), ["Floor:1", "Futomomo:1"]);
   check("deleting a tag asks first, saying which ties use it", await run(`
-    $(".nav-add").click(); await wait(600); $("#tie-add-tags").click(); await wait(600);
+    $(".nav-add").click(); await calm(600); $("#tie-add-tags").click(); await calm(600);
     const before = tagBubbles();
     [...document.querySelectorAll("#tags-list .tag")].find((t) => t.querySelector(".tag-toggle").textContent === "Floor").querySelector(".tag-x").click();
-    await wait(300);
+    await calm(300);
     const dialogs = document.querySelectorAll("dialog"); const confirm = dialogs[dialogs.length - 1];
     const asked = [confirm.querySelector("h2").textContent, confirm.querySelector("p").textContent, [...confirm.querySelectorAll("button")].map((b) => b.textContent)];
-    [...confirm.querySelectorAll("button")].find((b) => b.textContent === "Confirm").click(); await wait(800);
+    [...confirm.querySelectorAll("button")].find((b) => b.textContent === "Confirm").click(); await calm(800);
     return [before, asked, tagBubbles(), await tagsJson()];`),
     [["Floor ×", "Futomomo ×"], ["Delete tag 'Floor'?", "Used on 1 tie; it'll be removed from it.", ["Confirm", "Cancel"]], ["Futomomo ×"], ["Futomomo:1"]]);
   check("closing the tag dialog without OK keeps the tie's tags as they were", await run(`
     document.querySelector("#tags-list .tag-toggle").click();
-    $("#tags-search").closest("dialog").close(); await wait(300);
+    $("#tags-search").closest("dialog").close(); await calm(300);
     const kept = tagChips("#tie-tags");
-    await closeDiscarding("#tie-close"); await wait(300);
+    await closeDiscarding("#tie-close"); await calm(300);
     return [kept, !!document.querySelector("dialog")];`), [[], false]);
 
   console.log("+ on other tabs");
   await go("/plans");
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Logged from Plans"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
+  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Logged from Plans"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
   await sleep(1500);
   check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
   check("tapping a tie's card, not just its title, opens it", await run(`
-    $(".tie-card .tie-date").click(); await wait(1000);
+    $(".tie-card .tie-date").click(); await calm(1000);
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, getComputedStyle($(".tie-card")).cursor];
-    await closeDiscarding("#tie-close"); await wait(300);
+    await closeDiscarding("#tie-close"); await calm(300);
     return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged from Plans", "pointer"], false]);
 
   console.log("Ties: the Add a Tie card");
@@ -192,9 +192,9 @@ export default async function () {
       label.top - search.top <= 16, search.bottom - more.bottom <= 20];`),
     ["+ | Add a Tie", true, "Search ties", true, true]);
   check("its + opens the \"Add a tie\" dialog, and saving lists the new tie", await run(`
-    $("#add-tie").click(); await wait(600);
+    $("#add-tie").click(); await calm(600);
     const heading = $("#tie-form-heading").textContent;
-    set("#tie-title", "Added from the card"); set("#tie-tie_type", "floor"); $("#tie-save").click(); await wait(1500);
+    set("#tie-title", "Added from the card"); set("#tie-tie_type", "floor"); $("#tie-save").click(); await calm(1500);
     return [heading, !!document.querySelector("dialog[open]"), titles()[0]];`),
     ["Add a tie", false, "Added from the card"]);
 }

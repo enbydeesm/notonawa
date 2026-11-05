@@ -70,9 +70,10 @@ building live in [roadmap.md](roadmap.md).
   foundation, the unlocked encryption key) survives a tab change: see
   "Single-page app" below.
 - **Tooling (dev only)**: ESLint, TypeScript (type checks the JS via JSDoc;
-  `checkJs`, strict, implicit `any` allowed for now), Vitest with
-  `@cloudflare/vitest-plugin` (tests run in the Workers runtime with D1 built
-  from `migrations/`).
+  `checkJs`, strict, implicit `any` allowed for now), Vitest in two
+  projects (`vitest.config.js`): `unit` (`test/unit/`, plain Node) and
+  `workers` (`test/api/`, `test/db/`: the Workers runtime through
+  `@cloudflare/vitest-plugin`, with D1 built from `migrations/`).
 
 ### Code layout
 
@@ -600,7 +601,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   so Back doesn't land on them. Open dialogs close when the view changes. A
   new view needs a route in `router.js`, a template in `index.html`, a
   loader in `app.js` and a module in `views/`.
-- `test/unit/`: pure logic. `test/api/`: requests to the Worker with a real
+- `test/unit/`: pure logic, run in plain Node (no D1, no Workers
+  runtime: a unit test that needs either belongs in `test/api/`). `test/api/`: requests to the Worker with a real
   D1, signed in by `test/helpers.js` (a session made directly in the
   database); `test/fake-passkey.js` is a software passkey for the sign-in
   tests. `test/db/`: rules the database enforces itself.
@@ -616,20 +618,27 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/areas.mjs`, sharing them out by `UI_SECONDS`) in its own copy of
   the script, with its own database, app and Chrome on its own ports
   (`UI_SLOT`). A step should wait for what it needs to show rather than a
-  fixed time, as a busy machine is slower.
+  fixed time, as a busy machine is slower: after an action, `await
+  calm(ms)` (`scripts/ui/idle.mjs`) waits until the page is idle (no
+  requests, crypto Worker calls, passkey or image work, short timers,
+  animations or view change pending, and no change for 150 ms), at most
+  ms; `wait(ms)` is a fixed time, for polling loops and work the tracker
+  can't see. `skip(what, why)` leaves out checks a machine can't run (not
+  a failure, and said in the summary): only the videos, on Claude's cloud
+  machine (`CLAUDE_CODE_REMOTE`), whose Chrome can't encode AAC sound.
 - `scripts/areas.mjs` (pure; `test/unit/areas.test.js`): the app as feature
-  areas, each with its files, tests and walkthrough chunks, and the shared
-  files that run everything. `scripts/check-changed.mjs` uses it.
+  areas, each with its files and walkthrough chunks, and the shared
+  files that run every chunk (every Vitest test always runs). `scripts/check-changed.mjs` uses it.
 
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
   matches PRIVACY.md, the release files match VERSION and RELEASES.md, the welcome
   matches WELCOME.md and `public/js/vendor/` matches node_modules. Run before a release.
-- `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint and type
-  check, then only the tests (and with `--ui`, the walkthrough chunks) of
-  the areas changed since the last commit, or of the areas named. A shared
-  file, or one in no area, runs everything. `--list` shows what it would
+- `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint, type
+  check and every Vitest test (about 1½ minutes), then (with `--ui`) only
+  the walkthrough chunks of the areas changed since the last commit, or of
+  the areas named. A shared file, or one in no area, runs every chunk. `--list` shows what it would
   run. Run after every change.
 - `npm run deploy:prod` / `npm run deploy:dev`: deploy (`scripts/deploy.mjs`), always
   this way rather than `npx wrangler deploy`. Every deploy gets a new

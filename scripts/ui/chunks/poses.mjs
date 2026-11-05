@@ -55,36 +55,36 @@ export default async function () {
     await sleep(250);
   };
   // A slider moved as a finger would: input while dragging, change when let go.
-  const slide = (id, value) => `{ const el = $("#${id}"); el.value = "${value}"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(200); }`;
+  const slide = (id, value) => `{ const el = $("#${id}"); el.value = "${value}"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await calm(200); }`;
   const tiePoses = `(async () => {
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Pose test");
     return (await fetch("/api/poses?tie_id=" + tie.id)).json();
   })()`;
-  const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Pose test").click(); await wait(1500);`;
+  const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Pose test").click(); await calm(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
   check("the nav's poser button opens the poser on its own, its hidden heading taking focus (no button ringed): Add to visuals and Save pose there to use, Close, Allow collisions ticked", await run(`
     $("#nav-poser").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
-    await wait(500);
+    await calm(500);
     const focused = document.activeElement?.id;
     const frame = $(".pose-frame").getBoundingClientRect(), allow = $(".pose-allow"), box = allow.getBoundingClientRect();
     const result = [$("#pose-add-visual").disabled, $("#pose-save").disabled, $("#pose-cancel").textContent, $("#pose-allow-collisions").checked,
       allow.textContent, frame.right - box.right < 16 && frame.bottom - box.bottom < 16,
       getComputedStyle(allow).color === getComputedStyle($("#pose-view-hint")).color, leakyFields()];
-    $("#pose-cancel").click(); await wait(300);
+    $("#pose-cancel").click(); await calm(300);
     return [focused, ...result, !!document.querySelector("dialog.pose-editor")];`),
   ["pose-heading", false, false, "Close", true, "Allow collisions", true, true, [], false]);
 
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
+  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
   check("the Visuals + offers the model poser", await run(`
-    $("#tie-add-visual").click(); await wait(300);
+    $("#tie-add-visual").click(); await calm(300);
     return $("#tie-add-pose").textContent;`), "Model poser");
   check("it opens the poser, filling the screen, with the 3D view drawn and Pose chosen", await run(`
     $("#tie-add-pose").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
-    await wait(500);
+    await calm(500);
     const editor = $("dialog.pose-editor[open]"), r = editor.getBoundingClientRect(), view = $("#pose-view").getBoundingClientRect();
     return [Math.round(r.width) === innerWidth, Math.round(r.height) === innerHeight, view.width > 200, view.height > 150,
       $("#pose-mode-pose").getAttribute("aria-pressed"), $("#pose-part").textContent, $("#pose-undo").disabled, leakyFields()];`),
@@ -120,20 +120,20 @@ export default async function () {
     const tabs = ["#pose-mode-pose", "#pose-mode-rope", "#pose-mode-scene"].map(middle);
     const foot = ["#pose-cancel", "#pose-download", "#pose-add-visual", "#pose-save"].map(middle);
     const fits = $("#pose-save").getBoundingClientRect().right <= innerWidth;
-    $("#pose-mode-scene").click(); await wait(200); $("#pose-bamboo").click(); await wait(500);
+    $("#pose-mode-scene").click(); await calm(200); $("#pose-bamboo").click(); await calm(500);
     const panels = $("#pose-panels"), box = panels.getBoundingClientRect();
     const cut = [...document.querySelectorAll("#pose-hardpoint-sliders .pose-slider")]
       .some((r) => { const b = r.getBoundingClientRect(); return b.top < box.bottom && b.bottom > box.bottom; });
     const result = [new Set(tabs).size, new Set(foot).size, fits, panels.classList.contains("more-below"), cut, getComputedStyle($("#pose-message")).display];
-    $("#pose-undo").click(); await wait(200); $("#pose-mode-pose").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200); $("#pose-mode-pose").click(); await calm(200);
     return result;`), [1, 1, true, true, true, "none"]);
   check("on a phone, the view's hint is bottom left, clear of Allow collisions, and says what fingers do in each tab", await run(`
     const hint = $("#pose-view-hint"), box = hint.getBoundingClientRect(), allow = $(".pose-allow").getBoundingClientRect();
     const frame = $(".pose-frame").getBoundingClientRect();
     const shown = [hint.textContent, box.right <= allow.left, frame.bottom - box.bottom < 16 && box.left - frame.left < 16];
-    $("#pose-mode-rope").click(); await wait(200);
+    $("#pose-mode-rope").click(); await calm(200);
     const inRope = [hint.textContent, $(".pose-allow").checkVisibility()];
-    $("#pose-mode-pose").click(); await wait(200);
+    $("#pose-mode-pose").click(); await calm(200);
     return [...shown, inRope, hint.textContent];`),
   ["Drag head for height · tap for whole body", true, true, ["Drag to turn · 2 fingers to pan · pinch to zoom", false],
     "Drag head for height · tap for whole body"]);
@@ -158,7 +158,7 @@ export default async function () {
     const tinted = getComputedStyle($("#pose-arms-presets-b0")).backgroundColor !== getComputedStyle($("#pose-arms-presets-b1")).backgroundColor;
     const result = [header, document.activeElement?.id, $("#pose-arms-presets-search").placeholder, $("#pose-arms-presets-save").disabled,
       ${pickerRows("#pose-arms-presets")}, tinted, leakyFields()];
-    $("#pose-arms-presets-close").click(); await wait(200);
+    $("#pose-arms-presets-close").click(); await calm(200);
     return [...result, !!$("#pose-arms-presets"), $("#pose-undo").disabled];`),
   [["Arms Presets", "Save as preset", "Close"], "pose-arms-presets-title", "Search", true,
     [["At sides", true], ["Boxtie", false], ["Bunny ears", false], ["Tengu", false], ["Tenshi", false], ["Crossed (hug)", false]], true, [],
@@ -172,19 +172,19 @@ export default async function () {
     const found = ${pickerRows("#pose-arms-presets")};
     const searched = box();
     const steady = opened[0] === searched[0] && opened[1] === searched[1] && opened[0] < 40;
-    $("#pose-arms-presets-b1").click(); await wait(300);
+    $("#pose-arms-presets-b1").click(); await calm(300);
     const after = [!!$("#pose-arms-presets"), $("#pose-undo").disabled];
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     const undone = $("#pose-redo").disabled;
-    $("#pose-redo").click(); await wait(200);
+    $("#pose-redo").click(); await calm(200);
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
     const now = [$("#pose-arms-presets-b1").classList.contains("current"), $("#pose-arms-presets-save").disabled];
-    $("#pose-arms-presets-close").click(); await wait(200);
+    $("#pose-arms-presets-close").click(); await calm(200);
     return [steady, found, after, undone, now];`), [true, [["Boxtie", false]], [false, false], false, [true, true]]);
   check("Turn body…: the same kind of picker, no search or Save, the way the body faces tinted", await run(`
     ${openPicker("#pose-orientation", "#pose-turn")}
     const result = [$("#pose-turn h2").textContent, !!$("#pose-turn input"), ${pickerRows("#pose-turn")}.filter(([, on]) => on).length];
-    $("#pose-turn-close").click(); await wait(200);
+    $("#pose-turn-close").click(); await calm(200);
     return [...result, !!$("#pose-turn")];`), ["Turn body", false, 1, false]);
 
   // Saved presets. The body as it starts is the Standing preset, so it's
@@ -198,24 +198,24 @@ export default async function () {
     ${slide("pose-head-0", 10)}
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     const enabled = !$("#pose-body-presets-save").disabled;
-    $("#pose-body-presets-save").click(); await wait(300);
+    $("#pose-body-presets-save").click(); await calm(300);
     const asked = [$("#pose-preset-title").textContent, document.activeElement?.id, $("#pose-preset-also").closest("label").textContent,
       $("#pose-preset-also").checked, leakyFields()];
     set("#pose-preset-name", " Standing tall "); $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
-    await wait(200);
+    await calm(200);
     return [enabled, asked, $("#pose-body-presets-message").textContent, ${pickerRows("#pose-body-presets")},
       $("#pose-body-presets-save").disabled, await ${myPresets}];`),
   [true, ["Save this body as a preset", "pose-preset-name", " Save arms as a preset too?", false, []], "Saved, for any pose.",
     [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, false]]]);
   check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left; saving with the arms too adds an arms preset", await run(`
-    $("#pose-body-presets-b2").click(); await wait(300);
+    $("#pose-body-presets-b2").click(); await calm(300);
     ${slide("pose-head-0", -10)}
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
-    $("#pose-body-presets-save").click(); await wait(300);
+    $("#pose-body-presets-save").click(); await calm(300);
     set("#pose-preset-name", "Kneel, head down"); $("#pose-preset-also").checked = true; $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
-    await wait(200);
+    await calm(200);
     const kinds = (await (await fetch("/api/pose-presets")).json()).map((p) => p.kind);
     const said = $("#pose-body-presets-message").textContent;
     const row = [...document.querySelectorAll("#pose-body-presets .preset-row")].pop();
@@ -227,23 +227,23 @@ export default async function () {
   // Each icon by its name: the last row's (Standing tall), and the first of mine.
   const icon = (label) => `[...document.querySelectorAll("#pose-body-presets .preset-icons button")].find((b) => b.getAttribute("aria-label") === "${label}")`;
   check("saving over one asks first, then holds the body as it is; renaming one; deleting one asks first", await run(`
-    ${icon("Save this body over Standing tall")}.click(); await wait(300);
+    ${icon("Save this body over Standing tall")}.click(); await calm(300);
     const overAsked = ${topDialog}.querySelector("h2").textContent;
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Save over it").click();
     for (let i = 0; i < 50 && !${pickerRows("#pose-body-presets")}.at(-1)[1]; i++) await wait(100);
     const over = ${pickerRows("#pose-body-presets")}.slice(-2);
-    ${icon("Rename Kneel, head down")}.click(); await wait(300);
+    ${icon("Rename Kneel, head down")}.click(); await calm(300);
     const renaming = [$("#pose-preset-title").textContent, $("#pose-preset-name").value];
     set("#pose-preset-name", "Kneel"); $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
-    await wait(200);
+    await calm(200);
     const renamed = ${pickerRows("#pose-body-presets")}.slice(-2);
-    ${icon("Delete Standing tall")}.click(); await wait(300);
+    ${icon("Delete Standing tall")}.click(); await calm(300);
     const deleteAsked = ${topDialog}.querySelector("h2").textContent;
     [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete preset").click();
     for (let i = 0; i < 50 && ${pickerRows("#pose-body-presets")}.some(([n]) => n === "Standing tall"); i++) await wait(100);
     const after = ${pickerRows("#pose-body-presets")}.slice(-2);
-    $("#pose-body-presets-close").click(); await wait(200);
+    $("#pose-body-presets-close").click(); await calm(200);
     // Back to standing (the kneel, and both tips of the head), for the taps below.
     for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
     return [overAsked, over, renaming, renamed, deleteAsked, after, !!document.querySelector("dialog.pose-editor[open]"), leakyFields()];`),
@@ -261,9 +261,9 @@ export default async function () {
   check("tilting the hips is one change, the hips' angles making up for it so the legs stay; Reset puts it back", await run(`
     ${slide("pose-hips-0", 20)}
     const tilted = [$("#pose-hips-0").value, $("#pose-undo").disabled];
-    $("#pose-reset-part").click(); await wait(200);
+    $("#pose-reset-part").click(); await calm(200);
     const reset = $("#pose-hips-0").value;
-    $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200); $("#pose-undo").click(); await calm(200);
     return [tilted, reset, $("#pose-hips-0").value];`), [["20", false], "0", "0"]);
   // The waist is just above, at the top of the hips.
   await tap(0.5, 0.43);
@@ -288,7 +288,7 @@ export default async function () {
   check("dragging the head up lifts the whole body, as one change: the head's own sliders as they were, and the feet pointed off the floor", await run(`
     const lifted = [$("#pose-part").textContent, Number($("#pose-lift").value) > ${Number(heightBefore)} + 5,
       ["pose-head-0", "pose-head-1", "pose-head-2"].map((id) => $("#" + id).value), $("#pose-undo").disabled];
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     return [...lifted, $("#pose-lift").value];`),
   ["Head", true, ["0", "0", "0"], false, heightBefore]);
   const turned = `$("#pose-body-1").value`;
@@ -308,17 +308,17 @@ export default async function () {
   const turnBox = await run(`return [$("#pose-body-1-typed").getAttribute("aria-label"), $("#pose-body-1-typed").type];`);
   const typed = [await typeInto("pose-body-1-typed", "-45"), await typeInto("pose-body-1-typed", "-400"), await typeInto("pose-body-1-typed", "abc")];
   check("a slider's number can be typed, kept within its range, as one change; anything but a number is put back", [turnBox, typed, await run(`
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     const undone = $("#pose-body-1").value;
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     return [undone, $("#pose-body-1").value, leakyFields()];`)],
   [["Turn body, typed", "number"], [["-45", "-45"], ["-180", "-180"], ["-180", "-180"]], ["-45", "20", []]]);
   check("▲ and ▼ left of a slider's box step it by one, each a change", await run(`
     const steps = $("#pose-body-1-up").parentElement;
     const placed = steps.nextElementSibling === $("#pose-body-1-typed") && steps.previousElementSibling === $("#pose-body-1");
-    $("#pose-body-1-up").click(); await wait(200);
+    $("#pose-body-1-up").click(); await calm(200);
     const up = $("#pose-body-1-typed").value;
-    $("#pose-body-1-down").click(); await wait(200); $("#pose-body-1-down").click(); await wait(200);
+    $("#pose-body-1-down").click(); await calm(200); $("#pose-body-1-down").click(); await calm(200);
     const down = $("#pose-body-1").value;
     for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
     return [placed, $("#pose-body-1-up").getAttribute("aria-label"), $("#pose-body-1-down").textContent, up, down, $("#pose-body-1").value];`),
@@ -332,7 +332,7 @@ export default async function () {
   // A change made clears what redo had (the typed turns undone above).
   check("dragging a leg moves it as one change, the shin selected, and undo puts it back", [redoBefore, await run(`
     const after = [$("#pose-part").textContent, $("#pose-redo").disabled];
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     return [...after, $("#pose-redo").disabled, $("#pose-l_knee-0").value];`)],
   [false, ["Left knee", true, false, "0"]]);
   // Back to the head, for the steps after.
@@ -340,19 +340,19 @@ export default async function () {
 
   await drag(0.3, 0.6, 0.8);
   check("dragging turns the view, which undo leaves alone", await run(`
-    $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200);
     return ${turned};`), "0");
-  await run(`$("#pose-redo").click(); await wait(200);`);
+  await run(`$("#pose-redo").click(); await calm(200);`);
 
   check("moving the figure from the head is one change; the head's Reset leaves it moved, the whole body's Reset stands it back up, and undo puts it back", await run(`
     ${slide("pose-shift-0", 30)} ${slide("pose-head-0", 20)}
     const moved = [$("#pose-shift-0").value, $("#pose-head-0").value];
-    $("#pose-reset-part").click(); await wait(200);
+    $("#pose-reset-part").click(); await calm(200);
     const reset = [$("#pose-shift-0").value, $("#pose-head-0").value];
-    $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200); $("#pose-undo").click(); await wait(200);
+    $("#pose-undo").click(); await calm(200); $("#pose-undo").click(); await calm(200); $("#pose-undo").click(); await calm(200);
     const undone = [$("#pose-shift-0").value, $("#pose-head-0").value];
     ${slide("pose-shift-0", 30)} ${slide("pose-body-0", 15)}
-    $("#pose-reset-whole").click(); await wait(200);
+    $("#pose-reset-whole").click(); await calm(200);
     const whole = [$("#pose-shift-0").value, $("#pose-body-0").value];
     for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
     return [moved, reset, undone, whole, $("#pose-shift-0").value];`), [["30", "20"], ["30", "0"], ["0", "0"], ["0", "0"], "0"]);
@@ -361,40 +361,40 @@ export default async function () {
   const hardpoints = `["ring", "bamboo", "hashira"].map((k) => [$("#pose-" + k).textContent, $("#pose-" + k).getAttribute("aria-pressed")])`;
   const hardpointLabels = `[...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent)`;
   check("Rope: thickness and the eraser above the colors, jute chosen to begin with, no bar over the view, and + Hardpoint at the end of the thickness row, opening Scene", await run(`
-    $("#pose-mode-rope").click(); await wait(200);
+    $("#pose-mode-rope").click(); await calm(200);
     const rows = [...document.querySelectorAll("#pose-panel-rope .pose-rope-tools-rows [role=group]")].map((c) => c.getAttribute("aria-label"));
     const chip = $("#pose-hardpoint-link"), row = $("#pose-eraser").getBoundingClientRect(), at = chip.getBoundingClientRect();
     const rope = [$("#pose-color-jute").getAttribute("aria-pressed"), $("#pose-panel-pose").hidden, $("#pose-laying-bar").hidden,
       chip.textContent, chip.getAttribute("aria-label"), Math.abs((at.top + at.bottom) / 2 - (row.top + row.bottom) / 2) < 3,
       Math.round($("#pose-panel-rope").getBoundingClientRect().right - at.right) < 4, $("#pose-rope-hint").textContent];
-    $("#pose-hardpoint-link").click(); await wait(200);
+    $("#pose-hardpoint-link").click(); await calm(200);
     return [rows, ...rope, $("#pose-mode-scene").getAttribute("aria-pressed"), $("#pose-panel-rope").hidden];`),
   [["Rope thickness", "Rope color"], "true", true, true, "+ Hardpoint", "Add a hardpoint in Scene", true, true,
     "Tap the body to lay a rope, point by point.", "true", true]);
   check("Scene: Hardpoint and Body shape as a switch, a ring, bamboo or hashira as chips, the one there highlighted, its sliders under it", await run(`
     const parts = [$("#pose-scene-hardpoint").getAttribute("aria-pressed"), $("#pose-scene-shape").getAttribute("aria-pressed"),
       $("#pose-scene-part-shape").hidden, ${hardpoints}, $("#pose-hardpoint-sliders").hidden];
-    $("#pose-ring").click(); await wait(200);
+    $("#pose-ring").click(); await calm(200);
     return [...parts, ${hardpoints}, $("#pose-ring").title, $("#pose-hardpoint-sliders").hidden, ${hardpointLabels}, leakyFields()];`),
   ["true", "false", true, [["ring", "false"], ["bamboo", "false"], ["hashira", "false"]], true,
     [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]], "Remove ring", false,
     ["Across (cm)", "Height (cm)", "Front to back (cm)"], []]);
   check("a bamboo has a length and a hanger inset, 152 and 30 cm to begin with, the inset short of the middle", await run(`
-    $("#pose-bamboo").click(); await wait(200);
+    $("#pose-bamboo").click(); await calm(200);
     const labels = ${hardpointLabels}.slice(4);
     const start = [$("#pose-bamboo-4").value, $("#pose-bamboo-5").value, $("#pose-bamboo-5").max];
     ${slide("pose-bamboo-4", 90)}
     const shorter = [$("#pose-bamboo-5").value, $("#pose-bamboo-5").max];
     ${slide("pose-bamboo-5", 60)}
     const inset = $("#pose-bamboo-5").value;
-    $("#pose-bamboo-5-up").click(); await wait(200);
+    $("#pose-bamboo-5-up").click(); await calm(200);
     const stepped = $("#pose-bamboo-5").value;
     for (let i = 0; i < 3; i++) { $("#pose-undo").click(); await wait(200); }
     return [labels, start, shorter, inset, stepped, ${hardpoints}];`),
   [["Length (cm)", "Hanger inset (cm)"], ["152", "30", "71"], ["30", "40"], "40", "40",
     [["ring", "true"], ["bamboo", "false"], ["hashira", "false"]]]);
 
-  await run(`$("#pose-mode-rope").click(); await wait(200);`);
+  await run(`$("#pose-mode-rope").click(); await calm(200);`);
   await tap(0.5, 0.5);
   await tap(0.5, 0.38);
   check("tapping the body lays a rope, point by point, its count, Cancel and Finish in a bar over the view", await run(`
@@ -403,21 +403,21 @@ export default async function () {
   ["Rope: 2 points. Keep tapping, then Finish.", false, "Laying rope · 2 points", false,
     ["pose-laying-count", "pose-cancel-rope", "pose-finish-rope"], true]);
   check("Undo takes back the last point first", await run(`
-    $("#pose-undo").click(); await wait(200); const one = $("#pose-rope-hint").textContent;
+    $("#pose-undo").click(); await calm(200); const one = $("#pose-rope-hint").textContent;
     return one;`), "Rope: 1 point. Keep tapping, then Finish.");
   check("Cancel drops the rope being laid, and the bar goes", await run(`
-    $("#pose-cancel-rope").click(); await wait(200);
+    $("#pose-cancel-rope").click(); await calm(200);
     return [$("#pose-laying-bar").hidden, $("#pose-rope-hint").textContent.startsWith("Tap the body")];`),
   [true, true]);
   await tap(0.5, 0.5);
   await tap(0.5, 0.4);
-  await run(`$("#pose-finish-rope").click(); await wait(200);`);
+  await run(`$("#pose-finish-rope").click(); await calm(200);`);
 
   const marks = `document.querySelectorAll("#pose-marks path").length`;
   check("the pencil: a switch over the tab; in the tab's place, the Rope tab's own rows where they were, red chosen, Done where the hardpoint's chip was, and marks only it can draw", await run(`
     const place = (id) => { const r = $(id).getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; };
     const before = [place("#pose-width-1"), place("#pose-color-black"), place("#pose-hardpoint-link")];
-    $("#pose-mode-draw").click(); await wait(200);
+    $("#pose-mode-draw").click(); await calm(200);
     const rows = (id) => [...document.querySelectorAll(id + " .pose-rope-tools-rows [role=group]")].map((c) => c.getAttribute("aria-label"));
     const after = [place("#pose-mark-width-1"), place("#pose-mark-color-black")];
     const done = $("#pose-draw-done").getBoundingClientRect(), chipWas = before[2];
@@ -437,12 +437,12 @@ export default async function () {
   await tap(0.5, 0.25);
   check("the eraser takes a mark out, and undo brings it back", await run(`
     const erased = ${marks};
-    $("#pose-undo").click(); await wait(300);
+    $("#pose-undo").click(); await calm(300);
     return [erased, ${marks}];`), [0, 1]);
   check("Done puts the pencil away, back to the tab it was on", await run(`
     $("#pose-draw-done").click(); await wait(100);
     return [$("#pose-mode-draw").getAttribute("aria-pressed"), $("#pose-panel-draw").hidden, $("#pose-panel-rope").hidden];`), ["false", true, false]);
-  await run(`$("#pose-mode-pose").click(); await wait(200);`);
+  await run(`$("#pose-mode-pose").click(); await calm(200);`);
   check("the marks still show in the other tabs, but don't take taps", await run(`
     return [${marks}, $("#pose-marks").classList.contains("drawing"), getComputedStyle($("#pose-marks")).pointerEvents];`), [1, false, "none"]);
   await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: path.join(workDir, "downloads-pose-marks") });
@@ -463,7 +463,7 @@ export default async function () {
     return [!!$("dialog.pose-editor"), [...document.querySelectorAll("#tie-visuals .photo-tile")].map((t) => t.className),
       ($("#tie-visuals .visual-pose img")?.src ?? "").startsWith("blob:")];`), [false, ["photo-tile visual-photo", "photo-tile visual-pose"], true]);
   check("…and is saved with the tie: the figure, the ring and the rope, plain, and the picture sealed like any photo", await run(`
-    $("#tie-save").click(); await wait(3000); await settle();
+    $("#tie-save").click(); await calm(3000); await settle();
     const [p] = await ${tiePoses};
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Pose test");
@@ -473,8 +473,8 @@ export default async function () {
   [false, [0, 20, 0], [105, 0], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
 
   check("a caption is saved encrypted and shown under the pose", await run(`
-    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);
-    set("#tie-pose-caption", " Lift "); $("#tie-pose-save-caption").click(); await wait(800);
+    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800);
+    set("#tie-pose-caption", " Lift "); $("#tie-pose-save-caption").click(); await calm(800);
     const [p] = await ${tiePoses};
     return [$("#tie-visuals .visual-pose figcaption")?.textContent, /^e1\\./.test(p.caption), p.caption.includes("Lift"), leakyFields()];`),
   ["Lift", true, false, []]);
@@ -488,19 +488,19 @@ export default async function () {
   check("Edit pose: the saved preset is in its Body… picker; a bamboo in place of the ring, then a hashira, its own sliders each; nothing kept on Cancel", await run(`
     $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
-    await wait(300);
+    await calm(300);
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     const saved = ${pickerRows("#pose-body-presets")}.slice(${BODY_NAMES.length}).map(([n]) => n);
-    $("#pose-body-presets-close").click(); await wait(200);
+    $("#pose-body-presets-close").click(); await calm(200);
     $("#pose-mode-scene").click(); await wait(100);
-    $("#pose-bamboo").click(); await wait(200);
+    $("#pose-bamboo").click(); await calm(200);
     const bamboo = [${hardpoints}, $("#pose-rope-hint").textContent, ${hardpointLabels}];
     // Nothing's asked, whatever ropes are on it.
-    $("#pose-hashira").click(); await wait(300);
+    $("#pose-hashira").click(); await calm(300);
     const asked = ${topDialog}.classList.contains("pose-editor");
     const hashira = [$("#pose-hashira").getAttribute("aria-pressed"), ${hardpointLabels}];
-    $("#pose-cancel").click(); await wait(300);
-    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
+    $("#pose-cancel").click(); await calm(300);
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await calm(300);
     const [p] = await ${tiePoses};
     return [saved, bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
   [["My presets", "Kneel"], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]],
@@ -508,13 +508,13 @@ export default async function () {
     ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn", "Length (cm)", "Hanger inset (cm)"]],
   true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`
-    $("#tie-pose-duplicate").click(); await wait(1000);
-    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    $("#tie-pose-duplicate").click(); await calm(1000);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     const [a, b] = await ${tiePoses};
     return [[...document.querySelectorAll("#tie-visuals .visual-pose figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
   [["Lift", "Lift"], true, true]);
-  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);`);
+  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);`);
 
   // Export: the poses are in notonawa.json (a zip, as there's a photo now).
   const downloads = path.join(workDir, "downloads-poses");
@@ -537,7 +537,7 @@ export default async function () {
   check("importing it into another journal brings the poses back, captions and all", await run(`
     const bytes = Uint8Array.from(atob(${JSON.stringify(zipBytes.toString("base64"))}), (c) => c.charCodeAt(0));
     const dt = new DataTransfer(); dt.items.add(new File([bytes], "export.zip", { type: "application/zip" }));
-    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(2000);
+    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await calm(2000);
     const preview = [...document.querySelectorAll("#import-preview .item")].map(flat).filter((t) => t.startsWith("Poses"));
     $("#import-go").click(); for (let i = 0; i < 100 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     const listed = await ${tiePoses};
@@ -547,13 +547,13 @@ export default async function () {
 
   await go("/");
   check("deleting a pose asks first, then removes it", await run(`
-    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800);
-    $("#tie-pose-delete").click(); await wait(300);
+    ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800);
+    $("#tie-pose-delete").click(); await calm(300);
     const asked = ${topDialog}.querySelector("h2").textContent;
-    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete pose").click(); await wait(800);
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete pose").click(); await calm(800);
     return [asked, document.querySelectorAll("#tie-visuals .visual-pose").length, (await ${tiePoses}).length];`),
   ["Delete this pose?", 1, 1]);
-  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);`);
+  await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);`);
 
   await ropes({ tap, slide, topDialog });
   await collisions({ tap, slide, topDialog });
@@ -580,11 +580,11 @@ async function standalone({ topDialog }) {
 
   // "Collision test"'s form is still open from collisions(): the nav's
   // poser is opened from the view, with nothing over it.
-  await run(`$("#tie-close")?.click(); await wait(500); (${buttonIn})("Discard changes")?.click(); await wait(300);`);
+  await run(`$("#tie-close")?.click(); await calm(500); (${buttonIn})("Discard changes")?.click(); await calm(300);`);
   check("the nav's poser: Save pose asks where, in one sheet: the poser's icon, one search, All chosen, Recent with each kind's tab icon, and + Tie, + Plan, + Workshop", await run(`
     $("#nav-poser").click();
     ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
-    await wait(500);
+    await calm(500);
     $("#pose-save").click();
     ${waitFor(row("Collision test"))}
     const tie = ${row("Collision test")};
@@ -619,17 +619,17 @@ async function standalone({ topDialog }) {
   ["Collision test", "Picture added to tie “Collision test”.", 1]);
 
   check("…and both kept, Close doesn't ask", await run(`
-    $("#pose-cancel").click(); await wait(500);
+    $("#pose-cancel").click(); await calm(500);
     return !!document.querySelector("dialog.pose-editor[open]");`), false);
 
   check("typing a name nothing has offers to make one called that, of each kind; a chip offers only its own", await run(`
     $("#nav-poser").click();
     ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
-    await wait(500);
+    await calm(500);
     $("#pose-save").click();
     ${waitFor(`${rows}.length`)}
     const search = $("#add-to-search");
-    search.value = "Hip harness"; search.dispatchEvent(new Event("input")); await wait(600);
+    search.value = "Hip harness"; search.dispatchEvent(new Event("input")); await calm(600);
     const all = [$("#add-to-new-label").textContent, [...document.querySelectorAll("#add-to-new .add-to-make")].map((b) => b.textContent),
       $("#add-to-message").textContent];
     $("#add-to-filter-workshop").click(); await wait(100);
@@ -646,9 +646,9 @@ async function standalone({ topDialog }) {
   ["Hip harness", 1, "unsaved-bar", "Not saved yet. Save this tie to keep the pose.", true]);
 
   check("closing it asks first, even with nothing else changed", await run(`
-    $("#tie-close").click(); await wait(400);
+    $("#tie-close").click(); await calm(400);
     const asked = [${topDialog}.querySelector("h2").textContent, !!(${buttonIn})("Discard tie")];
-    (${buttonIn})("Keep editing").click(); await wait(300);
+    (${buttonIn})("Keep editing").click(); await calm(300);
     return [...asked, !!$("#tie-form")];`), ["Discard this new tie?", true, true]);
 
   check("saving it saves the pose with it, back in the poser; next time the new tie is first", await run(`
@@ -666,27 +666,27 @@ async function standalone({ topDialog }) {
     const close = $("#add-to-close").getBoundingClientRect(), head = $(".add-to-head").getBoundingClientRect();
     const scroll = $("#add-to-scroll");
     // Filtered to few, it stays where it was, as tall.
-    $("#add-to-filter-workshop").click(); await wait(200);
+    $("#add-to-filter-workshop").click(); await calm(200);
     const filtered = sheet.getBoundingClientRect();
-    $("#add-to-filter-all").click(); await wait(200);
+    $("#add-to-filter-all").click(); await calm(200);
     const layout = [Math.abs(box.height - (innerHeight - 32)) < 2, filtered.top === box.top && filtered.height === box.height,
       Math.abs(box.bottom - foot.bottom) < 2, getComputedStyle($("#add-to-foot")).position,
       getComputedStyle(scroll).overflowY, Math.abs(head.right - close.right) < 2, !!$(".add-to-sheet .dialog-cancel"),
       $("#add-to-close").getAttribute("aria-label")];
-    $("#add-to-close").click(); await wait(300);
+    $("#add-to-close").click(); await calm(300);
     const closed = !document.querySelector(".add-to-sheet");
-    $("#pose-cancel").click(); await wait(500);
+    $("#pose-cancel").click(); await calm(500);
     return [said, poses, first, layout, closed, !!document.querySelector("dialog.pose-editor[open]")];`),
   ["Saved on the new tie.", 1, "Hip harness", [true, true, true, "sticky", "auto", true, false, "Close"], true, false]);
 
   check("+ Plan from Add to visuals opens the plan form over the poser: named, the picture in its visuals, Not saved yet", await run(`
     $("#nav-poser").click();
     ${waitFor(`document.querySelector("dialog.pose-editor[open]")`)}
-    await wait(500);
+    await calm(500);
     $("#pose-add-visual").click();
     ${waitFor(`${rows}.length`)}
     const search = $("#add-to-search");
-    search.value = "Ladder plan"; search.dispatchEvent(new Event("input")); await wait(600);
+    search.value = "Ladder plan"; search.dispatchEvent(new Event("input")); await calm(600);
     $("#add-to-new-plan").click();
     ${waitFor(`document.querySelector("#plan-visuals .visual-photo")`)}
     return [$("#plan-title").value, document.querySelectorAll("#plan-visuals .visual-photo").length,
@@ -700,7 +700,7 @@ async function standalone({ topDialog }) {
     const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Ladder plan");
     const media = plan ? await (await fetch("/api/media?plan_id=" + plan.id)).json() : null;
     const open = !!document.querySelector("dialog.pose-editor[open]");
-    $("#pose-cancel").click(); await wait(500);
+    $("#pose-cancel").click(); await calm(500);
     return [said, media?.length, open, !!document.querySelector("dialog.pose-editor[open]")];`),
   ["Saved on the new plan.", 1, true, false]);
 }
@@ -712,6 +712,9 @@ async function standalone({ topDialog }) {
  * @param {{ tap: (fx: number, fy: number) => Promise<void>, slide: (id: string, value: number) => string, topDialog: string }} helpers
  */
 async function ropes({ tap, slide, topDialog }) {
+  // Fixed waits here, not calm(): a tap on a rope picks from the view as
+  // last drawn, and the waits give headless Chrome's slow 3D drawing time
+  // to catch up (with calm() these steps sometimes tapped the old view).
   const RING = ["ring", 0, 0, 0];
   const joints = { l_shoulder: [0, 90, 0], r_shoulder: [0, 90, 0] };
   const seeded = {
@@ -921,10 +924,10 @@ async function collisions({ tap, slide, topDialog }) {
     const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-03", title: "Collision test" });
     await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
   await go("/");
-  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Collision test").click(); await wait(1500);
-    $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); $("#tie-pose-edit").click();
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Collision test").click(); await calm(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
-    await wait(500);`);
+    await calm(500);`);
   // The left forearm, halfway along: where to tap to pose the elbow.
   const forearm = await run(`
     const three = await import("/js/vendor/three.js");
@@ -949,21 +952,21 @@ async function collisions({ tap, slide, topDialog }) {
     ${slide("pose-l_elbow-0", 150)}
     return [part, $("#pose-allow-collisions").checked, $("#pose-l_elbow-0").value];`), ["Left elbow", true, "150"]);
   check("unticking it asks to fix the collisions; fixing them brings the forearm out, as one change to undo", await run(`
-    const box = $("#pose-allow-collisions"); box.click(); await wait(800);
+    const box = $("#pose-allow-collisions"); box.click(); await calm(800);
     const asked = [${topDialog}.querySelector("h2")?.textContent, !!(${buttonIn})("Leave them")];
-    (${buttonIn})("Fix them now").click(); await wait(800);
+    (${buttonIn})("Fix them now").click(); await calm(800);
     const fixed = [$("#pose-message").textContent, $("#pose-undo").disabled];
-    $("#pose-undo").click(); await wait(300);
+    $("#pose-undo").click(); await calm(300);
     return [asked, fixed, $("#pose-l_elbow-0").value, box.checked];`),
   [["Fix the collisions?", true], ["Fixed: the body parts are back within reach and apart.", false], "150", false]);
   check("leaving them changes nothing; a move made unticked is settled", await run(`
-    const box = $("#pose-allow-collisions"); box.click(); await wait(200); box.click(); await wait(800);
-    (${buttonIn})("Leave them").click(); await wait(500);
+    const box = $("#pose-allow-collisions"); box.click(); await calm(200); box.click(); await calm(800);
+    (${buttonIn})("Leave them").click(); await calm(500);
     const left = $("#pose-l_elbow-0").value;
     ${slide("pose-l_elbow-0", 0)}
     ${slide("pose-l_elbow-0", 150)}
     return [left, Number($("#pose-l_elbow-0").value) < 150];`), ["150", true]);
   // Ticked again for the next time the poser opens, as it is by default.
-  await run(`$("#pose-allow-collisions").click(); await wait(200); $("#pose-cancel").click(); await wait(500);
-    (${buttonIn})("Discard changes")?.click(); await wait(500);`);
+  await run(`$("#pose-allow-collisions").click(); await calm(200); $("#pose-cancel").click(); await calm(500);
+    (${buttonIn})("Discard changes")?.click(); await calm(500);`);
 }

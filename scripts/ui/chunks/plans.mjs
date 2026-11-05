@@ -6,7 +6,7 @@ export default async function () {
   await freshAccount();
   console.log("Plans");
   await go("/plans");
-  const addPlan = `$("#add-plan").click(); await wait(300);`;
+  const addPlan = `$("#add-plan").click(); await calm(300);`;
   // A plan's card, by its title, and what it shows: its type (top right),
   // tie type and variation, difficulty hanks, ties, and how many buttons.
   const planCard = `const cardOf = (t) => [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === t);
@@ -33,10 +33,10 @@ export default async function () {
       ["Harness", "", 3, "0 ties", 1], ["Idea", "variation of Hip harness", 0, "0 ties", 1]]);
   check("tapping a plan's card opens it, with Delete, Archive and Share icons on the heading's row", await run(`
     ${planCard}
-    cardOf("Hip harness").querySelector(".plan-ties").click(); await wait(400);
+    cardOf("Hip harness").querySelector(".plan-ties").click(); await calm(400);
     const opened = [!!document.querySelector("#plan-dialog[open]"), $("#plan-title").value, headerIcons("#plan-dialog"),
       getComputedStyle(cardOf("Hip harness")).cursor];
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return opened;`), [true, "Hip harness", ["Delete plan", "Archive plan", "Share plan", "Close"], "pointer"]);
   check("difficulty is rope hanks: the list shows them, Edit opens the dialog filled in, and Cancel closes it; + then starts empty", await run(`
     const filled = () => document.querySelectorAll("#plan-est_difficulty-picker .hank-button.filled").length;
@@ -44,9 +44,9 @@ export default async function () {
       .querySelectorAll(".hank-rating .hank.filled").length;
     await clickIn("Hip harness", "Edit"); const label = $("label[for=plan-plan_type]").textContent;
     const editing = [!!document.querySelector("#plan-dialog[open]"), $("#plan-form-heading").textContent, filled(), $("[name=est_difficulty]").value];
-    $("[data-cancel-edit]").click(); await wait(200); const closed = !!document.querySelector("#plan-dialog[open]");
+    $("[data-cancel-edit]").click(); await calm(200); const closed = !!document.querySelector("#plan-dialog[open]");
     ${addPlan} const fresh = [$("#plan-form-heading").textContent, filled(), $("[name=est_difficulty]").value, $("#plan-title").value];
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return [label, listed, editing, closed, fresh];`),
     ["Plan type", 3, [true, "Edit plan", 3, "3"], false, ["Add a plan", 0, "", ""]]);
   check("a plan has an optional tie type, tags and an album link, shown in the list", await run(`
@@ -55,15 +55,15 @@ export default async function () {
     set("#plan-tie_type", "floor"); set("#plan-album_url", "javascript:alert(1)");
     const refused = $("#plan-album_url").validity.patternMismatch;
     set("#plan-album_url", "https://photos.app.goo.gl/hip");
-    $("#plan-add-tags").click(); await wait(400);
-    const box = $("#tags-search"); box.value = "plan-tag"; $("#tags-add").click(); $("#tags-ok").click(); await wait(200);
+    $("#plan-add-tags").click(); await calm(400);
+    const box = $("#tags-search"); box.value = "plan-tag"; $("#tags-add").click(); $("#tags-ok").click(); await calm(200);
     const chips = tagChips("#plan-tags");
     await submit();
     const item = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness");
     const link = item.querySelector(".tie-album a");
     const stored = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Hip harness");
     // Tapping the album link opens it, not the plan.
-    link.addEventListener("click", (e) => e.preventDefault(), { once: true }); link.click(); await wait(300);
+    link.addEventListener("click", (e) => e.preventDefault(), { once: true }); link.click(); await calm(300);
     return [types, refused, chips, item.querySelector(".tie-place").innerText, tagChips(".plan-card .tie-tags"),
       [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags, !!document.querySelector("#plan-dialog[open]")];`),
     [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor",
@@ -71,21 +71,21 @@ export default async function () {
   check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
     await clickIn("Hip harness", "Edit");
     const editing = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     ${addPlan} const fresh = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return [editing, fresh];`),
     [["floor", "https://photos.app.goo.gl/hip", ["plan-tag"]], ["", "", []]]);
   // Back as it was: the plan search's tag picker below lists only tags on plans.
   await run(`
-    await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await wait(400);
-    $(".tag-search .tag-x").click(); $("#tags-ok").click(); await wait(200);
+    await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await calm(400);
+    $(".tag-search .tag-x").click(); $("#tags-ok").click(); await calm(200);
     set("#plan-tie_type", ""); set("#plan-album_url", ""); await submit();
     const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "plan-tag");
     if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
   check("the visuals note says what they're for, and when a new plan's are saved", await run(`
-    ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
-    await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await wait(200);
+    ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await calm(200);
+    await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await calm(200);
     return [fresh, editing];`),
     ["Drag visuals into order and caption them to describe a sequence. They're saved when you save this form.",
       "Drag visuals into order and caption them to describe a sequence."]);
@@ -115,11 +115,11 @@ export default async function () {
       Math.abs(row.right - hanks.right) < 2, row.top < hanks.bottom && hanks.top < row.bottom];`),
     [[false, "Linked ties (2)", false], false, [["Linked again", 3], ["Linked try", 4]], true, true]);
   check("tapping one opens the tie over the plan; saving it updates both", await run(`
-    $("#plan-linked-ties button").click(); await wait(1500);
+    $("#plan-linked-ties button").click(); await calm(1500);
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, !!document.querySelector("#plan-dialog[open]")];
-    document.querySelectorAll("#tie-form .hank-button")[4].click(); $("#tie-save").click(); await wait(1500);
+    document.querySelectorAll("#tie-form .hank-button")[4].click(); $("#tie-save").click(); await calm(1500);
     const rows = [...document.querySelectorAll("#plan-linked-ties li")].map((li) => li.querySelectorAll(".hank.filled").length);
-    $("[data-cancel-edit]").click(); await wait(300);
+    $("[data-cancel-edit]").click(); await calm(300);
     return [opened, rows, !!document.querySelector("#plan-dialog[open]")];`),
     [["Edit tie", "Linked again", true], [5, 4], false]);
   check("a saved plan opens on its heading, its Save changes muted until something changes (and changed back, muted again)", await run(`
@@ -128,18 +128,18 @@ export default async function () {
     const before = [document.activeElement === $("#plan-form-heading"), save.textContent, save.getAttribute("aria-disabled") === "true", getComputedStyle(save).backgroundColor];
     set("#plan-notes", "A note"); await wait(50); const changed = [save.getAttribute("aria-disabled") === "true", getComputedStyle(save).backgroundColor !== before[3]];
     set("#plan-notes", ""); await wait(50); const undone = save.getAttribute("aria-disabled") === "true";
-    $("[data-cancel-edit]").click(); await wait(300);
+    $("[data-cancel-edit]").click(); await calm(300);
     return [before.slice(0, 3), changed, undone, !!document.querySelector("#plan-dialog[open]")];`),
     [[true, "Save changes", true], [false, true], true, false]);
   check("a new plan's Add plan is ready to tap, with focus on its title", await run(`
-    $("#add-plan").click(); await wait(300);
+    $("#add-plan").click(); await calm(300);
     const state = [document.activeElement === $("#plan-title"), $("#plan-dialog button[type=submit]").textContent, $("#plan-dialog button[type=submit]").getAttribute("aria-disabled") === "true"];
-    $("[data-cancel-edit]").click(); await wait(300);
+    $("[data-cancel-edit]").click(); await calm(300);
     return [state, !!document.querySelector("#plan-dialog[open]")];`), [[true, "Add plan", false], false]);
   const planTitles = `await wait(100); return titles();`;
   check("the search: a keyword in the title", await run(`await type("#search-q", "ONE-SIDED"); ${planTitles}`), ["Hip harness, one-sided"]);
   check("…Clear search shows them all again, and hides itself", await run(`
-    $("#search-clear").click(); await wait(200); return [titles().length, $("#search-q").value, $("#search-clear").hidden];`), [3, "", true]);
+    $("#search-clear").click(); await calm(200); return [titles().length, $("#search-q").value, $("#search-clear").hidden];`), [3, "", true]);
   check("…the other filters are folded under More options, opened by tapping it", await run(`
     const fold = () => [$("#search-more").open, $("#search-plan-types").checkVisibility({ contentVisibilityAuto: true })];
     const closed = fold(); $("#search-more summary").click(); await wait(100);
@@ -149,28 +149,28 @@ export default async function () {
     return [filterOptions("#search-plan-types"), one, titles()];`),
     [["Harness", "Idea", "Sequence"], ["Hip harness"], ["Linked plan", "Hip harness"]]);
   check("…tie types", await run(`
-    $("#search-clear").click(); await wait(200); await pick("#search-tie-types", "Suspension");
+    $("#search-clear").click(); await calm(200); await pick("#search-tie-types", "Suspension");
     return [filterOptions("#search-tie-types"), titles()];`),
     [["Floor", "Hashira", "Partial suspension", "Suspension"], ["Linked plan"]]);
   check("…and tags: the picker lists only tags on plans", await run(`
-    $("#search-clear").click(); await wait(200);
-    $("#search-tags-choose").click(); await wait(600);
+    $("#search-clear").click(); await calm(200);
+    $("#search-tags-choose").click(); await calm(600);
     const offered = tagBubbles();
-    [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === "search-tag").click(); $("#tags-ok").click(); await wait(300);
+    [...document.querySelectorAll("#tags-list .tag-toggle")].find((b) => b.textContent === "search-tag").click(); $("#tags-ok").click(); await calm(300);
     return [offered, tagChips("#search-tag-filter"), titles(), $("#search-tags-any").getAttribute("aria-pressed")];`),
     [["search-tag"], ["search-tag"], ["Linked plan"], "true"]);
   check("…nothing found says so", await run(`
     await type("#search-q", "zzz"); return [titles(), $("#list .empty")?.textContent];`), [[], "No matches."]);
   check("an archived plan opens from its card too, to restore it", await run(`
-    $("#search-clear").click(); await wait(200);
-    await clickIn("Linked plan", "Archive"); await wait(300);
-    set("#show-archived", true); await wait(600);
+    $("#search-clear").click(); await calm(200);
+    await clickIn("Linked plan", "Archive"); await calm(300);
+    set("#show-archived", true); await calm(600);
     ${planCard}
-    cardOf("Linked plan").querySelector(".tie-place").click(); await wait(400);
+    cardOf("Linked plan").querySelector(".tie-place").click(); await calm(400);
     const opened = [!!document.querySelector("#plan-dialog[open]"), $("#plan-title").value, headerIcons("#plan-dialog")];
-    $("#plan-dialog [aria-label='Restore plan']").click(); await wait(600);
+    $("#plan-dialog [aria-label='Restore plan']").click(); await calm(600);
     const archived = titles();
-    set("#show-archived", false); await wait(600);
+    set("#show-archived", false); await calm(600);
     return [opened, !!document.querySelector("#plan-dialog[open]"), archived, titles().includes("Linked plan")];`),
     [[true, "Linked plan", ["Delete plan", "Restore plan", "Share plan", "Close"]], false, [], true]);
 }

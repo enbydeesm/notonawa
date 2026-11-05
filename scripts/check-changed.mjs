@@ -1,8 +1,8 @@
-// The checks a change needs, rather than all of them: lint and type check
-// (quick, so always all of it), then only the tests, generated-file checks
-// and (with --ui) walkthrough chunks of the areas the changed files are in
-// (scripts/areas.mjs). "Changed" is everything since the last commit,
-// including new files.
+// The checks a change needs, rather than all of them: lint, type check and
+// every Vitest test (quick enough to always run all of them), then only the
+// generated-file checks and (with --ui) walkthrough chunks of the areas the
+// changed files are in (scripts/areas.mjs). "Changed" is everything since
+// the last commit, including new files.
 //
 //   npm run check:changed                 what's changed
 //   npm run check:changed -- --ui         …and its walkthrough chunks
@@ -52,9 +52,8 @@ const GENERATED = {
 const steps = [
   ["lint", ["npx", "eslint", "."]],
   ["type check", ["npm", "run", "--silent", "typecheck"]],
+  ["every test", ["npx", "vitest", "run"]],
 ];
-if (plan.tests === "all") steps.push(["every test", ["npx", "vitest", "run"]]);
-else if (plan.tests.length) steps.push([`${plan.tests.length} test file(s)`, ["npx", "vitest", "run", ...plan.tests]]);
 for (const check of plan.generated) steps.push([`${check} file check`, GENERATED[check]]);
 if (withUi && plan.ui.length) steps.push([`walkthrough: ${plan.ui.join(", ")}`, ["node", "scripts/ui-smoke.mjs", "--only", plan.ui.join(","), ...(jobs ? ["--jobs", jobs] : [])]]);
 
@@ -63,7 +62,6 @@ if (plan.everything.length) console.log(`Everything runs, for: ${plan.everything
 if (plan.unmapped.length) {
   console.log(`Not in any area (add them to scripts/areas.mjs): ${plan.unmapped.join(", ")}`);
 }
-if (plan.tests !== "all" && plan.tests.length) console.log(`Tests: ${plan.tests.join(" ")}`);
 console.log(`Walkthrough chunks: ${plan.ui.join(", ") || "none"}${withUi || !plan.ui.length ? "" : " (add --ui to run them)"}`);
 if (listOnly) {
   console.log(`\nWould run: ${steps.map(([label]) => label).join("; ")}`);

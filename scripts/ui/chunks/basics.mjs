@@ -58,11 +58,11 @@ export default async function () {
     [...document.querySelectorAll("[data-show=signup]")][0].click(); return [visibleCard(), leakyFields()];`), ["signup", []]);
   check("sign-up needs 18+ and consent", await run(`
     $("#invite").value = ${JSON.stringify(INVITE)}; $("#passkey-name").value = "Test phone";
-    $("#signup-form button[type=submit]").click(); await wait(300);
+    $("#signup-form button[type=submit]").click(); await calm(300);
     return $("#adult").validity.valueMissing;`), true);
   const recoveryCode = await run(`
     $("#adult").checked = true; $("#consent").checked = true;
-    $("#signup-form button[type=submit]").click(); await wait(2500);
+    $("#signup-form button[type=submit]").click(); await calm(2500);
     return $("#recovery-code")?.textContent;`);
   check("signing up makes a passkey and shows a recovery code once, which must be confirmed", await run(`
     const before = recoveryDialog(); $("#recovery-saved").click();
@@ -87,16 +87,16 @@ export default async function () {
       d.querySelector("a[href^=mailto]")?.getAttribute("href"), $("#welcome-hide").checked, $("#welcome-ok").textContent];`),
     [true, "Welcome to NōtoNawa, your secure tie planning and tracking journal.", 10, true, "mailto:contact@notonawa.app", false, "OK"]);
   check("OK without the box ticked closes it, and it stays on", await run(`
-    $("#welcome-ok").click(); await wait(500); return [$("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
+    $("#welcome-ok").click(); await calm(500); return [$("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
     [true, false]);
   await go("/");
   check("so it's shown again after the next unlock; ticking \"Don't show this again\" saves that on the account", await run(`
     ${welcomeShown.replace("return", "const open =")}
-    $("#welcome-hide").click(); $("#welcome-ok").click(); await wait(800);
+    $("#welcome-hide").click(); $("#welcome-ok").click(); await calm(800);
     return [open, $("dialog") === null, (await (await fetch("/api/account/settings")).json()).hide_welcome];`),
     [true, true, true]);
   await go("/");
-  check("…and not again", await run(`await wait(800); return $("dialog.welcome") === null;`), true);
+  check("…and not again", await run(`await calm(800); return $("dialog.welcome") === null;`), true);
   check("an account from before the welcome sees it too", [await hideWelcome(), sql("SELECT dflt_value FROM pragma_table_info('users') WHERE name = 'hide_welcome'")[0].dflt_value], [true, "0"]);
   for (const pagePath of ["/plans", "/people", "/locations"]) {
     await go(pagePath);
@@ -109,22 +109,22 @@ export default async function () {
   const viewState = `return [location.pathname + location.search, document.title, $("#view h1").textContent, window.marker === 1,
     $("nav a[aria-current=page]")?.getAttribute("aria-label") ?? null, document.activeElement === $("#view h1")];`;
   check("a tab changes the view without loading a new page, with its title, tab and focus", await run(`
-    window.marker = 1; $("nav a[href='/plans']").click(); await wait(800); ${viewState}`),
+    window.marker = 1; $("nav a[href='/plans']").click(); await calm(800); ${viewState}`),
     ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true]);
   check("Back and Forward change the view, still without a page load", await run(`
-    history.back(); await wait(800); const back = (() => { ${viewState} })();
-    history.forward(); await wait(800); return [back, (() => { ${viewState} })()];`), [
+    history.back(); await calm(800); const back = (() => { ${viewState} })();
+    history.forward(); await calm(800); return [back, (() => { ${viewState} })()];`), [
     ["/", "NotoNawa", "NotoNawa", true, "Ties", true],
     ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true],
   ]);
   check("Back to the Ties list brings back its sort order", await run(`
-    $("nav a[href='/']").click(); await wait(800); $("#sort").click(); await settle();
-    $("nav a[href='/people']").click(); await wait(800); history.back(); await wait(800);
+    $("nav a[href='/']").click(); await calm(800); $("#sort").click(); await settle();
+    $("nav a[href='/people']").click(); await calm(800); history.back(); await calm(800);
     return [location.pathname + location.search, $("#sort").getAttribute("aria-pressed"), window.marker === 1];`), ["/?sort=oldest", "true", true]);
   check("Back with a dialog open closes it", await run(`
-    $("nav a[href='/']").click(); await wait(800); $("nav a[href='/locations']").click(); await wait(800);
-    $(".nav-add").click(); await wait(600); const open = $("dialog[open] #tie-form") !== null;
-    history.back(); await wait(800); return [open, $("dialog[open]") === null, location.pathname];`), [true, true, "/"]);
+    $("nav a[href='/']").click(); await calm(800); $("nav a[href='/locations']").click(); await calm(800);
+    $(".nav-add").click(); await calm(600); const open = $("dialog[open] #tie-form") !== null;
+    history.back(); await calm(800); return [open, $("dialog[open]") === null, location.pathname];`), [true, true, "/"]);
   check("the privacy policy opens in a new tab, leaving the app as it is", await run(`
     await openMenu(); const link = $(".menu-privacy"); const out = [link.target, link.rel]; $("dialog.menu-panel").close(); return out;`),
     ["_blank", "noopener"]);
@@ -137,7 +137,7 @@ export default async function () {
   // locked, and the ties ask to unlock first.
   check("an unknown address says so, and links back to the ties (to unlock first)", await run(`
     const shown = [document.title, $("#view h1").textContent, $("nav a[aria-current=page]") === null];
-    window.marker = 1; $("#view a[href='/']").click(); await wait(800);
+    window.marker = 1; $("#view a[href='/']").click(); await calm(800);
     return [...shown, location.pathname, document.title, $("#unlock-choose")?.hidden === false, window.marker === 1];`),
     ["Page not found · NotoNawa", "Page not found", true, "/", "Unlock · NotoNawa", true, true]);
 
@@ -162,7 +162,7 @@ export default async function () {
     return [window.prompted, $("#install-offer").hidden];`), [1, true]);
   check("it isn't over Unlock or sign-in", await run(`
     ${offerInstall} const shown = !$("#install-offer").hidden;
-    history.pushState(null, "", "/nope"); dispatchEvent(new PopStateEvent("popstate")); await wait(800);
+    history.pushState(null, "", "/nope"); dispatchEvent(new PopStateEvent("popstate")); await calm(800);
     return [shown, $("#install-offer").hidden];`), [true, true]);
   await go("/");
   check("Not now hides it on this device, for good", await run(`

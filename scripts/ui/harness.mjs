@@ -8,6 +8,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { IDLE_TRACKER, WAIT_HELPERS } from "./idle.mjs";
 
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 // Several walkthroughs can run at once (scripts/ui-smoke.mjs --jobs), each
@@ -28,14 +29,23 @@ export const failureCount = () => failures;
 export const addFailure = () => { failures++; };
 
 function cleanup() {
-  for (const child of children) child.kill();
+  // Each program's whole process group: `npx wrangler dev` starts wrangler
+  // and workerd under it, which killing npx alone leaves running (on Linux).
+  for (const child of children) {
+    try {
+      process.kill(-(/** @type {number} */ (child.pid)), "SIGTERM");
+    } catch {
+      child.kill();
+    }
+  }
   children.length = 0;
   rmSync(workDir, { recursive: true, force: true });
 }
-// However this process ends (a crash too), its app and Chrome end with it:
-// one left running would hold its ports, and the next run on them would
-// test it instead of its own.
+// However this process ends (a crash or Ctrl-C too), its app and Chrome end
+// with it: one left running would hold its ports, and the next run on them
+// would test it instead of its own (or wait on it for good).
 process.on("exit", cleanup);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(130));
 
 /**
  * Starts a program this walkthrough needs, stopping everything if it can't.
@@ -44,7 +54,8 @@ process.on("exit", cleanup);
  * @param {import("node:child_process").SpawnOptions} options
  */
 function start(command, args, options) {
-  const child = spawn(command, args, options);
+  // In a process group of its own, so cleanup() stops everything it starts.
+  const child = spawn(command, args, { ...options, detached: true });
   child.on("error", (err) => {
     console.error(`Couldn't start ${command}: ${err.message}`);
     process.exit(1);
@@ -64,6 +75,22 @@ async function refuseIfInUse(url, what) {
     console.error(`Something is already running at ${url}, where ${what} goes. Stop it (an earlier walkthrough left running?) and try again.`);
     process.exit(1);
   }
+}
+
+// Checks left out on this machine (skip()): not failures, but said.
+let skipped = 0;
+export const skippedCount = () => skipped;
+
+/**
+ * Leaves out checks this machine can't run, saying so; they aren't failures.
+ * Only for what a machine lacks (Claude's cloud machine's Chrome can't
+ * encode AAC sound), never for a check that fails.
+ * @param {string} what
+ * @param {string} why
+ */
+export function skip(what, why) {
+  skipped++;
+  console.log(`  ↷ skipped: ${what} (${why})`);
 }
 
 export function check(label, actual, expected) {
@@ -175,6 +202,8 @@ export const send = (method, params = {}) => new Promise((resolve) => {
 });
 await send("Runtime.enable");
 await send("Page.enable");
+// Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
+await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
 // Headless Chrome isn't a focused window, so focus and blur events wouldn't
 // fire (the tie form's location picker opens and settles on them).
 await send("Emulation.setFocusEmulationEnabled", { enabled: true });
@@ -204,7 +233,7 @@ export async function replaceAuthenticator(options) {
 // Helpers available inside the page for each step.
 const PAGE_HELPERS = `
   const $ = (s) => document.querySelector(s);
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  ${WAIT_HELPERS}
   // Bubbling, as typing's are: an edit form watches for changes (form-changes.js).
   const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change", { bubbles: true })); };
   const optionValue = (select, text) => [...select.options].find((o) => o.text === text).value;
@@ -216,7 +245,7 @@ const PAGE_HELPERS = `
     [...document.querySelectorAll("#" + box.id + "-list .combo-option")].find((o) => o.textContent === shown).click(); await wait(50);
   };
   const lastBox = (rows) => [...document.querySelectorAll(rows + " [role=combobox]")].pop();
-  const submit = async () => { $("form button[type=submit]").click(); await wait(700); };
+  const submit = async () => { $("form button[type=submit]").click(); await calm(700); };
   const flat = (el) => el.innerText.replace(/\\n+/g, " | ");
   // List rows on the plans, people and locations pages, and tie cards on the Ties page.
   const items = () => [...document.querySelectorAll(".item, .tie-card")].map(flat);
@@ -239,11 +268,11 @@ const PAGE_HELPERS = `
     } else {
       item.querySelector(".tie-place").click();
       if (label !== "Edit") {
-        await wait(300);
+        await calm(300);
         [...document.querySelectorAll("dialog[open] [data-item-actions] button")].find((b) => b.getAttribute("aria-label").startsWith(label)).click();
       }
     }
-    await wait(500);
+    await calm(500);
   };
   // Waits until the ties list has stopped changing (up to 4 seconds), rather
   // than guessing how long a search takes.
@@ -256,12 +285,12 @@ const PAGE_HELPERS = `
       last = now;
     }
   };
-  const type = async (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new Event("input")); await wait(400); await settle(); };
+  const type = async (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new Event("input")); await calm(400); await settle(); };
   const post = async (path, body) => (await (await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()).id;
   const filterOptions = (sel) => [...document.querySelectorAll(sel + " label")].map((l) => l.textContent + (l.classList.contains("archived") ? " (muted)" : ""));
   const pick = async (sel, name) => {
     const box = [...document.querySelectorAll(sel + " label")].find((l) => l.textContent === name).querySelector("input");
-    box.click(); await wait(800);
+    box.click(); await calm(800);
   };
   const pagerButtons = () => [...document.querySelectorAll("#pager button")].map((b) => b.textContent + (b.getAttribute("aria-current") ? "*" : ""));
   // Open dialogs only: the Plans view keeps its form's dialog on the page, closed.
@@ -276,8 +305,8 @@ const PAGE_HELPERS = `
     .map((f) => f.id || f.name || f.getAttribute("aria-label") || f.type);
   const visibleCard = () => [...document.querySelectorAll("#view > section.card")].find((c) => !c.hidden)?.id;
   const recoveryDialog = () => [$("#recovery-code")?.textContent ?? null, $("dialog[open] button.primary")?.disabled ?? null];
-  const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await wait(1200); };
-  const openMenu = async () => { $(".nav-menu").click(); await wait(300); };
+  const finishRecoveryDialog = async () => { $("#recovery-saved").click(); $("dialog[open] button.primary").click(); await calm(1200); };
+  const openMenu = async () => { $(".nav-menu").click(); await calm(300); };
   // Whether this page has fetched a file (by path).
   const fetched = (path) => performance.getEntriesByName(new URL(path, location.href).href).length > 0;
   // The logo in sel, app.css's background for the mode: whether its file
@@ -292,7 +321,7 @@ const PAGE_HELPERS = `
   };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);
-  const openPerson = async (name) => { [...document.querySelectorAll(".name-button")].find((b) => b.textContent === name).click(); await wait(500); };
+  const openPerson = async (name) => { [...document.querySelectorAll(".name-button")].find((b) => b.textContent === name).click(); await calm(500); };
   const openItem = openPerson;
   // A person's card: name, pronouns, role tag, educator's cap, the rows under the name, and how many buttons.
   const personCard = (name) => {
@@ -305,11 +334,11 @@ const PAGE_HELPERS = `
   const personButtons = () => headerIcons("#person-dialog");
   // An edit dialog's ✕, saying Discard changes if it asks.
   const closeDiscarding = async (sel) => {
-    $(sel).click(); await wait(300);
+    $(sel).click(); await calm(300);
     const discard = [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === "Discard changes");
-    if (discard) { discard.click(); await wait(300); }
+    if (discard) { discard.click(); await calm(300); }
   };
-  const clickDialog = async (label) => { [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === label).click(); await wait(800); };
+  const clickDialog = async (label) => { [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === label).click(); await calm(800); };
 `;
 
 // A step that hasn't finished after this long is stuck: fail with what the
@@ -340,7 +369,7 @@ export const account = { currentCode: "" };
 // recovery code if the passkey can't unlock.
 export async function go(pagePath, { unlock = true } = {}) {
   await loadPage(pagePath);
-  await sleep(1200);
+  await run("await calm(1200);");
   if (!unlock) return;
   // Steps through Unlock until it's gone (up to 10 seconds), rather than
   // guessing how long a sign-in takes.
@@ -360,7 +389,7 @@ export async function go(pagePath, { unlock = true } = {}) {
       [...document.querySelectorAll("#view .message")].map((m) => m.textContent).filter(Boolean),
       [...document.querySelectorAll("dialog[open]")].map((d) => d.innerText.slice(0, 120))]);`);
   if (state !== "done") throw new Error(`Couldn't unlock to show ${pagePath}: ${state}`);
-  await sleep(600);
+  await run("await calm(600);");
 }
 
 // Loads a page and waits until the new page has finished loading, rather

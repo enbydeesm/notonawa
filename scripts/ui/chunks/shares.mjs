@@ -21,8 +21,8 @@ const MAKE_INVITE = (/** @type {Record<string, string | boolean>} */ choices, na
   const link = $("#share-code-link")?.value ?? "";
   const qr = $(".share-code .qr-code");
   const shown = [!!qr, !!qr?.querySelector("path.qr-dark")?.getAttribute("d"), leakyFields()];
-  $("#share-code-done").click(); await wait(200);
-  $("[data-cancel-edit]").click(); await wait(200);
+  $("#share-code-done").click(); await calm(200);
+  $("[data-cancel-edit]").click(); await calm(200);
   return [link.slice(link.indexOf("/open")), shown];`;
 
 // Opens a share's link in a fresh load of the page. Going from /open to
@@ -37,8 +37,8 @@ export default async function () {
   console.log("Shares");
   await go("/people");
   check("my own profile has a Share my profile icon on the title's row, left of ✕, and no one else's does", await run(`
-    $("#add-person").click(); await wait(300); set("#person-name", "Robin"); await submit();
-    await openPerson("Robin"); const onRobin = !$("#person-share"); $("[data-cancel-edit]").click(); await wait(200);
+    $("#add-person").click(); await calm(300); set("#person-name", "Robin"); await submit();
+    await openPerson("Robin"); const onRobin = !$("#person-share"); $("[data-cancel-edit]").click(); await calm(200);
     await openPerson("Me"); const onMe = !$("#person-share");
     // On the title's row, just left of ✕.
     const box = (el) => el.getBoundingClientRect();
@@ -51,21 +51,21 @@ export default async function () {
     await submit();
     return [onRobin, onMe, placed];`), [true, false, [true, true]]);
   check("the dialog asks for the name to share (empty while mine is Me), ticks what's on my profile, and lasts a day for one person", await run(`
-    await openPerson("Me"); $("#person-share").click(); await wait(300);
+    await openPerson("Me"); $("#person-share").click(); await calm(300);
     const fields = [...document.querySelectorAll(".share-field")].map((l) => [l.innerText, l.querySelector("input").checked]);
     const state = [$("#share-profile-name").value, $("#share-profile-name").required, fields, $("#share-profile-expires").value,
       $("#share-profile-uses").value, $("#share-profile-warning").hidden, document.body.innerText.includes("My private note"), leakyFields(),
       $("#share-profile-intro").hidden, !!$("#share-profile-heading").parentElement.querySelector("[aria-controls=share-profile-intro]")];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = [$("#share-profile-warning").hidden, $("#share-profile-warning").textContent.startsWith("Anyone who ever sees")];
-    $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
+    $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
     return [state, warned];`),
   [["", true, [["Pronouns: they/them", true], ["Usual role: Top", true], ["Instagram: @jude", true], ["Based in: Seattle, WA", true],
     ["Educator: No", true], ["About me: Your shareable notes about yourself. Your private notes are never shared.", true]],
   "1d", "one", true, false, [], true, true], [false, true]]);
 
   check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
-    await openPerson("Me"); $("#person-share").click(); await wait(300);
+    await openPerson("Me"); $("#person-share").click(); await calm(300);
     const box = $("#share-profile-connect");
     const before = [box.checked, $("#share-profile-connect-note").hidden,
       // At the top, above the name to share, in bold.
@@ -76,11 +76,11 @@ export default async function () {
     const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = $("#share-profile-warning").textContent.includes("connect to your account");
-    $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
+    $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
     return [before, after, warned];`), [[false, true, true, true], [false, true], true]);
 
   check("the invite tag is required; it, the profile name and connecting each have a ? that shows more, and hides it again", await run(`
-    await openPerson("Me"); $("#person-share").click(); await wait(300);
+    await openPerson("Me"); $("#person-share").click(); await calm(300);
     const required = $("#share-profile-label").required;
     const labels = [...document.querySelectorAll(".share-profile .label-row label")].map((l) => l.textContent);
     set("#share-profile-connect", true);
@@ -91,7 +91,7 @@ export default async function () {
       tips.push([button.textContent, before, open, text.hidden]);
     }
     const short = $("#share-profile-connect-note .connect-disclosure").textContent;
-    $("#share-profile-cancel").click(); await wait(200); $("[data-cancel-edit]").click(); await wait(200);
+    $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
     return [required, labels, tips, short];`),
   [true, ["Profile name", "Invite tag"], [
     ["?", true, [false, "The suggested name for your pr"], true],
@@ -109,13 +109,13 @@ export default async function () {
     const list = [...document.querySelectorAll(".share-item")].map((i) => [i.querySelector(".item-title").textContent, i.querySelector(".item-meta").textContent]);
     [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Class")).querySelector(".share-show").click();
     for (let i = 0; i < 30 && !$("#share-code-link"); i++) await wait(100);
-    const again = $("#share-code-link").value; $("#share-code-done").click(); await wait(200);
+    const again = $("#share-code-link").value; $("#share-code-done").click(); await calm(200);
     return [list, again.slice(again.indexOf("/open"))];`),
   [[["Oops", "Profile · ends in 24 hours · not opened yet"], ["Class", "Profile · until you revoke it · not opened yet"],
     ["First", "Profile · ends in 24 hours · not opened yet"]], forAnyone]);
   check("revoking asks first, then takes it off the list", await run(`
     [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Oops")).querySelector(".share-revoke").click();
-    await wait(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
+    await calm(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
     return [asked, [...document.querySelectorAll(".share-item .item-title")].map((t) => t.textContent)];`),
   ['Revoke "Oops"?', ["Class", "First"]]);
 
@@ -142,12 +142,12 @@ export default async function () {
   check("Add as a new person puts them in People, About read-only as theirs", await run(`
     $("#open-add-new").click(); for (let i = 0; i < 50 && !$("#open-done"); i++) await wait(100);
     const said = $("#open-done").textContent;
-    $("#open-to-people").click(); await wait(1200);
+    $("#open-to-people").click(); await calm(1200);
     await openPerson("Jude");
     const fields = [$("#person-pronouns").value, $("#person-based_in").value, $("#person-about-label").textContent,
       $("#person-about-hint").textContent.startsWith("Shared by them on "), $("#person-about").readOnly,
       $("#person-about").value, $("#person-notes").value];
-    $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
     return [said, fields];`),
   ["Jude is in your People.", ["they/them", "Seattle, WA", "About them", true, true, "Rigger, mostly floor", ""]]);
   await openLink(once);
@@ -164,7 +164,7 @@ export default async function () {
   check("adding to someone I have asks field by field, and keeps my notes", await run(`
     for (let i = 0; i < 50 && !$("#open-add-existing"); i++) await wait(100);
     $("#open-add-existing").click(); for (let i = 0; i < 50 && !$("#open-person"); i++) await wait(100);
-    set("#open-person", optionValue($("#open-person"), "Jude B")); $("#open-next").click(); await wait(200);
+    set("#open-person", optionValue($("#open-person"), "Jude B")); $("#open-next").click(); await calm(200);
     const asked = [...document.querySelectorAll(".merge-field")].map((f) => [f.querySelector("legend").textContent,
       [...f.querySelectorAll("label")].map((l) => l.textContent + (l.querySelector("input").checked ? "*" : ""))]);
     document.querySelector('input[name="open-name"][value="theirs"]').click();
@@ -198,8 +198,8 @@ export default async function () {
     await openPerson("Jude C");
     const flag = $("#person-linked");
     const shown = [flag.hidden, flag.innerText.includes("Linked to their account"), $("#person-unlink").textContent];
-    $("[data-cancel-edit]").click(); await wait(200);
-    await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await wait(200);
+    $("[data-cancel-edit]").click(); await calm(200);
+    await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await calm(200);
     return [icons, shown, onMe];`),
   [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Remove link"], true]);
 
@@ -233,7 +233,7 @@ export default async function () {
     return [!!banner(), document.querySelectorAll(".connection-notice").length, icons.find(([name]) => name === "Pat")];`),
   [false, 1, ["Pat", true]]);
   check("Not now puts it away; it waits in Connections as on no one, through which invite", await run(`
-    $(".connection-later").click(); await wait(300);
+    $(".connection-later").click(); await calm(300);
     return [document.querySelectorAll(".connection-notice").length, $("#connection-banners").hidden];`), [0, true]);
   await go("/data");
   check("Connections lists each, with who it's on and how it was made", await run(`
@@ -250,12 +250,12 @@ export default async function () {
   ["Linked to Sky", "Linked to Pat", "Linked to Jude C"]);
   await go("/people");
   check("Remove link asks, offering to clear my About from their card, then unlinks it", await run(`
-    await openPerson("Jude C"); $("#person-unlink").click(); await wait(300);
+    await openPerson("Jude C"); $("#person-unlink").click(); await calm(300);
     const asked = [[...document.querySelectorAll("dialog[open]")].pop().querySelector("h2").textContent, !!$("#connection-remove-about"), $("#connection-remove-about").checked,
       $(".remove-connection .hint").textContent.startsWith("This only clears the About you shared")];
     set("#connection-remove-about", true); await clickDialog("Remove connection");
     for (let i = 0; i < 50 && $("#person-dialog").open; i++) await wait(100);
-    await wait(500);
+    await calm(500);
     const icons = (() => { ${ICONS} })();
     return [asked, icons.find(([name]) => name === "Jude C")];`),
   [["Remove your connection with Jude C?", true, false, true], ["Jude C", false]]);

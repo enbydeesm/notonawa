@@ -52,10 +52,10 @@ export default async function () {
       .ties.find((t) => t.title === "Drawing test");
     return (await fetch("/api/drawings?tie_id=" + tie.id)).json();
   })()`;
-  const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Drawing test").click(); await wait(1500);`;
+  const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Drawing test").click(); await calm(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
-  await run(`$(".nav-add").click(); await wait(600); set("#tie-title", "Drawing test"); set("#tie-tie_type", "floor");`);
+  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Drawing test"); set("#tie-tie_type", "floor");`);
   check("the tie form has Visuals, with a + to add one and a key to the outline colors", await run(`
     const labels = [...document.querySelectorAll("#tie-form .label-row label")].map((l) => l.textContent);
     const key = $("#tie-form .visual-key");
@@ -63,7 +63,7 @@ export default async function () {
       key.getAttribute("aria-label"), [...key.children].map((k) => k.title)];`),
   [true, false, "Add visual", "Outline colors: teal photo, purple video, coral drawing, yellow pose", ["Photo", "Video", "Drawing", "Pose"]]);
   check("+ asks what to add a visual from", await run(`
-    $("#tie-add-visual").click(); await wait(300);
+    $("#tie-add-visual").click(); await calm(300);
     const d = ${topDialog};
     return [d.querySelector("h2").textContent, [...d.querySelectorAll(".visual-choice")].map((b) => [b.textContent, !!b.querySelector(".visual-icon")]), leakyFields()];`),
   ["Add a visual from…", [["Photo/video", true], ["Drawing", true], ["Model poser", true]], []]);
@@ -74,7 +74,7 @@ export default async function () {
       icon.getBoundingClientRect().width, keyIcon.getBoundingClientRect().width, file.status, file.headers.get("content-type")];`),
   [true, true, 28, 16, 200, "image/svg+xml"]);
   check("Drawing opens the drawing pad, filling the screen, on light paper even in dark mode", await run(`
-    $("#tie-add-drawing").click(); await wait(400);
+    $("#tie-add-drawing").click(); await calm(400);
     const pad = $("dialog.drawing-editor[open]"), r = pad.getBoundingClientRect();
     return [document.documentElement.dataset.theme, getComputedStyle($("#drawing-pad .paper")).fill,
       Math.round(r.width) === innerWidth, Math.round(r.height) === innerHeight,
@@ -104,11 +104,11 @@ export default async function () {
     const erased = ${paths}; const pressed = $("#drawing-eraser").getAttribute("aria-pressed");
     $("#drawing-undo").click(); return [erased, pressed, ${paths}];`), [["ink-blue"], "true", ["ink-red", "ink-blue"]]);
   check("saved, it waits in the form for the tie", await run(`
-    $("#drawing-save").click(); await wait(300);
+    $("#drawing-save").click(); await calm(300);
     return [!!$("dialog.drawing-editor"), document.querySelectorAll("#tie-visuals .visual-drawing").length,
       document.querySelectorAll("#tie-visuals .visual-drawing path").length];`), [false, 1, 2]);
   check("…and is saved with the tie, its lines as drawn, plain, and no caption", await run(`
-    $("#tie-save").click(); await wait(2000); await settle();
+    $("#tie-save").click(); await calm(2000); await settle();
     const [d] = await ${tieDrawings};
     const red = d.data.strokes[0];
     return [!!document.querySelector("dialog[open]"), d.data.strokes.map((s) => s.c + s.w), d.caption,
@@ -116,63 +116,63 @@ export default async function () {
   [false, ["red2", "blue3"], null, 4, true]);
 
   check("a caption is saved encrypted and shown under the drawing", await run(`
-    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500);
-    set("#tie-drawing-caption", " Front view "); $("#tie-drawing-save-caption").click(); await wait(800);
+    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await calm(500);
+    set("#tie-drawing-caption", " Front view "); $("#tie-drawing-save-caption").click(); await calm(800);
     const [d] = await ${tieDrawings};
     return [$("#tie-visuals .visual-drawing figcaption")?.textContent, /^e1\\./.test(d.caption), d.caption.includes("Front"), leakyFields()];`),
   ["Front view", true, false, []]);
   check("Duplicate adds a copy last, with the same lines and caption", await run(`
-    $("#tie-drawing-duplicate").click(); await wait(1000);
+    $("#tie-drawing-duplicate").click(); await calm(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
-    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     const [a, b] = await ${tieDrawings};
     return [message, [...document.querySelectorAll("#tie-visuals .visual-drawing figcaption")].map((f) => f.textContent),
       JSON.stringify(a.data) === JSON.stringify(b.data), a.id !== b.id];`),
   ["Duplicated: the copy is last, and can be edited on its own.", ["Front view", "Front view"], true, true]);
 
-  await run(`document.querySelectorAll("#tie-visuals .visual-drawing .photo-thumb")[1].click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);`);
+  await run(`document.querySelectorAll("#tie-visuals .visual-drawing .photo-thumb")[1].click(); await calm(500); $("#tie-drawing-edit").click(); await calm(400);`);
   await run(`$("#drawing-color-green").click();`);
   await drawLine([[100, 1000], [800, 1000]]);
   check("editing the copy changes only the copy", await run(`
-    $("#drawing-save").click(); await wait(1000);
+    $("#drawing-save").click(); await calm(1000);
     const shown = $("dialog.photo-viewer[open] .drawing-full").querySelectorAll("path").length;
-    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     const [a, b] = await ${tieDrawings};
     return [shown, a.data.strokes.map((s) => s.c), b.data.strokes.map((s) => s.c)];`),
   [3, ["red", "blue"], ["red", "blue", "green"]]);
 
   check("Cancel on the pad asks before throwing away what's drawn", await run(`
-    $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500); $("#tie-drawing-edit").click(); await wait(400);
+    $("#tie-visuals .visual-drawing .photo-thumb").click(); await calm(500); $("#tie-drawing-edit").click(); await calm(400);
     return $("#drawing-cancel") !== null;`), true);
   await drawLine([[200, 400], [600, 400]]);
   check("…and nothing's saved", await run(`
-    $("#drawing-cancel").click(); await wait(300);
+    $("#drawing-cancel").click(); await calm(300);
     const asked = ${topDialog}.querySelector("h2").textContent;
-    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await wait(300);
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Discard changes").click(); await calm(300);
     const [a] = await ${tieDrawings};
     return [asked, !!$("dialog.drawing-editor"), a.data.strokes.length];`),
   ["Discard your changes?", false, 2]);
 
   await run(`await post("/api/plans", { title: "Harness plan" }); await post("/api/ties", { title: "Other tie", tie_type: "floor", tie_date: "2026-10-01" });`);
   check("Copy to… lists ties (not this one), plans and workshops", await run(`
-    $("#tie-drawing-copy").click(); await wait(1000);
+    $("#tie-drawing-copy").click(); await calm(1000);
     const ties = [...document.querySelectorAll("#drawing-copy-list .item-title")].map((t) => t.textContent);
-    $("#drawing-copy-plan").click(); await wait(800);
+    $("#drawing-copy-plan").click(); await calm(800);
     const plans = [...document.querySelectorAll("#drawing-copy-list .item-title")].map((t) => t.textContent);
-    $("#drawing-copy-workshop").click(); await wait(800);
+    $("#drawing-copy-workshop").click(); await calm(800);
     const workshops = [$("#drawing-copy-message").textContent, document.querySelectorAll("#drawing-copy-list button").length];
-    $("#drawing-copy-plan").click(); await wait(800);
+    $("#drawing-copy-plan").click(); await calm(800);
     return [ties, plans, workshops, leakyFields()];`),
   [["Other tie"], ["Harness plan"], ["No workshops yet.", 0], []]);
   check("…and copies it there, caption and all", await run(`
-    $("#drawing-copy-list .copy-target").click(); await wait(1000);
+    $("#drawing-copy-list .copy-target").click(); await calm(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
     const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Harness plan");
     const [copy] = await (await fetch("/api/drawings?plan_id=" + plan.id)).json();
     const [opened] = await (await import("/js/vault.js")).open("drawing", [copy]);
     const [original] = await ${tieDrawings};
-    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
-    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await wait(300);
+    ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     return [message, opened.caption, JSON.stringify(copy.data) === JSON.stringify(original.data)];`),
   ['Copied to "Harness plan".', "Front view", true]);
   await go("/plans");
@@ -180,7 +180,7 @@ export default async function () {
     await clickIn("Harness plan", "Edit");
     return [[...document.querySelectorAll("#plan-visuals .visual-drawing figcaption")].map((f) => f.textContent), !!$("#plan-add-visual")];`),
   [["Front view"], true]);
-  await run(`$("[data-cancel-edit]").click(); await wait(200);`);
+  await run(`$("[data-cancel-edit]").click(); await calm(200);`);
 
   // Export: a zip with the drawings in notonawa.json and a picture of each.
   const downloads = path.join(workDir, "downloads-drawings");
@@ -207,7 +207,7 @@ export default async function () {
   check("importing the zip into another journal brings the drawings back, captions and all", await run(`
     const bytes = Uint8Array.from(atob(${JSON.stringify(zipBytes.toString("base64"))}), (c) => c.charCodeAt(0));
     const dt = new DataTransfer(); dt.items.add(new File([bytes], "export.zip", { type: "application/zip" }));
-    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await wait(2000);
+    $("#import-file").files = dt.files; $("#import-file").dispatchEvent(new Event("change")); await calm(2000);
     const preview = [...document.querySelectorAll("#import-preview .item")].map(flat).filter((t) => t.startsWith("Drawings"));
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
     const listed = await ${tieDrawings};
@@ -218,10 +218,10 @@ export default async function () {
 
   await go("/");
   check("deleting a drawing asks first, then removes it", await run(`
-    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await wait(500);
-    $("#tie-drawing-delete").click(); await wait(300);
+    ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await calm(500);
+    $("#tie-drawing-delete").click(); await calm(300);
     const asked = ${topDialog}.querySelector("h2").textContent;
-    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete drawing").click(); await wait(800);
+    [...${topDialog}.querySelectorAll("button")].find((b) => b.textContent === "Delete drawing").click(); await calm(800);
     return [asked, document.querySelectorAll("#tie-visuals .visual-drawing").length, (await ${tieDrawings}).length];`),
   ["Delete this drawing?", 1, 1]);
 }

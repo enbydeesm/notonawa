@@ -45,7 +45,7 @@ export default async function () {
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above.", []]);
 
   check("+ opens the form: educators are only people marked Educator, and a ? beside them says how to log one I taught", await run(`
-    $("#add-workshop").click(); await wait(800);
+    $("#add-workshop").click(); await calm(800);
     const opened = [$("#workshop-form-heading").textContent, $("#workshop-start_date").value !== "", $("[aria-controls=workshop-self-hint]").hidden,
       $("#workshop-self-hint").hidden, $("label[for=workshop-end_date]").textContent, $("#workshop-attendee_count").placeholder];
     $("[aria-controls=workshop-self-hint]").click(); opened.push($("#workshop-self-hint").textContent);
@@ -72,9 +72,9 @@ export default async function () {
     set("#workshop-title", "Intro to floor"); set("#workshop-start_date", "2026-03-01"); set("#workshop-end_date", "2026-03-02");
     set("#workshop-attendee_count", "12"); document.querySelectorAll("#workshop-form .hank-button")[3].click();
     set("#workshop-description", "Gote basics"); set("#workshop-notes", "Practise the stem");
-    $("#workshop-add-tags").click(); await wait(400);
-    $("#tags-search").value = "floor"; $("#tags-add").click(); $("#tags-ok").click(); await wait(200);
-    $("#workshop-save").click(); await wait(1500);
+    $("#workshop-add-tags").click(); await calm(400);
+    $("#tags-search").value = "floor"; $("#tags-add").click(); $("#tags-ok").click(); await calm(200);
+    $("#workshop-save").click(); await calm(1500);
     const stored = (await (await fetch("/api/workshops")).json())[0];
     const c = $(".workshop-card");
     return [$("dialog[open]") === null, c.querySelector(".tie-title").textContent, c.querySelector(".tie-date").textContent,
@@ -95,13 +95,13 @@ export default async function () {
       body: JSON.stringify({ name: me.name, is_educator: true }) });`);
   await go("/education");
   check("once Me is an educator, a workshop with me teaching is under Taught, not Attended", await run(`
-    $("#add-workshop").click(); await wait(800);
+    $("#add-workshop").click(); await calm(800);
     const hint = $("[aria-controls=workshop-self-hint]").hidden;
     $("#workshop-add-educator").click(); await wait(50);
     await choosePick(lastBox("#workshop-educators"), "Me", "Me (you)");
     document.querySelector("#workshop-educators .role").value = "top";
     set("#workshop-title", "Teaching gote"); set("#workshop-start_date", "2026-05-05"); set("#workshop-attendee_count", "8");
-    $("#workshop-save").click(); await wait(1500);
+    $("#workshop-save").click(); await calm(1500);
     const attended = titles();
     $("#tab-taught").click(); await wait(100);
     return [hint, attended, titles()];`),
@@ -130,17 +130,17 @@ export default async function () {
       "Attended | No workshops match the search.", "Workshops 1"]);
   check("a workshop's title opens it to edit; saving changes the card, and Delete removes it", await run(`
     $("#search-clear").click(); await wait(100); $("#tab-attended").click(); await wait(100);
-    $(".workshop-card .tie-title").click(); await wait(1200);
+    $(".workshop-card .tie-title").click(); await calm(1200);
     const editing = [$("#workshop-form-heading").textContent, $("#workshop-title").value, $("#workshop-description").value,
       $("#workshop-end_date").value, tagChips("#workshop-tags"), lastBox("#workshop-educators").value, !!$("#workshop-delete")];
-    set("#workshop-title", "Intro to floor, day one"); $("#workshop-save").click(); await wait(1500);
+    set("#workshop-title", "Intro to floor, day one"); $("#workshop-save").click(); await calm(1500);
     const renamed = titles();
     // Tapping the card, not just its title, opens it too.
-    $(".workshop-card .tie-date").click(); await wait(1200);
+    $(".workshop-card .tie-date").click(); await calm(1200);
     // The confirmation opens on top of the form, which has a Delete workshop button too.
-    $("#workshop-delete").click(); await wait(300);
+    $("#workshop-delete").click(); await calm(300);
     [...[...document.querySelectorAll("dialog[open]")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete workshop").click();
-    await wait(1500);
+    await calm(1500);
     return [editing, renamed, flat($("#education-panel"))];`),
     [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true], ["Intro to floor, day one"],
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above."]);
