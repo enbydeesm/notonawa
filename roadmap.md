@@ -97,19 +97,10 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
   bone, so a much heavier or thinner body can leave a rope inside or off
   the skin. Points could be kept on the surface instead (a triangle and
   where on it).
-- **Planting a foot**: choose a foot to keep on the floor, and the body
-  moves (tipping, lifting, shifting) to keep it there as the rest is posed:
-  a high kick leaning the trunk back over the standing foot, or a turned
-  pelvis not sliding the feet. Until then, tilting the pelvis keeps both
-  feet, and hiking it lifts the other leg (the body kept on the floor).
 - **A smaller body file**: fewer components, or a lighter mesh, if 2 MB is
   slow on phones.
 
 ## Ideas, not yet committed
-
-- **A tie's linked plan opens the plan form**, over the tie, as a plan's
-  linked ties open in the tie form (possible since the plan form became a
-  dialog of its own, `plan-form.js`).
 
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.
 - Default location first: the default location stays at the top of the Locations list, the way “Me” does on People.
@@ -169,7 +160,7 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 
 <!-- - collapse the search forms to just the text box keyword search, and advanced >. expanding advanced shows the rest of the search form -->
 
-- update the rope hank icon
+<!-- - update the rope hank icon -->
 
 <!-- - update the logo -->
 
@@ -196,4 +187,3 @@ Each phase leaves the app working and shippable. The times are rough estimates i
 - update people and location search: advanced. let keywords look in notes? 
 
 
-- unchecking allow collisions is not accounting for body change, e.g. hands will stay embedded in thighs
