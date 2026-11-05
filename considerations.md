@@ -5,8 +5,8 @@ we can revisit them later.
 
 ## Privacy and accounts
 
-**Status:** built and deployed (all 13 migrations applied to the remote
-database, checked 2026-10-19). Videos were built 2026-10-20 (no
+**Status:** built and deployed (its migrations, through 0013, applied to
+the remote database, checked 2026-10-19). Videos were built 2026-10-20 (no
 migration): see "Videos as built".
 
 Goal: open the app to other users, with notes and photos end-to-end encrypted
@@ -595,8 +595,9 @@ Agreed 2026-10-14, before building:
 
 ### Dragging photos into order
 
-Built 2026-10-20 (no server change: a drop saves with `PUT
-/api/media/order`, as the buttons do).
+Built 2026-10-20 (no server change at the time: a drop saved with `PUT
+/api/media/order`, as the buttons did; since "Visuals: photos, drawings
+and poses in one order", both save with `PUT /api/visuals/order`).
 
 - **Pointer events, not HTML drag and drop**, which doesn't work with a
   finger on phones. `drag-order.js` (pure) has the threshold, which tile a
@@ -788,8 +789,9 @@ and it goes wrong quietly: deleting or (later) editing a tie, or changing its
 date, would leave it pointing at a use that's gone. `GET /api/tags` works it
 out from the newest tie each tag is on (tie date, then when it was logged),
 which is always right and cheap at journal scale. **Revisit if** listing tags
-gets slow with many thousands of ties. Plan tags don't count towards recency
-yet; plans can't be tagged in the UI.
+gets slow with many thousands of ties. Only ties count towards recency:
+plan and workshop tags don't (see "Tie types, plan tags, album links and
+release notes").
 
 ## Tags are created when the tie is saved
 
@@ -1160,8 +1162,8 @@ Built for release 2026.10.20.001 (migration 0015).
   before What's new, one after the other, never both at once. The text is
   WELCOME.md, built into `welcome-text.js` by `scripts/welcome.mjs` and
   drawn with `h()` (the CSP and Trusted Types rule out putting HTML on the
-  page), as RELEASES.md and PRIVACY.md are built. It mentions features not
-  built yet (the map, workshops) on purpose.
+  page), as RELEASES.md and PRIVACY.md are built. It mentioned features
+  not built yet (the map, workshops) on purpose; both are built now.
 - **Feedback goes to D1, with email as the other way.** The app can't send
   email, and a `mailto:` link alone isn't a form. So the form saves to a
   `feedback` table (kind, message, app version, time), read with
@@ -1178,7 +1180,9 @@ Built for release 2026.10.20.001 (migration 0015).
   `dialog` setting, so People and Locations keep their forms on the page.
   The dialog's ids start with `plan-`, as the tie form opens over it. As
   with the tie form, a tap outside doesn't close it (a half-written plan
-  isn't lost); Esc does.
+  isn't lost); Esc does. (Since then People and Locations got dialogs too,
+  and the plan form became `plan-form.js`, a dialog of its own: see "The
+  plan form, a dialog of its own".)
 - **The Plans search runs on the device**, over the plans already loaded
   (their notes are opened for the list anyway), so it needs no API, and
   the keyword never leaves the device. Plan type and tie type use the
@@ -1237,11 +1241,13 @@ Built for release 2026.10.20.002 (migration 0016).
   them and the list (`searchable.slot`). The cards have no buttons
   (`actionsInDialog` in `resource-page.js`): Archive (or Restore) and
   Delete sit beside Close under Save, and close the dialog when done. "Me"
-  gets Close only, as the API refuses the rest. Notes show in the dialog
+  gets Close only, as the API refuses the rest. (Since replaced by icons on
+  the dialog's heading row: see "Edit dialogs: heading icons and unsaved
+  changes".) Notes show in the dialog
   only; the card shows pronouns, the usual role as an outlined tag (in
   the account's words), "based in …", "aka …" (scene names first, others
   with their platform), and a cap, in the accent outline, for educators.
-  The workshops that will use the educator flag aren't built yet.
+  The workshops that use the educator flag came next (see "Education").
 
 ## Running only the checks a change needs (October 2026)
 
@@ -1697,7 +1703,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: a realistic body from Anny (October 2026)
 
-**Status:** built (2026-10-29, on the `anny-body` branch)
+**Status:** built (2026-10-29)
 
 - **Anny, not the atlas's code or SMPL.** The body is Anny's
   (github.com/naver/anny): its code is Apache 2.0 and its body assets are
@@ -1715,7 +1721,8 @@ about 6 minutes, too slow to run after every change.
   with no browser or glTF export. `scripts/figure/` takes its body at the
   36 corners of the sliders (gender, muscle and weight at three settings,
   height at two), posed arms down. It packs them as 23 components, which
-  give those shapes exactly, into `public/figure/body-1.bin` (2.3 MB, about
+  give those shapes exactly, into `public/figure/body-1.bin` (now
+`body-2.bin`, as a changed body needs a new file name; 2.3 MB, about
   1.8 MB compressed, cached a week). Anny blends between corners linearly,
   so a shape between them is their blend, made on the device when a slider
   moves. No morph targets on the GPU: the shape changes rarely, so the
@@ -1750,7 +1757,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: shoulders, bends, limits and contact (October 2026)
 
-**Status:** built (2026-10-29, on the `anny-body` branch)
+**Status:** built (2026-10-29)
 
 - **Measurements taken out** of the Body shape fold, by choice: the
   sliders stay. (`figure-body.js` still has `measurements`, tested.)
@@ -1808,7 +1815,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: allowing collisions, a flexible body, the nav's poser (October 2026)
 
-**Status:** built (2026-10-31, on the `anny-body` branch)
+**Status:** built (2026-10-31)
 
 - **"Allow collisions"**, a checkbox bottom right of the view, ticked by
   default and kept while the page is open (not saved with the pose or
@@ -1827,7 +1834,7 @@ about 6 minutes, too slow to run after every change.
 - **The server no longer checks the limits that depend on several
   movements**, only each movement's own range, so a pose made with
   collisions allowed saves. This reverses "Enforced on the server too"
-  in "Poser: shoulders, bends, limits and contact" below (the user chose
+  in "Poser: shoulders, bends, limits and contact" above (the user chose
   it). `readPose` and import (`jointsInRange`, was `jointsInReach`) bring
   joints within ranges only.
 - **The ranges widened** about a fifth to a third for a flexible person;
@@ -1842,7 +1849,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: the account's default body (October 2026)
 
-**Status:** built (2026-10-30, on the `anny-body` branch)
+**Status:** built (2026-10-30)
 
 - "Save as default", on the Body shape fold's heading row (beside the
   fold, not in its summary, so it shows folded and doesn't toggle it),
@@ -1855,7 +1862,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: pickers, twists and the whole body's sliders (October 2026)
 
-**Status:** built (2026-10-30, on the `anny-body` branch)
+**Status:** built (2026-10-30)
 
 - **Forearm and lower-leg twist**: the elbow and knee have a Twist out
   slider (the forearm −80 to 90, turning the hand palm up or down; the
@@ -1916,7 +1923,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: toes, a flexible back, the pelvis, and the trunk following a drag (October 2026)
 
-**Status:** built (2026-10-31, on the `anny-body` branch)
+**Status:** built (2026-10-31)
 
 - **Toes**: each foot has a Toes joint (Up, −30 curled to 80 up), bending
   the first bone of all five toes at the ball of the foot (Anny's own toe
@@ -1941,12 +1948,12 @@ about 6 minutes, too slow to run after every change.
   angles are weighted to move less, a hike least (it lifts the other
   foot). The waist was planned for legs too, but it bends the trunk above
   the pelvis, which the legs hang from, so it can't move a leg; leaning the
-  whole body back over a planted foot is in roadmap.md ("Planting a foot").
+  whole body back over a planted foot was left for later.
   The other arm turns with the chest (not kept, as the other leg is).
 
 ## Poser: more cinches, added ropes, slack (October 2026)
 
-**Status:** built (2026-10-31, on the `anny-body` branch)
+**Status:** built (2026-10-31)
 
 - **Cinches**: any number on a rope, on the same upline twice, and
   through more than two points: after Add cinch, each tap on a rope or the
@@ -1981,7 +1988,7 @@ about 6 minutes, too slow to run after every change.
 
 ## Poser: flexibility turned down, and drags that move the body less (November 2026)
 
-**Status:** built (2026-11-01, on the `anny-body` branch)
+**Status:** built (2026-11-01)
 
 Tried in the app, "a flexible body" and "the trunk following a drag" went
 too far: horrific poses, and a leg pulled the whole body round.
@@ -2013,7 +2020,7 @@ too far: horrific poses, and a leg pulled the whole body round.
 
 ## Poser: "Add pose to…", from the nav's poser (October 2026)
 
-**Status:** built (2026-10-31, on the `anny-body` branch)
+**Status:** built (2026-10-31)
 
 - **Opened from the nav**, Save pose and Add to visuals ask where the pose
   (or a picture of it, as a photo) goes: one sheet, "Add pose to…"
@@ -2056,7 +2063,7 @@ too far: horrific poses, and a leg pulled the whole body round.
 
 ## The plan form, a dialog of its own (October 2026)
 
-**Status:** built (2026-10-31, on the `anny-body` branch)
+**Status:** built (2026-10-31)
 
 - **Why**: the plan form's markup was in the Plans view's template, wired
   to the list by `resource-page.js`, so it only existed on that view, and
@@ -2082,16 +2089,15 @@ too far: horrific poses, and a leg pulled the whole body round.
 
 ## Sharing between accounts (October 2026)
 
-**Status:** planned (2026-10-24). Phase 1 (two notes fields on people)
-built and deployed 2026-10-24, migration 0021. Phase 2 (shares on the
-server) built 2026-10-24, migration 0022, deployed to dev. Phase 3
-(profile invites) built 2026-10-24, migrations 0023 and 0024, not yet
-deployed. Phase 4 (connecting accounts) built 2026-10-26, migration 0026,
-not yet deployed. Phase 5 (sharing ties, plans and workshops) built
-2026-10-26, no migration, not yet deployed. Phase 6 (photos and videos in
-shares) built 2026-10-27, migration 0027, not yet deployed. Phase 7
-(passphrase and verification code) planned in detail 2026-10-27 and put
-on hold (see the build plan); the rest isn't built.
+**Status:** planned (2026-10-24). Phases 1 to 6 built 2026-10-24 to
+2026-10-27 and released in 2026.10.28.001: phase 1 (two notes fields on
+people, migration 0021, deployed 2026-10-24), phase 2 (shares on the
+server, migration 0022), phase 3 (profile invites, migrations 0023 and
+0024), phase 4 (connecting accounts, migration 0026), phase 5 (sharing
+ties, plans and workshops, no migration) and phase 6 (photos and videos
+in shares, migration 0027). Phase 7 (passphrase and verification code)
+planned in detail 2026-10-27 and put on hold (see the build plan); phase
+8 (view-only) isn't built.
 The build plan is at the end of this section.
 
 Goal: let people send each other copies of ties, plans and workshops, and
@@ -2628,7 +2634,7 @@ tests and the walkthrough included.
    piece people can use.*
 4. **Connecting accounts** (2 days). *Built 2026-10-26, migration 0026;
    see "Connecting accounts as built" for what changed.* As first planned:
-   Migration 0023: `connections`,
+   Migration 0023 (became 0026): `connections`,
    `people.connection_id`, triggers allowing it only for a live
    connection the card's owner is in and clearing it with one, the
    one-card-per-connection index. Import keeping or refusing links. Routes to accept
@@ -2663,7 +2669,7 @@ tests and the walkthrough included.
    for deriving the keys and proof; API for wrong tries, cancelling, a
    claim used twice; the walkthrough with two accounts and a code.
 
-   **It needs a migration after all** (0028 or whatever's next): phase 2
+   **It needs a migration after all** (0029 or whatever's next): phase 2
    left `share_claims` out. Only additions: `shares.pass_hash` (SHA-256 of
    the passphrase proof; NULL for none), `needs_code`, `pass_tries` and
    `code_tries` (wrong ones so far), and `share_claims` (a server-made
@@ -2798,6 +2804,45 @@ deploy), and the menu's logo appeared only after the menu had slid in.
   current browser shows it (WebP it can't write); there's no fallback for
   browsers older than about 2023.
 
+## Edit dialogs: heading icons and unsaved changes (October 2026)
+
+**Status:** built (released 2026.10.28.001)
+
+- **The actions are icons on the heading's row** (`dialog-icons.js`):
+  delete (in the danger color), archive or restore, share and ✕, in that
+  order from the left, on ties, plans, people, locations and workshops.
+  This replaced the buttons under Save. Each icon is named for screen
+  readers and the tooltip. Ties and workshops have no archive, and people
+  show Share only on "Me", which can't be archived or deleted.
+- **A saved item's dialog opens focused on its heading**, not on a text
+  box, so a phone doesn't open its keyboard over the form. A new item
+  still opens on its first field.
+- **Save changes is muted until something has changed** (`form-changes.js`),
+  when editing a saved item; a new item's Save stays on. It's muted with
+  `aria-disabled`, not disabled, so the form's submit still runs and checks
+  for itself: a tap straight after typing can't beat the update.
+- **Closing with changes asks first**: ✕ and Esc ask "Discard your
+  changes?" (Discard changes / Keep editing; `guardClose`). A tap outside
+  still doesn't close a form.
+- **Changes are the form as a whole, compared with how it opened**, not
+  each edit tracked, so typing a word and deleting it, or adding a row and
+  removing it, counts as no change. The Visuals section is left out: on a
+  saved item, a visual is saved as soon as it's added. A new item from the
+  nav's poser counts as changed until it's saved (`unsaved`) and asks its
+  own question ("Discard this new …?").
+
+## The searches' "More options" (October 2026)
+
+**Status:** built (released 2026.10.28.001)
+
+- **The Ties, Plans and Education searches show only the keyword box**,
+  with the other filters folded under "More options" (a `details.fold`,
+  as a plan's Linked ties is).
+- **Ties opens the fold when the address brings a filter** (Back, or a
+  link from elsewhere), so a filter that's on is never hidden. Plans and
+  Education keep their searches in memory only, so they start empty and
+  folded.
+
 ## A version for every deploy (October 2026)
 
 A deploy without a new RELEASES.md heading kept the old version, so pages
@@ -2841,7 +2886,27 @@ Unlock asked for, so installed apps showed broken images until closed.
   pages reload at their next lock, so a missing file only shows until
   then.
 
+## Poser: feet under gravity (November 2026)
+
+**Status:** built (2026-11-01, released 2026.11.01.2141)
+
+- **A foot a change moves follows the floor** (`grounded` in
+  `pose-gravity.js`): when the body is lifted, a leg bent, or the hips or
+  whole body turned, a foot whose shin points down lands flat, rises onto
+  its ball as the heel leaves the floor (the ankle pointing, the toes bent
+  up to stay down: the "Barbie foot"), and goes en pointe, as far as it
+  points with the toes in line, once the change takes it out of reach.
+- **Only feet the change moved**: a foot it didn't move is left as set, so
+  its ankle and toes sliders are mine. So is one already in the air before
+  the change, until it comes back down.
+- **Only when the shin points down**: a body lying, kneeling or upside
+  down has no foot standing on the floor, so it's left alone.
+- **Not physics**: like the rope solver, it finds angles that fit
+  (searching each one by halving) and weighs nothing.
+
 ## Poser: tabs, the view's own tools, a panel for the chosen rope (November 2026)
+
+**Status:** built (2026-11-04, released 2026.11.05.0231)
 
 The poser had grown a crowded top row (Pose, Rope, pencil, undo, redo,
 download and Add to visuals), the Rope mode was easy to miss, and the
