@@ -90,7 +90,7 @@ async function runHere(names) {
       if (report) console.log(`${MARKER} ${name} ${seconds} ${failureCount() - failedBefore} ${skippedCount() - skippedBefore}`);
     }
   } finally {
-    stop();
+    await stop();
   }
   // A copy reporting to its parent counts its skips there, in the marker.
   if (!report) skipped += skippedCount();

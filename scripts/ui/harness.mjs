@@ -28,18 +28,45 @@ let failures = 0;
 export const failureCount = () => failures;
 export const addFailure = () => { failures++; };
 
-function cleanup() {
-  // Each program's whole process group: `npx wrangler dev` starts wrangler
-  // and workerd under it, which killing npx alone leaves running (on Linux).
+/**
+ * Sends a signal to each program's whole process group: `npx wrangler dev`
+ * starts wrangler and workerd under it, which killing npx alone leaves
+ * running (on Linux).
+ * @param {NodeJS.Signals | 0} signal 0 only asks whether any are still running
+ * @returns {boolean} whether any group was still there
+ */
+function signalChildren(signal) {
+  let running = false;
   for (const child of children) {
     try {
-      process.kill(-(/** @type {number} */ (child.pid)), "SIGTERM");
+      process.kill(-(/** @type {number} */ (child.pid)), signal);
+      running = true;
     } catch {
-      child.kill();
+      // that group has gone
     }
   }
+  return running;
+}
+
+/**
+ * Deletes the work folder. Never throws: a program still shutting down can
+ * write to it as it goes (macOS then refuses with ENOTEMPTY), and a folder
+ * left in the temp folder is harmless; a crash here would fail a run whose
+ * checks all passed.
+ */
+function removeWorkDir() {
+  try {
+    rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (err) {
+    console.log(`  (couldn't delete ${workDir}: ${/** @type {Error} */ (err).message})`);
+  }
+}
+
+// When the process is ending anyway (a crash, Ctrl-C): no time to wait.
+function cleanup() {
+  signalChildren("SIGTERM");
   children.length = 0;
-  rmSync(workDir, { recursive: true, force: true });
+  removeWorkDir();
 }
 // However this process ends (a crash or Ctrl-C too), its app and Chrome end
 // with it: one left running would hold its ports, and the next run on them
@@ -487,7 +514,17 @@ export function checkConsole() {
 }
 
 /** Stops Chrome and wrangler, and deletes the throwaway database. */
-export function stop() {
+export async function stop() {
   ws.close();
-  cleanup();
+  // Waits for the app and Chrome to have shut down (up to 10 s, then
+  // they're killed) before deleting their folder, which they write to as
+  // they go.
+  signalChildren("SIGTERM");
+  for (let i = 0; i < 50 && signalChildren(0); i++) await sleep(200);
+  if (signalChildren(0)) {
+    signalChildren("SIGKILL");
+    await sleep(300);
+  }
+  children.length = 0;
+  removeWorkDir();
 }
