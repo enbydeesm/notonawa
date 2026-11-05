@@ -41,9 +41,10 @@ export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoi
   if (chosen === "cinch") return "Shorten the cinch to pull the upline aside. Tap Cinch again when you're done.";
   if (chosen === "rope" && sliding) return "Tap Slide again when it's in place.";
   if (chosen === "rope") return "Cinch and Add rope start from the dot.";
-  if (hardpoint === "hashira") return "Tap the body to lay a rope, point by point. Tap the hashira to tie to it. Tap a rope to choose it.";
-  if (hardpoint) return `Tap the body to lay a rope, point by point. Tap the ${hardpoint} for an upline. Tap a rope to choose it.`;
-  return "Tap the body to lay a rope, point by point. Add a ring, bamboo or hashira in Scene to tie to.";
+  if (hardpoint === "hashira") return "Tap the body to lay a rope. Tap the hashira to tie to it, or a rope to choose it.";
+  if (hardpoint) return `Tap the body to lay a rope. Tap the ${hardpoint} for an upline, or a rope to choose it.`;
+  // No hardpoint: the chip beside the thickness says + Hardpoint.
+  return "Tap the body to lay a rope, point by point.";
 }
 
 /**

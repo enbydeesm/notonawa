@@ -37,9 +37,9 @@ describe("ropeHint", () => {
     expect(rope({ chosen: "cinch" })).toMatch(/Tap Cinch again when you're done\.$/);
   });
   it("nothing chosen: what to tap, for the hardpoint there", () => {
-    expect(rope({ hardpoint: "bamboo" })).toBe("Tap the body to lay a rope, point by point. Tap the bamboo for an upline. Tap a rope to choose it.");
-    expect(rope({ hardpoint: "hashira" })).toMatch(/Tap the hashira to tie to it\./);
-    expect(rope({})).toMatch(/Add a ring, bamboo or hashira in Scene to tie to\.$/);
+    expect(rope({ hardpoint: "bamboo" })).toBe("Tap the body to lay a rope. Tap the bamboo for an upline, or a rope to choose it.");
+    expect(rope({ hardpoint: "hashira" })).toBe("Tap the body to lay a rope. Tap the hashira to tie to it, or a rope to choose it.");
+    expect(rope({})).toBe("Tap the body to lay a rope, point by point.");
   });
 });
 

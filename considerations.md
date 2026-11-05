@@ -2902,6 +2902,14 @@ time. Mocked up first, then built (`pose-editor.js`, with
   while it's on, a Pencil panel takes the tab's place with those same
   rows (one builder), under a heading with Done, outlined in the accent.
   Tapping a tab puts it away too.
+- **The hardpoint as a chip on the thickness row**, in place of a
+  "Hardpoint: none · Change in Scene" row of its own: its icon (a ring on
+  a line, a bamboo with nodes, a hashira post, the same on Scene's
+  buttons), its name and ›, or a dashed "+ Hardpoint" when there's none,
+  which lets the help drop to one line. The pencil's Done takes the
+  chip's place, and both helps keep two lines' room, so turning the
+  pencil on moves nothing. Ropes and the pencil each keep their own color
+  (ropes start jute, the pencil red, so marks stand out).
 - **See-saw is "Runs free"**, in the chosen rope's heading (where a cinch
   has Move the body): it says what happens, the rope running over the
   ring or bamboo so pulling one end moves the other. "Pulley" was clear

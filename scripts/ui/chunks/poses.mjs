@@ -270,6 +270,11 @@ export default async function () {
   check("just above the hips is the waist", await run(`
     return [$("#pose-part").textContent, [...document.querySelectorAll("#pose-sliders label")].map((l) => l.textContent)];`),
   ["Waist", ["Forward", "Lean", "Turn"]]);
+  // Off the body, on the empty view to its left.
+  await tap(0.08, 0.3);
+  check("tapping off the body lets the part go, and the panel is as it opens", await run(`
+    return [$("#pose-part").textContent, document.querySelectorAll("#pose-sliders .pose-slider").length, $("#pose-reset-part").hidden];`),
+  ["Tap a body part to pose it", 0, true]);
   // The head is at the top of the view.
   await tap(0.5, 0.2);
   check("the head has its own sliders, then the whole body's under a heading with its own Reset", await run(`
@@ -355,13 +360,17 @@ export default async function () {
 
   const hardpoints = `["ring", "bamboo", "hashira"].map((k) => [$("#pose-" + k).textContent, $("#pose-" + k).getAttribute("aria-pressed")])`;
   const hardpointLabels = `[...document.querySelectorAll("#pose-hardpoint-sliders label")].map((l) => l.textContent)`;
-  check("Rope: thickness and the eraser above the colors, no bar over the view, and the hardpoint named with a way to Scene", await run(`
+  check("Rope: thickness and the eraser above the colors, jute chosen to begin with, no bar over the view, and + Hardpoint at the end of the thickness row, opening Scene", await run(`
     $("#pose-mode-rope").click(); await wait(200);
-    const rows = [...document.querySelectorAll("#pose-panel-rope .pose-rope-tools-rows > *")].map((c) => c.getAttribute("aria-label"));
-    const rope = [$("#pose-panel-pose").hidden, $("#pose-laying-bar").hidden, $("#pose-hardpoint-link").textContent];
+    const rows = [...document.querySelectorAll("#pose-panel-rope .pose-rope-tools-rows [role=group]")].map((c) => c.getAttribute("aria-label"));
+    const chip = $("#pose-hardpoint-link"), row = $("#pose-eraser").getBoundingClientRect(), at = chip.getBoundingClientRect();
+    const rope = [$("#pose-color-jute").getAttribute("aria-pressed"), $("#pose-panel-pose").hidden, $("#pose-laying-bar").hidden,
+      chip.textContent, chip.getAttribute("aria-label"), Math.abs((at.top + at.bottom) / 2 - (row.top + row.bottom) / 2) < 3,
+      Math.round($("#pose-panel-rope").getBoundingClientRect().right - at.right) < 4, $("#pose-rope-hint").textContent];
     $("#pose-hardpoint-link").click(); await wait(200);
     return [rows, ...rope, $("#pose-mode-scene").getAttribute("aria-pressed"), $("#pose-panel-rope").hidden];`),
-  [["Rope thickness", "Rope color"], true, true, "Hardpoint: noneChange in Scene", "true", true]);
+  [["Rope thickness", "Rope color"], "true", true, true, "+ Hardpoint", "Add a hardpoint in Scene", true, true,
+    "Tap the body to lay a rope, point by point.", "true", true]);
   check("Scene: Hardpoint and Body shape as a switch, a ring, bamboo or hashira as chips, the one there highlighted, its sliders under it", await run(`
     const parts = [$("#pose-scene-hardpoint").getAttribute("aria-pressed"), $("#pose-scene-shape").getAttribute("aria-pressed"),
       $("#pose-scene-part-shape").hidden, ${hardpoints}, $("#pose-hardpoint-sliders").hidden];
@@ -405,15 +414,20 @@ export default async function () {
   await run(`$("#pose-finish-rope").click(); await wait(200);`);
 
   const marks = `document.querySelectorAll("#pose-marks path").length`;
-  check("the pencil: a switch over the tab; in the tab's place, a Pencil panel with Done over the Rope tab's own rows, and marks only it can draw", await run(`
+  check("the pencil: a switch over the tab; in the tab's place, the Rope tab's own rows where they were, red chosen, Done where the hardpoint's chip was, and marks only it can draw", await run(`
+    const place = (id) => { const r = $(id).getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; };
+    const before = [place("#pose-width-1"), place("#pose-color-black"), place("#pose-hardpoint-link")];
     $("#pose-mode-draw").click(); await wait(200);
-    const rows = (id) => [...document.querySelectorAll(id + " .pose-rope-tools-rows > *")].map((c) => c.getAttribute("aria-label"));
+    const rows = (id) => [...document.querySelectorAll(id + " .pose-rope-tools-rows [role=group]")].map((c) => c.getAttribute("aria-label"));
+    const after = [place("#pose-mark-width-1"), place("#pose-mark-color-black")];
+    const done = $("#pose-draw-done").getBoundingClientRect(), chipWas = before[2];
     return [$("#pose-mode-draw").getAttribute("aria-pressed"), $("#pose-panel-draw").hidden, $("#pose-panel-rope").hidden,
-      $("#pose-pencil-title").textContent, !!$("#pose-draw-done"), rows("#pose-panel-draw"), rows("#pose-panel-rope"),
+      JSON.stringify(after) === JSON.stringify(before.slice(0, 2)), Math.abs(Math.round(done.top) - chipWas[1]) < 6,
+      $("#pose-draw-done").textContent, !!$("#pose-draw-done svg"), rows("#pose-panel-draw"), rows("#pose-panel-rope"),
       [...document.querySelectorAll("#pose-panel-draw .swatch-tool")].map((b) => b.getAttribute("aria-label")), !!$("#pose-color-grey"),
       getComputedStyle($("#pose-mark-color-jute")).getPropertyValue("--ink").trim(),
       $("#pose-mark-color-red").getAttribute("aria-pressed"), $("#pose-marks").classList.contains("drawing"), $("#pose-view-hint").textContent, ${marks}];`),
-  ["true", false, true, "Pencil", true, ["Line thickness", "Line color"], ["Rope thickness", "Rope color"],
+  ["true", false, true, true, true, "Done", true, ["Line thickness", "Line color"], ["Rope thickness", "Rope color"],
     ["Black", "Jute", "Red", "Orange", "Green", "Blue", "Purple", "Pink"], false, "#b8925a", "true", true,
     "Draw with a finger", 0]);
   await drag(0.3, 0.7, 0.2, 0.3);
@@ -490,7 +504,7 @@ export default async function () {
     const [p] = await ${tiePoses};
     return [saved, bamboo, asked, hashira, !!$("dialog.pose-editor"), p.data.ring];`),
   [["My presets", "Kneel"], [[["ring", "false"], ["bamboo", "true"], ["hashira", "false"]],
-    "Tap the body to lay a rope, point by point. Tap the bamboo for an upline. Tap a rope to choose it.",
+    "Tap the body to lay a rope. Tap the bamboo for an upline, or a rope to choose it.",
     ["Across (cm)", "Height (cm)", "Front to back (cm)", "Turn", "Length (cm)", "Hanger inset (cm)"]],
   true, ["true", ["Across (cm)", "Front to back (cm)", "Turn"]], false, [0, 195, 0]]);
   check("Duplicate adds a copy last, with the same pose and caption", await run(`

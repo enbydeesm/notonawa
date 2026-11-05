@@ -296,15 +296,13 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
   position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
   pointer-events: none;
 }
-.pose-view-hint {
-  margin: 0; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; line-height: 1.3; color: var(--ink-black);
-  background: color-mix(in srgb, var(--pose-backdrop) 85%, transparent);
-}
+/* The hint and "Allow collisions": plain muted text on the view, no backdrop. */
+.pose-view-hint { margin: 0; font-size: 0.75rem; line-height: 1.3; color: var(--ink-grey); }
 .pose-view-hint[hidden], .pose-allow[hidden] { display: none; }
-/* "Allow collisions", bottom right, muted. */
+/* "Allow collisions", bottom right, as muted as the hint. */
 .pose-allow {
   display: flex; align-items: center; gap: 4px; margin: 0; flex: none; pointer-events: auto;
-  font-size: 0.75rem; color: var(--ink-black); font-weight: normal;
+  font-size: 0.75rem; color: var(--ink-grey); font-weight: normal;
 }
 .pose-allow input { margin: 0; width: auto; accent-color: var(--ink-grey); }
 /* A bar over the foot of the view: a rope being laid (its count, Cancel and
@@ -386,19 +384,24 @@ dialog.preset-picker.searchable[open] {
 .pose-chosen-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); }
 .pose-chosen-check { font-weight: 600; min-height: 40px; }
 /* Hardpoint: which, and Change in Scene. */
-.pose-scene-link { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; font-weight: 500; }
-.pose-scene-link[hidden], .pose-rope-tools-rows[hidden] { display: none; }
-.pose-scene-link-go { color: var(--accent-ink); font-weight: 600; }
+.pose-rope-tools-rows[hidden] { display: none; }
 .pose-rope-tools-rows { display: flex; flex-direction: column; gap: 8px; }
 /* The foot: Close, Download, Add to visuals, Save pose. */
 .pose-actions .pose-foot-icon { flex: none; width: 48px; padding: 0; display: inline-grid; place-items: center; }
 .pose-actions button.primary { flex: 1.5; }
-/* The pencil's panel: the Rope tab's rows under a heading of its own,
-   outlined in the accent like the pencil's button on the view. */
-.pose-pencil-panel { padding: 8px 10px; border: 1px solid var(--accent); border-radius: 12px; }
-.pose-pencil-mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
-  background: var(--accent); color: var(--accent-text); }
-.pose-pencil-panel .pose-finish { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+/* The thickness row: its buttons, then (right) the hardpoint's chip for
+   ropes or Done for the pencil, in the same place so nothing moves. */
+.pose-tools-row { display: flex; align-items: center; gap: 6px; }
+.pose-tools-row > :last-child { margin-left: auto; flex: none; }
+.pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 10px; text-transform: none; }
+.pose-hardpoint-chip.empty { padding: 0 12px; border-style: dashed; border-color: var(--accent); color: var(--accent-ink); }
+.pose-draw-done { display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
+  background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+/* The Rope tab's help and the pencil's both keep two lines' room, so the
+   panel (and the view above it) stays the same height as the pencil turns
+   on and off, and the rows don't move. */
+#pose-rope-hint, #pose-draw-hint { min-height: calc(2 * 1.45em); line-height: 1.45; }
+.pose-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 /* The heading takes focus when the poser opens; it's hidden, so no ring. */
 #pose-heading:focus { outline: none; }
 /* The figures' icons are outlines: their middles in the button's own color. */

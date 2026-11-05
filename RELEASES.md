@@ -18,6 +18,9 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Tap a rope and its own panel shows: Cinch, Slide (along the bamboo) and Add rope, and one box for its slack, its position or a cinch's length. Cancel and Finish only show while you're laying a rope.
 - The pencil works over any tab: while it's on, its panel (the same thickness, eraser and colors as ropes) takes the tab's place, with Done.
 - See-saw is now "Runs free", beside Rope selected.
+- On the Rope tab, the hardpoint sits at the end of the thickness row: its icon and name (tap it to change it in Scene), or + Hardpoint when there's none.
+- With the pencil on, its controls take the rope controls' place without moving, and Done sits where the hardpoint was. Ropes start in jute, the pencil in red.
+- In Pose, tapping off the body lets go of the part you were posing.
 - A new jute color in place of grey, for ropes, the pencil and drawings (anything you made grey stays grey).
 
 ## 2026.11.01.2141

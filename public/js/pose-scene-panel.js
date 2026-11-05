@@ -14,6 +14,7 @@
 
 import { h } from "./dom.js";
 import { HARDPOINTS } from "./pose-format.js";
+import { TOOL_ICONS } from "./tool-icons.js";
 
 /** @typedef {import("./pose-format.js").Hardpoint} Hardpoint */
 /** @typedef {"hardpoint" | "shape"} Part */
@@ -39,7 +40,7 @@ export function scenePanel({ onHardpoint, onSaveShape, onLoadDefault, onResetSha
   // The hardpoint there is pressed; tapping it again takes it away.
   const hardpointButtons = HARDPOINTS.map((kind) => h("button", {
     type: "button", className: "tool pose-chip", id: `pose-${kind}`, "aria-pressed": "false", onclick: () => onHardpoint(kind),
-  }, kind));
+  }, TOOL_ICONS[kind](), h("span", {}, kind)));
   const hardpointSliders = h("div", { className: "pose-sliders pose-setting-box", id: "pose-hardpoint-sliders" });
   const hardpointPart = h("div", { className: "pose-scene-part", id: "pose-scene-part-hardpoint" },
     h("div", { className: "pose-chips", role: "group", "aria-label": "Hardpoint" }, hardpointButtons),

@@ -111,9 +111,12 @@ const HARDPOINT_SLIDERS = /** @type {const} */ ({
   hashira: ["Across (cm)", "Front to back (cm)", "Turn"],
 });
 
-// The last rope color and width chosen, kept while the page is open.
+// The last rope and pencil colors and width chosen, kept while the page is
+// open: ropes start jute, the pencil red, so marks stand out from ropes.
 /** @type {Color} */
-let lastColor = "red";
+let lastRopeColor = "jute";
+/** @type {Color} */
+let lastMarkColor = "red";
 /** @type {Width} */
 let lastWidth = 2;
 // "Allow collisions", ticked until it's unticked, kept while the page is
@@ -182,8 +185,10 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
      * allowed is a clash left, which unticking offers to fix.
      */
     let accepted = contactAccepted(measuring, history.pose);
-    /** @type {Color} */
-    let color = lastColor;
+    /** The ropes' color. @type {Color} */
+    let color = lastRopeColor;
+    /** The pencil's. @type {Color} */
+    let markColor = lastMarkColor;
     /** @type {Width} */
     let width = lastWidth;
     /** @type {Pose | null} */
@@ -330,24 +335,31 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     /**
      * The thickness, an eraser and the colors: the Rope tab's and the
-     * pencil's are the same rows, so they look the same; the color and
-     * width chosen are shared too.
+     * pencil's are the same rows in the same place, so turning the pencil
+     * on moves nothing; each has its own color (the width is shared). The
+     * end of the thickness row holds the hardpoint's chip for ropes, Done
+     * for the pencil.
      * @param {string} prefix the buttons' ids, e.g. "pose" (pose-color-red) or "pose-mark"
      * @param {string} what "Rope" or "Line", for their groups' names
      * @param {string} eraserLabel @param {() => void} onEraser
+     * @param {(c: Color) => void} onPick @param {HTMLElement} end
      */
-    const styleRows = (prefix, what, eraserLabel, onEraser) => {
-      const colors = COLORS.map((c) => toggle(`${prefix}-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => pickColor(c),
+    const styleRows = (prefix, what, eraserLabel, onEraser, onPick, end) => {
+      const colors = COLORS.map((c) => toggle(`${prefix}-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => onPick(c),
         h("span", { className: "swatch-dot", "aria-hidden": "true" })));
       const widths = WIDTHS.map((w) => toggle(`${prefix}-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
         h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
       const eraser = toggle(`${prefix}-eraser`, eraserLabel, "", onEraser, "Eraser");
       const element = h("div", { className: "pose-rope-tools-rows" },
-        h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser),
+        h("div", { className: "pose-tools-row" },
+          h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser), end),
         h("div", { className: "tool-group", role: "group", "aria-label": `${what} color` }, colors));
       return { element, colors, widths, eraser };
     };
-    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing));
+    // The hardpoint's chip: which there is (its icon and name), or + Hardpoint,
+    // and tapping it opens Scene to change it.
+    const hardpointLink = h("button", { type: "button", className: "tool pose-hardpoint-chip", id: "pose-hardpoint-link", onclick: () => setMode("scene") });
+    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing), (c) => pickColor(c), hardpointLink);
     const { colors: colorButtons, widths: widthButtons, eraser: eraserButton } = ropeStyle;
     // While a rope is laid: its count, Cancel and Finish, in a bar over the
     // foot of the view (hidden otherwise).
@@ -369,28 +381,23 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     const sayRope = (text, isError = false) => showMessage(ropeNote, text, isError);
     // The rope chosen (pose-rope-panel.js), in place of the tools.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
-    // Which hardpoint there is, and a way to the Scene tab to change it.
-    const hardpointName = h("strong", { id: "pose-hardpoint-name" });
-    const hardpointLink = h("button", { type: "button", className: "pose-scene-link", id: "pose-hardpoint-link", onclick: () => setMode("scene") },
-      h("span", {}, "Hardpoint: ", hardpointName), h("span", { className: "pose-scene-link-go" }, "Change in Scene"));
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
-      ropeTools, ropeOptions, ropeHintLine, ropeNote, hardpointLink);
+      ropeTools, ropeOptions, ropeHintLine, ropeNote);
 
     // --- the Pencil panel ------------------------------------------------------------
 
     // While the pencil's on, in place of the tab's panel: the Rope tab's
-    // rows (its own eraser, for marks), under a heading that says they're
-    // the pencil's, with Done; outlined in the accent like the pencil's
-    // button on the view.
-    const markStyle = styleRows("pose-mark", "Line", "Eraser: tap or drag over a mark to take it out", () => setErasingMarks(!erasingMarks));
+    // rows (its own eraser and color, for marks), in the same place, with
+    // Done (the pencil's icon on it) where ropes have the hardpoint's chip.
+    const drawDone = h("button", {
+      type: "button", className: "tool pose-finish pose-draw-done", id: "pose-draw-done", "aria-label": "Done drawing", onclick: () => setDrawing(false),
+    }, TOOL_ICONS.pencil(), "Done");
+    const markStyle = styleRows("pose-mark", "Line", "Eraser: tap or drag over a mark to take it out", () => setErasingMarks(!erasingMarks),
+      (c) => pickMarkColor(c), drawDone);
     const { colors: markColorButtons, widths: markWidthButtons, eraser: markEraserButton } = markStyle;
-    const drawPanel = h("div", { className: "pose-panel pose-pencil-panel", id: "pose-panel-draw", hidden: true },
-      h("div", { className: "pose-chosen-head" },
-        h("span", { className: "pose-pencil-mark", "aria-hidden": "true" }, TOOL_ICONS.pencil()),
-        h("h3", { className: "pose-part", id: "pose-pencil-title" }, "Pencil"),
-        h("button", { type: "button", className: "tool pose-finish", id: "pose-draw-done", onclick: () => setDrawing(false) }, "Done")),
+    const drawPanel = h("div", { className: "pose-panel", id: "pose-panel-draw", hidden: true },
       markStyle.element,
-      h("p", { className: "hint", id: "pose-draw-hint" }, "Marks go in the pictures, aren't saved with the pose, and hide when the view turns."));
+      h("p", { className: "hint", id: "pose-draw-hint" }, "Pencil: marks go in pictures and hide when the view turns."));
 
     // The view, with its tools and bars over it.
     const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
@@ -737,12 +744,27 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         erasing, layingKind: laying ? layingKind : "rope", points, chosen: rope ? (isCinch(rope) ? "cinch" : "rope") : "none",
         sliding: !!sliding, hardpoint: kind,
       });
-      hardpointName.textContent = kind ?? "none";
+      drawHardpointChip(kind);
       // A rope chosen: its own panel in place of the tools.
       ropeTools.hidden = !!rope;
-      hardpointLink.hidden = !!rope;
       if (draft) return;
       drawRopeOptions(pose);
+    }
+
+    /**
+     * The hardpoint's chip: its icon, its name and ›, or + Hardpoint (dashed)
+     * when there's none.
+     * @param {import("./pose-format.js").Hardpoint | null} kind
+     */
+    function drawHardpointChip(kind) {
+      if (hardpointLink.dataset.kind === (kind ?? "")) return;
+      hardpointLink.dataset.kind = kind ?? "";
+      hardpointLink.classList.toggle("empty", !kind);
+      hardpointLink.setAttribute("aria-label", kind ? `Hardpoint: ${kind}. Change in Scene` : "Add a hardpoint in Scene");
+      hardpointLink.title = kind ? "Change the hardpoint in Scene" : "Add a ring, bamboo or hashira in Scene";
+      hardpointLink.replaceChildren(...(kind
+        ? [TOOL_ICONS[kind](), capitalise(kind), TOOL_ICONS.chevron()]
+        : ["+ Hardpoint"]));
     }
 
     /**
@@ -918,17 +940,23 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     function setErasingMarks(on) {
       erasingMarks = on;
       marks.svg.classList.toggle("erasing", on);
-      for (const [i, button] of markColorButtons.entries()) button.setAttribute("aria-pressed", String(!on && COLORS[i] === color));
+      for (const [i, button] of markColorButtons.entries()) button.setAttribute("aria-pressed", String(!on && COLORS[i] === markColor));
       for (const [i, button] of markWidthButtons.entries()) button.setAttribute("aria-pressed", String(!on && WIDTHS[i] === width));
       markEraserButton.setAttribute("aria-pressed", String(on));
-      for (const button of markWidthButtons) button.className = `tool width-tool ink-${color}`;
+      for (const button of markWidthButtons) button.className = `tool width-tool ink-${markColor}`;
     }
 
-    /** @param {Color} c */
+    /** A rope color. @param {Color} c */
     function pickColor(c) {
-      color = lastColor = c;
+      color = lastRopeColor = c;
       if (laying) laying = { ...laying, c };
       setErasing(false);
+      drawSoon();
+    }
+
+    /** The pencil's color. @param {Color} c */
+    function pickMarkColor(c) {
+      markColor = lastMarkColor = c;
       setErasingMarks(false);
       drawSoon();
     }
@@ -1092,6 +1120,10 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         const hit = view.pick(x, y);
         if (hit?.kind === "body") {
           selected = hit.part;
+          drawAll();
+        } else if (!hit && selected) {
+          // Off the body: the part's let go, and the panel's as it opens.
+          selected = null;
           drawAll();
         }
         return;
@@ -1343,7 +1375,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         eraseMark(markPoint(event));
         return;
       }
-      markLine = { c: color, w: width, p: markPoint(event) };
+      markLine = { c: markColor, w: width, p: markPoint(event) };
       drawSoon();
     });
     marks.svg.addEventListener("pointermove", (event) => {

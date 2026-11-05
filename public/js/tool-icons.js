@@ -4,7 +4,8 @@
 // a tray), a pencil (the poser's drawing), and the poser's own: a cube (the
 // views), a picture with a plus (Add to visuals), a turning arrow (Facing),
 // a cross (letting a rope go), the chosen rope's Cinch, Slide and Add rope,
-// and the Body and Arms positions' figures. Each button using one says what
+// the hardpoints (a ring hanging from a line, a bamboo with its nodes, a
+// hashira post), a › and the Body and Arms positions' figures. Each button using one says what
 // it does in its aria-label and title.
 //
 // The figures are outlines, as the poser's high-kicking icon is
@@ -66,7 +67,7 @@ const rounded = (x, y, w, hgt, r) =>
 
 /**
  * @typedef {"undo" | "redo" | "download" | "pencil" | "views" | "addVisual" | "facing" | "close" | "cinch" | "slide" | "addRope"
- *   | "bodyPosition" | "armsPosition"} ToolIcon
+ *   | "ring" | "bamboo" | "hashira" | "chevron" | "bodyPosition" | "armsPosition"} ToolIcon
  */
 
 /** @type {Record<ToolIcon, () => SVGSVGElement>} */
@@ -100,6 +101,11 @@ export const TOOL_ICONS = {
   // a plus beside the new one.
   addRope: () => icon(["M15 3 5 21", { d: circle(10.6, 11, 2.2), fill: true }, { d: "M10.6 11Q16 14 19 21", dash: "2.4 2.6" },
     "M20.4 8.6v6", "M17.4 11.6h6"]),
+  // The hardpoints, as the chip on the Rope tab and Scene's buttons show them.
+  ring: () => icon(["M12 2v3.5", circle(12, 13, 7)]),
+  bamboo: () => icon([rounded(2, 9.5, 20, 5, 2.5), "M8.5 9.5v5", "M15.5 9.5v5"]),
+  hashira: () => icon([rounded(8.5, 2, 7, 20, 1.5), "M10.5 6v4", "M13.5 12v5"]),
+  chevron: () => icon(["m9 6 6 6-6 6"]),
   // Standing on one leg, the other folded out to the side (a futomomo).
   bodyPosition: () => icon([
     ...limb("M10.6 14 10.3 22.3"), ...limb("M13.6 13.8 20 12.6"),
