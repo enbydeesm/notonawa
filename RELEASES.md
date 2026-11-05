@@ -10,7 +10,7 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
+## 2026.11.05.0224
 - A new layout for the poser. Pose, Rope and Scene are tabs across the top. Undo, redo and the pencil sit on the view's top left, and a cube on its top right picks the view (front, sides, back or above).
 - Download and Add to visuals moved to the foot, beside Save pose, as icons.
 - Scene holds what you set up once: the hardpoint (tap the one there to take it away, again to put it back) and the body's shape, with Save as my model, Load default and Reset (back to your model).
