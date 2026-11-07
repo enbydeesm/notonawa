@@ -48,7 +48,7 @@ function runsFree({ over, on, onChange }) {
  * The chosen rope's panel, as its children.
  * @param {{
  *   color: Color,
- *   cinch: { still: boolean, onStill: (still: boolean) => void } | null,
+ *   cinch: { still: boolean, onStill: ((still: boolean) => void) | null } | null,
  *   seesaw: { over: string, on: boolean, onChange: (on: boolean) => void } | null,
  *   slide: "none" | "off" | "on",
  *   settings: HTMLElement | null,
@@ -56,7 +56,8 @@ function runsFree({ over, on, onChange }) {
  *   onCinch: () => void,
  *   onSlide: () => void,
  *   onAddRope: () => void,
- * }} rope cinch: given when the rope is one (its "Move the body"); seesaw: given when it can
+ * }} rope cinch: given when the rope is one (its "Move the body", shown when onStill
+ *   is given: a cinch on uplines, not one only round the body); seesaw: given when it can
  *   run free over the ring or bamboo (over: which), pulling one end moving the other;
  *   slide: "none" when it isn't tied to the bamboo; settings: the box's slider
  * @returns {HTMLElement[]}
@@ -65,7 +66,7 @@ export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo,
   const heading = h("div", { className: "pose-chosen-head" },
     h("span", { className: `pose-chosen-dot ink-${color}`, "aria-hidden": "true" }),
     h("h3", { className: "pose-part", id: "pose-chosen-title" }, "Rope selected"),
-    cinch ? checkbox("pose-cinch-body", "Move the body", !cinch.still, (on) => cinch.onStill(!on), "pose-check pose-chosen-check") : null,
+    cinch?.onStill ? checkbox("pose-cinch-body", "Move the body", !cinch.still, (on) => cinch.onStill?.(!on), "pose-check pose-chosen-check") : null,
     seesaw ? runsFree(seesaw) : null,
     h("button", {
       type: "button", className: "tool icon-tool", id: "pose-rope-letgo", "aria-label": "Let go of this rope", title: "Let go of this rope",

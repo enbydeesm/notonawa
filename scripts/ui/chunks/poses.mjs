@@ -2,7 +2,7 @@
 // renaming and deleting my own presets, posing a part with a slider, the head's sliders moving the whole
 // figure, typing a slider's number and stepping it with ▲ ▼, dragging a leg, undo, downloading a picture, laying a
 // rope with taps, the ring, bamboo (its length and hanger inset) and hashira, the pencil's marks, "Add to visuals",
-// a see-saw rope, the chosen rope's panel, cinches (one through three points), a rope added to an upline, slack, Cancel, sliding an upline along the bamboo, tapped on a pose made through the API, and the
+// a see-saw rope, the chosen rope's panel, cinches (one through three points, and one on ropes round the body only), a rope added to an upline, slack, Cancel, sliding an upline along the bamboo, tapped on a pose made through the API, and the
 // tabs and foot in a row each on a phone, the Scene tab), "Allow collisions" (fixing or leaving clashes), the nav's poser (and its "Add pose
 // to…": on a tie there already, or a new one), saving with the tie,
 // captions, duplicating, and export and import. Taps on the 3D view are real input (Chrome's own mouse events),
@@ -557,6 +557,7 @@ export default async function () {
   await run(`${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);`);
 
   await ropes({ tap, slide, topDialog });
+  await bodyCinch({ tap, topDialog });
   await collisions({ tap, slide, topDialog });
   await standalone({ topDialog });
 }
@@ -909,6 +910,94 @@ async function ropes({ tap, slide, topDialog }) {
     const saved = (await ${tiePose}).data;
     return [labels, pressed, range, value, back, saved.ropes[1].p.at(-1), saved.ropes[2].p.at(-1), saved.ropes[3].l > 0];`),
   [["Position (cm)"], "true", ["-76", "76"], "-41", [false, true], ["bamboo", -410, 0, 0], ["bamboo", 0, 0, 0], true]);
+}
+
+/**
+ * A cinch on ropes round the body only (no hardpoint): two wraps across
+ * the front, one over the chest and one over the belly, cinched together
+ * from the first; it pulls them together, and has no "Move the body".
+ * @param {{ tap: (fx: number, fy: number) => Promise<void>, topDialog: string }} helpers
+ */
+async function bodyCinch({ tap, topDialog }) {
+  const base = {
+    v: 1, joints: {}, body: [0, 0, 0], lift: 99, shift: [0, 0], camera: [0, 8, 380, 110, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
+  };
+  // Each wrap straight across, 30 cm in front of its bone (toward the
+  // camera): a straight line across the front of the body would be inside
+  // it, so the view would show the body over it.
+  const seeded = await run(`
+    const { makeSkeleton, posed, onBone, toBone } = await import("/js/pose-skeleton.js");
+    const { readPose } = await import("/js/pose-format.js");
+    const data = readPose(${JSON.stringify(base)});
+    const skeleton = makeSkeleton(); posed(skeleton, data);
+    const wrap = (bone, c) => {
+      const at = onBone(skeleton, bone);
+      const side = (dx) => [bone, ...toBone(skeleton, bone, at.clone().set(at.x + dx, at.y, at.z + 30))];
+      return { c, w: 3, p: [side(-15), side(15)] };
+    };
+    // With its shape, so the poser opens it as it is (one without is an older pose, its ropes moved).
+    return { ...${JSON.stringify(base)}, shape: data.shape, ropes: [wrap("chest", "red"), wrap("spine", "blue")] };`);
+  const tiePose = `(async () => {
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Body cinch test");
+    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+  })()`;
+  await run(`
+    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-04", title: "Body cinch test" });
+    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+  const stored = await run(`return (await ${tiePose}).data;`);
+  await go("/");
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Body cinch test").click(); await wait(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); $("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await wait(500); $("#pose-mode-rope").click(); await wait(300);`);
+  /** Taps a rope halfway along, where the view shows it. @param {number} rope */
+  const tapRope = async (rope) => {
+    await sleep(300);
+    const [fx, fy] = await run(`
+      let last = ""; for (let i = 0; i < 30; i++) {
+        const r = $("#pose-view").getBoundingClientRect(), now = r.width + "x" + r.height;
+        if (now === last) break; last = now; await wait(120); }
+      const three = await import("/js/vendor/three.js");
+      const { makeSkeleton, posed } = await import("/js/pose-skeleton.js");
+      const { ropeLine } = await import("/js/pose-cinch.js");
+      const data = ${JSON.stringify(stored)};
+      const skeleton = makeSkeleton(); posed(skeleton, data);
+      const line = ropeLine(skeleton, data, ${rope});
+      const point = line[0].clone().lerp(line[1], 0.5);
+      const r = $("#pose-view").getBoundingClientRect();
+      const camera = new three.PerspectiveCamera(38, r.width / r.height, 5, 5000);
+      const [yaw, pitch, distance, height] = data.camera;
+      const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+      camera.position.set(Math.sin(y) * Math.cos(p) * distance, height + Math.sin(p) * distance, Math.cos(y) * Math.cos(p) * distance);
+      camera.lookAt(0, height, 0);
+      camera.updateMatrixWorld();
+      const at = point.project(camera);
+      return [(at.x + 1) / 2, (1 - at.y) / 2];`);
+    await tap(fx, fy);
+  };
+  await tapRope(0);
+  check("a rope round the body, with no upline anywhere, has Cinch as well as Add rope", await run(`
+    return [$("#pose-chosen-title")?.textContent, $("#pose-cinch-start")?.textContent, $("#pose-added-start")?.textContent];`),
+  ["Rope selected", "Cinch", "Add rope"]);
+  await run(`$("#pose-cinch-start").click(); await wait(200);`);
+  await tapRope(1);
+  check("Cinch to the other wrap ties it: pulling the ropes together, with no Move the body", await run(`
+    $("#pose-finish-rope").click(); await wait(300);
+    const length = $("#pose-cinch-length");
+    return [$("#pose-rope-note").textContent, !!$("#pose-cinch-body"), length?.value === length?.max, $("#pose-rope-hint").textContent];`),
+  ["Cinch tied. Shorten it to pull the ropes together.", false, true,
+    "Shorten the cinch to pull the ropes together. Tap Cinch again when you're done."]);
+  check("shortening it is saved with the pose, the body left as it was", await run(`
+    const max = Number($("#pose-cinch-length").max);
+    { const el = $("#pose-cinch-length"); el.value = String(Math.floor(max / 2)); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(500); }
+    $("#pose-save").click();
+    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
+    const saved = (await ${tiePose}).data;
+    const cinch = saved.ropes[2];
+    return [cinch?.l === Math.floor(max / 2), cinch?.p.map((p) => [p[0], p[1], p[2]]), JSON.stringify(saved.body), saved.lift];`),
+  [true, [["rope", 0, 0], ["rope", 1, 0]], "[0,0,0]", 99]);
 }
 
 /**

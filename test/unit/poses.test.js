@@ -417,7 +417,7 @@ describe("the figure, posed", () => {
     const point = ropePoint(moved.skeleton, ["l_elbow", ...mm], moved.data);
     expect(point.distanceTo(moved.at("l_elbow"))).toBeCloseTo(Math.hypot(12, 4), 1);
     expect(point.z).toBeGreaterThan(5);
-    expect(ropePoint(moved.skeleton, ["ring", 0, 0, 0], moved.data)).toMatchObject({ x: 10, y: 275, z: 0 });
+    expect(ropePoint(moved.skeleton, ["ring", 0, 0, 0], moved.data)).toMatchObject({ x: 10, y: 280 - 7.5, z: 0 });
   });
 });
 

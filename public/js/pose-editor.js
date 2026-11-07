@@ -57,7 +57,7 @@ import {
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
-  isCinch, isUpline, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
+  isCinch, isUpline, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
@@ -741,7 +741,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       const count = `${points} ${points === 1 ? "point" : "points"}`;
       layingCount.textContent = layingKind === "cinch" ? `Cinch · ${count}` : layingKind === "added" ? `Added rope · ${count}` : `Laying rope · ${count}`;
       ropeHintLine.textContent = ropeHint({
-        erasing, layingKind: laying ? layingKind : "rope", points, chosen: rope ? (isCinch(rope) ? "cinch" : "rope") : "none",
+        erasing, layingKind: laying ? layingKind : "rope", points, chosen: !rope ? "none" : !isCinch(rope) ? "rope" : pullsUplines(pose.ropes, rope) ? "cinch" : "body cinch",
         sliding: !!sliding, hardpoint: kind,
       });
       drawHardpointChip(kind);
@@ -789,18 +789,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       if (isCinch(rope)) {
         posed(measuring, pose);
         const span = Math.max(1, Math.round(cinchPoints(measuring, pose, index).span));
-        const still = !!rope.still;
+        // A cinch only round the body moves no uplines, so never the body.
+        const uplines = pullsUplines(pose.ropes, rope);
+        const still = !uplines || !!rope.still;
         ropeOptions.replaceChildren(...chosenRopeView({
           color: rope.c, seesaw: null, slide: "none", onLetGo: letGo,
           // Cinch is pressed: tapping it again is done with it.
           onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
-          cinch: { still, onStill: (on) => commit({
+          cinch: { still, onStill: uplines ? (on) => commit({
             ...history.pose, ropes: history.pose.ropes.map((r, i) => {
               if (i !== index) return r;
               const { still: _, ...moving } = r;
               return on ? { ...moving, still: /** @type {true} */ (true) } : moving;
             }),
-          }) },
+          }) : null },
           settings: slider({
             id: "pose-cinch-length", label: "Length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
             apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
@@ -1012,7 +1014,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         posed(measuring, taut);
         commit(setCinchLength(taut, index, Math.round(cinchPoints(measuring, taut, index).span)));
         chosen = { index, segment: 0, along: 0.5 };
-        sayRope("Cinch tied. Shorten it to pull the upline aside.");
+        sayRope(pullsUplines(taut.ropes, taut.ropes[index]) ? "Cinch tied. Shorten it to pull the upline aside." : "Cinch tied. Shorten it to pull the ropes together.");
         return;
       }
       cancelRope();

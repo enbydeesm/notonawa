@@ -18,7 +18,7 @@ import { LIFT_RANGE } from "./figure-rig.js";
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
 
 /** The ring's size, and where ropes meet it (the bottom of the ring), cm. */
-export const RING_RADIUS = 5;
+export const RING_RADIUS = 7.5;
 /** The bamboo's thickness: ropes meet its underside, cm. */
 export const BAMBOO_RADIUS = 2.5;
 

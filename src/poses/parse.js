@@ -28,8 +28,9 @@
 // length and inset (how far in from its ends it hangs).
 // A rope with `l` (cm) is a cinch: two points or more, each a spot on a
 // rope (its index, a segment of it, and thousandths along it; the same
-// rope or others) or on the body, at least one where a rope hangs from the
-// ring or bamboo; a rope can have any number, and a cinch isn't on a
+// rope or others) or on the body, at least one on a rope (on an upline,
+// it pulls the upline aside; on ropes round the body only, it pulls them
+// together); a rope can have any number, and a cinch isn't on a
 // cinch. A rope without `l` can start at a spot on a rope before it (a
 // rope added to another), with no other spot. `k` (cm) is a rope's slack.
 // `s` marks a see-saw: a rope over the ring or bamboo once, from the body
@@ -287,8 +288,7 @@ export function parsePose(value) {
 
 /**
  * Checks what the cinches and added ropes are on, and the see-saws: a
- * cinch's spots on ropes (not cinches), at least one where a rope hangs
- * from the ring or bamboo; a rope added to another on one before it (not a
+ * cinch's spots on ropes (not cinches), at least one; a rope added to another on one before it (not a
  * cinch); a see-saw over the ring or bamboo once, between two points on
  * the body.
  * @param {Rope[]} ropes
@@ -296,8 +296,6 @@ export function parsePose(value) {
  */
 function checkLinks(ropes, bad) {
   const top = (/** @type {RopePoint} */ p) => p[0] === RING || p[0] === BAMBOO;
-  /** @param {Rope} rope @param {number} segment */
-  const hangs = (rope, segment) => top(rope.p[segment]) !== top(rope.p[segment + 1]);
   /** @param {RopePoint} spot */
   const onRope = ([, i, segment]) => {
     const target = ropes[i];
@@ -318,7 +316,7 @@ function checkLinks(ropes, bad) {
     const on = rope.p.filter((p) => p[0] === ROPE);
     if (rope.p.some((p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA)) throw bad("a cinch isn't in the right format.");
     if (!on.every(onRope)) throw bad("a cinch is on a rope that isn't there.");
-    if (!on.some(([, i, segment]) => hangs(ropes[i], segment))) throw bad("a cinch isn't on an upline.");
+    if (!on.length) throw bad("a cinch isn't on a rope.");
   }
 }
 

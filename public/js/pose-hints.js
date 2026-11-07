@@ -26,10 +26,11 @@ export function viewHint({ tab, drawing, laying, chosen }) {
  *   erasing: boolean,
  *   layingKind: "rope" | "cinch" | "added",
  *   points: number,
- *   chosen: "none" | "rope" | "cinch",
+ *   chosen: "none" | "rope" | "cinch" | "body cinch",
  *   sliding: boolean,
  *   hardpoint: "ring" | "bamboo" | "hashira" | null,
- * }} state points: how many points the rope being laid has (0 when nothing is)
+ * }} state points: how many points the rope being laid has (0 when nothing is);
+ *   chosen "cinch" pulls uplines aside, "body cinch" pulls ropes round the body together
  * @returns {string}
  */
 export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoint }) {
@@ -39,6 +40,7 @@ export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoi
   if (layingKind === "added") return `Added rope: ${count}. Keep tapping, then Finish.`;
   if (points) return `Rope: ${count}. Keep tapping, then Finish.`;
   if (chosen === "cinch") return "Shorten the cinch to pull the upline aside. Tap Cinch again when you're done.";
+  if (chosen === "body cinch") return "Shorten the cinch to pull the ropes together. Tap Cinch again when you're done.";
   if (chosen === "rope" && sliding) return "Tap Slide again when it's in place.";
   if (chosen === "rope") return "Cinch and Add rope start from the dot.";
   if (hardpoint === "hashira") return "Tap the body to lay a rope. Tap the hashira to tie to it, or a rope to choose it.";

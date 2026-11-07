@@ -8,7 +8,7 @@ import { Vector3 } from "../../public/js/vendor/three.js";
 import * as page from "../../public/js/pose-format.js";
 import * as server from "../../src/poses/parse.js";
 import { JOINTS } from "../../public/js/figure-rig.js";
-import { makeSkeleton, posed, ropePoint } from "../../public/js/pose-skeleton.js";
+import { makeSkeleton, posed, ropePoint, RING_RADIUS } from "../../public/js/pose-skeleton.js";
 import { cinchPoints, bends, ropeLine, ropeRuns, segmentLength, spotOn, spotPoint, sagging } from "../../public/js/pose-cinch.js";
 import { cinchBody, keepSeesaws, chainFor } from "../../public/js/pose-constraints.js";
 import { toViewUnits, viewBox, onPicture, marksShow, addMark, markAt, VIEW_HEIGHT } from "../../public/js/pose-marks.js";
@@ -57,7 +57,7 @@ function withinLimits(pose) {
 }
 
 describe("cinches, in the format", () => {
-  it("are tied through spots on ropes or the body, one at least on an upline, any number on a rope", () => {
+  it("are tied through spots on ropes or the body, one at least on a rope, any number on a rope", () => {
     const { pose } = suspended();
     expect(page.isCinch(pose.ropes[2])).toBe(true);
     expect(page.isUpline(pose.ropes[0])).toBe(true);
@@ -77,9 +77,14 @@ describe("cinches, in the format", () => {
     const laid = page.addPoint(rope([page.ropeSpot(1, 0, 0.5)]), page.ropeSpot(2, 0, 0.5));
     expect(laid.p).toHaveLength(2);
     expect(page.addPoint(laid, page.ropeSpot(2, 0, 0.502)).p).toHaveLength(2);
-    // No point where an upline hangs.
+    // On a rope round the body, with no point where an upline hangs: fine,
+    // and it pulls those ropes together rather than any upline.
     const onBody = { ...pose, ropes: [...pose.ropes, rope([["chest", 0, 0, 0], ["pelvis", 0, 0, 0]])] };
-    expect(page.cantCinch(onBody, [page.ropeSpot(3, 0, 0.5), body])).toMatch(/a point on an upline/);
+    expect(page.cantCinch(onBody, [page.ropeSpot(3, 0, 0.5), body])).toBeNull();
+    expect(page.pullsUplines(onBody.ropes, rope([page.ropeSpot(3, 0, 0.5), body], { l: 0 }))).toBe(false);
+    expect(page.pullsUplines(pose.ropes, pose.ropes[2])).toBe(true);
+    // Never only on the body.
+    expect(page.cantCinch(onBody, [body, page.bonePoint("chest", [0, 0, 0])])).toMatch(/a point on a rope/);
   });
 
   it("go with a rope they're on, and the rest are renumbered", () => {
@@ -117,7 +122,10 @@ describe("cinches, in the format", () => {
     bad([a, b, cinch, { ...cinch, p: [["rope", 2, 0, 500], ["chest", 0, 0, 0]] }], /isn't there/);
     bad([a, b, { ...cinch, p: [cinch.p[0], RING] }], /cinch isn't/);
     const plain = rope([["chest", 0, 0, 0], ["pelvis", 0, 0, 0]]);
-    bad([plain, { ...cinch, p: [["rope", 0, 0, 500], ["chest", 0, 0, 0]] }], /isn't on an upline/);
+    // On a rope round the body only: fine. On no rope at all: not a cinch.
+    const round = [plain, { ...cinch, p: [["rope", 0, 0, 500], ["chest", 0, 0, 0]] }];
+    expect(server.parsePose({ ...pose, ring: null, ropes: round }).ropes).toEqual(round);
+    bad([plain, { ...cinch, p: [["pelvis", 0, 0, 0], ["chest", 0, 0, 0]] }], /isn't on a rope/);
   });
 });
 
@@ -185,6 +193,42 @@ describe("a cinch, in the room", () => {
     expect(to[0].distanceTo(from[1])).toBeLessThan(0.01);
   });
 
+  it("on ropes round the body only, pulls them together, its points on the body staying", () => {
+    // Two wraps round the trunk (no hardpoint), a cinch between them and on to the pelvis.
+    /** @type {Pose} */
+    const wraps = {
+      ...page.newPose(),
+      ropes: [rope([["chest", -150, 0, 120], ["chest", 150, 0, 120]]), rope([["spine", -150, 0, 120], ["spine", 150, 0, 120]])],
+    };
+    const tied = { ...wraps, ropes: [...wraps.ropes, rope([page.ropeSpot(0, 0, 0.5), page.ropeSpot(1, 0, 0.5)], { l: 0 })] };
+    const skeleton = measure(tied);
+    const { span } = cinchPoints(skeleton, tied, 2);
+    expect(span).toBeGreaterThan(5);
+    const shorter = page.setCinchLength(tied, 2, Math.round(span / 2));
+    const { from, to } = cinchPoints(skeleton, shorter, 2);
+    expect(to[0].distanceTo(to[1])).toBeCloseTo(Math.round(span / 2), 0);
+    // Both ends moved, half the way each.
+    expect(to[0].distanceTo(from[0])).toBeCloseTo(to[1].distanceTo(from[1]), 1);
+    expect(to[0].distanceTo(from[0])).toBeGreaterThan(1);
+    // Each wrap bends where it's pulled, and is drawn through the bend.
+    const bent = bends(skeleton, shorter);
+    expect(bent.get(0)?.map((b) => b.along)).toEqual([500]);
+    expect(bent.get(1)?.map((b) => b.along)).toEqual([500]);
+    expect(ropeRuns(skeleton, shorter, 0, bent).map((run) => run.length)).toEqual([3]);
+    // Its point on the body stays where it is.
+    const toBody = { ...wraps, ropes: [...wraps.ropes, rope([page.ropeSpot(0, 0, 0.5), ["pelvis", 0, 0, 0]], { l: 0 })] };
+    const pulled = cinchPoints(skeleton, page.setCinchLength(toBody, 2, 1), 2);
+    expect(pulled.to[1].distanceTo(pulled.from[1])).toBeLessThan(0.01);
+    expect(pulled.to[0].distanceTo(pulled.from[0])).toBeGreaterThan(1);
+    // A cinch on an upline and a body rope still pulls only the upline.
+    const { pose } = suspended();
+    const mixed = { ...pose, ropes: [...pose.ropes.slice(0, 2), rope([["chest", -150, 0, 120], ["chest", 150, 0, 120]])] };
+    const both = { ...mixed, ropes: [...mixed.ropes, rope([page.ropeSpot(0, 0, 0.5), page.ropeSpot(2, 0, 0.5)], { l: 1 })] };
+    const pair = cinchPoints(measure(both), both, 3);
+    expect(pair.to[1].distanceTo(pair.from[1])).toBeLessThan(0.01);
+    expect(pair.to[0].distanceTo(pair.from[0])).toBeGreaterThan(1);
+  });
+
   it("finds where on a rope it was tapped", () => {
     const { pose } = suspended();
     const skeleton = measure(pose);
@@ -194,6 +238,20 @@ describe("a cinch, in the room", () => {
     const spot = spotOn(skeleton, pose, 0, tapped);
     expect(spot.segment).toBe(0);
     expect(spot.along).toBeCloseTo(0.25, 2);
+  });
+});
+
+describe("the ring", () => {
+  it("is 15 cm across, uplines tied on at its bottom, the body left where a saved pose has it", () => {
+    expect(RING_RADIUS * 2).toBe(15);
+    const { pose } = suspended();
+    const skeleton = measure(pose);
+    const top = ropePoint(skeleton, RING, pose);
+    expect([top.x, top.y, top.z]).toEqual([0, 195 - 7.5, 0]);
+    // The body is placed by its own numbers, not by the ring: only the upline's length follows the ring's size.
+    const chest = ropePoint(skeleton, ["chest", 0, 0, 0], pose);
+    const moved = ropePoint(measure({ ...pose, ring: [0, 205, 0] }), ["chest", 0, 0, 0], pose);
+    expect(moved.distanceTo(chest)).toBeLessThan(0.001);
   });
 });
 
