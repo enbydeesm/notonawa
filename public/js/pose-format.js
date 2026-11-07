@@ -31,9 +31,10 @@
 //            the way.
 //            A cinch (one with `l`, its length in cm) is a rope tied
 //            through two or more spots, on ropes (the same one or others)
-//            or the body, at least one on an upline's hanging stretch
-//            (between the ring or bamboo and the point next to it), which
-//            it pulls in (pose-cinch.js). A rope can have any number of
+//            or the body, at least one on a rope. One on an upline's
+//            hanging stretch (between the ring or bamboo and the point
+//            next to it) pulls the uplines in; one on none pulls the ropes
+//            round the body it's tied through together (pose-cinch.js). A rope can have any number of
 //            cinches; a cinch is never on a cinch.
 //            A rope added to another (not a cinch) starts at a spot on it,
 //            ["rope", …] as its first point (on a rope before it in
@@ -359,7 +360,7 @@ const onRope = (ropes, [, i, segment]) => {
 
 /**
  * Whether a cinch's points are where they can be: two or more, on ropes
- * there or the body (not a hardpoint), at least one on a hanging stretch.
+ * there or the body (not a hardpoint), at least one on a rope.
  * @param {(Rope | null)[]} ropes
  * @param {Rope} cinch
  */
@@ -367,8 +368,18 @@ function cinchFits(ropes, cinch) {
   const on = cinch.p.filter((p) => p[0] === ROPE);
   if (cinch.p.length < 2 || on.length === 0) return false;
   if (cinch.p.some((p) => HARDPOINTS.includes(/** @type {Hardpoint} */ (p[0])))) return false;
-  return on.every((p) => onRope(ropes, p)) && on.some(([, i, segment]) => hangs(/** @type {Rope} */ (ropes[i]), segment));
+  return on.every((p) => onRope(ropes, p));
 }
+
+/**
+ * Whether a cinch pulls uplines aside (one of its spots is on an upline's
+ * hanging stretch), or, with none, the ropes round the body it's tied
+ * through together (pose-cinch.js).
+ * @param {(Rope | null)[]} ropes
+ * @param {Rope} cinch
+ */
+export const pullsUplines = (ropes, cinch) =>
+  cinch.p.some((p) => p[0] === ROPE && !!ropes[p[1]] && hangs(/** @type {Rope} */ (ropes[p[1]]), p[2]));
 
 /**
  * Whether a rope added to another is on a rope there, before it, and has
@@ -629,7 +640,7 @@ export function cantCinch(pose, points) {
     if (problem) return problem;
   }
   if (points.length < 2) return "Tap another rope or the body to tie the cinch to, then Finish rope.";
-  if (!cinchFits(pose.ropes, { c: "black", w: 1, p: points, l: 0 })) return "A cinch needs a point on an upline, between the ring or bamboo and the body.";
+  if (!cinchFits(pose.ropes, { c: "black", w: 1, p: points, l: 0 })) return "A cinch needs a point on a rope.";
   return null;
 }
 

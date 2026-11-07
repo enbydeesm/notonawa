@@ -3141,3 +3141,22 @@ time. Mocked up first, then built (`pose-editor.js`, with
 - **A workshop card's dates float as one block** in the top right,
   spanning the title's and the teachers' rows, rather than a line in
   each: a title wrapping to two lines pushed the year away from its days.
+
+## Poser: a bigger ring, cinches round the body (November 2026)
+
+**Status:** built (2026-11-05)
+
+- **The ring is 15 cm across** (`RING_RADIUS` 7.5, was 5). A pose stores the
+  ring's middle, and its body by its own numbers, so a bigger ring doesn't
+  move any body: uplines tie on at the ring's bottom, 2.5 cm lower, and are
+  that much shorter. Keeping the tie-on point and growing the ring upward
+  was the other way, and not wanted.
+- **A cinch on ropes round the body only** (no point on an upline's
+  hanging stretch) pulls its points on those ropes toward each other, the
+  same way a cinch pulls uplines, and they bend there; its points on the
+  body stay. It has no "Move the body", as no upline's length changes.
+  Drawing it only, pulling nothing, was the other option. A cinch with
+  even one point on an upline works as before, pulling only the uplines,
+  so poses saved before this don't change. The wraps can lift a little
+  off the skin as they're pulled: an approximation, like the rest.
+

@@ -12,12 +12,14 @@
 // all the same share of the way, until the line is the cinch's length (a
 // cinch of two points: one end moving to the other, or half each if both
 // can); a point on the body or a rope that doesn't hang stays where it
-// is. The upline bends at each point pulled, in straight runs. An
-// approximation: each cinch is worked out on the uplines as if the others
-// weren't pulling them.
+// is. The upline bends at each point pulled, in straight runs. A cinch on
+// no upline, only ropes round the body (two wraps of a harness, say),
+// pulls its points on those ropes in the same way instead, and they bend
+// there; its points on the body stay. An approximation: each cinch is
+// worked out as if the others weren't pulling the same ropes.
 
 import { Vector3 } from "./vendor/three.js";
-import { ROPE, isCinch, isAdded, hangs } from "./pose-format.js";
+import { ROPE, isCinch, isAdded, hangs, pullsUplines } from "./pose-format.js";
 import { ropePoint } from "./pose-skeleton.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -28,10 +30,15 @@ import { ropePoint } from "./pose-skeleton.js";
 /** @typedef {Map<number, Bend[]>} Bends by rope, each rope's in order along it */
 
 /**
- * Whether a cinch's point is on an upline's hanging stretch (so it moves).
- * @param {Pose} pose @param {RopePoint} point
+ * Which of a cinch's points move: its spots on uplines' hanging
+ * stretches, or, if it's on none, its spots on ropes round the body.
+ * @param {Pose} pose @param {Rope} cinch
+ * @returns {boolean[]}
  */
-const moves = (pose, [kind, rope, segment]) => kind === ROPE && hangs(pose.ropes[rope], segment);
+function movingPoints(pose, cinch) {
+  const uplines = pullsUplines(pose.ropes, cinch);
+  return cinch.p.map(([kind, rope, segment]) => kind === ROPE && (!uplines || hangs(pose.ropes[rope], segment)));
+}
 
 /** A line's length, through its points. @param {Vector3[]} points */
 const lineLength = (points) => points.reduce((sum, p, i) => (i ? sum + p.distanceTo(points[i - 1]) : 0), 0);
@@ -48,7 +55,7 @@ export function cinchPoints(skeleton, pose, index) {
   const { p, l = 0 } = pose.ropes[index];
   const from = p.map((point) => ropePoint(skeleton, point, pose));
   const span = lineLength(from);
-  const moving = p.map((point) => moves(pose, point));
+  const moving = movingPoints(pose, pose.ropes[index]);
   // Where each moving point heads: the middle of the points beside it.
   const toward = from.map((point, i) => {
     const near = [from[i - 1], from[i + 1]].filter(Boolean);
@@ -85,8 +92,9 @@ export function bends(skeleton, pose) {
   pose.ropes.forEach((rope, index) => {
     if (!isCinch(rope)) return;
     const { to } = cinchPoints(skeleton, pose, index);
+    const moving = movingPoints(pose, rope);
     rope.p.forEach((point, k) => {
-      if (!moves(pose, point)) return;
+      if (!moving[k]) return;
       const list = found.get(point[1]) ?? [];
       list.push({ segment: point[2], along: point[3], at: to[k] });
       found.set(point[1], list);
@@ -230,8 +238,10 @@ export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose)) {
   for (let segment = 0; segment + 1 < points.length; segment++) {
     const [a, b] = [points[segment], points[segment + 1]];
     if (!hangs(rope, segment)) {
+      // Round the body: curving through its points, and any bends a cinch
+      // pulls in it.
       if (!curve.length) curve.push(a);
-      curve.push(b);
+      curve.push(...bendsOn(bent, index, segment), b);
       continue;
     }
     if (curve.length) runs.push(curve);

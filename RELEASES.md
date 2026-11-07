@@ -10,6 +10,10 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- The poser's ring is 50% bigger (15 cm across). Saved poses keep their bodies where they were; their uplines are just a little shorter.
+- Cinch any rope, not just uplines: tap a rope round the body, then Cinch, and tie it to another rope or the body. Shortening it pulls the ropes together.
+
 ## 2026.11.09.0624
 Workshop updates and visual viewer improvements
 - Workshops moved to 3rd position and the top navigation bar is now pinned at the top
