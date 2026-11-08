@@ -57,7 +57,7 @@ import {
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
-  isCinch, isUpline, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
+  isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
@@ -68,7 +68,7 @@ import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchPoints, spotOn } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
-import { cinchBody, keepSeesaws } from "./pose-constraints.js";
+import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
@@ -768,9 +768,17 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     }
 
     /**
+     * The Length slider's range, kept while the same rope stays chosen (so
+     * it doesn't move under the finger as the rope changes).
+     * @type {{ chosen: object, max: number } | null}
+     */
+    let lengthRange = null;
+
+    /**
      * The chosen rope's panel (pose-rope-panel.js): its see-saw box, Cinch,
      * Slide (tied to the bamboo) and Add rope, and the setting in play:
-     * sliding it along the bamboo, its slack, or a cinch's length (and
+     * sliding it along the bamboo, its slack, a two-point rope's length,
+     * or a cinch's length (and
      * whether it moves the body).
      * @param {Pose} pose
      */
@@ -789,20 +797,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       if (isCinch(rope)) {
         posed(measuring, pose);
         const span = Math.max(1, Math.round(cinchPoints(measuring, pose, index).span));
-        // A cinch only round the body moves no uplines, so never the body.
-        const uplines = pullsUplines(pose.ropes, rope);
-        const still = !uplines || !!rope.still;
+        // Moving the body: on uplines, keeping their lengths; round the
+        // body, drawing the parts it's tied to together.
+        const still = !!rope.still;
         ropeOptions.replaceChildren(...chosenRopeView({
           color: rope.c, seesaw: null, slide: "none", onLetGo: letGo,
           // Cinch is pressed: tapping it again is done with it.
           onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
-          cinch: { still, onStill: uplines ? (on) => commit({
+          cinch: { still, onStill: (on) => commit({
             ...history.pose, ropes: history.pose.ropes.map((r, i) => {
               if (i !== index) return r;
               const { still: _, ...moving } = r;
               return on ? { ...moving, still: /** @type {true} */ (true) } : moving;
             }),
-          }) : null },
+          }) },
           settings: slider({
             id: "pose-cinch-length", label: "Length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
             apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
@@ -820,6 +828,17 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         settings = slider({
           id: "pose-along-bamboo", label: "Position (cm)", min: -half, max: half,
           value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
+        });
+      } else if (hasLength(rope)) {
+        // A rope of two points has a Length: from none to twice as long as
+        // it was when chosen, starting in the middle. Shorter moves the
+        // body to bring its ends together; longer gives it slack.
+        posed(measuring, pose);
+        const now = Math.round(ropeLength(measuring, pose, index));
+        if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2, 2 * now) };
+        settings = slider({
+          id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
+          apply: (p, v) => setRopeLength(p, index, v),
         });
       } else if (isUpline(rope)) {
         // An upline can be given slack: its hanging stretches sag (drawn only).
@@ -1014,7 +1033,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         posed(measuring, taut);
         commit(setCinchLength(taut, index, Math.round(cinchPoints(measuring, taut, index).span)));
         chosen = { index, segment: 0, along: 0.5 };
-        sayRope(pullsUplines(taut.ropes, taut.ropes[index]) ? "Cinch tied. Shorten it to pull the upline aside." : "Cinch tied. Shorten it to pull the ropes together.");
+        sayRope(pullsUplines(taut.ropes, taut.ropes[index]) ? "Cinch tied. Shorten it to pull the upline aside." : "Cinch tied. Shorten it to draw them together.");
         return;
       }
       cancelRope();

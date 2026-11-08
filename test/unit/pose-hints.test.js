@@ -36,7 +36,7 @@ describe("ropeHint", () => {
     expect(rope({ chosen: "rope", sliding: true })).toBe("Tap Slide again when it's in place.");
     expect(rope({ chosen: "cinch" })).toMatch(/Tap Cinch again when you're done\.$/);
     expect(rope({ chosen: "cinch" })).toMatch(/upline/);
-    expect(rope({ chosen: "body cinch" })).toBe("Shorten the cinch to pull the ropes together. Tap Cinch again when you're done.");
+    expect(rope({ chosen: "body cinch" })).toBe("Shorten the cinch to draw them together. Tap Cinch again when you're done.");
   });
   it("nothing chosen: what to tap, for the hardpoint there", () => {
     expect(rope({ hardpoint: "bamboo" })).toBe("Tap the body to lay a rope. Tap the bamboo for an upline, or a rope to choose it.");

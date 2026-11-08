@@ -1,11 +1,15 @@
 // Ropes that move the body: a cinch pulling uplines together (with "Move
-// the body" ticked), and a see-saw rope over the ring or bamboo. Pure
-// apart from three.js's math, so it's tested like dragging a limb.
+// the body" ticked), a cinch round the body drawing the parts it's tied
+// to together, a rope of two points made shorter (its Length), and a
+// see-saw rope over the ring or bamboo. Pure apart from three.js's math,
+// so it's tested like dragging a limb.
 //
-// Both keep an upline's length as it was: a cinch bends an upline, which
-// would make it longer, so the body is moved up to it instead; a see-saw
-// rope is one length over the hardpoint, so one end coming closer takes
-// the other further away. The joints that move are the ones between the
+// A cinch on uplines and a see-saw keep an upline's length as it was: a
+// cinch bends an upline, which would make it longer, so the body is moved
+// up to it instead; a see-saw rope is one length over the hardpoint, so
+// one end coming closer takes the other further away. A cinch round the
+// body, or a two-point rope shortened, brings its ends closer by moving
+// the body, the ropes on it staying where they're tied. The joints that move are the ones between the
 // body and the rope's end: an arm's or a leg's (as dragging it would), the
 // waist and chest for the trunk, and the whole body's tilt and height for
 // the hips. It's not a physics simulation (nothing weighs anything): the
@@ -16,11 +20,12 @@
 import { jointNamed, clampJoint, LIFT_RANGE } from "./figure-rig.js";
 import { DRAG_CHAINS, dampedSolve, snapshot, keepReachable } from "./pose-ik.js";
 import { makeSkeleton, posed } from "./pose-skeleton.js";
-import { ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength } from "./pose-format.js";
-import { bends, segmentLength } from "./pose-cinch.js";
+import { ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength, pullsUplines, setSlack } from "./pose-format.js";
+import { bends, segmentLength, cinchPoints } from "./pose-cinch.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
+/** @typedef {import("./pose-format.js").Rope} Rope */
 /** @typedef {import("./pose-skeleton.js").Skeleton} Skeleton */
 /**
  * One number the solver can change: a joint's angle, the body's pitch (0)
@@ -160,6 +165,7 @@ function anglesFor(parts) {
  */
 export function cinchBody(pose, index, length) {
   const next = setCinchLength(pose, index, length);
+  if (!pullsUplines(pose.ropes, pose.ropes[index])) return drawTogether(pose, next, index, length);
   const stretches = pose.ropes[index].p.flatMap((p) => (p[0] === ROPE && hangs(pose.ropes[p[1]], p[2]) ? [{ rope: p[1], segment: p[2] }] : []));
   const angles = anglesFor(stretches.map((s) => bodyEnd(pose, s.rope, s.segment)));
   if (!angles.length) return next;
@@ -171,6 +177,88 @@ export function cinchBody(pose, index, length) {
     const now = bends(sk, trial);
     return stretches.map((s, k) => segmentLength(sk, trial, s.rope, s.segment, now) - lengths[k]);
   });
+}
+
+/** The whole body's tilt and height: what brings the trunk to a hardpoint. @type {readonly Angle[]} */
+const WHOLE_BODY = TRUNK.pelvis;
+
+/**
+ * The parts of the body a cinch is tied to: those its points are on, and
+ * those at the ends of the stretches of rope it's tied through.
+ * @param {Pose} pose @param {Rope} cinch
+ * @returns {string[]}
+ */
+function cinchParts(pose, cinch) {
+  /** @param {RopePoint | undefined} p */
+  const bone = (p) => (p && p[0] !== ROPE && !onHardpoint(p) ? [p[0]] : []);
+  return [...new Set(cinch.p.flatMap((p) => {
+    if (p[0] !== ROPE) return bone(p);
+    const { p: points } = pose.ropes[p[1]];
+    return [...bone(points[p[2]]), ...bone(points[p[2] + 1])];
+  }))];
+}
+
+/**
+ * A cinch round the body made this long, the parts it's tied to turned
+ * closer together (only joints: the whole body's tilt and height bring
+ * nothing together). What they can't close (at their limits, or with both
+ * ends on one part) is left to the cinch, which then pulls the ropes in
+ * (pose-cinch.js).
+ * @param {Pose} pose @param {Pose} next the cinch made this long
+ * @param {number} index @param {number} length
+ * @returns {Pose}
+ */
+function drawTogether(pose, next, index, length) {
+  const parts = cinchParts(pose, pose.ropes[index]);
+  const angles = parts.length < 2 ? [] : anglesFor(parts).filter((a) => "joint" in a);
+  if (!angles.length) return next;
+  // Its span as tied, not pulled in by its own length.
+  /** @param {Pose} trial */
+  const loose = (trial) => ({ ...trial, ropes: trial.ropes.map((r, i) => (i === index ? { ...r, l: Number.MAX_SAFE_INTEGER } : r)) });
+  return settle(next, angles, (sk, trial) => [cinchPoints(sk, loose(trial), index).span - length]);
+}
+
+/**
+ * The angles that bring a two-point rope's ends closer: the limbs it's
+ * tied to, or, for one between the trunk and a hardpoint or a spot on a
+ * rope, the whole body's tilt and height; between two parts of the body,
+ * only joints.
+ * @param {Rope} rope
+ * @returns {Angle[]}
+ */
+function lengthAngles(rope) {
+  const bones = rope.p.flatMap((p) => (p[0] !== ROPE && !onHardpoint(p) ? [p[0]] : []));
+  if (bones.length === 2) return bones[0] === bones[1] ? [] : anglesFor(bones).filter((a) => "joint" in a);
+  const [bone] = bones;
+  return bone in DRAG_CHAINS ? [...chainFor(bone)] : [...WHOLE_BODY];
+}
+
+/**
+ * How long a two-point rope is now: taut, through any cinch's bends, and
+ * its slack.
+ * @param {Skeleton} skeleton posed for the pose
+ * @param {Pose} pose @param {number} index
+ */
+export function ropeLength(skeleton, pose, index) {
+  return segmentLength(skeleton, pose, index, 0) + (pose.ropes[index].k ?? 0);
+}
+
+/**
+ * A two-point rope made this long (its Length): longer than it is taut,
+ * the rest is slack; shorter, the body is moved to bring its ends that
+ * close (as near as the joints allow), with no slack.
+ * @param {Pose} pose @param {number} index @param {number} length cm
+ * @returns {Pose}
+ */
+export function setRopeLength(pose, index, length) {
+  const skeleton = spare ??= makeSkeleton();
+  posed(skeleton, pose);
+  const taut = segmentLength(skeleton, pose, index, 0);
+  if (length >= taut - 0.5) return setSlack(pose, index, length - taut);
+  const plain = setSlack(pose, index, 0);
+  const angles = lengthAngles(pose.ropes[index]);
+  if (!angles.length) return plain;
+  return settle(plain, angles, (sk, trial) => [segmentLength(sk, trial, index, 0) - length]);
 }
 
 /**

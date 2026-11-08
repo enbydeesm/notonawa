@@ -108,7 +108,7 @@ export const OLDER_BAMBOO = /** @type {const} */ ([150, 8]);
 /** How near the middle a bamboo's hangers can come, each side, cm. */
 export const BAMBOO_MIDDLE = 5;
 /** A rope's slack, cm. */
-export const SLACK_RANGE = /** @type {const} */ ([0, 100]);
+export const SLACK_RANGE = /** @type {const} */ ([0, 300]);
 /** A cinch's length, cm. */
 export const CINCH_RANGE = /** @type {const} */ ([0, 1000]);
 /** The hashira's: x, z, and its turn (a square post looks the same every 90°). */
@@ -332,6 +332,22 @@ export const isAdded = (rope) => !isCinch(rope) && rope.p[0]?.[0] === ROPE;
  */
 export const hangs = (rope, segment) => !isCinch(rope) && segment >= 0 && segment + 1 < rope.p.length &&
   onUplineHardpoint(rope.p[segment]) !== onUplineHardpoint(rope.p[segment + 1]);
+
+/**
+ * Whether a segment of a rope is drawn straight, and sags with its slack:
+ * a hanging stretch, or a rope of two points (body to body, the body to a
+ * hardpoint or to a spot on a rope), its one segment.
+ * @param {Rope} rope @param {number} segment
+ */
+export const sags = (rope, segment) => hangs(rope, segment) || (!isCinch(rope) && rope.p.length === 2 && segment === 0);
+
+/**
+ * Whether a rope has a Length rather than a Slack (pose-constraints.js,
+ * `setRopeLength`): two points, not a cinch, one at least on the body.
+ * @param {Rope} rope
+ */
+export const hasLength = (rope) => !isCinch(rope) && rope.p.length === 2 &&
+  rope.p.some((p) => p[0] !== ROPE && !HARDPOINTS.includes(/** @type {Hardpoint} */ (p[0])));
 
 /** Whether a rope goes to the ring or the bamboo. @param {Rope} rope */
 export const isUpline = (rope) => !isCinch(rope) && rope.p.some(onUplineHardpoint);

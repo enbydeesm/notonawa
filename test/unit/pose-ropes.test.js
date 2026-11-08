@@ -10,7 +10,7 @@ import * as server from "../../src/poses/parse.js";
 import { JOINTS } from "../../public/js/figure-rig.js";
 import { makeSkeleton, posed, ropePoint, RING_RADIUS } from "../../public/js/pose-skeleton.js";
 import { cinchPoints, bends, ropeLine, ropeRuns, segmentLength, spotOn, spotPoint, sagging } from "../../public/js/pose-cinch.js";
-import { cinchBody, keepSeesaws, chainFor } from "../../public/js/pose-constraints.js";
+import { cinchBody, keepSeesaws, chainFor, ropeLength, setRopeLength } from "../../public/js/pose-constraints.js";
 import { toViewUnits, viewBox, onPicture, marksShow, addMark, markAt, VIEW_HEIGHT } from "../../public/js/pose-marks.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
@@ -36,6 +36,9 @@ function suspended() {
   const gap = Math.round(cinchPoints(skeleton, taut, 2).span);
   return { pose: page.setCinchLength(taut, 2, gap), gap };
 }
+
+/** Within 1.5 cm: the solver stops close, and poses keep whole degrees. @param {number} a @param {number} b */
+const near = (a, b) => expect(Math.abs(a - b)).toBeLessThan(1.5);
 
 /** A skeleton posed in a pose. @param {Pose} pose */
 function measure(pose) {
@@ -214,7 +217,8 @@ describe("a cinch, in the room", () => {
     const bent = bends(skeleton, shorter);
     expect(bent.get(0)?.map((b) => b.along)).toEqual([500]);
     expect(bent.get(1)?.map((b) => b.along)).toEqual([500]);
-    expect(ropeRuns(skeleton, shorter, 0, bent).map((run) => run.length)).toEqual([3]);
+    // A rope of two points is drawn straight, so in two runs either side of the bend.
+    expect(ropeRuns(skeleton, shorter, 0, bent).map((run) => run.length)).toEqual([2, 2]);
     // Its point on the body stays where it is.
     const toBody = { ...wraps, ropes: [...wraps.ropes, rope([page.ropeSpot(0, 0, 0.5), ["pelvis", 0, 0, 0]], { l: 0 })] };
     const pulled = cinchPoints(skeleton, page.setCinchLength(toBody, 2, 1), 2);
@@ -294,10 +298,11 @@ describe("slack", () => {
     const slack = page.setSlack(pose, 0, 40);
     expect(slack.ropes[0].k).toBe(40);
     expect(page.setSlack(slack, 0, 0).ropes[0].k).toBeUndefined();
-    expect(page.setSlack(pose, 0, 500).ropes[0].k).toBe(100);
+    expect(page.setSlack(pose, 0, 500).ropes[0].k).toBe(300);
     expect(page.setSlack(pose, 2, 30).ropes[2]).toEqual(pose.ropes[2]);
     expect(server.parsePose(slack)).toEqual(slack);
-    expect(() => server.parsePose(page.setSlack(pose, 0, 40) && { ...pose, ropes: [{ ...pose.ropes[0], k: 101 }, ...pose.ropes.slice(1)] })).toThrow(/slack/);
+    expect(() => server.parsePose(page.setSlack(pose, 0, 40) && { ...pose, ropes: [{ ...pose.ropes[0], k: 301 }, ...pose.ropes.slice(1)] })).toThrow(/slack/);
+    expect(server.parsePose({ ...pose, ropes: [{ ...pose.ropes[0], k: 300 }, ...pose.ropes.slice(1)] }).ropes[0].k).toBe(300);
     expect(slack.joints).toEqual(pose.joints);
     const skeleton = measure(slack);
     const [run] = ropeRuns(skeleton, slack, 0);
@@ -347,6 +352,77 @@ describe("moving the body", () => {
     expect(segmentLength(after, moved, 1, 0)).toBeCloseTo(lengths[1], 0);
     expect(ropePoint(after, ["chest", 0, 0, 0], moved).distanceTo(ropePoint(after, ["l_hip", 0, -200, 0], moved))).toBeLessThan(chestToThigh);
     withinLimits(moved);
+  });
+
+  it("round the body, with Move the body, draws the parts it's tied to together, the ropes staying as tied", () => {
+    // A wrap round the left forearm and one round the left thigh, the arm out a little, cinched together.
+    /** @type {Pose} */
+    const standing = page.setJoint(page.newPose(), "l_shoulder", 1, 40);
+    const wraps = { ...standing, ropes: [rope([["l_wrist", -40, -60, 0], ["l_wrist", 40, -60, 0]]), rope([["l_hip", -60, -200, 0], ["l_hip", 60, -200, 0]])] };
+    const tied = page.addCinch(wraps, { c: "blue", w: 1 }, [page.ropeSpot(0, 0, 0.5), page.ropeSpot(1, 0, 0.5)], 0);
+    const span = cinchPoints(measure(tied), tied, 2).span;
+    expect(span).toBeGreaterThan(20);
+    const moved = cinchBody(tied, 2, Math.round(span - 15));
+    expect(moved.ropes[2].l).toBe(Math.round(span - 15));
+    expect(moved.joints.l_shoulder).not.toEqual(tied.joints.l_shoulder);
+    const after = cinchPoints(measure(moved), moved, 2);
+    // The arm came in, so the cinch is short enough as tied: the wraps aren't pulled off the body.
+    near(after.span, Math.round(span - 15));
+    after.to.forEach((at, k) => expect(at.distanceTo(after.from[k])).toBeLessThan(1));
+    withinLimits(moved);
+    // Both ends on one part: nothing can bring them closer, so the cinch pulls the ropes as before.
+    const chest = { ...standing, ropes: [rope([["chest", -150, 0, 130], ["chest", 150, 0, 130]]), rope([["chest", -150, -80, 130], ["chest", 150, -80, 130]])] };
+    const cinched = page.addCinch(chest, { c: "blue", w: 1 }, [page.ropeSpot(0, 0, 0.5), page.ropeSpot(1, 0, 0.5)], 0);
+    const shorter = cinchBody(cinched, 2, 1);
+    expect(shorter.joints).toEqual(cinched.joints);
+    expect(shorter).toEqual(page.setCinchLength(cinched, 2, 1));
+  });
+
+  it("gives a two-point rope a Length: shorter moves the body, longer is slack", () => {
+    // Arms out to the sides, a rope from wrist to wrist across the front.
+    /** @type {Pose} */
+    const open = page.setJoint(page.setJoint({ ...page.newPose(), ring: [0, 250, 0] }, "l_shoulder", 1, 80), "r_shoulder", 1, 80);
+    const across = { ...open, ropes: [rope([["l_wrist", 0, -60, 0], ["r_wrist", 0, -60, 0]])] };
+    expect(page.hasLength(across.ropes[0])).toBe(true);
+    const length = ropeLength(measure(across), across, 0);
+    expect(length).toBeGreaterThan(60);
+    // Longer: slack, the body as it was, drawn sagging.
+    const slack = setRopeLength(across, 0, Math.round(length) + 20);
+    expect(slack.joints).toEqual(across.joints);
+    expect(slack.ropes[0].k).toBeCloseTo(20, -0.5);
+    const [run] = ropeRuns(measure(slack), slack, 0);
+    expect(run.length).toBe(11);
+    expect(Math.min(...run.map((v) => v.y))).toBeLessThan(Math.min(run[0].y, run[10].y) - 5);
+    // Shorter: the arms come in, no slack.
+    const shorter = setRopeLength(slack, 0, Math.round(length) - 30);
+    expect(shorter.ropes[0].k).toBeUndefined();
+    near(ropeLength(measure(shorter), shorter, 0), Math.round(length) - 30);
+    expect(shorter.joints.l_shoulder).not.toEqual(open.joints.l_shoulder);
+    withinLimits(shorter);
+    // To the ring from a wrist: the arm reaches up to it.
+    const up = { ...open, ropes: [rope([["l_wrist", 0, -60, 0], RING])] };
+    const toRing = ropeLength(measure(up), up, 0);
+    const reached = setRopeLength(up, 0, Math.round(toRing) - 20);
+    near(ropeLength(measure(reached), reached, 0), Math.round(toRing) - 20);
+    expect(reached.lift).toBe(up.lift);
+    // To the ring from the chest: the whole body rises to it, its joints as they were.
+    const chest = { ...open, ropes: [rope([["chest", 0, 0, 0], RING])] };
+    const fromChest = ropeLength(measure(chest), chest, 0);
+    const lifted = setRopeLength(chest, 0, Math.round(fromChest) - 20);
+    expect(lifted.lift).toBeGreaterThan(chest.lift);
+    expect(lifted.joints).toEqual(chest.joints);
+    near(ropeLength(measure(lifted), lifted, 0), Math.round(fromChest) - 20);
+    // From a spot on an upline to a wrist: the arm comes to the spot.
+    const twoUplines = { ...open, ropes: [rope([["chest", 0, 0, 0], RING]), rope([page.ropeSpot(0, 0, 0.5), ["l_wrist", 0, -60, 0]])] };
+    expect(page.hasLength(twoUplines.ropes[1])).toBe(true);
+    const toSpot = ropeLength(measure(twoUplines), twoUplines, 1);
+    const drawn = setRopeLength(twoUplines, 1, Math.round(toSpot) - 15);
+    near(ropeLength(measure(drawn), drawn, 1), Math.round(toSpot) - 15);
+    expect(drawn.joints.l_shoulder).not.toEqual(open.joints.l_shoulder);
+    // Longer ropes and cinches keep Slack and their own length.
+    expect(page.hasLength(rope([["chest", 0, 0, 0], RING, ["l_hip", 0, -200, 0]]))).toBe(false);
+    expect(page.hasLength(rope([page.ropeSpot(0, 0, 0.5), ["chest", 0, 0, 0]], { l: 10 }))).toBe(false);
+    expect(page.hasLength(rope([RING, page.ropeSpot(0, 0, 0.5)]))).toBe(false);
   });
 
   it("with a see-saw rope, takes the other end away as one end comes closer", () => {
