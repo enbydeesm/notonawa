@@ -78,6 +78,9 @@ describe("the rest", () => {
   it("newKinds: all three, or the one filtered to", () => {
     expect(newKinds("all")).toEqual(["tie", "plan", "workshop"]);
     expect(newKinds("workshop")).toEqual(["workshop"]);
+    // Linking to a workshop: ties and plans only.
+    expect(newKinds("all", ["tie", "plan"])).toEqual(["tie", "plan"]);
+    expect(newKinds("plan", ["tie", "plan"])).toEqual(["plan"]);
   });
 
   it("titleMatches needs every word", () => {

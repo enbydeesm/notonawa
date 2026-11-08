@@ -22,6 +22,7 @@ import { drawingSvg } from "./drawing-svg.js";
 import { editDrawing } from "./drawing-editor.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
 import { viewerParts } from "./visual-viewer.js";
+import { iconButton } from "./dialog-icons.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./drawing-format.js").Drawing} Drawing */
@@ -109,7 +110,7 @@ export function drawingKind(ctx) {
     const tell = (text, isError = false) => showMessage(message, text, isError);
     const picture = h("div", { className: "drawing-full" }, drawingSvg(entry.data.strokes));
     const parts = viewerParts({
-      id: `${idPrefix}-drawing`, noun: "Drawing", caption: entry.caption, placeholder: "e.g. The second wrap",
+      id: `${idPrefix}-drawing`, noun: "Drawing", caption: entry.caption,
       nav: ctx.nav(entry), tell,
       save: async (text) => {
         if (entry.id) {
@@ -121,20 +122,20 @@ export function drawingKind(ctx) {
         ctx.draw();
       },
     });
-    const duplicateButton = h("button", { type: "button", id: `${idPrefix}-drawing-duplicate`, onclick: duplicate }, "Duplicate");
+    const duplicateButton = iconButton("duplicate", { id: `${idPrefix}-drawing-duplicate`, label: "Duplicate", onclick: duplicate });
+    const editButton = iconButton("rename", { id: `${idPrefix}-drawing-edit`, label: "Edit drawing", onclick: edit });
+    editButton.classList.add("accent");
 
     const dialog = h("dialog", { className: "form-dialog photo-viewer", "aria-label": "Drawing" },
+      parts.head(() => dialog.close()),
       picture,
-      parts.position,
-      h("button", { type: "button", className: "outline-accent wide", id: `${idPrefix}-drawing-edit`, onclick: edit }, "Edit drawing"),
-      parts.captionRow,
-      parts.input,
-      parts.moveRow,
-      h("div", { className: "dialog-row" },
-        duplicateButton,
-        h("button", { type: "button", id: `${idPrefix}-drawing-copy`, onclick: copy }, "Copy to…")),
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"),
-      h("button", { type: "button", className: "danger dialog-delete", id: `${idPrefix}-drawing-delete`, onclick: remove }, "Delete drawing"),
+      parts.captionBox,
+      parts.toolbar({
+        edit: editButton,
+        duplicate: duplicateButton,
+        copy: iconButton("copy", { id: `${idPrefix}-drawing-copy`, label: "Copy to…", onclick: copy }),
+        remove: iconButton("delete", { id: `${idPrefix}-drawing-delete`, label: "Delete drawing", onclick: remove }),
+      }),
       message);
     parts.attach(dialog);
     dialog.addEventListener("close", () => dialog.remove());

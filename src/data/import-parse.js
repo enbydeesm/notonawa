@@ -21,6 +21,7 @@ export const MAX_WORKSHOPS = 500; // in one workshops request (the page sends 20
 const MAX_WORKSHOP_PEOPLE = 40; // as in the workshop form
 export const PROFILE_NOTE_TYPES = ["injury", "modification", "like", "dislike", "limit"];
 const MAX_LINKS = 20; // participants or plans on one tie, as in the tie form
+const MAX_LINKED = 2000; // ties or plans linked to one workshop
 const MAX_ID_LENGTH = 100;
 
 /**
@@ -64,9 +65,10 @@ const MAX_ID_LENGTH = 100;
  * @typedef {Times & {
  *   title: string, start_date: string, end_date: string | null,
  *   location_id: string | null, location_deleted: 0 | 1,
- *   attendee_count: number | null, rating: number | null,
- *   description: string | null, notes: string | null, album_url: string | null,
- *   people: ImportWorkshopPerson[], tags: string[],
+ *   attendee_count: number | null, rating: number | null, difficulty: number | null,
+ *   rating_content: number | null, rating_teaching: number | null, rating_value: number | null,
+ *   cost: string | null, description: string | null, notes: string | null, album_url: string | null,
+ *   people: ImportWorkshopPerson[], tags: string[], ties: string[], plans: string[],
  * }} WorkshopImport
  */
 
@@ -192,6 +194,11 @@ function parseWorkshop(w) {
     location_deleted: locationId === null ? toFlag(w.location_deleted) : /** @type {0} */ (0),
     attendee_count: toIntOrNull(w.attendee_count, 0, MAX_ATTENDEES),
     rating: toIntOrNull(w.rating, 1, 5),
+    difficulty: toIntOrNull(w.difficulty, 1, 5),
+    rating_content: toIntOrNull(w.rating_content, 1, 5),
+    rating_teaching: toIntOrNull(w.rating_teaching, 1, 5),
+    rating_value: toIntOrNull(w.rating_value, 1, 5),
+    cost: encryptedText(w.cost),
     description: encryptedText(w.description),
     notes: encryptedText(w.notes),
     album_url: encryptedText(w.album_url),
@@ -199,7 +206,22 @@ function parseWorkshop(w) {
     updated_at: toTimestampOrNull(w.updated_at),
     people,
     tags: parseTagNames(w.tags),
+    // The ties and plans linked to it: already my ids (the page swaps them).
+    ties: linkedIds(w.ties, "ties"),
+    plans: linkedIds(w.plans, "plans"),
   };
+}
+
+/**
+ * A workshop's linked ties or plans, by id.
+ * @param {unknown} value
+ * @param {string} what
+ * @returns {string[]}
+ */
+function linkedIds(value, what) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > MAX_LINKED) throw new BadInput(`Its ${what} should be a list of up to ${MAX_LINKED}.`);
+  return [...new Set(value.map((id) => /** @type {string} */ (parseId(id))))];
 }
 
 /**

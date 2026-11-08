@@ -18,6 +18,10 @@ import { barChart, partnerBars, pieChart, rankBars, roleKey, stat, TYPE_COLORS }
 import { tiesWord } from "../chart-parts.js";
 import { openTieList } from "../tie-list-dialog.js";
 import { mapPlaces } from "../map-geo.js";
+import { open } from "../vault.js";
+import { formatMoney } from "../currency.js";
+import { dateRangeText } from "../workshops-view.js";
+import { workshopsIn, followUps, workshopNumbers, practisedMost, workshopsByBar, workshopPlaces } from "../workshop-stats.js";
 import {
   summarize, topPartners, typeShares, weekdayShares, locationShares, percent, formatTotalTime, tieListHeading,
   roleChartTies, withSegments, SEGMENTS,
@@ -88,6 +92,21 @@ export function mount(_root, { signal }) {
   }, { rootMargin: "400px 0px" });
   nearMap.observe($("#map-card"));
   signal.addEventListener("abort", () => nearMap.disconnect());
+
+  // --- Workshops: all of mine, my plans (their links and ties) and the
+  // locations' coordinates, loaded once; each period picks its own. ---
+  /** @type {{ workshops: any[], plans: any[], locations: any[], selfId: string | null } | null} */
+  let learning = null;
+  // Workshops are extras here: if they can't load, the ties still show.
+  const loadLearning = () => Promise.all([
+    api("/api/workshops").then((rows) => open("workshop", rows)),
+    api("/api/plans?archived=all"),
+    api("/api/locations?archived=all"),
+    api("/api/people?archived=false"),
+  ]).then(([workshops, plans, locations, people]) => {
+    learning = { workshops, plans, locations, selfId: people.find((/** @type {any} */ p) => p.is_self)?.id ?? null };
+  }, () => { learning = null; });
+  let learningLoaded = loadLearning();
 
   // --- Insights ---
   /** @type {PeriodState} */
@@ -162,7 +181,7 @@ export function mount(_root, { signal }) {
     /** @type {StatsTie[]} */
     let ties;
     try {
-      ties = await fetchTies(requestBody(filters));
+      [ties] = await Promise.all([fetchTies(requestBody(filters)), learningLoaded]);
     } catch (err) {
       if (id === insightsRequest) message.textContent = "Couldn't load the numbers: " + errorMessage(err);
       return;
@@ -199,9 +218,15 @@ export function mount(_root, { signal }) {
     const shownParts = SEGMENTS.filter((key) => countBars.some((bar) => bar.segments.some((part) => part.key === key)));
     const noRoleTies = () => h("p", { className: "empty" },
       `No ties as ${roleName("top")}, ${roleName("bottom")} or self tie in this period.`);
+    const periodWorkshops = learning ? workshopsIn(learning.workshops, periodRange(period, today)) : [];
+    // A cap over each bar a workshop started in.
+    const marks = workshopsByBar(countBars, periodWorkshops).map((list, i) => (list.length
+      ? { label: `${countBars[i].title}: ${workshopsWord(list.length)}`, onPick: () => showWorkshops(countBars[i].title, list) }
+      : null));
     $("#tie-count-chart").replaceChildren(...(byRole.ties.length
-      ? [roleKey(shownParts), barChart(countBars, `Ties each ${per}`, (bar) => showTies(bar.title, bar.tieIds))]
+      ? [roleKey(shownParts), barChart(countBars, `Ties each ${per}`, (bar) => showTies(bar.title, bar.tieIds), marks)]
       : [ties.length ? noRoleTies() : empty()]));
+    drawWorkshops(periodWorkshops, ties);
     const partners = withSegments(topPartners(byRole.ties, TOP_PARTNERS), byRole.ties, byRole.segmentOf);
     $("#partner-chart").replaceChildren(...(partners.length
       ? [roleKey(shownParts), partnerBars(partners, pick)]
@@ -213,7 +238,82 @@ export function mount(_root, { signal }) {
       ? barChart(weekdayShares(ties).map((day) => ({ ...day, title: day.label })), "Ties by day of the week", pick) : empty());
     $("#location-chart").replaceChildren(ties.length ? rankBars(locationShares(ties, TOP_LOCATIONS), "Ties by location", pick) : empty());
     shownTies = ties;
+    shownWorkshops = periodWorkshops;
     drawMap(ties);
+  }
+
+  /** The period's workshops, for the map. @type {any[]} */
+  let shownWorkshops = [];
+
+  /**
+   * The Workshops card and Practised most: hidden until there are any
+   * workshops at all.
+   * @param {any[]} workshops the period's
+   * @param {StatsTie[]} ties the period's, as filtered
+   */
+  function drawWorkshops(workshops, ties) {
+    const any = !!learning?.workshops.length;
+    $("#workshops-card").hidden = !any;
+    $("#practised-card").hidden = !any;
+    if (!learning || !any) return;
+    const follow = followUps(learning.workshops, learning.plans);
+    const n = workshopNumbers(workshops, follow, ties, learning.selfId);
+    $("#workshop-stats").replaceChildren(
+      // Down the left column, then the right (.stat-pairs fills columns).
+      stat("Attended", String(n.attended)),
+      stat("Taught", String(n.taught)),
+      stat("Days", String(n.days)),
+      moneyStat("Spend", n.spend),
+      moneyStat("Earned", n.earned),
+      stat("Follow-up ties", String(n.followUps), `${n.followUpShare}%`));
+    const ranked = practisedMost(workshops, follow);
+    $("#practised-chart").replaceChildren(ranked.length
+      ? rankBars(ranked.map((w) => ({ key: w.id, label: w.title, count: w.tieIds.length, tieIds: w.tieIds })),
+        "Workshops by follow-up ties", (/** @type {any} */ slice) => showTies(slice.label, slice.tieIds))
+      : h("p", { className: "empty" }, workshops.length
+        ? "No follow-up ties yet: link a plan to a workshop, then tie it."
+        : "No workshops in this period."));
+  }
+
+  /**
+   * Money per currency, never converted: the most used as the number, the
+   * others in small type under it.
+   * @param {string} label
+   * @param {{ currency: string, minor: number }[]} totals
+   */
+  function moneyStat(label, totals) {
+    const [main, ...rest] = totals;
+    return stat(label, main ? formatMoney(main.minor, main.currency) : "–",
+      rest.length ? `+ ${rest.map((t) => formatMoney(t.minor, t.currency)).join(" · ")}` : undefined);
+  }
+
+  /** @param {number} count */
+  function workshopsWord(count) {
+    return `${count} workshop${count === 1 ? "" : "s"}`;
+  }
+
+  /**
+   * Lists some workshops; each opens in its form.
+   * @param {string} heading
+   * @param {any[]} workshops
+   */
+  function showWorkshops(heading, workshops) {
+    const dialog = h("dialog", { className: "form-dialog workshop-list-dialog", "aria-labelledby": "workshop-list-heading" },
+      h("h2", { id: "workshop-list-heading" }, `${heading}: ${workshopsWord(workshops.length)}`),
+      workshops.map((w) => h("button", {
+        type: "button", className: "linked-row", onclick: async () => {
+          dialog.close();
+          const { editWorkshop } = await import("../workshop-form.js");
+          if (await editWorkshop(w.id)) {
+            learningLoaded = loadLearning();
+            loadInsights();
+          }
+        },
+      }, h("span", { className: "item-title" }, w.title), h("span", { className: "item-meta" }, dateRangeText(w)))),
+      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"));
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
   }
 
   /**
@@ -240,8 +340,11 @@ export function mount(_root, { signal }) {
     }
     mapDrawn.abort();
     mapDrawn = new AbortController();
+    const byId = new Map((learning?.workshops ?? []).map((w) => [w.id, w]));
     chart.replaceChildren(mapModule.worldMap({
       places, signal: mapDrawn.signal, onPick: (pin) => showTies(pin.label, pin.tieIds),
+      workshops: learning ? workshopPlaces(shownWorkshops, learning.locations) : [],
+      onPickWorkshop: (place) => showWorkshops(place.label, place.workshopIds.map((id) => byId.get(id))),
     }));
   }
 

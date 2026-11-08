@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** October 28, 2026
+**Last updated:** November 8, 2026
 
 ## The short version
 
@@ -105,7 +105,8 @@ analytics, advertising or tracking tools of any kind.
 **Encrypted on your device, so only you can read them:** every notes field
 (on ties, people, locations, plans and workshops, including plan and
 workshop descriptions), the photo album links on ties, plans and
-workshops, where people are based and their
+workshops, what you paid for a workshop (or earned teaching one), with its
+currency, where people are based and their
 social and scene names, the About on your own profile and the About someone
 shared with you on theirs, your photos and videos, their thumbnails and
 captions, the captions of your drawings and poses, the names of the
@@ -118,6 +119,7 @@ you give your shares and connections.
 can list, sort and filter it: the details of your ties, plans, workshops,
 people and locations (such as names, pronouns, titles, dates, types,
 ratings, who took part, a workshop's educators and how many attended,
+which workshop a tie or plan is linked to,
 whether someone is an educator, and a location's city, state or province
 and country, and the date someone last shared their About with you),
 your tags, when things were created, changed or archived and how they link
@@ -220,6 +222,8 @@ allow on this site, protects you further.
   account, and only your device can decrypt them.
 - Each account can store up to 1 GB of photos and videos together, and up
   to 30 on each tie, plan or workshop, of which up to 5 can be videos.
+  Copying one to another tie, plan or workshop makes a new encrypted copy
+  of it there, which counts toward your 1 GB.
 - We never scan, analyse, tag or share your photos or videos, and no other
   company processes them.
 - **Only store photos and videos of people who have agreed to it.** You are

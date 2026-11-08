@@ -4,8 +4,8 @@ import { RESOURCES, parseFields, checkEdit, parseArchivedFilter } from "../../sr
 describe("parseFields", () => {
   it("parses every field, in order, with defaults", () => {
     expect(parseFields(RESOURCES.plans, { title: "Hip harness", est_difficulty: "3" })).toEqual({
-      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of", "plan_type", "tie_type", "album_url"],
-      values: ["Hip harness", "idea", null, null, 3, null, "idea", null, null],
+      columns: ["title", "stage", "description", "notes", "est_difficulty", "variation_of", "plan_type", "tie_type", "album_url", "workshop_id"],
+      values: ["Hip harness", "idea", null, null, 3, null, "idea", null, null, null],
     });
   });
 

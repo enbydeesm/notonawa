@@ -23,7 +23,7 @@ import { isSealed, CantOpen } from "./fields.js";
 /** @typedef {"thumb" | "full" | "caption"} MediaPart */
 
 /** The longest caption, in characters. */
-export const MAX_CAPTION = 200;
+export const MAX_CAPTION = 1000;
 
 const IV_BYTES = 12;
 const TAG_BYTES = 16;

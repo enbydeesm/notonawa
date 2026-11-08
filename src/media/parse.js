@@ -22,8 +22,12 @@ export const MAX_PER_ITEM = 30;
 export const MAX_VIDEOS_PER_ITEM = 5;
 /** All of an account's photos, videos and shares together. */
 export const MAX_ACCOUNT_BYTES = 1024 * 1024 * 1024;
-/** A sealed caption (a caption is up to 200 characters; sealing adds a third and more). */
-export const MAX_SEALED_CAPTION = 2000;
+/**
+ * A sealed caption: a caption is up to 1,000 characters (public/js/crypto/
+ * media.js's MAX_CAPTION), up to 3 bytes each, and sealing adds a third and
+ * a little more.
+ */
+export const MAX_SEALED_CAPTION = 5000;
 
 export const KINDS = /** @type {const} */ (["photo", "video"]);
 /** The types each kind is stored as (the browser re-encodes to these). */

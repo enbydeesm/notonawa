@@ -13,6 +13,7 @@ import { fitPeople } from "../tie-card.js";
 import { hankIcon } from "../rope-rating.js";
 import { open } from "../vault.js";
 import { formatDate } from "../format.js";
+import { formatMoney } from "../currency.js";
 import { openWorkshopForm, editWorkshop } from "../workshop-form.js";
 import { workshopCard } from "../workshop-card.js";
 import { WORKSHOP_SAVED } from "../nav.js";
@@ -222,11 +223,14 @@ export function mount(_root, { signal }) {
     /** @param {string} label @param {{ title: string, date: string } | null} item */
     const dated = (label, item) => (item ? h("p", { className: "item-meta" }, `${label}: ${item.title}, ${formatDate(item.date)}`) : null);
 
+    // Down the left column, then the right (.stat-pairs fills columns). A
+    // workshop's cost is what I earned on one I taught, spent on one I attended.
     const stats = taught
       ? [stat("Workshops", s.workshops), stat("Days", s.days), stat("Attendees", s.attendees), stat("Co-teachers", s.educators),
-        stat("Locations", s.locations), stat("Partners", s.partners), ratingStat(s.averageRating)]
-      : [stat("Workshops", s.workshops), stat("Days", s.days), stat("Educators", s.educators),
-        stat("Locations", s.locations), stat("Partners", s.partners), ratingStat(s.averageRating)];
+        stat("Locations", s.locations), stat("Partners", s.partners), ratingStat(s.averageRating), moneyStat("Earned", s.money)]
+      : [stat("Workshops", s.workshops), stat("Days", s.days), stat("Educators", s.educators), moneyStat("Total spend", s.money),
+        stat("Locations", s.locations), stat("Partners", s.partners), ratingStat(s.averageRating),
+        moneyStat("Avg per workshop", s.averageMoney ? [s.averageMoney] : [])];
     return h("section", { className: "card summary-card", id: `summary-${title.toLowerCase()}` },
       h("h2", {}, title),
       s.workshops === 0
@@ -238,6 +242,20 @@ export function mount(_root, { signal }) {
           dated("First", s.first),
           s.workshops > 1 ? dated("Latest", s.latest) : null,
         ]);
+  }
+
+  /**
+   * Money added up per currency, never converted: the most used one as the
+   * number, any others in small type under it ("+ €310 · £85").
+   * @param {string} label
+   * @param {{ currency: string, minor: number }[]} totals
+   */
+  function moneyStat(label, totals) {
+    const [main, ...rest] = totals;
+    return h("div", { className: "stat" },
+      h("dt", {}, label),
+      h("dd", {}, main ? formatMoney(main.minor, main.currency) : "–",
+        rest.length ? h("span", { className: "stat-extra" }, `+ ${rest.map((t) => formatMoney(t.minor, t.currency)).join(" · ")}`) : null));
   }
 
   /** @param {number | null} rating */

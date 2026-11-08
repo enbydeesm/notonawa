@@ -58,13 +58,15 @@ export function roleKey(keys) {
  * there are many bars). A bar with segments is stacked, first part at the
  * bottom; without, it's yellow.
  * Bars with ties are buttons (an invisible row over the chart, one per bar),
- * which call onPick.
+ * which call onPick. marks: a row over the bars, a cap over each bar with
+ * a workshop (Analytics), a button that calls its onPick.
  * @template {Bar} B
  * @param {B[]} bars
  * @param {string} description what the chart shows, e.g. "Ties each month"
  * @param {(bar: B) => void} onPick
+ * @param {({ label: string, onPick: () => void } | null)[]} [marks] one per bar
  */
-export function barChart(bars, description, onPick) {
+export function barChart(bars, description, onPick, marks) {
   const width = 340, height = 150, top = 14, bottom = 18;
   const plot = height - top - bottom;
   const gap = bars.length > 20 ? 1.5 : 4;
@@ -115,7 +117,18 @@ export function barChart(bars, description, onPick) {
         onclick: () => onPick(bar),
       })
       : h("span", { "aria-hidden": "true" })));
-  return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, chart, hits);
+  const markRow = marks?.some(Boolean)
+    ? h("div", { className: "bar-marks" }, marks.map((mark) => (mark
+      ? h("button", { type: "button", className: "bar-mark", "aria-label": mark.label, title: mark.label, onclick: mark.onPick }, capMark())
+      : h("span", { "aria-hidden": "true" }))))
+    : null;
+  return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, markRow, chart, hits);
+}
+
+/** The graduation cap (as Education's tab), small, for a bar's mark. */
+function capMark() {
+  return svg("svg", { viewBox: "0 0 24 24", class: "cap-mark", "aria-hidden": "true", focusable: "false" },
+    svg("path", { d: "M2 9l10-5 10 5-10 5z" }), svg("path", { d: "M6 11v5c3 2.2 9 2.2 12 0v-5" }));
 }
 
 /**

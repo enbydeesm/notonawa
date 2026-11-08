@@ -28,12 +28,15 @@ describe("exportDocument", () => {
     expect(doc.plans[0].photos.map((/** @type {any} */ p) => p.file)).toEqual(["photos/m3.webp"]);
   });
 
-  it("lists workshops with their educators, participants, tags and photos", () => {
+  it("lists workshops with their educators, participants, tags, linked ties and plans, and photos", () => {
     const doc = exportDocument({
       ...EMPTY,
+      ties: [{ id: "t1", title: "A", workshop_id: "w1" }, { id: "t2", title: "B", workshop_id: null }],
+      plans: [{ id: "pl1", title: "TK", workshop_id: "w1" }],
       workshops: [{
         id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: 1,
-        attendee_count: 9, rating: 4, description: "e1.d", notes: null, album_url: null,
+        attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c",
+        description: "e1.d", notes: null, album_url: null,
         created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
       }],
       workshopPeople: [
@@ -45,10 +48,11 @@ describe("exportDocument", () => {
     }, "2026-10-13T10:00:00Z");
     expect(doc.workshops).toEqual([{
       id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: true,
-      attendee_count: 9, rating: 4, description: "e1.d", notes: null, album_url: null,
+      attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c",
+      description: "e1.d", notes: null, album_url: null,
       created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
       educators: [{ person_id: "kit", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
-      tags: ["floor"],
+      tags: ["floor"], ties: ["t1"], plans: ["pl1"],
       photos: [{ id: "m1", kind: "photo", mime: "image/webp", file: "photos/m1.webp", caption: null, position: 0, created_at: "2026-03-01T00:00:00Z" }],
       drawings: [],
       poses: [],

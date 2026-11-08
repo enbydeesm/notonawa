@@ -54,13 +54,15 @@ const WORKSHOP_LINKS_KEY = `
   || ';' || COALESCE((SELECT group_concat(tag_id, ',' ORDER BY tag_id) FROM workshop_tags WHERE workshop_id = x.id), '')`;
 
 // My workshop x is the same as the file's j in everything but what's
-// encrypted (description, notes, album link: the page compares the first
-// two itself).
+// encrypted (description, notes, album link, cost: the page compares the
+// first two itself).
 const SAME_WORKSHOP = `
        x.owner_id = ?1 AND x.start_date = ${j("start_date")} AND x.title = ${j("title")}
    AND x.end_date IS ${j("end_date")} AND x.location_id IS ${j("location_id")}
    AND x.location_deleted = ${j("location_deleted")}
    AND x.attendee_count IS ${j("attendee_count")} AND x.rating IS ${j("rating")}
+   AND x.difficulty IS ${j("difficulty")} AND x.rating_content IS ${j("rating_content")}
+   AND x.rating_teaching IS ${j("rating_teaching")} AND x.rating_value IS ${j("rating_value")}
    AND (${WORKSHOP_LINKS_KEY}) = ${j("links")}`;
 
 const WORKSHOP_INSERTED = `EXISTS (SELECT 1 FROM workshops WHERE id = ${j("workshop_id")} AND owner_id = ?1)`;
@@ -131,9 +133,12 @@ const SQL = {
              WHERE ${TIE_INSERTED}`,
   candidates: `SELECT ${j("i")} AS i, x.id, x.notes FROM json_each(?2) j JOIN ties x ON ${SAME_BUT_NOTES}`,
   workshops: `INSERT INTO workshops (id, owner_id, title, start_date, end_date, location_id, location_deleted, attendee_count,
-                                     rating, description, notes, album_url, created_at, updated_at)
+                                     rating, difficulty, rating_content, rating_teaching, rating_value, cost,
+                                     description, notes, album_url, created_at, updated_at)
               SELECT ${j("id")}, ?1, ${j("title")}, ${j("start_date")}, ${j("end_date")}, ${j("location_id")},
-                     ${j("location_deleted")}, ${j("attendee_count")}, ${j("rating")}, ${j("description")}, ${j("notes")},
+                     ${j("location_deleted")}, ${j("attendee_count")}, ${j("rating")}, ${j("difficulty")},
+                     ${j("rating_content")}, ${j("rating_teaching")}, ${j("rating_value")}, ${j("cost")},
+                     ${j("description")}, ${j("notes")},
                      ${j("album_url")}, ${time("created_at")}, ${time("updated_at")}
                 FROM json_each(?2) j`,
   workshopPeople: `INSERT INTO workshop_people (id, workshop_id, person_id, kind, role)
@@ -143,6 +148,12 @@ const SQL = {
                  SELECT ${j("workshop_id")}, t.id FROM json_each(?2) j
                    JOIN tags t ON t.owner_id = ?1 AND t.name = ${j("name")}
                   WHERE ${WORKSHOP_INSERTED}`,
+  // My ties and plans named in the file, linked to the workshop just added.
+  // The owner trigger stops a link to anyone else's.
+  workshopTies: `UPDATE ties SET workshop_id = (SELECT ${j("workshop_id")} FROM json_each(?2) j WHERE ${j("id")} = ties.id)
+                  WHERE owner_id = ?1 AND id IN (SELECT ${j("id")} FROM json_each(?2) j WHERE ${WORKSHOP_INSERTED})`,
+  workshopPlans: `UPDATE plans SET workshop_id = (SELECT ${j("workshop_id")} FROM json_each(?2) j WHERE ${j("id")} = plans.id)
+                   WHERE owner_id = ?1 AND id IN (SELECT ${j("id")} FROM json_each(?2) j WHERE ${WORKSHOP_INSERTED})`,
   workshopCandidates: `SELECT ${j("i")} AS i, x.id, x.description, x.notes
                          FROM json_each(?2) j JOIN workshops x ON ${SAME_WORKSHOP}`,
 };
@@ -258,6 +269,8 @@ export async function insertWorkshops(db, ownerId, rows) {
     ...workshops,
     ...statements(db, SQL.workshopPeople, ownerId, rows.workshopPeople),
     ...statements(db, SQL.workshopTags, ownerId, rows.workshopTags),
+    ...statements(db, SQL.workshopTies, ownerId, rows.workshopTies ?? []),
+    ...statements(db, SQL.workshopPlans, ownerId, rows.workshopPlans ?? []),
   ]);
   return results.slice(tags.length, tags.length + workshops.length).reduce((sum, r) => sum + r.meta.changes, 0);
 }

@@ -11,6 +11,15 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
+Workshops, round two!
+- Education is now the third tab, between Plans and People.
+- Link ties and plans to a workshop: + under a workshop's new "Ties and plans" links one you have, or starts a new one already linked. A new tie from a workshop starts at its location, with its people, dated today while the workshop's on (or its start date otherwise). A tie's or plan's own form shows its workshop too.
+- A workshop's Participants are now People, as on ties. Attendees is now Size, on the dates row, and Location is open from the start.
+- Track what a workshop cost, in US, Canadian or Australian dollars, euros, pounds, yen and more: a new workshop starts on the currency you used last. On one you teach, it's what you earned. Only your device can read it.
+- Rate a workshop's difficulty, and under More ratings, its content, teaching and value.
+- Education's Summary adds up Total spend and Avg per workshop (and Earned, for the ones you taught), each currency on its own.
+- Analytics has a Workshops card (once you have any), a cap over each month you went to one, Practised most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds.
+- A visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.
 - Workshops have a new role, Audit, for educators and participants alike. It's only on workshops, not ties.
 - Picking a person in a tie or workshop no longer clears the role you'd already chosen when they have no default role. Someone with a default role still sets it.
 

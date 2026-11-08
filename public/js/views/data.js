@@ -272,6 +272,9 @@ export function mount(_root, { signal }) {
         if (posed && plan.id) poseTargets.push({ item: { plan_id: plan.id }, entries: posed, onlyIfEmpty: plan.matched });
       }
       const plainBatches = batches(plain.ties);
+      // The file's tie ids to mine, for the workshops' linked ties.
+      /** @type {Map<string, string>} */
+      const tieIds = new Map();
       for (const [n, batch] of batches(remapTies(sealed.ties, items)).entries()) {
         showMessage(importMessage, `Importing… ${(added + skipped).toLocaleString()} of ${ties(plain.ties.length)}`);
         // Duplicates are checked again for each batch, just before it's
@@ -285,13 +288,14 @@ export function mount(_root, { signal }) {
           const drawn = drawings.ties.get(n * TIE_BATCH + i);
           const posed = poses.ties.get(n * TIE_BATCH + i);
           const mine = result.ids[i] ?? matches.get(i);
+          if (mine) tieIds.set(String(sealed.ties[n * TIE_BATCH + i]?.id), mine);
           if (entries && mine) targets.push({ item: { tie_id: mine }, entries, onlyIfEmpty: !result.ids[i] });
           if (drawn && mine) drawingTargets.push({ item: { tie_id: mine }, entries: drawn, onlyIfEmpty: !result.ids[i] });
           if (posed && mine) poseTargets.push({ item: { tie_id: mine }, entries: posed, onlyIfEmpty: !result.ids[i] });
         });
       }
       const plainWorkshops = batches(plain.workshops);
-      for (const [n, batch] of batches(remapWorkshops(sealed.workshops, items)).entries()) {
+      for (const [n, batch] of batches(remapWorkshops(sealed.workshops, items, tieIds)).entries()) {
         showMessage(importMessage, `Importing workshops… ${(workshopsAdded + workshopsSkipped).toLocaleString()} of ${workshops(plain.workshops.length)}`);
         const { skip, matches } = await findWorkshopDuplicates(batch, plainWorkshops[n]);
         const result = await api("/api/data/import/workshops", { method: "POST", body: { workshops: batch, skip } });

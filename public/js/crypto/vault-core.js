@@ -309,6 +309,21 @@ export class VaultCore {
   }
 
   /**
+   * One of my photos or videos, fetched, opened and sealed again bound to a
+   * new id, as the object to upload: Copy to… another tie, plan or workshop
+   * (photos-ui.js). Each is bound to its own id, so a copy is a new file;
+   * what's opened never leaves the Worker. Throws CantOpen if it won't open.
+   * @param {{ mediaId: string, newId: string, kind: "photo" | "video" }} args
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async copyMedia({ mediaId, newId, kind }) {
+    const [dataKey, userId] = this.#unlocked();
+    const thumb = await this.openPhoto({ mediaId, part: "thumb", kind });
+    const full = await this.openPhoto({ mediaId, part: "full", kind });
+    return sealObject(dataKey, mediaBinding(userId, newId), { thumb, full, video: kind === "video" });
+  }
+
+  /**
    * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", part: "thumb" | "full" }} args
    * @returns {Promise<ArrayBuffer>}
    */

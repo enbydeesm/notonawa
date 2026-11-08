@@ -382,7 +382,7 @@ function itemCard(kind, item) {
     line(item.plans.length > 0 && `Plans: ${item.plans.join(", ")}`, "open-plans"),
     kind === "workshop"
       ? [line(educators.length > 0 && `Educators: ${names(educators)}`, "open-educators"),
-        line(attendees.length > 0 && `Participants: ${names(attendees)}`, "open-people")]
+        line(attendees.length > 0 && `People: ${names(attendees)}`, "open-people")]
       : line(item.people.length > 0 && `With: ${names(item.people)}`, "open-people"),
     item.description ? h("p", { className: "item-notes", id: "open-description" }, item.description) : null,
     item.notes ? h("p", { className: "item-notes", id: "open-notes" }, item.notes) : null,

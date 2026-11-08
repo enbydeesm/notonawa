@@ -57,6 +57,10 @@ export function exportDocument(rows, exportedAt) {
   const photosByTie = groupBy(rows.media.filter((m) => m.tie_id), "tie_id");
   const photosByPlan = groupBy(rows.media.filter((m) => m.plan_id), "plan_id");
   const peopleByWorkshop = groupBy(rows.workshopPeople, "workshop_id");
+  // The ties and plans linked to each workshop (migration 0030), listed on
+  // the workshop by id rather than on them, as workshops import last.
+  const tiesByWorkshop = groupBy(rows.ties.filter((t) => t.workshop_id), "workshop_id");
+  const plansByWorkshop = groupBy(rows.plans.filter((p) => p.workshop_id), "workshop_id");
   const tagsByWorkshop = groupBy(rows.workshopTags, "workshop_id");
   const photosByWorkshop = groupBy(rows.media.filter((m) => m.workshop_id), "workshop_id");
   const drawingsByTie = groupBy(rows.drawings.filter((d) => d.tie_id), "tie_id");
@@ -166,11 +170,14 @@ export function exportDocument(rows, exportedAt) {
       return {
         id: w.id, title: w.title, start_date: w.start_date, end_date: w.end_date,
         location_id: w.location_id, location_deleted: !!w.location_deleted,
-        attendee_count: w.attendee_count, rating: w.rating,
-        description: w.description, notes: w.notes, album_url: w.album_url,
+        attendee_count: w.attendee_count, rating: w.rating, difficulty: w.difficulty,
+        rating_content: w.rating_content, rating_teaching: w.rating_teaching, rating_value: w.rating_value,
+        cost: w.cost, description: w.description, notes: w.notes, album_url: w.album_url,
         created_at: w.created_at, updated_at: w.updated_at,
         educators: of("educator"), participants: of("participant"),
         tags: (tagsByWorkshop.get(w.id) ?? []).map((x) => x.name),
+        ties: (tiesByWorkshop.get(w.id) ?? []).map((t) => t.id),
+        plans: (plansByWorkshop.get(w.id) ?? []).map((p) => p.id),
         photos: (photosByWorkshop.get(w.id) ?? []).map(photoEntry),
         drawings: (drawingsByWorkshop.get(w.id) ?? []).map(drawingEntry),
         poses: (posesByWorkshop.get(w.id) ?? []).map(poseEntry),

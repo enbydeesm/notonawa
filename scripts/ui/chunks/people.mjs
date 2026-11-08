@@ -7,7 +7,7 @@ export default async function () {
   console.log("People");
   await go("/people");
   check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("aria-label") + (a.getAttribute("aria-current") ? "*" : ""));`),
-    ["Ties", "Plans", "People*", "Locations", "Calendar", "Analytics", "Education"]);
+    ["Ties", "Plans", "Education", "People*", "Locations", "Calendar", "Analytics"]);
   check("the tabs are icons, all on one row with + and ☰ at the right", await run(`
     const tabs = [...document.querySelectorAll("nav a.nav-tab")]; const add = $(".nav-add"), menu = $(".nav-menu");
     const top = (el) => { const r = el.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2 / 4); };

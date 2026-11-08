@@ -69,6 +69,9 @@ async function importFile(file, cookie, batchSize) {
   }
   let added = 0;
   let skipped = 0;
+  // The file's tie ids to mine, for the workshops' linked ties, as the page does.
+  /** @type {Map<string, string>} */
+  const tieIds = new Map();
   for (const [n, ties] of batches(remapTies(doc.ties, items.body), batchSize).entries()) {
     const preview = await call("/api/data/import/ties", { method: "POST", body: { preview: true, ties }, cookie });
     const skip = duplicatePositions(ties, preview.body.candidates);
@@ -76,13 +79,17 @@ async function importFile(file, cookie, batchSize) {
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     added += res.body.added;
     skipped += res.body.skipped;
+    const matched = new Map((preview.body.candidates ?? []).map((/** @type {any} */ c) => [c.i, c.id]));
     res.body.ids.forEach((/** @type {string | null} */ id, /** @type {number} */ i) => {
-      if (id) target({ tie_id: id }, (lists) => lists.ties.get(n * (batchSize ?? TIE_BATCH) + i));
+      const at = n * (batchSize ?? TIE_BATCH) + i;
+      const mine = id ?? matched.get(i);
+      if (mine) tieIds.set(String(doc.ties[at].id), mine);
+      if (id) target({ tie_id: id }, (lists) => lists.ties.get(at));
     });
   }
   let workshopsAdded = 0;
   let workshopsSkipped = 0;
-  for (const [n, workshops] of batches(remapWorkshops(doc.workshops, items.body), batchSize).entries()) {
+  for (const [n, workshops] of batches(remapWorkshops(doc.workshops, items.body, tieIds), batchSize).entries()) {
     const preview = await call("/api/data/import/workshops", { method: "POST", body: { preview: true, workshops }, cookie });
     expect(preview.status, JSON.stringify(preview.body)).toBe(200);
     const skip = [...duplicateMatches(workshops, preview.body.candidates, ["description", "notes"]).keys()];
@@ -119,6 +126,7 @@ async function exportOf(cookie) {
  */
 function comparable(doc) {
   const names = new Map([
+    ...doc.ties.map((/** @type {any} */ t) => [t.id, `tie:${t.title}`]),
     ...doc.people.map((/** @type {any} */ p) => [p.id, `person:${p.name}`]),
     ...doc.locations.map((/** @type {any} */ l) => [l.id, `location:${l.name}`]),
     ...doc.plans.map((/** @type {any} */ p) => [p.id, `plan:${p.title}`]),
@@ -149,6 +157,8 @@ function comparable(doc) {
       location_id: name(w.location_id),
       educators: byText(w.educators.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
       participants: byText(w.participants.map((/** @type {any} */ p) => ({ ...p, person_id: name(p.person_id) }))),
+      ties: w.ties.map(name).sort(),
+      plans: w.plans.map(name).sort(),
       drawings: drawings(w.drawings),
       poses: drawings(w.poses),
     }))),
@@ -188,6 +198,7 @@ async function fillJournal() {
   for (let i = 0; i < 5; i++) await create("/api/ties", { title: `Practice ${i}`, tie_type: "floor", tie_date: `2026-08-0${i + 1}` });
   const intensive = await create("/api/workshops", {
     title: "Intensive", start_date: "2026-04-01", end_date: "2026-04-03", location_id: studio, attendee_count: 14, rating: 5,
+    difficulty: 4, rating_content: 5, rating_teaching: 3, rating_value: 4, cost: sealed("EUR 250.00"),
     description: sealed("Uplines"), notes: sealed("Practise the TK"), album_url: sealed("https://photos.app.goo.gl/ws"),
     educators: [{ person_id: sam, role: "top" }, { person_id: gone, role: "audit" }],
     participants: [{ person_id: me, role: "top" }], tags: ["suspension", "floor"],
@@ -195,6 +206,9 @@ async function fillJournal() {
   await create("/api/workshops", {
     title: "Teaching floor", start_date: "2026-05-01", location_id: old, educators: [{ person_id: me, role: "top" }],
   });
+  // A tie at the intensive, and a plan learned there.
+  await call(`/api/workshops/${intensive}/links`, { method: "POST", body: { tie_id: floor } });
+  await call(`/api/workshops/${intensive}/links`, { method: "POST", body: { plan_id: tk2 } });
   // Drawings on a tie (two, in order), a plan and a workshop.
   const lines = (/** @type {string} */ c) => ({ v: 1, strokes: [{ c, w: 2, p: [10, 20, 30, 40] }, { c: "black", w: 3, p: [5, 5] }] });
   await create("/api/drawings", { tie_id: floor, data: lines("red"), caption: sealed("Front") });

@@ -1,11 +1,12 @@
 // Routes for workshops (the Education view).
 
 import { json, notFound, noContent, readJson } from "../http.js";
-import { parseWorkshopInput, parseWorkshopUpdate } from "./parse.js";
-import { listWorkshops, getWorkshop, insertWorkshop, updateWorkshop, deleteWorkshop } from "./db.js";
+import { parseWorkshopInput, parseWorkshopUpdate, parseLink } from "./parse.js";
+import { listWorkshops, getWorkshop, insertWorkshop, updateWorkshop, deleteWorkshop, setWorkshopLink } from "./db.js";
 import { deleteObjects } from "../media/storage.js";
 
 const ONE_PATH = /^\/api\/workshops\/([^/]+)$/;
+const LINKS_PATH = /^\/api\/workshops\/([^/]+)\/links$/;
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -18,6 +19,23 @@ const ONE_PATH = /^\/api\/workshops\/([^/]+)$/;
  * @returns {Promise<Response | null>}
  */
 export async function handleWorkshops(request, env, user, url) {
+  const links = url.pathname.match(LINKS_PATH);
+  if (links) {
+    const workshopId = links[1];
+    // POST /api/workshops/:id/links { tie_id } or { plan_id } -> link one of
+    //   my ties or plans to this workshop (moving it from any other)
+    if (request.method === "POST") {
+      const { kind, id } = parseLink(await readJson(request));
+      return (await setWorkshopLink(env.DB, user.id, { kind, id, workshopId })) ? json({ id }) : notFound();
+    }
+    // DELETE /api/workshops/:id/links?tie_id= or ?plan_id= -> unlink it
+    if (request.method === "DELETE") {
+      const { kind, id } = parseLink(Object.fromEntries(url.searchParams));
+      return (await setWorkshopLink(env.DB, user.id, { kind, id, workshopId: null, from: workshopId })) ? noContent() : notFound();
+    }
+    return null;
+  }
+
   const one = url.pathname.match(ONE_PATH);
   if (one) {
     const id = one[1];

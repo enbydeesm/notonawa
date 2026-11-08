@@ -96,7 +96,7 @@ describe("parseCaption", () => {
   });
   it("refuses plain text and over-long captions", () => {
     expect(() => parseCaption("Front view")).toThrow("caption");
-    expect(() => parseCaption(sealed("x".repeat(2000)))).toThrow("too long");
+    expect(() => parseCaption(sealed("x".repeat(5000)))).toThrow("too long");
   });
 });
 

@@ -46,12 +46,15 @@ export const RESOURCES = {
       // Optional, unlike a tie's (migration 0014).
       tie_type: { parse: (v) => toChoiceOrNull(v, TIE_TYPES) },
       album_url: { parse: encryptedText },
+      // The workshop it was learned at, if any (migration 0030).
+      workshop_id: { parse: cleanText },
     },
     // tags: a JSON list of names, A–Z. linked_ties: a JSON list of the ties
     // it's on, newest first, with what the Plans page shows of them (titles
     // and ratings aren't encrypted). listRows reads both.
     columns: `id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, variation_of, version,
-              archived_at, created_at, updated_at,
+              archived_at, created_at, updated_at, workshop_id,
+              (SELECT w.title FROM workshops w WHERE w.id = plans.workshop_id) AS workshop_title,
               (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count,
               (SELECT json_group_array(name) FROM (SELECT t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
                 WHERE pt.plan_id = plans.id ORDER BY t.name COLLATE NOCASE)) AS tags,

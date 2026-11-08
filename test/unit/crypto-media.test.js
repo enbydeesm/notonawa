@@ -125,6 +125,10 @@ describe("sealed captions", () => {
     // The longest caption, in characters that take 4 bytes each, still fits.
     const longest = await sealCaption(key, where, "🙂".repeat(MAX_CAPTION / 2));
     expect(parseCaption(longest)).toBe(longest);
+    // …and in ones that take 3 bytes for each of the caption's characters.
+    const widest = await sealCaption(key, where, "あ".repeat(MAX_CAPTION));
+    expect(parseCaption(widest)).toBe(widest);
+    expect(MAX_CAPTION).toBe(1000);
   });
 });
 
@@ -165,6 +169,25 @@ describe("the crypto Worker's photo operations", () => {
     const { vault, store } = await unlocked();
     store(OTHER_PHOTO, await vault.sealPhoto({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2]) }));
     await expect(vault.openPhoto({ mediaId: OTHER_PHOTO, part: "full" })).rejects.toThrow(CantOpen);
+  });
+
+  it("copy a photo or video: sealed again bound to the new id, opening the same, and not as the old one", async () => {
+    const { vault, store } = await unlocked();
+    store(PHOTO, await vault.sealPhoto({ mediaId: PHOTO, thumb: bytes([1]), full: bytes([2, 3]) }));
+    store(OTHER_PHOTO, await vault.copyMedia({ mediaId: PHOTO, newId: OTHER_PHOTO, kind: "photo" }));
+    expect([...new Uint8Array(await vault.openPhoto({ mediaId: OTHER_PHOTO, part: "thumb" }))]).toEqual([1]);
+    expect([...new Uint8Array(await vault.openPhoto({ mediaId: OTHER_PHOTO, part: "full" }))]).toEqual([2, 3]);
+
+    const VIDEO = "33333333-3333-4333-8333-333333333333";
+    const COPY = "44444444-4444-4444-8444-444444444444";
+    store(VIDEO, await vault.sealVideo({ mediaId: VIDEO, thumb: bytes([4]), full: bytes([5, 6, 7]) }));
+    const copy = await vault.copyMedia({ mediaId: VIDEO, newId: COPY, kind: "video" });
+    store(COPY, copy);
+    expect([...new Uint8Array(await vault.openPhoto({ mediaId: COPY, part: "full", kind: "video" }))]).toEqual([5, 6, 7]);
+    // Bound to its own id: the copy's file won't open as the original's.
+    store(VIDEO, copy);
+    await expect(vault.openPhoto({ mediaId: VIDEO, part: "full", kind: "video" })).rejects.toThrow(CantOpen);
+    await expect(new VaultCore().copyMedia({ mediaId: PHOTO, newId: COPY, kind: "photo" })).rejects.toThrow("locked");
   });
 
   it("open captions, marking ones that won't", async () => {

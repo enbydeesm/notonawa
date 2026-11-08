@@ -101,7 +101,7 @@ export default async function () {
     [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await calm(200);
     return [people, link];`);
   check("a workshop's Share lists its educators and participants", workshopLink[0],
-    "Educators and participants, with their roles: Sam (top), you (bottom)");
+    "Educators and people, with their roles: Sam (top), you (bottom)");
   await go("/data");
   check("Shared by me lists them by kind", await run(`
     for (let i = 0; i < 30 && document.querySelectorAll(".share-item").length < 3; i++) await wait(100);
@@ -191,7 +191,7 @@ export default async function () {
     const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self).id;
     return [shown, $("#open-done")?.textContent, w.title,
       w.educators.map((p) => [p.person_id === me ? "me" : p.person_name, p.role]), w.participants.map((p) => [p.person_name, p.role])];`),
-  [["Mar 1, 2026 – Mar 2, 2026", "Educators: Sam (top)", "Participants: Jude (bottom)",
+  [["Mar 1, 2026 – Mar 2, 2026", "Educators: Sam (top)", "People: Jude (bottom)",
     "Sam Top · educator", "Jude Bottom · participant · shared this"],
   "The workshop is in your journal.", "Floor intensive", [["me", "top"]], [["Jude", "bottom"]]]);
 }

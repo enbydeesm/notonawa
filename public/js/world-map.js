@@ -22,6 +22,7 @@ import {
  * @typedef {import("./map-geo.js").Place} Place
  * @typedef {import("./map-geo.js").Pin} Pin
  * @typedef {import("./map-geo.js").View} View
+ * @typedef {{ key: string, label: string, x: number, y: number, workshopIds: string[] }} WorkshopPlace
  */
 
 /** Pins nearer than this many pixels are grouped. */
@@ -66,6 +67,25 @@ function pinElement(pin, pick) {
 }
 
 /**
+ * A workshop's place: a teal diamond, so it reads apart from the ties' pins
+ * by its shape as well as its color. Not grouped: there are few.
+ * @param {WorkshopPlace} place
+ * @param {(place: WorkshopPlace) => void} pick
+ */
+function workshopElement(place, pick) {
+  const count = place.workshopIds.length;
+  const label = `${place.label}: ${count} workshop${count === 1 ? "" : "s"}`;
+  const el = svg("g", { class: "map-workshop", tabindex: 0, role: "button", "aria-label": label },
+    svg("title", {}, label),
+    svg("rect", { x: -6, y: -6, width: 12, height: 12, rx: 2, transform: "rotate(45)", class: "map-workshop-mark c-teal" }));
+  el.addEventListener("click", () => pick(place));
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(place); }
+  });
+  return el;
+}
+
+/**
  * @param {string} label
  * @param {string} id
  * @param {(Node | string)[]} content
@@ -76,19 +96,25 @@ function zoomButton(label, id, content, onclick) {
 }
 
 /**
- * The map, fitted to the places, with + and − and a button to fit them
- * again. Drag to move around. Stops watching its size when `signal` aborts.
- * @param {{ places: Place[], onPick: (pin: Pin) => void, signal: AbortSignal }} options
+ * The map, fitted to the places (the workshops' too), with + and − and a
+ * button to fit them again. Drag to move around. Stops watching its size
+ * when `signal` aborts.
+ * @param {{ places: Place[], onPick: (pin: Pin) => void, signal: AbortSignal,
+ *   workshops?: WorkshopPlace[], onPickWorkshop?: (place: WorkshopPlace) => void }} options
  */
-export function worldMap({ places, onPick, signal }) {
-  const start = fitView(places);
+export function worldMap({ places, onPick, signal, workshops = [], onPickWorkshop = () => {} }) {
+  const start = fitView([...places, ...workshops]);
   let view = start;
 
   const land = svg("svg", { class: "map-land", x: 0, y: 0, preserveAspectRatio: "none", "aria-hidden": "true" },
     svg("rect", { x: WORLD_VIEW.x, y: WORLD_VIEW.y, width: WORLD_VIEW.w, height: WORLD_VIEW.h, class: "map-sea" }),
     svg("path", { d: COUNTRIES, "fill-rule": "evenodd", class: "map-countries" }));
   const pinLayer = svg("g", { class: "map-pins" });
-  const map = svg("svg", { class: "map", focusable: "false" }, land, pinLayer);
+  // Under the ties' pins, which are what's mostly tapped.
+  const workshopLayer = svg("g", { class: "map-workshops" });
+  const workshopMarks = workshops.map((place) => ({ place, el: workshopElement(place, onPickWorkshop) }));
+  workshopLayer.replaceChildren(...workshopMarks.map((w) => w.el));
+  const map = svg("svg", { class: "map", focusable: "false" }, land, workshopLayer, pinLayer);
 
   const zoomIn = zoomButton("Zoom in", "map-zoom-in", ["+"], () => setView(zoomView(view, ZOOM_STEP)));
   const zoomOut = zoomButton("Zoom out", "map-zoom-out", ["−"], () => setView(zoomView(view, 1 / ZOOM_STEP)));
@@ -121,7 +147,7 @@ export function worldMap({ places, onPick, signal }) {
       pinLayer.replaceChildren(...pins.map((p) => p.el));
     }
     // Moving keeps the same pins (and which one has focus).
-    for (const { pin, el } of pins) {
+    for (const { pin, el } of [...pins, ...workshopMarks.map(({ place, el: mark }) => ({ pin: place, el: mark }))]) {
       el.setAttribute("transform", `translate(${((pin.x - view.x) * scale).toFixed(1)} ${((pin.y - view.y) * scale).toFixed(1)})`);
     }
     zoomIn.disabled = !canZoomIn(view);

@@ -20,6 +20,11 @@ export const MAX_ATTENDEES = 100_000;
  *   location_id: string | null,
  *   attendee_count: number | null,
  *   rating: number | null,
+ *   difficulty: number | null,
+ *   rating_content: number | null,
+ *   rating_teaching: number | null,
+ *   rating_value: number | null,
+ *   cost: string | null,
  *   description: string | null,
  *   notes: string | null,
  *   album_url: string | null,
@@ -30,7 +35,8 @@ export const MAX_ATTENDEES = 100_000;
 
 /**
  * Body: { title, start_date, end_date, location_id, attendee_count, rating,
- *         description, notes, album_url (the last three sealed),
+ *         difficulty, rating_content, rating_teaching, rating_value (1-5),
+ *         cost, description, notes, album_url (the last four sealed),
  *         educators: [{ person_id, role }], participants: [{ person_id, role }],
  *         tags: [name] }
  * A title and start date are required; the end date is for one lasting more
@@ -56,7 +62,13 @@ export function parseWorkshopInput(body) {
     location_id: cleanText(body.location_id),
     attendee_count: count(body.attendee_count),
     rating: toIntOrNull(body.rating, 1, 5),
-    // Encrypted in the browser.
+    difficulty: toIntOrNull(body.difficulty, 1, 5),
+    rating_content: toIntOrNull(body.rating_content, 1, 5),
+    rating_teaching: toIntOrNull(body.rating_teaching, 1, 5),
+    rating_value: toIntOrNull(body.rating_value, 1, 5),
+    // Encrypted in the browser. cost: the amount and its currency sealed
+    // together (public/js/currency.js).
+    cost: encryptedText(body.cost),
     description: encryptedText(body.description),
     notes: encryptedText(body.notes),
     album_url: encryptedText(body.album_url),
@@ -107,6 +119,18 @@ function peopleList(value, kind) {
     if (!personId || !role) throw new BadInput(`Each ${kind} needs a person and a role.`);
     return { person_id: personId, kind, role };
   });
+}
+
+/**
+ * Which tie or plan a link is for: { tie_id } or { plan_id }, one of them.
+ * @param {Record<string, unknown>} body
+ * @returns {{ kind: "tie" | "plan", id: string }}
+ */
+export function parseLink(body) {
+  const tie = cleanText(body.tie_id);
+  const plan = cleanText(body.plan_id);
+  if ((tie === null) === (plan === null)) throw new BadInput("Send a tie_id or a plan_id.");
+  return tie !== null ? { kind: "tie", id: tie } : { kind: "plan", id: /** @type {string} */ (plan) };
 }
 
 /**

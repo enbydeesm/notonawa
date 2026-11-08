@@ -190,7 +190,7 @@ describe("photos and videos", () => {
       { kind: "photo", file: F1.toUpperCase(), mime: "image/jpeg" },
     ]) expect(read([bad]), JSON.stringify(bad)).toEqual([]);
     expect(read([{ kind: "photo", file: F1, mime: "image/jpeg" }, { kind: "video", file: F1, mime: "video/mp4" }])).toHaveLength(1);
-    expect(read([{ kind: "photo", file: F1, mime: "image/jpeg", caption: "x".repeat(201) }])?.[0].caption).toBeNull();
+    expect(read([{ kind: "photo", file: F1, mime: "image/jpeg", caption: "x".repeat(1001) }])?.[0].caption).toBeNull();
     const id = (/** @type {number} */ i) => `${String(i).padStart(8, "0")}-3d4a-4b5c-8d6e-7f8091a2b3c4`;
     const videos = Array.from({ length: 7 }, (_, i) => ({ kind: "video", file: id(i), mime: "video/mp4" }));
     expect(read(videos)).toHaveLength(5);

@@ -25,11 +25,11 @@ import { HANK_PATH } from "./rope-rating.js";
 export const PAGES = /** @type {const} */ ([
   ["/", "Ties", hankShapeIcon],
   ["/plans", "Plans", planIcon],
+  ["/education", "Education", capIcon],
   ["/people", "People", personIcon],
   ["/locations", "Locations", pinIcon],
   ["/calendar", "Calendar", calendarIcon],
   ["/analytics", "Analytics", chartIcon],
-  ["/education", "Education", capIcon],
 ]);
 
 /**

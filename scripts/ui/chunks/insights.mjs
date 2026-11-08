@@ -26,7 +26,7 @@ export default async function () {
   await go("/calendar");
   check("Calendar and Analytics are the tabs after Locations, marked when shown", await run(`
     const links = [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("href"));
-    return [links.slice(3, 6), $("nav a[aria-current=page]").getAttribute("aria-label")];`),
+    return [links.slice(4, 7), $("nav a[aria-current=page]").getAttribute("aria-label")];`),
     [["/locations", "/calendar", "/analytics"], "Calendar"]);
   check("Calendar shows this month: its name, five numbers and every day", await run(`
     await calm(800); const days = document.querySelectorAll(".cal-day").length;
@@ -101,7 +101,7 @@ export default async function () {
     for (let i = 0; i < 100 && !document.querySelector(".world-map .map-pin"); i++) await wait(100);
     const pins = [...document.querySelectorAll(".map-pin")].map((p) => p.getAttribute("aria-label"));
     return [$(".map-note").textContent, pins, $("#map-count").hidden, $("#map-count").textContent, $("#map-zoom-in").disabled];`),
-    ["Ties show on the map when their location has coordinates.", ["2 locations: 2 ties", "Sydney studio: 1 tie"], false, "Showing 3 of 4 ties.", false]);
+    ["Ties (pins) and workshops (teal diamonds) show on the map when their location has coordinates.", ["2 locations: 2 ties", "Sydney studio: 1 tie"], false, "Showing 3 of 4 ties.", false]);
   check("tapping a pin lists its ties", await run(`
     document.querySelector(".map-pin.grouped").dispatchEvent(new MouseEvent("click", { bubbles: true })); await calm(1000);
     const shown = [$("#tl-heading").textContent, document.querySelectorAll("#tl-list .tie-card").length];
@@ -114,4 +114,42 @@ export default async function () {
     await calm(200); const apart = document.querySelectorAll(".map-pin").length;
     $("#map-fit").click(); await calm(200);
     return [Math.round(before / closer), apart, width() === before, document.querySelectorAll(".map-pin").length];`), [2, 3, true, 2]);
+
+  check("with no workshops, Analytics has no Workshops or Practised most card", await run(`
+    return [$("#workshops-card").hidden, $("#practised-card").hidden];`), [true, true]);
+
+  // A workshop today at Sydney studio, with a cost (sealed); a plan learned
+  // there, tied today (a follow-up); and a tie at the workshop itself.
+  await run(`
+    const d = new Date();
+    const today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const sydney = (await (await fetch("/api/locations?archived=false")).json()).find((l) => l.name === "Sydney studio").id;
+    const { sealOne } = await import("/js/vault.js");
+    const body = await sealOne("workshop", { title: "Rope intensive", start_date: today, location_id: sydney, cost: "USD 120.00" });
+    const workshop = await post("/api/workshops", body);
+    const plan = await post("/api/plans", { title: "Intensive harness", workshop_id: workshop });
+    await post("/api/ties", { tie_type: "floor", tie_date: today, plan_ids: [plan] });
+    await post("/api/ties", { tie_type: "floor", tie_date: today, workshop_id: workshop });`);
+  await go("/analytics");
+  check("the Workshops card: attended and taught, days, spend in its currency, earned, and the follow-up ties' share", await run(`
+    await calm(1500);
+    const pairs = [...document.querySelectorAll("#workshop-stats .stat")].map((s) => s.querySelector("dt").textContent + " " + s.querySelector("dd").textContent);
+    return [$("#workshops-card").hidden, pairs];`),
+    [false, ["Attended 1", "Taught 0", "Days 1", "Spend $120", "Earned –", "Follow-up ties 117%"]]);
+  check("Practised most ranks it by its follow-up ties, which a tap lists; Tie count has a cap over its month", await run(`
+    const rows = [...document.querySelectorAll("#practised-chart .rank-row")].map((r) => r.getAttribute("aria-label"));
+    $("#practised-chart .rank-row").click(); await calm(1000);
+    const listed = document.querySelectorAll("#tl-list .tie-card").length;
+    $("#tl-close").click(); await calm(200);
+    const marks = [...document.querySelectorAll("#tie-count-chart .bar-mark")].map((m) => m.getAttribute("aria-label").replace(/^.*: /, ""));
+    $("#tie-count-chart .bar-mark").click(); await calm(500);
+    const opened = [...document.querySelectorAll(".workshop-list-dialog .item-title")].map((t) => t.textContent);
+    $(".workshop-list-dialog .dialog-cancel").click(); await calm(200);
+    return [$("#practised-card").hidden, rows, listed, marks, opened];`),
+    [false, ["Rope intensive: 1 tie"], 1, ["1 workshop"], ["Rope intensive"]]);
+  check("the map shows the workshop as a teal diamond at Sydney studio", await run(`
+    $("#map-card").scrollIntoView();
+    for (let i = 0; i < 100 && !document.querySelector(".world-map .map-workshop"); i++) await wait(100);
+    return [...document.querySelectorAll(".map-workshop")].map((p) => p.getAttribute("aria-label"));`),
+    ["Sydney studio: 1 workshop"]);
 }

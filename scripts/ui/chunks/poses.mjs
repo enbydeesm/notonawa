@@ -478,13 +478,13 @@ export default async function () {
     const [p] = await ${tiePoses};
     return [$("#tie-visuals .visual-pose figcaption")?.textContent, /^e1\\./.test(p.caption), p.caption.includes("Lift"), leakyFields()];`),
   ["Lift", true, false, []]);
-  check("its details: Edit pose above the caption, the moves and Duplicate and Copy to… in rows, no Add as photo", await run(`
+  check("its details: the caption, then one row of icons: the moves, Edit pose (in the accent), Duplicate, Copy to… and Delete; no Add as photo", await run(`
     const d = ${topDialog};
-    const order = [...d.children].map((c) => c.id || c.className);
-    const edit = order.indexOf("tie-pose-edit"), caption = order.indexOf("tie-pose-caption");
-    return [edit > 0 && edit < caption, $("#tie-pose-edit").className, $("#tie-pose-duplicate").parentElement === $("#tie-pose-copy").parentElement,
-      $("#tie-pose-earlier").parentElement === $("#tie-pose-later").parentElement, !!$("#tie-pose-photo")];`),
-  [true, "outline-accent wide", true, true, false]);
+    const tools = [...d.querySelector(".viewer-tools").children].map((el) => el.id || el.className);
+    const order = [...d.children].map((c) => c.className);
+    return [order.indexOf("caption-wrap") < order.indexOf("viewer-tools"), tools, $("#tie-pose-edit").classList.contains("accent"), !!$("#tie-pose-photo")];`),
+  [true, ["tie-pose-earlier", "tie-pose-later", "tool-divider", "tie-pose-edit", "tie-pose-duplicate", "tie-pose-copy", "tool-gap", "tie-pose-delete"],
+    true, false]);
   check("Edit pose: the saved preset is in its Body… picker; a bamboo in place of the ring, then a hashira, its own sliders each; nothing kept on Cancel", await run(`
     $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);

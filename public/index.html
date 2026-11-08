@@ -382,9 +382,22 @@
         <dl class="stat-pairs" id="insights-stats"></dl>
       </section>
 
+      <!-- Hidden until there are workshops at all (views/analytics.js). -->
+      <section class="card" id="workshops-card" hidden>
+        <h2>Workshops</h2>
+        <dl class="stat-pairs" id="workshop-stats"></dl>
+        <p class="hint">Follow-up ties are on a plan linked to a workshop; ties at the workshop itself aren't counted. Workshops follow the time period only: the role and More filters are for ties.</p>
+      </section>
+
       <section class="card">
         <h2>Tie count</h2>
         <div id="tie-count-chart"></div>
+      </section>
+
+      <section class="card" id="practised-card" hidden>
+        <h2>Practised most</h2>
+        <p class="hint">The period's workshops, by their follow-up ties (of any date).</p>
+        <div id="practised-chart"></div>
       </section>
 
       <section class="card">
@@ -407,7 +420,7 @@
 
       <section class="card" id="map-card">
         <h2>Map</h2>
-        <p class="hint map-note">Ties show on the map when their location has coordinates.</p>
+        <p class="hint map-note">Ties (pins) and workshops (teal diamonds) show on the map when their location has coordinates.</p>
         <div id="map-chart"></div>
         <p class="item-meta map-count" id="map-count" hidden></p>
       </section>

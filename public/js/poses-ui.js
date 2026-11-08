@@ -22,6 +22,7 @@ import { MAX_POSES } from "./pose-format.js";
 import { jointsInRange } from "./figure-rig.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
 import { viewerParts } from "./visual-viewer.js";
+import { iconButton } from "./dialog-icons.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -202,7 +203,7 @@ export function poseKind(ctx) {
     const tell = (text, isError = false) => showMessage(message, text, isError);
     const image = h("img", { className: "pose-full", alt: "The pose", src: entry.url ?? "" });
     const parts = viewerParts({
-      id: `${idPrefix}-pose`, noun: "Pose", caption: entry.caption, placeholder: "e.g. Step 2: the hip line",
+      id: `${idPrefix}-pose`, noun: "Pose", caption: entry.caption,
       nav: ctx.nav(entry), tell,
       save: async (text) => {
         if (entry.id) {
@@ -214,20 +215,20 @@ export function poseKind(ctx) {
         ctx.draw();
       },
     });
-    const duplicateButton = h("button", { type: "button", id: `${idPrefix}-pose-duplicate`, onclick: duplicate }, "Duplicate");
+    const duplicateButton = iconButton("duplicate", { id: `${idPrefix}-pose-duplicate`, label: "Duplicate", onclick: duplicate });
+    const editButton = iconButton("rename", { id: `${idPrefix}-pose-edit`, label: "Edit pose", onclick: edit });
+    editButton.classList.add("accent");
 
     const dialog = h("dialog", { className: "form-dialog photo-viewer", "aria-label": "Pose" },
+      parts.head(() => dialog.close()),
       h("div", { className: "pose-full-frame" }, image),
-      parts.position,
-      h("button", { type: "button", className: "outline-accent wide", id: `${idPrefix}-pose-edit`, onclick: edit }, "Edit pose"),
-      parts.captionRow,
-      parts.input,
-      parts.moveRow,
-      h("div", { className: "dialog-row" },
-        duplicateButton,
-        h("button", { type: "button", id: `${idPrefix}-pose-copy`, onclick: copy }, "Copy to…")),
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"),
-      h("button", { type: "button", className: "danger dialog-delete", id: `${idPrefix}-pose-delete`, onclick: remove }, "Delete pose"),
+      parts.captionBox,
+      parts.toolbar({
+        edit: editButton,
+        duplicate: duplicateButton,
+        copy: iconButton("copy", { id: `${idPrefix}-pose-copy`, label: "Copy to…", onclick: copy }),
+        remove: iconButton("delete", { id: `${idPrefix}-pose-delete`, label: "Delete pose", onclick: remove }),
+      }),
       message);
     parts.attach(dialog);
     dialog.addEventListener("close", () => {

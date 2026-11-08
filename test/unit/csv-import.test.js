@@ -225,17 +225,20 @@ describe("import steps", () => {
     }]);
   });
 
-  it("swaps a workshop's ids too, educators and participants alike", () => {
+  it("swaps a workshop's ids too, educators and participants alike, and its linked ties and plans", () => {
     const items = {
       people: [{ file_id: "p", name: "Sam", id: "P", matched: true }],
       locations: [{ file_id: "l", name: "Studio", id: "L", matched: false }],
-      plans: [], new_tags: [],
+      plans: [{ file_id: "pl", name: "TK", id: "PL", matched: false }], new_tags: [],
     };
     expect(remapWorkshops([{
       title: "w", location_id: "l", educators: [{ person_id: "p", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
-    }], items)).toEqual([{
+      ties: ["t"], plans: ["pl"],
+    }], items, new Map([["t", "T"]]))).toEqual([{
       title: "w", location_id: "L", educators: [{ person_id: "P", role: "top" }], participants: [{ person_id: null, role: "bottom" }],
+      ties: ["T"], plans: ["PL"],
     }]);
+    expect(() => remapWorkshops([{ title: "w", ties: ["gone"] }], items)).toThrow('Workshop 1 ("w") links to a tie that isn\'t in the file.');
     const doc = readExport({ format: "notonawa-export", version: 1, workshops: [{ title: "Intro", educators: [{ person_id: "x", role: "top" }] }] });
     expect(() => checkLinks(doc)).toThrow('Workshop 1 ("Intro") links to a person that isn\'t in the file.');
   });

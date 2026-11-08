@@ -9,6 +9,8 @@
 
 import { normaliseKeyword } from "./search-match.js";
 import { formatDate } from "./format.js";
+import { ROLES } from "./ties-view.js";
+import { totalsByCurrency } from "./currency.js";
 
 /**
  * @typedef {{ id: string, person_id: string | null, person_name: string | null, role: string }} WorkshopPerson
@@ -91,6 +93,44 @@ export function isTaught(workshop, selfId) {
 }
 
 /**
+ * A new tie started from a workshop's "Ties and plans": linked to it, at its
+ * location (not one since deleted), with its people (not its educators,
+ * who teach; not people since deleted). A role ties don't have (audit) is
+ * left for the form: picking the person fills in their usual role. The
+ * date is today while the workshop is on, otherwise its start date.
+ * @param {{ id: string, title: string, start_date: string, end_date: string | null, location_id: string | null,
+ *   location_name?: string | null, participants: WorkshopPerson[] }} workshop
+ * @param {string} today YYYY-MM-DD
+ * @returns {{ workshop_id: string, workshop_title: string, tie_date: string, location_id: string | null,
+ *   location_name: string | null, people: { person_id: string, person_name: string, role: string | null }[] }}
+ */
+export function tieFromWorkshop(workshop, today) {
+  const end = workshop.end_date ?? workshop.start_date;
+  return {
+    workshop_id: workshop.id,
+    workshop_title: workshop.title,
+    tie_date: today >= workshop.start_date && today <= end ? today : workshop.start_date,
+    location_id: workshop.location_id ?? null,
+    location_name: workshop.location_id ? workshop.location_name ?? "" : null,
+    people: workshop.participants.flatMap((p) => (p.person_id === null ? [] : [{
+      person_id: p.person_id, person_name: p.person_name ?? "", role: ROLES.includes(p.role) ? p.role : null,
+    }])),
+  };
+}
+
+/**
+ * The cost field's label in the form: what I paid, or, once I'm one of the
+ * educators (a workshop I teach), what I earned. Only one amount is kept;
+ * which it is follows the educators, as isTaught does.
+ * @param {string[]} educatorIds the people chosen as educators so far
+ * @param {string | null} selfId
+ * @returns {"Cost" | "Earned"}
+ */
+export function amountLabel(educatorIds, selfId) {
+  return selfId !== null && educatorIds.includes(selfId) ? "Earned" : "Cost";
+}
+
+/**
  * The workshops I attended (I'm not one of the educators) and the ones I taught.
  * @template {Workshop} W
  * @param {W[]} workshops
@@ -149,11 +189,16 @@ export const TOP_COUNT = 3;
  *   topTags: Ranked[],
  *   first: Dated | null,
  *   latest: Dated | null,
+ *   money: { currency: string, minor: number, count: number }[],
+ *   averageMoney: { currency: string, minor: number } | null,
  * }} Summary
  *   educators: everyone who taught them, not counting me (for the ones I
  *   taught: my co-teachers); partners: participants, not counting me;
  *   attendees: the attendee counts added up; locations: the different
- *   locations (deleted ones not counted)
+ *   locations (deleted ones not counted); money: their costs (spent, on ones
+ *   I attended; earned, on ones I taught) added up per currency, never
+ *   converted, the most used first; averageMoney: in that currency, over
+ *   the ones with a cost in it
  */
 
 /**
@@ -207,7 +252,18 @@ export function summarise(workshops, selfId) {
     topTags: ranked([...tags.values()]),
     first: dated(byDate[0]),
     latest: dated(byDate[byDate.length - 1]),
+    ...moneyOf(workshops),
   };
+}
+
+/**
+ * Costs added up per currency, and the average in the most used.
+ * @param {Record<string, any>[]} workshops opened
+ */
+export function moneyOf(workshops) {
+  const money = totalsByCurrency(workshops.map((w) => w.cost));
+  const main = money[0];
+  return { money, averageMoney: main ? { currency: main.currency, minor: Math.round(main.minor / main.count) } : null };
 }
 
 /**

@@ -101,9 +101,11 @@ export async function getTie(db, ownerId, id) {
 const TIE_COLUMNS = `
   SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.album_url, t.created_at, t.updated_at,
          t.location_id, t.location_deleted, l.name AS location_name,
+         t.workshop_id, w.title AS workshop_title,
          (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count
     FROM ties t
-    LEFT JOIN locations l ON l.id = t.location_id`;
+    LEFT JOIN locations l ON l.id = t.location_id
+    LEFT JOIN workshops w ON w.id = t.workshop_id`;
 
 /**
  * The participants, plans and tags of the ties whose ids the subquery picks.
@@ -170,10 +172,11 @@ export async function insertTie(db, ownerId, tie) {
   const id = crypto.randomUUID();
   const statements = [
     db.prepare(
-      `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, duration_minutes, success_rating, notes, album_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(id, ownerId, tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.duration_minutes, tie.success_rating,
-      tie.notes, tie.album_url),
+      `INSERT INTO ties (id, owner_id, title, tie_date, tie_type, location_id, workshop_id, duration_minutes, success_rating,
+                         notes, album_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, ownerId, tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.workshop_id, tie.duration_minutes,
+      tie.success_rating, tie.notes, tie.album_url),
   ];
   for (const p of tie.participants) {
     statements.push(
@@ -224,9 +227,9 @@ export async function updateTie(db, ownerId, id, tie) {
     db.prepare(
       `UPDATE ties SET title = ?, tie_date = ?, tie_type = ?, location_id = ?,
               location_deleted = CASE WHEN ? IS NULL AND ? THEN location_deleted ELSE 0 END,
-              duration_minutes = ?, success_rating = ?, notes = ?, album_url = ?, updated_at = ${NOW}
+              workshop_id = ?, duration_minutes = ?, success_rating = ?, notes = ?, album_url = ?, updated_at = ${NOW}
         WHERE id = ? AND owner_id = ?`
-    ).bind(tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.location_id, keep.location ? 1 : 0,
+    ).bind(tie.title, tie.tie_date, tie.tie_type, tie.location_id, tie.location_id, keep.location ? 1 : 0, tie.workshop_id,
       tie.duration_minutes, tie.success_rating, tie.notes, tie.album_url, id, ownerId),
     db.prepare(
       `DELETE FROM tie_participants

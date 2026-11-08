@@ -302,6 +302,17 @@ export function adoptShareFile(args) {
 }
 
 /**
+ * One of my photos or videos sealed again bound to newId, as the object to
+ * upload: a copy of it (Copy to…). The Worker fetches and opens it. Throws
+ * CantOpen if it won't open.
+ * @param {{ mediaId: string, newId: string, kind: "photo" | "video" }} args
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function copyMedia(args) {
+  return call("copyMedia", args);
+}
+
+/**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock
  *   listeners (the page is showing something else, e.g. "Account deleted")

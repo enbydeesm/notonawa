@@ -122,7 +122,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `preview`; workshops are found duplicates as ties are, comparing their
   description and notes on the device). A person, location or plan sent
   with `match: false` is always added, never matched by name (adding a
-  shared tie, plan or workshop). Drawings are in the export as
+  shared tie, plan or workshop). A workshop lists its linked `ties` and
+  `plans` by id (workshops import last; the page swaps in the tie ids it
+  got back, `remapWorkshops`). Drawings are in the export as
   their lines (a zip with an SVG of each), and imported by the page
   through `POST /api/drawings`. See considerations.md,
   "Export, import and deletion as built".
@@ -280,14 +282,24 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ones most recently on a tie (by tie date), for the tie form's pickers.
 - `src/workshops/`: workshops, the Education view's (migration 0018).
   `parse.js` (pure: a title and start date required, an end date not
-  before it, `attendee_count`, educators and participants each with a
-  role, sent as two lists and stored as one, `workshop_people`, with a
-  `kind`; a person is on a workshop once), `db.js` (tags through
-  `tags/db.js`, as `"workshop"`), `routes.js` (`GET /api/workshops`: all
-  of mine at once, newest first, as the page searches them itself; `POST
+  before it, `attendee_count` (the form's Size), `rating`, and since
+  migration 0030 `difficulty`, `rating_content`, `rating_teaching`,
+  `rating_value` (1–5) and `cost` (sealed: the amount and its currency,
+  `public/js/currency.js`), educators and participants (the form's
+  People) each with a role, sent as two lists and stored as one,
+  `workshop_people`, with a `kind`; a person is on a workshop once;
+  `parseLink`), `db.js` (tags through `tags/db.js`, as `"workshop"`; each
+  workshop lists its `linked` plans and ties, plans first;
+  `setWorkshopLink`), `routes.js` (`GET /api/workshops`: all of mine at
+  once, newest first, as the page searches them itself; `POST
   /api/workshops`; `GET`/`PUT`/`DELETE /api/workshops/:id`, with
-  `keep_deleted` as on ties). Whether I taught one is whether my "this is
-  me" profile is one of its educators: nothing stores it.
+  `keep_deleted` as on ties; `POST /api/workshops/:id/links` with `{
+  tie_id }` or `{ plan_id }`, and `DELETE` with `?tie_id=` or
+  `?plan_id=`). Whether I taught one is whether my "this is me" profile is
+  one of its educators: nothing stores it, nor whether its cost is spend
+  or earnings (which follows it). A tie or plan has at most one workshop
+  (`ties.workshop_id`, `plans.workshop_id`, migration 0030; deleting the
+  workshop unlinks them), set from its own form or the workshop's.
 - `src/stats/`: the analytics' data (`parse.js`: pure, the filters and
   `ROLE_GROUPS`; `db.js`; `routes.js`: `POST /api/stats/ties`, the ties in a
   date range with only what the counting needs, filtered by my role and by
@@ -400,9 +412,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   tile outlined in its kind's chart color with a key beside the label;
   + opens "Add a visual from…"; each kind's own part is in `photos-ui.js`,
   `drawings-ui.js` and `poses-ui.js`), `visual-viewer.js` (what their
-  details dialogs share: the caption with Save caption beside its label,
-  ← Move earlier and Move later →, swiping to the next, not focusing the
-  caption), `visual-order.js` (pure: merging the kinds' lists into one
+  details dialogs share: where it is and ✕ on top; the caption, a box that
+  grows (up to `MAX_CAPTION`, 1,000 characters) with its label in the
+  placeholder and a ✓ to save it once changed; one row of icons, each
+  kind's in the same place (`toolbar`): move earlier, move later, edit,
+  duplicate, copy to… (a photo's or video's sealed again for a new id in
+  the crypto Worker, `copyMedia`), and delete at the far right; swiping
+  to the next; not focusing the caption), `visual-order.js` (pure: merging the kinds' lists into one
   order, reading a swipe), `visual-icons.js` (camera, play, pencil and
   high-kicking figure icons), `photos-ui.js` (photos and videos: adding them,
   and the viewer, which plays videos with speed buttons), `tile-drag.js`
@@ -518,8 +534,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: the Plans search, done on the device over the loaded plans and
   kept only in memory, and a plan's tie count and average rating),
   `nav.js` (the tabs, as icons with their
-  names in `aria-label` and `title`: Ties, Plans, People, Locations, Calendar,
-  Analytics, Education (`CAP_PATHS`, the cap, also on People's educators),
+  names in `aria-label` and `title`: Ties, Plans, Education (`CAP_PATHS`,
+  the cap, also on People's educators), People, Locations, Calendar,
+  Analytics,
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
@@ -532,12 +549,28 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ties, each opening in the tie form over it; resolves true when a list of
   plans should reload), `person-rows.js` (a form's
   person-and-role rows, with "(person deleted)" rows: the tie form's
-  People, a workshop's Educators and Participants), `workshop-form.js`
+  People, a workshop's Educators and People; a row added without a role,
+  from a workshop's audit, takes the person's usual one), `workshop-form.js`
   (the "Add a workshop" dialog; educators are only people marked
   Educator, the rest are the picker source's `elsewhere`, and one added
-  there is saved as an educator), `workshop-card.js`, `workshops-view.js`
-  (pure: the Education search, attended or taught, the Summary's
-  numbers), `tag-picker.js`
+  there is saved as an educator; Location open from the start, beside
+  Cost (Earned once I'm an educator), its currency starting on the last
+  one used; More ratings folded; "Ties and plans", whose + opens
+  `add-to-picker.js` with `what: "link"` (ties and plans only), linking
+  one or starting a new one linked to it, a tie through
+  `tieFromWorkshop`), `workshop-link.js` (a tie's or plan's Workshop row:
+  + shows a drop-down of my workshops; its name opens it, × unlinks it),
+  `currency.js` (pure: the currencies, USD first; a cost sealed as one
+  field, "USD 180.00"; totals per currency, never converted, the most
+  used first; `formatMoney`; `lastCurrency`), `workshop-card.js`,
+  `workshops-view.js` (pure: the Education search, attended or taught,
+  the Summary's numbers (`moneyOf`: Total spend, Avg per workshop,
+  Earned), `amountLabel`, `tieFromWorkshop`: a new tie from a workshop,
+  linked, at its location, with its People (not Educators), dated today
+  while it's on, else its start date), `workshop-stats.js` (pure:
+  Analytics' workshops, by the period only: the Workshops card, follow-up
+  ties (on a plan linked to a workshop, not the ties at it), Practised
+  most, the tie count's cap marks, the map's teal diamonds), `tag-picker.js`
   (its "Edit tags" dialog; the Ties and Plans searches' "Has Tags" open it
   with `forSearch`, for picking existing tags only, on ties or, with
   `noun: "plan"` or `"workshop"`, on plans or workshops) and `tags.js` (pure), `search-picker.js` (its
@@ -789,6 +822,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `profile_notes.description`, `locations.notes`, `plans.description`,
   `plans.notes`, `plans.album_url`, `workshops.description`,
   `workshops.notes`, `workshops.album_url` (migration 0018),
+  `workshops.cost` (migration 0030: the amount and currency together),
   `drawings.caption` (migration 0019; a drawing's lines aren't),
   `poses.caption` (migration 0020; a pose's numbers aren't),
   `pose_presets.name` (migration 0025; a preset's angles aren't),

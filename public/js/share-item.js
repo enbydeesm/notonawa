@@ -81,7 +81,7 @@ export const FIELDS = /** @type {Record<ItemKind, ShareField[]>} */ ({
     { key: "location", label: "Location" },
     { key: "attendee_count", label: "Attendees" },
     { key: "rating", label: "Rating" },
-    { key: "people", label: "Educators and participants, with their roles" },
+    { key: "people", label: "Educators and people, with their roles" },
     { key: "description", label: "Description" },
     { key: "notes", label: "Notes" },
     { key: "album_url", label: "Album link" },

@@ -73,6 +73,7 @@ const OPERATIONS = {
   reshareMedia: (args) => vault.reshareMedia(args),
   openShareThumb: (args) => vault.openShareThumb(args),
   adoptShareFile: (args) => vault.adoptShareFile(args),
+  copyMedia: (args) => vault.copyMedia(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied

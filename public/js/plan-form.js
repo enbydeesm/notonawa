@@ -25,6 +25,7 @@ import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
 import { editTie } from "./tie-card.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
+import { workshopLink } from "./workshop-link.js";
 
 /** @typedef {import("./plans-view.js").LinkedTie} LinkedTie */
 
@@ -38,21 +39,24 @@ let openDialog = null;
  * one of its linked ties was edited. Opening it again while it's open
  * returns the same promise.
  * @param {Record<string, any> | null} [plan]
- * @param {{ start?: import("./new-entry-start.js").EntryStart }} [options]
- *   start: a new plan made from the poser on its own, with its pose
+ * @param {{ start?: import("./new-entry-start.js").EntryStart, fromWorkshop?: { workshop_id: string, workshop_title: string, title?: string } }} [options]
+ *   start: a new plan made from the poser on its own, with its pose;
+ *   fromWorkshop: a new plan started from a workshop, linked to it
  * @returns {Promise<boolean>}
  */
-export function openPlanForm(plan = null, { start } = {}) {
-  openDialog ??= showPlanForm(plan, start ?? null).finally(() => { openDialog = null; });
+export function openPlanForm(plan = null, { start, fromWorkshop } = {}) {
+  openDialog ??= showPlanForm(plan, start ?? null, fromWorkshop ?? null).finally(() => { openDialog = null; });
   return openDialog;
 }
 
 /**
  * @param {Record<string, any> | null} plan
  * @param {import("./new-entry-start.js").EntryStart | null} start
+ * @param {{ workshop_id: string, workshop_title: string, title?: string } | null} fromWorkshop a new plan started
+ *   from a workshop's "Ties and plans", linked to it
  * @returns {Promise<boolean>}
  */
-function showPlanForm(plan, start) {
+function showPlanForm(plan, start, fromWorkshop) {
   return new Promise((resolve) => {
     let changed = false;
     // The plan's id once it's saved: a new plan whose visuals didn't all
@@ -64,6 +68,7 @@ function showPlanForm(plan, start) {
     const message = h("p", { className: "message", id: "plan-message" });
     /** @param {string} text @param {boolean} [isError] */
     const say = (text, isError = false) => showMessage(message, text, isError);
+    const workshop = workshopLink({ idPrefix: "plan", onError: (text) => say(text, true) });
 
     // Difficulty as rope hanks; its hidden input is the form's est_difficulty.
     const difficulty = ratingField({ name: "est_difficulty", labelledBy: "plan-est_difficulty-label" });
@@ -98,6 +103,7 @@ function showPlanForm(plan, start) {
         h("div", {},
           h("label", { htmlFor: "plan-variation_of" }, "Variation of"),
           variationSelect)),
+      workshop.element,
       h("label", { htmlFor: "plan-description" }, "Description"),
       privateField(h("textarea", { id: "plan-description", name: "description", placeholder: "The sequence, step by step" })),
       h("label", { htmlFor: "plan-notes" }, "Notes"),
@@ -236,6 +242,7 @@ function showPlanForm(plan, start) {
         if (el.name in p && el.name !== "variation_of") el.value = p[el.name] ?? "";
       }
       difficulty.set(p.est_difficulty ?? null);
+      workshop.set(p.workshop_id ?? null, p.workshop_title);
       showLinkedTies(p.linked_ties ?? []);
     }
 
@@ -341,6 +348,10 @@ function showPlanForm(plan, start) {
     }
 
     if (plan) fill(plan);
+    else if (fromWorkshop) {
+      workshop.set(fromWorkshop.workshop_id, fromWorkshop.workshop_title);
+      /** @type {HTMLInputElement} */ ($("#plan-title", form)).value = fromWorkshop.title ?? "";
+    }
     showTags();
     changes.reset();
     if (!plan && start) {

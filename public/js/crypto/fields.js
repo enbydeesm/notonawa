@@ -26,7 +26,7 @@ export const ENCRYPTED = /** @type {const} */ ({
   profileNote: { table: "profile_notes", fields: ["description"] },
   location: { table: "locations", fields: ["notes"] },
   plan: { table: "plans", fields: ["description", "notes", "album_url"] },
-  workshop: { table: "workshops", fields: ["description", "notes", "album_url"] },
+  workshop: { table: "workshops", fields: ["description", "notes", "album_url", "cost"] },
   drawing: { table: "drawings", fields: ["caption"] },
   pose: { table: "poses", fields: ["caption"] },
   // A saved poser preset's name (src/pose-presets/).

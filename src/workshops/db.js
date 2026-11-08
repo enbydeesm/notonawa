@@ -13,6 +13,7 @@ const ORDER = "ORDER BY w.start_date DESC, w.created_at DESC, w.id DESC";
 // A workshop's own fields, its location's name and how many photos it has, for `workshops w`.
 const WORKSHOP_COLUMNS = `
   SELECT w.id, w.title, w.start_date, w.end_date, w.attendee_count, w.rating,
+         w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
          w.description, w.notes, w.album_url, w.created_at, w.updated_at,
          w.location_id, w.location_deleted, l.name AS location_name,
          (SELECT COUNT(*) FROM media m WHERE m.workshop_id = w.id) AS photo_count
@@ -42,18 +43,33 @@ function linkStatements(db, workshopIds, params) {
         WHERE wt.workshop_id IN (${workshopIds})
         ORDER BY tg.name COLLATE NOCASE`
     ).bind(...params),
+    // The plans and ties linked to it (migration 0030): plans first, A-Z,
+    // then ties, oldest first. A tie's title can be empty: its date stands
+    // in for it on the page.
+    db.prepare(
+      `SELECT workshop_id, kind, id, title, date FROM (
+         SELECT p.workshop_id, 'plan' AS kind, p.id, p.title, NULL AS date, 0 AS k, p.title COLLATE NOCASE AS o
+           FROM plans p WHERE p.workshop_id IN (${workshopIds})
+         UNION ALL
+         SELECT t.workshop_id, 'tie', t.id, t.title, t.tie_date, 1, t.tie_date || t.created_at
+           FROM ties t WHERE t.workshop_id IN (${workshopIds}))
+        ORDER BY k, o`
+    ).bind(...params, ...params),
   ];
 }
 
 /**
- * Nests each workshop's educators, participants and tag names under it. Pure.
+ * Nests each workshop's educators, participants, tag names and linked plans
+ * and ties under it. Pure.
  * @param {Record<string, any>[]} workshops
  * @param {Record<string, any>[]} people rows with a workshop_id and kind
  * @param {Record<string, any>[]} tags rows with a workshop_id and name
+ * @param {Record<string, any>[]} [linked] rows with a workshop_id, kind, id, title and date
  */
-export function assembleWorkshops(workshops, people, tags) {
+export function assembleWorkshops(workshops, people, tags, linked = []) {
   const byId = new Map();
-  for (const w of workshops) byId.set(w.id, { ...w, educators: [], participants: [], tags: [] });
+  for (const w of workshops) byId.set(w.id, { ...w, educators: [], participants: [], tags: [], linked: [] });
+  for (const { workshop_id, ...item } of linked) byId.get(workshop_id)?.linked.push(item);
   for (const { workshop_id, kind, ...p } of people) {
     byId.get(workshop_id)?.[kind === "educator" ? "educators" : "participants"].push(p);
   }
@@ -72,11 +88,11 @@ export function assembleWorkshops(workshops, people, tags) {
 export async function listWorkshops(db, ownerId) {
   const params = [ownerId];
   /** @type {D1Result<Record<string, any>>[]} */
-  const [workshops, people, tags] = await db.batch([
+  const [workshops, people, tags, linked] = await db.batch([
     db.prepare(`${WORKSHOP_COLUMNS} WHERE w.owner_id = ? ${ORDER}`).bind(...params),
     ...linkStatements(db, "SELECT id FROM workshops WHERE owner_id = ?", params),
   ]);
-  return assembleWorkshops(workshops.results, people.results, tags.results);
+  return assembleWorkshops(workshops.results, people.results, tags.results, linked.results);
 }
 
 /**
@@ -88,11 +104,11 @@ export async function listWorkshops(db, ownerId) {
 export async function getWorkshop(db, ownerId, id) {
   const params = [id, ownerId];
   /** @type {D1Result<Record<string, any>>[]} */
-  const [workshops, people, tags] = await db.batch([
+  const [workshops, people, tags, linked] = await db.batch([
     db.prepare(`${WORKSHOP_COLUMNS} WHERE w.id = ? AND w.owner_id = ?`).bind(...params),
     ...linkStatements(db, "SELECT id FROM workshops WHERE id = ? AND owner_id = ?", params),
   ]);
-  return assembleWorkshops(workshops.results, people.results, tags.results)[0] ?? null;
+  return assembleWorkshops(workshops.results, people.results, tags.results, linked.results)[0] ?? null;
 }
 
 /**
@@ -121,9 +137,11 @@ export async function insertWorkshop(db, ownerId, w) {
   await db.batch([
     db.prepare(
       `INSERT INTO workshops (id, owner_id, title, start_date, end_date, location_id, attendee_count, rating,
+                              difficulty, rating_content, rating_teaching, rating_value, cost,
                               description, notes, album_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(id, ownerId, w.title, w.start_date, w.end_date, w.location_id, w.attendee_count, w.rating,
+      w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
       w.description, w.notes, w.album_url),
     ...peopleStatements(db, id, w.people),
     ...await tagStatements(db, ownerId, "workshop", id, w.tags),
@@ -153,10 +171,12 @@ export async function updateWorkshop(db, ownerId, id, w) {
     db.prepare(
       `UPDATE workshops SET title = ?, start_date = ?, end_date = ?, location_id = ?,
               location_deleted = CASE WHEN ? IS NULL AND ? THEN location_deleted ELSE 0 END,
-              attendee_count = ?, rating = ?, description = ?, notes = ?, album_url = ?, updated_at = ${NOW}
+              attendee_count = ?, rating = ?, difficulty = ?, rating_content = ?, rating_teaching = ?,
+              rating_value = ?, cost = ?, description = ?, notes = ?, album_url = ?, updated_at = ${NOW}
         WHERE id = ? AND owner_id = ?`
     ).bind(w.title, w.start_date, w.end_date, w.location_id, w.location_id, keep.location ? 1 : 0,
-      w.attendee_count, w.rating, w.description, w.notes, w.album_url, id, ownerId),
+      w.attendee_count, w.rating, w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
+      w.description, w.notes, w.album_url, id, ownerId),
     db.prepare(
       `DELETE FROM workshop_people
         WHERE ${myWorkshop}
@@ -167,6 +187,32 @@ export async function updateWorkshop(db, ownerId, id, w) {
     ...await tagStatements(db, ownerId, "workshop", id, w.tags),
   ]);
   return true;
+}
+
+/** The tables a workshop's links are on (migration 0030). */
+export const LINKED_KINDS = /** @type {const} */ ({ tie: "ties", plan: "plans" });
+
+/**
+ * Links one of my ties or plans to one of my workshops, or (workshopId
+ * null) unlinks it from the one given as from. A tie or plan has one
+ * workshop: linking it moves it from any other.
+ * @param {D1Database} db
+ * @param {string} ownerId
+ * @param {{ kind: "tie" | "plan", id: string, workshopId: string | null, from?: string }} link
+ * @returns {Promise<boolean>} false if I have no such workshop, tie or plan
+ *   (or, unlinking, it isn't on that workshop)
+ */
+export async function setWorkshopLink(db, ownerId, { kind, id, workshopId, from }) {
+  const table = LINKED_KINDS[kind];
+  const workshop = workshopId ?? from;
+  const mine = await db.prepare("SELECT 1 FROM workshops WHERE id = ? AND owner_id = ?").bind(workshop, ownerId).first();
+  if (!mine) return false;
+  const result = workshopId
+    ? await db.prepare(`UPDATE ${table} SET workshop_id = ?, updated_at = ${NOW} WHERE id = ? AND owner_id = ?`)
+      .bind(workshopId, id, ownerId).run()
+    : await db.prepare(`UPDATE ${table} SET workshop_id = NULL, updated_at = ${NOW} WHERE id = ? AND owner_id = ? AND workshop_id = ?`)
+      .bind(id, ownerId, from).run();
+  return result.meta.changes > 0;
 }
 
 /**

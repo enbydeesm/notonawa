@@ -20,10 +20,12 @@ import { choose } from "./dialog.js";
 import { preparePhoto } from "./photo-prep.js";
 import { ACCEPT } from "./photo-fit.js";
 import { VIDEO_ACCEPT, isVideo } from "./video-fit.js";
-import { openPhoto, sealCaption, openMedia, CantOpen } from "./vault.js";
-import { uploadPhoto } from "./photo-upload.js";
+import { openPhoto, sealCaption, openMedia, copyMedia, CantOpen } from "./vault.js";
+import { uploadPhoto, uploadSealed } from "./photo-upload.js";
 import { photoUrl, revoke } from "./photo-urls.js";
 import { viewerParts } from "./visual-viewer.js";
+import { iconButton } from "./dialog-icons.js";
+import { chooseCopyTarget } from "./drawing-copy.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./photo-prep.js").PreparedPhoto} PreparedPhoto */
@@ -238,7 +240,7 @@ export function photoKind(ctx) {
       for (const [i, button] of speedButtons.entries()) button.setAttribute("aria-pressed", String(SPEEDS[i] === speed));
     }
     const parts = viewerParts({
-      id: `${idPrefix}-photo`, noun: noun(photo), caption: photo.caption, placeholder: "e.g. Front, or the second wrap",
+      id: `${idPrefix}-photo`, noun: noun(photo), caption: photo.caption,
       nav: ctx.nav(photo), tell,
       save: async (text) => {
         if (!photo.prepared) {
@@ -253,14 +255,15 @@ export function photoKind(ctx) {
     let fullUrl = null;
 
     const dialog = h("dialog", { className: "form-dialog photo-viewer", "aria-label": noun(photo) },
+      parts.head(() => dialog.close()),
       image,
       speeds,
-      parts.position,
-      parts.captionRow,
-      parts.input,
-      parts.moveRow,
-      h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Close"),
-      h("button", { type: "button", className: "danger dialog-delete", id: `${idPrefix}-photo-delete`, onclick: remove }, `Delete ${photo.kind}`),
+      parts.captionBox,
+      // No edit or duplicate: Copy to… keeps the place it has on the others.
+      parts.toolbar({
+        copy: iconButton("copy", { id: `${idPrefix}-photo-copy`, label: "Copy to…", onclick: copy }),
+        remove: iconButton("delete", { id: `${idPrefix}-photo-delete`, label: `Delete ${photo.kind}`, onclick: remove }),
+      }),
       message);
     parts.attach(dialog);
     dialog.addEventListener("close", () => {
@@ -290,6 +293,28 @@ export function photoKind(ctx) {
       } catch (err) {
         tell(err instanceof CantOpen
           ? `This ${photo.kind} can't be decrypted.` : `Couldn't load the ${photo.kind}: ` + errorMessage(err), true);
+      }
+    }
+
+    // A copy is a new file (each is sealed bound to its own id), counted in
+    // the 1 GB like any other: one already saved is opened and sealed again
+    // in the crypto Worker; one waiting for this form's save, sealed afresh.
+    async function copy() {
+      const target = await chooseCopyTarget({ exclude: ctx.item(), noun: photo.kind });
+      if (!target) return;
+      try {
+        tell("Copying…");
+        const id = crypto.randomUUID();
+        if (photo.prepared) {
+          const { thumb, full } = photo.prepared;
+          await uploadPhoto({ item: target.item, id, caption: photo.caption, prepared: { ...photo.prepared, thumb: thumb.slice(0), full: full.slice(0) } });
+        } else {
+          const sealed = await copyMedia({ mediaId: photo.id, newId: id, kind: photo.kind });
+          await uploadSealed({ item: target.item, id, kind: photo.kind, mime: photo.mime, caption: photo.caption, ...sealed });
+        }
+        tell(`Copied to "${target.title}".`);
+      } catch (err) {
+        tell(err instanceof CantOpen ? `This ${photo.kind} can't be decrypted, so it can't be copied.` : "Couldn't copy it: " + errorMessage(err), true);
       }
     }
 

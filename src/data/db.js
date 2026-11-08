@@ -27,13 +27,13 @@ export async function readAccount(db, userId) {
     q(`SELECT id, name, notes, maps_url, city, state_province, country, latitude, longitude, is_default, archived_at, created_at, updated_at
          FROM locations WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT id, title, stage, plan_type, tie_type, description, notes, album_url, est_difficulty, variation_of, version,
-              archived_at, created_at, updated_at
+              archived_at, created_at, updated_at, workshop_id
          FROM plans WHERE owner_id = ? ORDER BY created_at, id`),
     q(`SELECT pt.plan_id, t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
         WHERE t.owner_id = ? ORDER BY t.name COLLATE NOCASE`),
     q("SELECT name FROM tags WHERE owner_id = ? ORDER BY name COLLATE NOCASE"),
     q(`SELECT id, title, tie_date, tie_type, duration_minutes, success_rating, notes, album_url, location_id, location_deleted,
-              created_at, updated_at
+              created_at, updated_at, workshop_id
          FROM ties WHERE owner_id = ? ORDER BY tie_date, created_at, id`),
     q(`SELECT tp.tie_id, tp.person_id, tp.role, tp.difficulty_rating, tp.experience_rating, tp.notes
          FROM tie_participants tp JOIN ties t ON t.id = tp.tie_id
@@ -44,6 +44,7 @@ export async function readAccount(db, userId) {
     q(`SELECT tt.tie_id, tg.name FROM tie_tags tt JOIN tags tg ON tg.id = tt.tag_id
         WHERE tg.owner_id = ? ORDER BY tg.name COLLATE NOCASE`),
     q(`SELECT id, title, start_date, end_date, location_id, location_deleted, attendee_count, rating,
+              difficulty, rating_content, rating_teaching, rating_value, cost,
               description, notes, album_url, created_at, updated_at
          FROM workshops WHERE owner_id = ? ORDER BY start_date, created_at, id`),
     q(`SELECT wp.workshop_id, wp.person_id, wp.kind, wp.role

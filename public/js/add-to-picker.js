@@ -57,15 +57,22 @@ export function kindIcon(kind) {
 }
 
 /**
- * Asks where to add the pose.
- * @param {{ what: "pose" | "picture" }} options what: the pose itself (Save
- *   pose), or a picture of it as a photo (Add to visuals)
+ * Asks where to add the pose, or (what "link", from a workshop's "Ties and
+ * plans") which tie or plan to link to a workshop.
+ * @param {{ what: "pose" | "picture" | "link", linked?: Set<string> }} options
+ *   what: the pose itself (Save pose), a picture of it as a photo (Add to
+ *   visuals), or a link; linked: the ids already linked, marked so
  * @returns {Promise<AddChoice | null>} null if cancelled
  */
-export function chooseAddTarget({ what }) {
+export function chooseAddTarget({ what, linked = new Set() }) {
+  const linking = what === "link";
+  /** The kinds shown: a workshop links ties and plans only. @type {TargetKind[]} */
+  const kinds = TARGET_KINDS.map(([k]) => k).filter((k) => !linking || k !== "workshop");
+  // The poser's last choice and chip are its own: linking starts afresh.
+  const last = linking ? null : lastTarget;
   return new Promise((resolve) => {
     /** @type {Filter} */
-    let filter = lastFilter;
+    let filter = linking ? "all" : lastFilter;
     /** @type {AddChoice | null} */
     let result = null;
     /** Ties for the search typed (the newest without one). @type {Target[]} */
@@ -86,7 +93,9 @@ export function chooseAddTarget({ what }) {
     const newLabel = h("p", { className: "add-to-label", id: "add-to-new-label" });
     const newList = h("div", { className: "add-to-new", id: "add-to-new", role: "group", "aria-labelledby": "add-to-new-label" });
     const search = privateField(h("input", {
-      id: "add-to-search", type: "search", placeholder: "Search ties, plans, workshops", "aria-label": "Search ties, plans and workshops",
+      id: "add-to-search", type: "search",
+      placeholder: linking ? "Search ties and plans" : "Search ties, plans, workshops",
+      "aria-label": linking ? "Search ties and plans" : "Search ties, plans and workshops",
       oninput: () => {
         clearTimeout(typing);
         draw();
@@ -94,12 +103,13 @@ export function chooseAddTarget({ what }) {
       },
     }));
     /** @type {[Filter, string][]} */
-    const chips = [["all", "All"], ...TARGET_KINDS.map(([kind, , plural]) => /** @type {[Filter, string]} */ ([kind, plural]))];
+    const chips = [["all", "All"], ...TARGET_KINDS.filter(([kind]) => kinds.includes(kind))
+      .map(([kind, , plural]) => /** @type {[Filter, string]} */ ([kind, plural]))];
     const chipButtons = chips.map(([value, label]) => h("button", {
       type: "button", className: "tool", id: `add-to-filter-${value}`, "aria-pressed": String(value === filter),
       onclick: () => {
         filter = value;
-        lastFilter = value;
+        if (!linking) lastFilter = value;
         for (const [i, b] of chipButtons.entries()) b.setAttribute("aria-pressed", String(chips[i][0] === value));
         draw();
       },
@@ -107,12 +117,14 @@ export function chooseAddTarget({ what }) {
 
     const dialog = h("dialog", { className: "form-dialog add-to-sheet", "aria-labelledby": "add-to-heading" },
       h("div", { className: "add-to-head" },
-        h("span", { className: "pose-icon add-to-icon", "aria-hidden": "true" }),
-        h("h2", { id: "add-to-heading" }, "Add pose to…"),
+        linking ? null : h("span", { className: "pose-icon add-to-icon", "aria-hidden": "true" }),
+        h("h2", { id: "add-to-heading" }, linking ? "Add to this workshop…" : "Add pose to…"),
         iconButton("close", { id: "add-to-close", label: "Close", onclick: () => dialog.close() })),
-      h("p", { className: "hint" }, what === "pose"
-        ? "The pose goes in its visuals, to open in the poser again later."
-        : "A picture of the pose, as you see it now, goes in its visuals as a photo."),
+      h("p", { className: "hint" }, linking
+        ? "Link a tie or a plan to this workshop, or start a new one linked to it."
+        : what === "pose"
+          ? "The pose goes in its visuals, to open in the poser again later."
+          : "A picture of the pose, as you see it now, goes in its visuals as a photo."),
       search,
       h("div", { className: "tool-group add-to-filters", role: "group", "aria-label": "Show" }, chipButtons),
       // The list scrolls; the new ones' bar stays at the bottom over it.
@@ -136,7 +148,6 @@ export function chooseAddTarget({ what }) {
     /** Everything loaded, with the one chosen last added if it isn't (an older tie). */
     function targets() {
       const all = [...ties, ...others];
-      const last = lastTarget;
       if (last && !search.value.trim() && !all.some((t) => t.kind === last.kind && t.id === last.id)) all.push(last);
       return all;
     }
@@ -144,7 +155,7 @@ export function chooseAddTarget({ what }) {
     function draw() {
       const q = search.value.trim();
       const all = targets();
-      const shown = loaded ? listChoices({ targets: all, query: q, filter, last: lastTarget }, matched ?? undefined) : [];
+      const shown = loaded ? listChoices({ targets: all, query: q, filter, last }, matched ?? undefined) : [];
       listLabel.textContent = q ? "Matches" : "Recent";
       listLabel.hidden = !loaded || shown.length === 0;
       list.replaceChildren(...shown.map((t) => h("button", {
@@ -154,7 +165,7 @@ export function chooseAddTarget({ what }) {
       kindIcon(t.kind),
       h("span", { className: "item-title" }, t.title),
       t.meta ? h("span", { className: "item-meta" }, t.meta) : null,
-      h("span", { className: "badge" }, kindName(t.kind)))));
+      linked.has(t.id) ? h("span", { className: "badge linked" }, "Linked") : h("span", { className: "badge" }, kindName(t.kind)))));
       if (loaded) {
         showMessage(message, shown.length ? "" : q ? "Nothing matches." : filter === "all" ? "Nothing yet: make one below." : `No ${filter}s yet.`);
       }
@@ -163,8 +174,8 @@ export function chooseAddTarget({ what }) {
       const named = loaded && offerNew(all, q, filter);
       newLabel.textContent = named ? `Create “${q}” as a new…` : "Create new";
       newList.classList.toggle("named", named);
-      newList.classList.toggle("all-kinds", !named && newKinds(filter).length === TARGET_KINDS.length);
-      newList.replaceChildren(...newKinds(filter).map((kind) => h("button", {
+      newList.classList.toggle("all-kinds", !named && newKinds(filter, kinds).length === TARGET_KINDS.length);
+      newList.replaceChildren(...newKinds(filter, kinds).map((kind) => h("button", {
         type: "button", className: "add-to-make", id: `add-to-new-${kind}`,
         "aria-label": named ? `New ${kindName(kind).toLowerCase()} called ${q}` : `New ${kindName(kind).toLowerCase()}`,
         onclick: () => pick({ create: kind, title: named ? q : "" }),
@@ -189,7 +200,9 @@ export function chooseAddTarget({ what }) {
       showMessage(message, "Loading…");
       try {
         const mine = ++searchCount;
-        const [found, plans, workshops] = await Promise.all([loadTies(search.value), loadPlans(), loadWorkshops()]);
+        const [found, plans, workshops] = await Promise.all([
+          loadTies(search.value), loadPlans(), linking ? Promise.resolve([]) : loadWorkshops(),
+        ]);
         others = [...plans, ...workshops];
         if (mine === searchCount) {
           ties = found.targets;

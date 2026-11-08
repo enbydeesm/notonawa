@@ -162,7 +162,7 @@ export function planWorkshops(workshops, existingTags, newId) {
     rows: {
       tags: tags.rows,
       workshops: workshops.map((w, i) => {
-        const { people: _people, tags: wTags, ...fields } = w;
+        const { people: _people, tags: wTags, ties: _ties, plans: _plans, ...fields } = w;
         return {
           ...fields, id: ids[i],
           links: workshopLinksKey(w.people, wTags.map((name) => /** @type {string} */ (tagIds.get(tags.resolve(name))))),
@@ -170,6 +170,9 @@ export function planWorkshops(workshops, existingTags, newId) {
       }),
       workshopPeople: workshops.flatMap((w, i) => w.people.map((p) => ({ id: newId(), workshop_id: ids[i], ...p }))),
       workshopTags: workshops.flatMap((w, i) => w.tags.map((name) => ({ workshop_id: ids[i], name: tags.resolve(name) }))),
+      // Linking my ties and plans to the new workshops (each to one).
+      workshopTies: workshops.flatMap((w, i) => w.ties.map((id) => ({ workshop_id: ids[i], id }))),
+      workshopPlans: workshops.flatMap((w, i) => w.plans.map((id) => ({ workshop_id: ids[i], id }))),
     },
   };
 }

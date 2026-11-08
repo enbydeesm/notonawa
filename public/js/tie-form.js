@@ -19,6 +19,7 @@ import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
+import { workshopLink } from "./workshop-link.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -29,21 +30,26 @@ let openDialog = null;
  * or deleted (the dialog closes itself), or false if it's closed without
  * either. Opening it again while it's open returns the same promise.
  * @param {Record<string, any> | null} [tie]
- * @param {{ start?: import("./new-entry-start.js").EntryStart }} [options]
- *   start: a new tie made from the poser on its own, with its pose
+ * @param {{ start?: import("./new-entry-start.js").EntryStart, fromWorkshop?: FromWorkshop }} [options]
+ *   start: a new tie made from the poser on its own, with its pose;
+ *   fromWorkshop: a new tie started from a workshop's "Ties and plans",
+ *   linked to it, with its date, location and people (workshops-view.js)
  * @returns {Promise<boolean>}
  */
-export function openTieForm(tie = null, { start } = {}) {
-  openDialog ??= showTieForm(tie, start ?? null).finally(() => { openDialog = null; });
+export function openTieForm(tie = null, { start, fromWorkshop } = {}) {
+  openDialog ??= showTieForm(tie, start ?? null, fromWorkshop ?? null).finally(() => { openDialog = null; });
   return openDialog;
 }
+
+/** @typedef {ReturnType<typeof import("./workshops-view.js").tieFromWorkshop> & { title?: string }} FromWorkshop */
 
 /**
  * @param {Record<string, any> | null} tie
  * @param {import("./new-entry-start.js").EntryStart | null} start
+ * @param {FromWorkshop | null} fromWorkshop
  * @returns {Promise<boolean>}
  */
-function showTieForm(tie, start) {
+function showTieForm(tie, start, fromWorkshop) {
   return new Promise((resolve) => {
     let saved = false;
     // The tie's id once it's saved: a new tie whose photos didn't all
@@ -66,9 +72,11 @@ function showTieForm(tie, start) {
     /** @param {string} text */
     const onError = (text) => showMessage(message, text, true);
     // The first person row added to a new tie starts with me in it.
+    // A tie from a workshop starts with the workshop's people instead.
     const participants = personRows({
-      id: "tie-participants", idPrefix: "tie-person", source: sources.people, onError, startWithMe: !tie,
+      id: "tie-participants", idPrefix: "tie-person", source: sources.people, onError, startWithMe: !tie && !fromWorkshop,
     });
+    const workshop = workshopLink({ idPrefix: "tie", onError });
     const planRows = h("div", { id: "tie-plans" });
     // The location box is hidden until the + after its label is tapped.
     const location = searchPicker({
@@ -114,6 +122,7 @@ function showTieForm(tie, start) {
         h("div", {},
           h("div", { className: "label-row" }, h("label", {}, "Plans"), addPlanButton),
           planRows)),
+      workshop.element,
       h("div", { className: "label-row" }, h("label", {}, "People"), addParticipantButton),
       participants.element,
       h("div", { className: "label-row" },
@@ -260,6 +269,13 @@ function showTieForm(tie, start) {
         ])));
         // Filled in place: the pickers already hold these objects.
         kinds.forEach((kind, i) => Object.assign(sources[kind], pickerSource(...loaded[i])));
+        // Once loaded, so each person's usual role can fill in a role ties
+        // don't have (audit).
+        if (fromWorkshop && !savedId) {
+          const untouched = !changes.changed();
+          for (const p of fromWorkshop.people) participants.add(p);
+          if (untouched) changes.reset();
+        }
         startAtDefaultLocation();
       } catch (err) {
         showMessage(message, "Couldn't load people, locations and plans: " + errorMessage(err), true);
@@ -269,7 +285,7 @@ function showTieForm(tie, start) {
     // A new tie starts at my default location (Locations), unless a
     // location was chosen while they loaded. Editing a tie leaves its own.
     function startAtDefaultLocation() {
-      if (tie || savedId || !locationRow.hidden) return;
+      if (tie || savedId || fromWorkshop || !locationRow.hidden) return;
       const home = sources.locations.active.find((item) => item.isDefault);
       if (!home) return;
       // Where a new tie starts, not a change (unless something else was).
@@ -359,7 +375,20 @@ function showTieForm(tie, start) {
       }
       for (const p of t.participants) participants.add(p);
       for (const p of t.plans) addPlanRow(p);
+      if (t.workshop_id) workshop.set(t.workshop_id, t.workshop_title);
       showTags();
+    }
+
+    /** A new tie from a workshop: linked to it, its date and location (its people come once loaded). @param {FromWorkshop} w */
+    function startFrom(w) {
+      workshop.set(w.workshop_id, w.workshop_title);
+      /** @type {HTMLInputElement} */ ($("#tie-tie_date", form)).value = w.tie_date;
+      /** @type {HTMLInputElement} */ ($("#tie-title", form)).value = w.title ?? "";
+      if (w.location_id) {
+        location.pick(linked(w.location_id, w.location_name ?? ""));
+        locationRow.hidden = false;
+        showLocationButton.hidden = true;
+      }
     }
 
     /** @param {SubmitEvent} event */
@@ -397,6 +426,7 @@ function showTieForm(tie, start) {
     }
 
     if (tie) fill(tie);
+    else if (fromWorkshop) startFrom(fromWorkshop);
     changes.reset();
     if (!tie && start) {
       fromPoser = startEntry({

@@ -17,12 +17,12 @@ export default async function () {
     // On one row: every item overlaps every other top to bottom (they're centered, and not all the same height).
     const oneRow = Math.max(...shown.map((r) => r.top)) < Math.min(...shown.map((r) => r.bottom));
     return [oneRow, nav.scrollWidth <= nav.clientWidth, shown[shown.length - 1].right <= nav.getBoundingClientRect().right + 1];`;
-  check("the nav has Education after Analytics, then the poser's button before +, Education marked as the current tab", await run(`
+  check("the nav has Education third, between Plans and People, the poser's button after Analytics before +, Education marked as the current tab", await run(`
     const tabs = [...document.querySelectorAll("nav .nav-tab")].map((a) => a.getAttribute("aria-label"));
-    const education = $("nav a[href='/education']"), poser = education.nextElementSibling;
-    return [tabs, poser.id, poser.tagName, !!poser.querySelector(".pose-icon"), poser.nextElementSibling.classList.contains("nav-add"),
-      $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
-    [["Ties", "Plans", "People", "Locations", "Calendar", "Analytics", "Education", "Poser"], "nav-poser", "BUTTON", true, true,
+    const poser = $("#nav-poser");
+    return [tabs, poser.tagName, poser.previousElementSibling.getAttribute("href"), !!poser.querySelector(".pose-icon"),
+      poser.nextElementSibling.classList.contains("nav-add"), $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
+    [["Ties", "Plans", "Education", "People", "Locations", "Calendar", "Analytics", "Poser"], "BUTTON", "/analytics", true, true,
       "Education", "Education · NotoNawa"]);
   check("all of the nav fits on one row at this width", await run(navFits), [true, true, true]);
   for (const width of [375, 320]) {
@@ -47,7 +47,11 @@ export default async function () {
   check("+ opens the form: educators are only people marked Educator, and a ? beside them says how to log one I taught", await run(`
     $("#add-workshop").click(); await calm(800);
     const opened = [$("#workshop-form-heading").textContent, $("#workshop-start_date").value !== "", $("[aria-controls=workshop-self-hint]").hidden,
-      $("#workshop-self-hint").hidden, $("label[for=workshop-end_date]").textContent, $("#workshop-attendee_count").placeholder];
+      $("#workshop-self-hint").hidden, $("label[for=workshop-end_date]").textContent, $("#workshop-attendee_count").placeholder,
+      $("label[for=workshop-attendee_count]").textContent, $("label[for=workshop-attendee_count]").title,
+      $("#workshop-location").checkVisibility(), !!$("#workshop-location-show"), $("#workshop-cost-label").textContent,
+      $("#workshop-cost_currency").value, [...$("#workshop-cost_currency").options].map((o) => o.value).slice(0, 4).join(" "),
+      $("#workshop-more-ratings").open, $("#workshop-description").placeholder, $("#workshop-notes").placeholder];
     $("[aria-controls=workshop-self-hint]").click(); opened.push($("#workshop-self-hint").textContent);
     $("#workshop-add-educator").click(); await wait(50);
     const educator = lastBox("#workshop-educators"); educator.focus(); await wait(50);
@@ -57,7 +61,9 @@ export default async function () {
     const participant = lastBox("#workshop-participants"); participant.focus(); await wait(50);
     const participants = pickerList(participant).sort(); participant.blur();
     return [opened, offered, me, participants, leakyFields()];`),
-    [["Add a workshop", true, false, true, "End date (optional)", "10", "To log a workshop you taught, tick Educator on your own profile in People."], ["Sam"],
+    [["Add a workshop", true, false, true, "End date (optional)", "10", "Size", "How many attended", true, false, "Cost", "USD", "USD CAD EUR GBP",
+      false, "How it was originally described by educator, or summary of what it covered", "Your takeaways, how it went",
+      "To log a workshop you taught, tick Educator on your own profile in People."], ["Sam"],
       ["No matches.", '"Me" isn\'t marked as an educator. Tick Educator on them in People to choose them here.'], ["Me (you)", "Sam"], []]);
   check("someone chosen as an educator isn't offered as a participant", await run(`
     // "Sam" also finds their alias knotsam, so they're listed with it.
@@ -71,6 +77,11 @@ export default async function () {
     document.querySelectorAll("#workshop-participants .role")[0].value = "top";
     set("#workshop-title", "Intro to floor"); set("#workshop-start_date", "2026-03-01"); set("#workshop-end_date", "2026-03-02");
     set("#workshop-attendee_count", "12"); document.querySelectorAll("#workshop-form .hank-button")[3].click();
+    // Difficulty 2; Value 5, under More ratings; a cost in euros.
+    document.querySelectorAll("#workshop-form .hank-button")[6].click();
+    $("#workshop-more-ratings summary").click(); await wait(50);
+    document.querySelectorAll("#workshop-more-ratings .hank-button")[14].click();
+    $("#workshop-cost_currency").value = "EUR"; set("#workshop-cost_amount", "180");
     set("#workshop-description", "Gote basics"); set("#workshop-notes", "Practise the stem");
     $("#workshop-add-tags").click(); await calm(400);
     $("#tags-search").value = "floor"; $("#tags-add").click(); $("#tags-ok").click(); await calm(200);
@@ -80,9 +91,10 @@ export default async function () {
     return [$("dialog[open]") === null, c.querySelector(".tie-title").textContent, c.querySelector(".tie-date").textContent,
       c.querySelectorAll(".tie-rating .hank.filled").length, [...c.querySelectorAll(".tie-with")].map((l) => l.innerText),
       tagChips(".workshop-card"), $("#workshop-count").textContent,
-      [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), stored.attendee_count]];`),
+      [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), /^e1\\./.test(stored.cost), stored.attendee_count,
+        stored.rating, stored.difficulty, stored.rating_content, stored.rating_value]];`),
     [true, "Intro to floor", "Mar 1, 2026 – Mar 2, 2026", 4, ["Educators: Sam (bottom)", "With: Me (top)"], ["floor"], "1 workshop",
-      [true, true, 12]]);
+      [true, true, true, 12, 4, 2, null, 5]]);
   check("Taught is empty until I'm one of the educators, and says so", await run(`
     $("#tab-taught").click(); await wait(100);
     return [$("#tab-taught").getAttribute("aria-selected"), $("#tab-attended").getAttribute("aria-selected"), flat($("#education-panel"))];`),
@@ -98,14 +110,16 @@ export default async function () {
     $("#add-workshop").click(); await calm(800);
     const hint = $("[aria-controls=workshop-self-hint]").hidden;
     $("#workshop-add-educator").click(); await wait(50);
+    const before = $("#workshop-cost-label").textContent;
     await choosePick(lastBox("#workshop-educators"), "Me", "Me (you)");
+    const earned = $("#workshop-cost-label").textContent;
     document.querySelector("#workshop-educators .role").value = "top";
     set("#workshop-title", "Teaching gote"); set("#workshop-start_date", "2026-05-05"); set("#workshop-attendee_count", "8");
     $("#workshop-save").click(); await calm(1500);
     const attended = titles();
     $("#tab-taught").click(); await wait(100);
-    return [hint, attended, titles()];`),
-    [true, ["Intro to floor"], ["Teaching gote"]]);
+    return [hint, before, earned, attended, titles()];`),
+    [true, "Cost", "Earned", ["Intro to floor"], ["Teaching gote"]]);
   check("the search narrows every tab: a keyword in the description, and educators (folded under More options)", await run(`
     $("#tab-attended").click(); await wait(100);
     await type("#search-q", "GOTE"); const keyword = [titles(), $("#workshop-count").textContent, $("#search-clear").hidden];
@@ -124,15 +138,16 @@ export default async function () {
     const all = [pairs("summary-attended"), pairs("summary-taught"), [...document.querySelectorAll("#summary-attended .item-meta")].map((p) => p.textContent)];
     await pick("#search-educators", "Me");
     return [all, flat($("#summary-attended")), pairs("summary-taught")[0]];`),
-    [[["Workshops 1", "Days 2", "Educators 1", "Locations 0", "Partners 0", "Avg rating 4"],
-      ["Workshops 1", "Days 1", "Attendees 8", "Co-teachers 0", "Locations 0", "Partners 0", "Avg rating –"],
+    [[["Workshops 1", "Days 2", "Educators 1", "Total spend €180", "Locations 0", "Partners 0", "Avg rating 4", "Avg per workshop €180"],
+      ["Workshops 1", "Days 1", "Attendees 8", "Co-teachers 0", "Locations 0", "Partners 0", "Avg rating –", "Earned –"],
       ["Learned most from: Sam (1)", "Top tags: floor (1)", "First: Intro to floor, Mar 1, 2026"]],
       "Attended | No workshops match the search.", "Workshops 1"]);
   check("a workshop's title opens it to edit; saving changes the card, and Delete removes it", await run(`
     $("#search-clear").click(); await wait(100); $("#tab-attended").click(); await wait(100);
     $(".workshop-card .tie-title").click(); await calm(1200);
     const editing = [$("#workshop-form-heading").textContent, $("#workshop-title").value, $("#workshop-description").value,
-      $("#workshop-end_date").value, tagChips("#workshop-tags"), lastBox("#workshop-educators").value, !!$("#workshop-delete")];
+      $("#workshop-end_date").value, tagChips("#workshop-tags"), lastBox("#workshop-educators").value, !!$("#workshop-delete"),
+      $("#workshop-cost_currency").value + " " + $("#workshop-cost_amount").value, $("#workshop-more-ratings").open];
     set("#workshop-title", "Intro to floor, day one"); $("#workshop-save").click(); await calm(1500);
     const renamed = titles();
     // Tapping the card, not just its title, opens it too.
@@ -142,7 +157,7 @@ export default async function () {
     [...[...document.querySelectorAll("dialog[open]")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete workshop").click();
     await calm(1500);
     return [editing, renamed, flat($("#education-panel"))];`),
-    [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true], ["Intro to floor, day one"],
+    [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true, "EUR 180.00", true], ["Intro to floor, day one"],
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above."]);
   check("a workshop's roles add Audit; picking someone without a usual role keeps the role chosen, someone with one sets it", await run(`
     $("#add-workshop").click(); await wait(800);
@@ -161,4 +176,44 @@ export default async function () {
     const full = await (await fetch("/api/workshops/" + stored.id)).json();
     return [roles, kept, usual, full.participants.map((p) => [p.person_name, p.role])];`),
     [["Choose Role", "Top", "Bottom", "Self tie", "Spotter", "Photographer", "Audit"], "audit", "bottom", [["Me", "audit"], ["Sam", "bottom"]]]);
+
+  check("a new workshop can't link ties and plans until it's saved", await run(`
+    $("#add-workshop").click(); await calm(800);
+    const state = [$("#workshop-add-linked").disabled, $("#workshop-linked-hint").textContent];
+    $("#workshop-close").click(); await calm(300);
+    return state;`),
+    [true, "Save the workshop first, then link ties and plans to it."]);
+  check("+ under Ties and plans offers ties and plans only; + Tie starts one linked, dated and peopled from the workshop", await run(`
+    [...document.querySelectorAll(".workshop-card .tie-title")].find((b) => b.textContent === "Audit day").click(); await calm(1200);
+    const before = [$("#workshop-add-linked").disabled, $("#workshop-linked-hint").textContent];
+    $("#workshop-add-linked").click(); await calm(800);
+    const sheet = [$("#add-to-heading").textContent, [...document.querySelectorAll(".add-to-filters button")].map((b) => b.textContent),
+      [...document.querySelectorAll(".add-to-make")].map((b) => b.textContent.replace("+", "").trim())];
+    $("#add-to-new-tie").click(); await calm(1500);
+    // Me was auditing: no role ties have, so it's left to choose; Sam keeps theirs.
+    const form = [$("#tie-form-heading").textContent, $("#tie-workshop-name").textContent, $("#tie-tie_date").value,
+      [...document.querySelectorAll("#tie-participants .person-row")].map((r) => r.querySelector("input:not([type=hidden])").value + "|" + r.querySelector(".role").value)];
+    document.querySelector("#tie-participants .role").value = "top";
+    $("#tie-tie_type").value = "floor"; set("#tie-title", "Audit practice");
+    $("#tie-save").click(); await calm(1800);
+    const rows = [...document.querySelectorAll("#workshop-linked .linked-row")].map((r) => r.getAttribute("aria-label"));
+    return [before, sheet, form, rows, $("#workshop-linked-hint").hidden];`),
+    [[false, "None yet. Link a tie at the workshop, or a plan of something you learned there."],
+      ["Add to this workshop…", ["All", "Ties", "Plans"], ["Tie", "Plan"]],
+      ["Add a tie", "Audit day", "2026-06-01", ["Me (you)|", "Sam|bottom"]],
+      ["Tie: Audit practice"], true]);
+  check("linking a plan from the list puts it first, marked Linked next time; the tie's form shows the workshop, and × unlinks it", await run(`
+    $("#workshop-add-linked").click(); await calm(800);
+    const linked = [...document.querySelectorAll(".add-to-row")].filter((r) => r.querySelector(".badge.linked")).map((r) => r.querySelector(".item-title").textContent);
+    [...document.querySelectorAll(".add-to-row")].find((r) => r.querySelector(".item-title").textContent === "Hip harness").click(); await calm(1200);
+    const rows = [...document.querySelectorAll("#workshop-linked .linked-row")].map((r) => r.getAttribute("aria-label"));
+    [...document.querySelectorAll("#workshop-linked .linked-row")][1].click(); await calm(1500);
+    const shown = [$("#tie-workshop-name").textContent, $("#tie-workshop-show").hidden];
+    $("#tie-form .workshop-chosen .tag-x").click(); await wait(50);
+    const unlinked = [$("#tie-workshop_id").value, $("#tie-workshop-show").hidden];
+    $("#tie-save").click(); await calm(1800);
+    const after = [...document.querySelectorAll("#workshop-linked .linked-row")].map((r) => r.getAttribute("aria-label"));
+    $("#workshop-close").click(); await calm(300);
+    return [linked, rows, shown, unlinked, after];`),
+    [["Audit practice"], ["Plan: Hip harness", "Tie: Audit practice"], ["Audit day", true], ["", false], ["Plan: Hip harness"]]);
 }

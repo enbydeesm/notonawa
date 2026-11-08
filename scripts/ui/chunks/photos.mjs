@@ -1,6 +1,6 @@
 // The walkthrough's photos chunk. Photos on ties and plans: prepared and sealed on the device, ordered, captioned, deleted.
 
-import { check, freshAccount, go, run, skip } from "../harness.mjs";
+import { check, send, freshAccount, go, run, skip } from "../harness.mjs";
 
 export default async function () {
   await freshAccount();
@@ -54,12 +54,34 @@ export default async function () {
     return [img.src.startsWith("blob:"), img.naturalWidth, img.naturalHeight, text.startsWith("RIFF") && text.slice(8, 12) === "WEBP",
       text.includes("SECRET-GPS"), text.includes("Exif"), bytes.length < 500 * 1024, $("#tie-photo-earlier").disabled, leakyFields()];`),
     [true, 2048, 683, true, false, false, true, true, []]);
-  check("the viewer doesn't put the cursor in the caption, and Save caption waits for a change", await run(`
-    const before = [document.activeElement === $("#tie-photo-caption"), $("#tie-photo-save-caption").disabled];
-    set("#tie-photo-caption", "x"); const typed = $("#tie-photo-save-caption").disabled;
-    set("#tie-photo-caption", ""); const back = $("#tie-photo-save-caption").disabled;
-    return [...before, typed, back, $("#tie-photo-earlier").textContent, $("#tie-photo-later").textContent];`),
-  [false, true, false, true, "← Move earlier", "Move later →"]);
+  check("the viewer doesn't put the cursor in the caption, and its ✓ shows only once the caption's changed", await run(`
+    const save = $("#tie-photo-save-caption");
+    const before = [document.activeElement === $("#tie-photo-caption"), save.disabled, getComputedStyle(save).visibility];
+    set("#tie-photo-caption", "x"); const typed = [save.disabled, getComputedStyle(save).visibility];
+    set("#tie-photo-caption", ""); const back = save.disabled;
+    return [...before, ...typed, back];`),
+  [false, true, "hidden", false, "visible", true]);
+  check("the viewer: where it is and ✕ on top, a big caption box with its label in the placeholder, then one row of icons", await run(`
+    const d = [...document.querySelectorAll("dialog[open]")].pop();
+    const caption = $("#tie-photo-caption");
+    const tools = [...d.querySelector(".viewer-tools").children].map((el) => el.getAttribute("aria-label") ?? el.className);
+    const row = [...d.querySelector(".viewer-tools").children].filter((el) => el.offsetParent).map((el) => { const r = el.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2); });
+    return [d.querySelector(".viewer-head").textContent.trim(), !!d.querySelector(".viewer-head [aria-label=Close]"),
+      caption.tagName, caption.placeholder, caption.maxLength, caption.getBoundingClientRect().height >= 120, !!d.querySelector("label[for=tie-photo-caption]"),
+      tools, new Set(row).size, !!d.querySelector(".dialog-cancel")];`),
+  ["Photo: 1 of 1", true, "TEXTAREA", "Visual caption: description of step, notes on position, etc.", 1000, true, false,
+    ["Move earlier", "Move later", "tool-divider", "tool-slot", "tool-slot", "Copy to…", "tool-gap", "Delete photo"], 1, false]);
+  for (const width of [375, 320]) {
+    await send("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: true });
+    check(`…its icons stay on one row inside the dialog on a ${width}px-wide phone`, await run(`
+      await wait(200);
+      const d = [...document.querySelectorAll("dialog[open]")].pop(), tools = d.querySelector(".viewer-tools");
+      const shown = [...tools.children].map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0);
+      const oneRow = Math.max(...shown.map((r) => r.top)) < Math.min(...shown.map((r) => r.bottom));
+      return [oneRow, tools.scrollWidth <= tools.clientWidth, Math.min(...[...tools.querySelectorAll("button")].map((b) => b.getBoundingClientRect().width)) >= 30];`),
+      [true, true, true]);
+  }
+  await send("Emulation.clearDeviceMetricsOverride", {});
   check("a caption is saved encrypted and shown under the thumbnail", await run(`
     set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await calm(1000);
     const shown = $("#tie-visuals figcaption")?.textContent;
@@ -70,6 +92,24 @@ export default async function () {
     return [shown, /^e1\\./.test(photo.caption), photo.caption.includes("Front")];`), ["Front view", true, false]);
   check("on a saved tie, a photo uploads straight away",
     (await pickPhoto("tie", 400, 600, "second.jpg")).slice(1), [2, ""]);
+  await run(`await fetch("/api/plans", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Copy plan" }) });`);
+  check("Copy to… copies a photo to a plan as a new file, its caption too, leaving the original", await run(`
+    $("#tie-visuals .photo-thumb").click(); await calm(1200);
+    $("#tie-photo-copy").click(); await calm(1000);
+    $("#drawing-copy-plan").click(); await calm(800);
+    [...document.querySelectorAll("#drawing-copy-list .copy-target")].find((b) => b.textContent.includes("Copy plan")).click(); await calm(2500);
+    const message = $("#tie-viewer-message").textContent;
+    [...document.querySelectorAll("dialog[open]")].pop().querySelector("[aria-label=Close]").click(); await calm(300);
+    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Copy plan");
+    const [copy] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Photo test");
+    const originals = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const vault = await import("/js/vault.js");
+    const [opened] = await vault.openMedia(copy ? [copy] : []);
+    const same = copy && new Uint8Array(await vault.openPhoto(copy.id, "thumb")).length === new Uint8Array(await vault.openPhoto(originals[0].id, "thumb")).length;
+    return [message, !!copy && !originals.some((o) => o.id === copy.id), opened?.caption, same, originals.length];`),
+  ['Copied to "Copy plan".', true, "Front view", true, 2]);
   check("swiping on the viewer goes to the next one and back", await run(`
     $("#tie-visuals .photo-thumb").click(); await calm(1200);
     const swipe = async (dx) => {

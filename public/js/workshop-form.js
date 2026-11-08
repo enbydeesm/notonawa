@@ -12,7 +12,14 @@ import { pickTags } from "./tag-picker.js";
 import { searchPicker } from "./search-picker.js";
 import { pickerSource } from "./search-choices.js";
 import { personRows } from "./person-rows.js";
-import { ratingPicker } from "./rope-rating.js";
+import { ratingPicker, ratingField } from "./rope-rating.js";
+import { CURRENCIES, costText, readCost, lastCurrency } from "./currency.js";
+import { amountLabel, tieFromWorkshop } from "./workshops-view.js";
+import { chooseAddTarget, kindIcon } from "./add-to-picker.js";
+import { openTieForm } from "./tie-form.js";
+import { editTie } from "./tie-card.js";
+import { openPlanForm } from "./plan-form.js";
+import { formatDate } from "./format.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
 import { sealOne, open } from "./vault.js";
 import { visualSection } from "./visuals-ui.js";
@@ -62,6 +69,12 @@ function showWorkshopForm(workshop, start) {
     // Its id once saved: a new one whose photos didn't all upload stays
     // open, and saving again edits it rather than adding another.
     let savedId = workshop?.id ?? null;
+    /** My "this is me" profile's id, once loaded. @type {string | null} */
+    let selfId = null;
+    /** The workshop as last saved (for a new tie's location and people). @type {Record<string, any> | null} */
+    let current = workshop;
+    /** Its linked ties and plans, as shown. @type {{ kind: "tie" | "plan", id: string, title: string | null, date: string | null }[]} */
+    let linkedItems = [];
     // Filled in once loaded. Educators: only people marked Educator; the
     // rest are `elsewhere`, so typing one points to People instead of
     // offering to add them again.
@@ -102,14 +115,19 @@ function showWorkshopForm(workshop, start) {
       kind: "locations", id: "workshop-location", label: { labelledBy: "workshop-location-label" },
       source: sources.locations, input: { name: "location_id" }, onError,
     });
-    const showLocationButton = addButton("workshop-location-show", "Add location", showLocation);
-    const locationRow = h("div", { className: "picker-row removable", hidden: true },
+    // Shown from the start (a tie's is behind a +): most workshops have one.
+    const locationRow = h("div", { className: "picker-row removable" },
       location.element,
       Object.assign(removeX("Remove location", removeLocation), { id: "workshop-location-remove" }));
     const deletedLocationRow = h("div", { className: "picker-row removable kept-deleted", id: "workshop-location-deleted", hidden: true },
       h("span", { className: "deleted" }, "(location deleted)"),
       removeX("Remove location", removeDeletedLocation));
     const tagList = h("div", { className: "tag-row", id: "workshop-tags" });
+    // The ties and plans linked to it (migration 0030): each opens in its
+    // form over this one; + links one, or starts a new one linked to it.
+    const linkedList = h("div", { className: "linked-list", id: "workshop-linked", role: "list" });
+    const linkedHint = h("p", { className: "hint", id: "workshop-linked-hint" });
+    const addLinkedButton = addButton("workshop-add-linked", "Add a tie or plan", addLinked);
     const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, workshop ? "Save changes" : "Save workshop");
     const visuals = visualSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
     const startInput = privateField(h("input", {
@@ -117,38 +135,67 @@ function showWorkshopForm(workshop, start) {
       onchange: () => { endInput.min = startInput.value; },
     }));
     const endInput = privateField(h("input", { id: "workshop-end_date", name: "end_date", type: "date", min: today() }));
+    // The cost: a currency and an amount, sealed together as one field
+    // (currency.js). Its label says Earned on a workshop I teach.
+    const currencySelect = h("select", { id: "workshop-cost_currency", name: "cost_currency", "aria-label": "Currency" },
+      CURRENCIES.map((c) => h("option", { value: c.code, title: c.name }, c.code)));
+    const costInput = privateField(h("input", {
+      id: "workshop-cost_amount", name: "cost_amount", inputMode: "decimal", placeholder: "0.00", maxLength: 14,
+    }));
+    const costLabel = h("label", { htmlFor: "workshop-cost_amount", id: "workshop-cost-label" }, "Cost");
+    // The ratings beyond "How was it?", folded away; opened when editing
+    // one that has any.
+    const extraRatings = ["content", "teaching", "value"].map((key) => ({
+      key, field: ratingField({ name: `rating_${key}`, labelledBy: `workshop-rating_${key}-label` }),
+    }));
+    const moreRatings = h("details", { className: "fold more-ratings", id: "workshop-more-ratings" },
+      h("summary", {}, "More ratings"),
+      extraRatings.map(({ key, field }) => h("div", { className: "label-row rating-row" },
+        h("label", { id: `workshop-rating_${key}-label` }, key === "content" ? "Content" : key === "teaching" ? "Teaching" : "Value"),
+        field.element)));
 
     const form = h("form", { id: "workshop-form", onsubmit: save },
       h("label", { htmlFor: "workshop-title" }, "Title"),
       privateField(h("input", { id: "workshop-title", name: "title", required: true, maxLength: 200, placeholder: "e.g. Intro to floor work" })),
-      h("div", { className: "row" },
+      // The dates and Size, as a tie's Date, Type and Mins.
+      h("div", { className: "row same-height workshop-dates" },
         h("div", { className: "date-field" }, h("label", { htmlFor: "workshop-start_date" }, "Start date"), startInput),
-        h("div", { className: "date-field" }, h("label", { htmlFor: "workshop-end_date" }, "End date (optional)"), endInput)),
-      h("div", { className: "row" },
-        h("div", {},
-          h("div", { className: "label-row" },
-            h("label", { htmlFor: "workshop-location", id: "workshop-location-label" }, "Location"), showLocationButton),
-          locationRow, deletedLocationRow),
+        h("div", { className: "date-field" },
+          h("label", { htmlFor: "workshop-end_date" }, "End date ", h("span", { className: "label-note" }, "(optional)")), endInput),
         h("div", { className: "minutes-field" },
-          h("label", { htmlFor: "workshop-attendee_count" }, "Attendees"),
+          h("label", { htmlFor: "workshop-attendee_count", title: "How many attended" }, "Size"),
           privateField(h("input", {
             id: "workshop-attendee_count", name: "attendee_count", type: "number", min: "0", max: "100000", inputMode: "numeric",
-            placeholder: "10",
+            placeholder: "10", title: "How many attended",
           })))),
+      h("div", { className: "row" },
+        h("div", {},
+          h("label", { htmlFor: "workshop-location", id: "workshop-location-label" }, "Location"),
+          locationRow, deletedLocationRow),
+        h("div", { className: "cost-field" },
+          costLabel,
+          h("div", { className: "cost-box" }, currencySelect, costInput))),
       h("div", { className: "label-row" },
         h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add()), selfHint.button),
       selfHint.text,
       educators.element,
       h("div", { className: "label-row" },
-        h("label", {}, "Participants"), addButton("workshop-add-participant", "Add participant", () => participants.add())),
+        h("label", {}, "People"), addButton("workshop-add-participant", "Add person", () => participants.add())),
       participants.element,
-      h("div", { className: "label-row" },
+      h("div", { className: "label-row rating-row" },
         h("label", { id: "workshop-rating-label" }, "How was it?"),
         ratingPicker({ name: "rating", labelledBy: "workshop-rating-label", value: workshop?.rating ?? null })),
+      h("div", { className: "label-row rating-row" },
+        h("label", { id: "workshop-difficulty-label" }, "Difficulty"),
+        ratingPicker({ name: "difficulty", labelledBy: "workshop-difficulty-label", value: workshop?.difficulty ?? null })),
+      moreRatings,
       h("label", { htmlFor: "workshop-description" }, "Workshop description"),
-      privateField(h("textarea", { id: "workshop-description", name: "description", placeholder: "What it covered" })),
+      privateField(h("textarea", {
+        id: "workshop-description", name: "description",
+        placeholder: "How it was originally described by educator, or summary of what it covered",
+      })),
       h("label", { htmlFor: "workshop-notes" }, "Notes"),
-      privateField(h("textarea", { id: "workshop-notes", name: "notes", placeholder: "What you learned, what to practise" })),
+      privateField(h("textarea", { id: "workshop-notes", name: "notes", placeholder: "Your takeaways, how it went" })),
       // Encrypted like the notes (crypto/fields.js).
       h("label", { htmlFor: "workshop-album_url" }, "Album link"),
       privateField(h("input", {
@@ -156,6 +203,9 @@ function showWorkshopForm(workshop, start) {
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
       })),
       visuals.element,
+      h("div", { className: "label-row" }, h("label", { id: "workshop-linked-label" }, "Ties and plans"), addLinkedButton),
+      linkedHint,
+      linkedList,
       h("div", { className: "label-row" }, h("label", {}, "Tags"), addButton("workshop-add-tags", "Edit tags", chooseTags)),
       tagList,
       saveButton,
@@ -199,23 +249,98 @@ function showWorkshopForm(workshop, start) {
       return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, "+");
     }
 
-    function showLocation() {
-      locationRow.hidden = false;
-      showLocationButton.hidden = true;
+    // The box stays: clearing it is all removing does.
+    function removeLocation() {
+      location.clear();
       location.focus();
     }
 
-    function removeLocation() {
-      location.clear();
-      locationRow.hidden = true;
-      showLocationButton.hidden = false;
-      showLocationButton.focus();
-    }
-
+    // "(location deleted)" gives way to the box.
     function removeDeletedLocation() {
       deletedLocationRow.hidden = true;
-      showLocationButton.hidden = false;
-      showLocationButton.focus();
+      locationRow.hidden = false;
+      location.focus();
+    }
+
+    /** I'm one of the educators: what's paid is what I earned. */
+    function showCostLabel() {
+      costLabel.textContent = amountLabel(educators.chosenIds(), selfId);
+    }
+
+    /**
+     * The ties and plans linked to it, as the API lists them: plans first.
+     * @param {{ kind: "tie" | "plan", id: string, title: string | null, date: string | null }[]} linked
+     */
+    function showLinked(linked) {
+      linkedItems = linked;
+      linkedList.replaceChildren(...linked.map((item) => {
+        const title = item.title || (item.date ? `Tie, ${formatDate(item.date)}` : "Untitled tie");
+        return h("button", {
+          type: "button", className: "linked-row", role: "listitem",
+          "aria-label": `${item.kind === "tie" ? "Tie" : "Plan"}: ${title}`, onclick: () => openLinked(item),
+        }, kindIcon(item.kind), h("span", { className: "item-title" }, title));
+      }));
+      // A new workshop has no id to link to yet.
+      addLinkedButton.disabled = !savedId;
+      linkedHint.textContent = savedId
+        ? (linked.length ? "" : "None yet. Link a tie at the workshop, or a plan of something you learned there.")
+        : "Save the workshop first, then link ties and plans to it.";
+      linkedHint.hidden = !linkedHint.textContent;
+    }
+
+    /** Fetches the list again (after one's linked, added, edited or deleted). */
+    async function reloadLinked() {
+      if (!savedId) return;
+      try {
+        const [fresh] = await open("workshop", [await api(`/api/workshops/${encodeURIComponent(savedId)}`)]);
+        current = fresh;
+        showLinked(fresh.linked ?? []);
+      } catch (err) {
+        showMessage(message, "Couldn't load its ties and plans: " + errorMessage(err), true);
+      }
+    }
+
+    /** @param {{ kind: "tie" | "plan", id: string }} item */
+    async function openLinked(item) {
+      showMessage(message, "");
+      try {
+        if (item.kind === "tie") {
+          await editTie(item.id);
+        } else {
+          // As the Plans view opens one: from the list, opened on the device.
+          const plans = await api("/api/plans?archived=all");
+          const found = plans.find((/** @type {any} */ p) => p.id === item.id);
+          if (!found) throw new Error("It's no longer there.");
+          const [plan] = await open("plan", [found]);
+          await openPlanForm(plan);
+        }
+      } catch (err) {
+        showMessage(message, "Couldn't open it: " + errorMessage(err), true);
+      }
+      await reloadLinked();
+    }
+
+    // + under Ties and plans: link one, or start a new one linked to it.
+    async function addLinked() {
+      if (!savedId || !current) return;
+      const choice = await chooseAddTarget({ what: "link", linked: new Set(linkedItems.map((item) => item.id)) });
+      if (!choice) return;
+      showMessage(message, "");
+      try {
+        if ("target" in choice) {
+          const { kind, id } = choice.target;
+          const body = kind === "tie" ? { tie_id: id } : { plan_id: id };
+          await api(`/api/workshops/${encodeURIComponent(savedId)}/links`, { method: "POST", body });
+        } else if (choice.create === "tie") {
+          const w = /** @type {Parameters<typeof tieFromWorkshop>[0]} */ (current);
+          await openTieForm(null, { fromWorkshop: { ...tieFromWorkshop(w, today()), title: choice.title } });
+        } else {
+          await openPlanForm(null, { fromWorkshop: { workshop_id: savedId, workshop_title: current.title, title: choice.title } });
+        }
+      } catch (err) {
+        showMessage(message, "Couldn't link it: " + errorMessage(err), true);
+      }
+      await reloadLinked();
     }
 
     async function chooseTags() {
@@ -234,11 +359,14 @@ function showWorkshopForm(workshop, start) {
         // Archived ones too, so typing an archived name points to restoring
         // it instead of adding a second one. People are opened, for their
         // aliases (searched too).
-        const [people, locations, recentPeople, recentLocations] = await Promise.all([
+        const [people, locations, recentPeople, recentLocations, mine] = await Promise.all([
           api("/api/people?archived=all").then((rows) => open("person", rows)),
           api("/api/locations?archived=all"),
           api("/api/ties/recent/people"),
           api("/api/ties/recent/locations"),
+          // A new one's currency starts as the last one used (sealed, so
+          // only the device can tell which).
+          workshop ? Promise.resolve([]) : api("/api/workshops").then((rows) => open("workshop", rows)),
         ]);
         // Filled in place: the pickers already hold these objects.
         Object.assign(sources.people, pickerSource(people, recentPeople));
@@ -249,7 +377,10 @@ function showWorkshopForm(workshop, start) {
           elsewhere: [...others.active, ...others.archived],
         });
         selfHint.button.hidden = !people.some((p) => p.is_self && !p.is_educator);
+        selfId = people.find((p) => p.is_self)?.id ?? null;
+        showCostLabel();
         startAtDefaultLocation();
+        startOnLastCurrency(mine);
       } catch (err) {
         showMessage(message, "Couldn't load people and locations: " + errorMessage(err), true);
       }
@@ -257,14 +388,20 @@ function showWorkshopForm(workshop, start) {
 
     // A new workshop starts at my default location, as a new tie does.
     function startAtDefaultLocation() {
-      if (workshop || savedId || !locationRow.hidden) return;
+      if (workshop || savedId || /** @type {HTMLInputElement} */ ($("input[name=location_id]", locationRow)).value) return;
       const home = sources.locations.active.find((item) => item.isDefault);
       if (!home) return;
       // Where a new workshop starts, not a change (unless something else was).
       const untouched = !changes.changed();
       location.pick(home);
-      locationRow.hidden = false;
-      showLocationButton.hidden = true;
+      if (untouched) changes.reset();
+    }
+
+    /** @param {Record<string, any>[]} mine my workshops, opened */
+    function startOnLastCurrency(mine) {
+      if (workshop || savedId || costInput.value) return;
+      const untouched = !changes.changed();
+      currencySelect.value = lastCurrency(mine);
       if (untouched) changes.reset();
     }
 
@@ -276,6 +413,9 @@ function showWorkshopForm(workshop, start) {
       data.tags = tags;
       // Checked here: it's sealed before it's sent, so the server can't.
       data.album_url = webLinkOrNull(data.album_url);
+      data.cost = costText(data.cost_currency, data.cost_amount);
+      delete data.cost_currency;
+      delete data.cost_amount;
       if (data.end_date && data.end_date < data.start_date) throw new Error("The end date is before the start date.");
       if (savedId) {
         data.keep_deleted = { people: [...educators.kept(), ...participants.kept()], location: !deletedLocationRow.hidden };
@@ -322,16 +462,21 @@ function showWorkshopForm(workshop, start) {
       set("workshop-description", w.description);
       set("workshop-notes", w.notes);
       set("workshop-album_url", w.album_url);
+      const cost = readCost(w.cost);
+      if (cost) {
+        currencySelect.value = cost.currency;
+        costInput.value = cost.amount;
+      }
+      for (const { key, field } of extraRatings) field.set(w[`rating_${key}`] ?? null);
+      moreRatings.open = extraRatings.some(({ key }) => w[`rating_${key}`] != null);
       if (w.unreadable?.length) {
-        showMessage(message, "This workshop's description, notes or album link can't be decrypted. Saving replaces them.", true);
+        showMessage(message, "This workshop's description, notes, album link or cost can't be decrypted. Saving replaces them.", true);
       }
       if (w.location_id) {
         location.pick({ id: w.location_id, name: w.location_name, created_at: "" });
-        locationRow.hidden = false;
-        showLocationButton.hidden = true;
       } else if (w.location_deleted) {
         deletedLocationRow.hidden = false;
-        showLocationButton.hidden = true;
+        locationRow.hidden = true;
       }
       for (const p of w.educators) educators.add(p);
       for (const p of w.participants) participants.add(p);
@@ -371,6 +516,11 @@ function showWorkshopForm(workshop, start) {
     }
 
     if (workshop) fill(workshop);
+    showLinked(workshop?.linked ?? []);
+    // Cost or Earned, as the educators change: a pick fires "change"; a
+    // removed row, only the observer.
+    educators.element.addEventListener("change", showCostLabel);
+    new MutationObserver(showCostLabel).observe(educators.element, { childList: true });
     changes.reset();
     if (!workshop && start) {
       fromPoser = startEntry({

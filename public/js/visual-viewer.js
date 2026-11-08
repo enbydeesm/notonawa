@@ -1,13 +1,20 @@
 // What every visual's details dialog shares (a photo's or video's, a
-// drawing's, a pose's): where it is in the item's visuals, its caption with
-// Save caption beside the label (yellow once the caption's been changed),
-// "← Move earlier" and "Move later →", and swiping left or right to the next
-// or the one before. The dialog opens without focusing the caption, so a
-// phone's keyboard doesn't cover the picture.
+// drawing's, a pose's): at the top, where it is in the item's visuals and
+// ✕; under the picture, its caption, a big box that grows as it's typed in
+// (and drags taller), its label in the placeholder, with a ✓ in its corner
+// to save it once it's changed; then one row of icons: move earlier, move
+// later, then (each in its place, left empty when a kind hasn't it) edit,
+// duplicate and copy to…, and delete at the far right. Swiping left or
+// right goes to the next or the one before. The dialog opens without
+// focusing the caption, so a phone's keyboard doesn't cover the picture.
 
 import { h, privateField } from "./dom.js";
 import { MAX_CAPTION } from "./crypto/media.js";
 import { swipeStep } from "./visual-order.js";
+import { iconButton } from "./dialog-icons.js";
+
+/** The caption box's placeholder, the same for every kind. */
+export const CAPTION_PLACEHOLDER = "Visual caption: description of step, notes on position, etc.";
 
 /**
  * Where a visual is among its item's, and moving to or through them
@@ -21,25 +28,52 @@ import { swipeStep } from "./visual-order.js";
 
 /**
  * @param {{
- *   id: string, noun: string, caption: string | null, placeholder: string,
+ *   id: string, noun: string, caption: string | null,
  *   save: (caption: string | null) => Promise<void>, nav: Nav,
  *   tell: (text: string, isError?: boolean) => void,
  * }} options id: the start of the ids (e.g. "plan-pose"); noun: e.g. "Pose";
  *   save: saves a new caption (throws if it can't)
  */
-export function viewerParts({ id, noun, caption, placeholder, save, nav, tell }) {
+export function viewerParts({ id, noun, caption, save, nav, tell }) {
   let saved = caption ?? "";
-  const input = privateField(h("input", { id: `${id}-caption`, maxLength: MAX_CAPTION, value: saved, placeholder }));
-  const saveButton = h("button", { type: "button", className: "save-caption", id: `${id}-save-caption`, disabled: true, onclick: saveCaption }, "Save caption");
+  const input = privateField(h("textarea", {
+    id: `${id}-caption`, className: "caption-box", maxLength: MAX_CAPTION, rows: 4, placeholder: CAPTION_PLACEHOLDER,
+    "aria-label": "Visual caption",
+  }));
+  input.value = saved;
+  // Shown (in the box's corner) once the caption's been changed.
+  const saveButton = iconButton("check", { id: `${id}-save-caption`, label: "Save caption", onclick: saveCaption });
+  saveButton.classList.add("save-caption");
+  saveButton.disabled = true;
   const changed = () => { saveButton.disabled = input.value.trim() === saved; };
   input.addEventListener("input", changed);
   input.addEventListener("change", changed);
-  const captionRow = h("div", { className: "label-row caption-row" }, h("label", { htmlFor: `${id}-caption` }, "Caption"), saveButton);
+  const captionBox = h("div", { className: "caption-wrap" }, input, saveButton);
 
-  const earlier = h("button", { type: "button", id: `${id}-earlier`, onclick: () => moveBy(-1) }, "← Move earlier");
-  const later = h("button", { type: "button", id: `${id}-later`, onclick: () => moveBy(1) }, "Move later →");
-  const moveRow = h("div", { className: "dialog-row" }, earlier, later);
-  const position = h("p", { className: "hint", id: `${id}-position` });
+  const earlier = iconButton("earlier", { id: `${id}-earlier`, label: "Move earlier", onclick: () => moveBy(-1) });
+  const later = iconButton("later", { id: `${id}-later`, label: "Move later", onclick: () => moveBy(1) });
+  const position = h("p", { className: "hint viewer-position", id: `${id}-position` });
+
+  /**
+   * The row of icons: the arrows, then edit, duplicate and copy to… each in
+   * its place (empty when this kind hasn't it), and delete at the far right.
+   * @param {{ edit?: HTMLButtonElement | null, duplicate?: HTMLButtonElement | null,
+   *   copy?: HTMLButtonElement | null, remove: HTMLButtonElement }} buttons
+   */
+  function toolbar({ edit = null, duplicate = null, copy = null, remove }) {
+    const slot = (/** @type {HTMLButtonElement | null} */ button) => button ?? h("span", { className: "tool-slot", "aria-hidden": "true" });
+    return h("div", { className: "viewer-tools", role: "toolbar", "aria-label": `${noun} actions` },
+      earlier, later, h("span", { className: "tool-divider", "aria-hidden": "true" }),
+      slot(edit), slot(duplicate), slot(copy), h("span", { className: "tool-gap" }), remove);
+  }
+
+  /**
+   * The top row: where it is, and ✕.
+   * @param {() => void} close
+   */
+  function head(close) {
+    return h("div", { className: "viewer-head" }, position, iconButton("close", { id: `${id}-close`, label: "Close", onclick: close }));
+  }
 
   async function saveCaption() {
     const text = input.value.trim();
@@ -114,5 +148,5 @@ export function viewerParts({ id, noun, caption, placeholder, save, nav, tell })
     refresh();
   }
 
-  return { input, captionRow, moveRow, position, refresh, attach, show };
+  return { input, captionBox, toolbar, head, position, refresh, attach, show };
 }

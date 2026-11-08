@@ -195,10 +195,29 @@ video.photo-full { width: 100%; background: var(--bg); }
 /* The details dialogs: Save caption beside the caption's label, muted
    until the caption changes; rows of two buttons; Edit outlined in the
    accent; and swiping sideways left to the page, not the browser. */
-.caption-row { margin-top: 14px; }
-.caption-row .save-caption { margin-left: auto; padding: 4px 10px; font-size: 0.85rem; }
+/* A visual's viewer (visual-viewer.js): where it is and ✕ on top; the
+   caption, a box that grows as it's typed in (and drags taller), with a ✓
+   in its corner once it's changed; then one row of icon buttons, each kind's
+   in the same place, delete at the far right. */
+.viewer-head { display: flex; align-items: center; justify-content: space-between; margin: -6px -6px 6px 0; }
+.viewer-head .viewer-position { margin: 0; }
+.caption-wrap { position: relative; margin-top: 12px; }
+.caption-box {
+  display: block; min-height: 8.5rem; max-height: 50vh; padding-right: 48px; line-height: 1.45;
+  resize: vertical; field-sizing: content;
+}
+.caption-wrap .save-caption { position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; }
 .save-caption:not(:disabled) { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-.save-caption:disabled { color: var(--muted); }
+.save-caption:disabled { visibility: hidden; }
+/* Seven buttons and the divider on one row, down to a 320px-wide phone:
+   each up to 44px wide, narrowing (to 30px) before the row would wrap. */
+.viewer-tools { display: flex; align-items: center; gap: 3px; margin-top: 10px; }
+.viewer-tools .icon-button, .viewer-tools .tool-slot { flex: 1 1 44px; min-width: 30px; max-width: 44px; height: 42px; }
+.viewer-tools .icon-button { border-color: var(--line); }
+.viewer-tools .icon-button:disabled { color: var(--muted); opacity: 0.5; }
+.viewer-tools .icon-button.accent { color: var(--accent-ink); border-color: var(--accent-ink); }
+.tool-divider { width: 1px; height: 28px; background: var(--line); margin: 0 2px; flex: none; }
+.tool-gap { flex: 1 1 0; min-width: 0; }
 .dialog-row { display: flex; gap: 8px; margin-top: 8px; }
 .dialog-row button { flex: 1; padding: 10px; }
 button.outline-accent { border: 2px solid var(--accent-ink); color: var(--accent-ink); }
@@ -525,6 +544,22 @@ textarea { min-height: 90px; resize: vertical; }
 .date-field input { width: calc(10ch + 52px); }
 .minutes-field input { width: calc(3ch + 22px); appearance: textfield; }
 .minutes-field input::-webkit-inner-spin-button, .minutes-field input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+/* A workshop's two dates and Size on one row: the dates share what Size
+   leaves, rather than each taking a date's full width. */
+.workshop-dates > .date-field { flex: 1; min-width: 0; }
+.workshop-dates .date-field input { width: 100%; padding-left: 6px; padding-right: 4px; }
+/* "(optional)" after a label: quieter than the label, which is muted too. */
+.label-note { font-size: 0.8em; opacity: 0.75; }
+/* A workshop's cost beside its location: the currency's code, then the
+   amount, joined into one box. */
+.row > .cost-field { flex: none; width: 8rem; }
+.cost-box { display: flex; }
+.cost-box select { flex: none; width: 3.6rem; padding: 10px 2px; font-size: 0.85rem; border-radius: 8px 0 0 8px; border-right: none; }
+.cost-box input { flex: 1; min-width: 0; padding: 10px 8px; border-radius: 0 8px 8px 0; }
+/* The workshop form's ratings: their hanks lined up down the form. */
+.rating-row label { min-width: 6.25rem; }
+.more-ratings > summary { font-weight: 400; font-size: 0.9rem; color: var(--accent-ink); }
+.more-ratings .rating-row label { font-size: 0.85rem; }
 
 button {
   padding: 8px 12px; font: inherit; font-size: 0.9rem; font-weight: 600;
@@ -1206,3 +1241,35 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .open-choice select, .open-choice input { width: 100%; }
 .open-choice input { margin-top: 4px; }
 #open-add-copy { margin-top: 8px; }
+
+/* A workshop's "Ties and plans" (workshop-form.js): each its kind's tab
+   icon and its title, opening it in its form. */
+.linked-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.linked-list:empty { display: none; }
+.linked-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; border-radius: 0;
+  font-weight: 400; text-align: left;
+}
+.linked-row + .linked-row { border-top: 1px solid var(--line); }
+.linked-row svg { width: 20px; height: 20px; flex: none; }
+.linked-row .item-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#workshop-linked-hint { margin: 0 0 4px; }
+/* A tie's or plan's Workshop row (workshop-link.js): the cap and its name. */
+.workshop-chosen { align-items: center; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.workshop-link-icon svg { width: 20px; height: 20px; display: block; color: var(--accent-ink); }
+.workshop-link-name { flex: 1; min-width: 0; padding: 4px 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-to-row .badge.linked { background: var(--accent); color: var(--accent-text); }
+
+/* Analytics' workshops (views/analytics.js): a cap over each bar a
+   workshop started in, a button lined up with its bar, as .bar-hits are. */
+.bar-marks { display: flex; height: 22px; margin-bottom: -4px; }
+.bar-marks > * { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.bar-mark { padding: 0; border: none; background: transparent; color: var(--chart-teal); }
+.cap-mark { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* On the map: a teal diamond for a workshop's location. */
+.map-workshop { cursor: pointer; }
+.map-workshop-mark { stroke: var(--card); stroke-width: 1.5; }
+.map-workshop:focus-visible { outline: none; }
+.map-workshop:focus-visible .map-workshop-mark { stroke: var(--text); stroke-width: 2.5; }
+.workshop-list-dialog .linked-row { border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; flex-wrap: wrap; }
+.workshop-list-dialog .linked-row .item-meta { margin-left: auto; }

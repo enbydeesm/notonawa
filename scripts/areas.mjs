@@ -195,7 +195,8 @@ export const AREAS = [
     // Workshops: the Education view, its form and its cards.
     name: "education",
     files: ["src/workshops/", "public/js/views/education.js", "public/js/workshop-form.js", "public/js/workshop-card.js",
-      "public/js/workshops-view.js", "public/js/person-rows.js"],
+      "public/js/workshops-view.js", "public/js/person-rows.js", "public/js/currency.js",
+      "public/js/workshop-link.js"],
     ui: ["education"],
   },
   {
@@ -268,7 +269,7 @@ export const AREAS = [
     files: ["src/stats/", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
       "public/js/chart-parts.js", "public/js/tie-list-dialog.js", "public/js/views/calendar.js",
       "public/js/views/analytics.js", "public/js/map-geo.js", "public/js/world-map.js", "public/js/world-shapes.js",
-      "scripts/world-map.mjs", "scripts/world-map-lib.mjs"],
+      "scripts/world-map.mjs", "scripts/world-map-lib.mjs", "public/js/workshop-stats.js"],
     ui: ["insights"],
   },
   {

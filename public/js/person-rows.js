@@ -1,5 +1,5 @@
 // A form's list of people, each a search box and a role: the tie form's
-// People, and a workshop's Educators and Participants. Editing, a row for
+// People, and a workshop's Educators and People. Editing, a row for
 // someone since deleted shows "(person deleted)" and can be removed but not
 // changed (kept() lists the ones left, for keep_deleted).
 
@@ -76,8 +76,12 @@ export function personRows({ id, idPrefix, source, onError, startWithMe = false,
     element.append(row);
 
     if (existing) {
-      person.pick({ id: existing.person_id, name: existing.person_name, created_at: "" });
-      role.value = existing.role; // after pick, which sets their usual role
+      // Without a role (one from a workshop that ties don't have, audit),
+      // picking them as loaded fills in their usual role, as choosing them would.
+      const known = existing.role ? null
+        : [...source.active, ...source.archived].find((item) => item.id === existing.person_id);
+      person.pick(known ?? { id: existing.person_id, name: existing.person_name, created_at: "" });
+      if (existing.role) role.value = existing.role; // after pick, which sets their usual role
       return;
     }
     const me = source.active.find((item) => item.isSelf);

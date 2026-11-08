@@ -67,6 +67,7 @@ function roleFrom(value, roles) {
  *   duration_minutes: number | null,
  *   success_rating: number | null,
  *   location_id: string | null,
+ *   workshop_id: string | null,
  *   participants: ParticipantInput[],
  *   plan_ids: string[],
  *   tags: string[],
@@ -75,7 +76,8 @@ function roleFrom(value, roles) {
 
 /**
  * Body: { title, tie_date, tie_type, duration_minutes, success_rating, notes, album_url,
- *         location_id, participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
+ *         location_id, workshop_id, participants: [{ person_id, role }], plan_ids: [id], tags: [name] }
+ * workshop_id: the workshop it was tied at, if any (migration 0030).
  * tags are names, so new tags (created on save) and existing ones are sent alike.
  * tie_type is required (migration 0014).
  * @param {Record<string, unknown>} body
@@ -92,6 +94,7 @@ export function parseTieInput(body) {
     duration_minutes: toIntOrNull(body.duration_minutes, 0, 1440),
     success_rating: toIntOrNull(body.success_rating, 1, 5),
     location_id: cleanText(body.location_id),
+    workshop_id: cleanText(body.workshop_id),
     participants: parseParticipants(body.participants),
     plan_ids: parsePlanIds(body.plan_ids),
     tags: parseTagNames(body.tags),

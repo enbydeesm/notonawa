@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  EMPTY_SEARCH, hasWorkshopFilters, filterWorkshops, isTaught, splitByMe, workshopDays, dateRangeText, summarise,
+  EMPTY_SEARCH, hasWorkshopFilters, filterWorkshops, isTaught, amountLabel, tieFromWorkshop, moneyOf, splitByMe, workshopDays, dateRangeText, summarise,
   workshopCountText,
 } from "../../public/js/workshops-view.js";
 
@@ -10,17 +10,17 @@ const person = (id, name, role = "top") => ({ id: `l-${id}`, person_id: id, pers
 const WORKSHOPS = [
   {
     id: "a", title: "Intro to floor", start_date: "2026-01-10", end_date: null, location_id: "studio", location_name: "Studio",
-    attendee_count: 12, rating: 4, description: "Basics of the gote", notes: null,
+    attendee_count: 12, rating: 4, description: "Basics of the gote", notes: null, cost: "USD 120.00",
     educators: [person("kit", "Kit")], participants: [person("me", "Me", "bottom"), person("sam", "Sam")], tags: ["Floor"],
   },
   {
     id: "b", title: "Suspension intensive", start_date: "2026-03-01", end_date: "2026-03-03", location_id: "hall", location_name: "Hall",
-    attendee_count: null, rating: 5, description: null, notes: "Watch the uplines",
+    attendee_count: null, rating: 5, description: null, notes: "Watch the uplines", cost: "EUR 310.00",
     educators: [person("kit", "Kit"), person("ash", "Ash")], participants: [person("sam", "Sam", "bottom")], tags: ["suspension", "floor"],
   },
   {
     id: "c", title: "Teaching gote", start_date: "2026-05-05", end_date: null, location_id: "studio", location_name: "Studio",
-    attendee_count: 8, rating: 3, description: null, notes: null,
+    attendee_count: 8, rating: 3, description: null, notes: null, cost: "USD 650.00",
     educators: [person("me", "Me"), person("ash", "Ash")], participants: [person("bo", "Bo", "bottom"), person(null, null)],
     tags: [],
   },
@@ -81,6 +81,13 @@ describe("attended and taught", () => {
     expect(attended.map((x) => x.id)).toEqual(["a", "b"]);
     expect(taught.map((x) => x.id)).toEqual(["c"]);
   });
+
+  it("label the cost Earned once I'm one of the educators", () => {
+    expect(amountLabel([], "me")).toBe("Cost");
+    expect(amountLabel(["kit"], "me")).toBe("Cost");
+    expect(amountLabel(["kit", "me"], "me")).toBe("Earned");
+    expect(amountLabel(["me"], null)).toBe("Cost");
+  });
 });
 
 describe("dates", () => {
@@ -108,6 +115,9 @@ describe("summarise", () => {
       topTags: [{ name: "Floor", count: 2 }, { name: "suspension", count: 1 }],
       first: { title: "Intro to floor", date: "2026-01-10" },
       latest: { title: "Suspension intensive", date: "2026-03-01" },
+      // One workshop each: the larger total comes first.
+      money: [{ currency: "EUR", minor: 31000, count: 1 }, { currency: "USD", minor: 12000, count: 1 }],
+      averageMoney: { currency: "EUR", minor: 31000 },
     });
   });
 
@@ -116,13 +126,58 @@ describe("summarise", () => {
     expect(summarise(taught, "me")).toMatchObject({
       workshops: 1, days: 1, locations: 1, partners: 1, educators: 1, attendees: 8, averageRating: 3,
       topEducators: [{ name: "Ash", count: 1 }],
+      // On one I taught, it's what I earned.
+      money: [{ currency: "USD", minor: 65000, count: 1 }],
     });
+  });
+
+  it("averages the money in the most used currency, over the ones with a cost in it", () => {
+    const w = [{ cost: "USD 100.00" }, { cost: "USD 51.00" }, { cost: "GBP 900.00" }, { cost: null }];
+    expect(moneyOf(w)).toEqual({
+      money: [{ currency: "USD", minor: 15100, count: 2 }, { currency: "GBP", minor: 90000, count: 1 }],
+      averageMoney: { currency: "USD", minor: 7550 },
+    });
+    expect(moneyOf([{ cost: null }])).toEqual({ money: [], averageMoney: null });
   });
 
   it("is empty for no workshops", () => {
     expect(summarise([], "me")).toEqual({
       workshops: 0, days: 0, locations: 0, partners: 0, educators: 0, attendees: 0, averageRating: null,
-      topEducators: [], topTags: [], first: null, latest: null,
+      topEducators: [], topTags: [], first: null, latest: null, money: [], averageMoney: null,
     });
+  });
+});
+
+describe("a new tie from a workshop", () => {
+  const workshop = {
+    id: "w", title: "Intensive", start_date: "2026-11-06", end_date: "2026-11-08", location_id: "loc", location_name: "Studio",
+    educators: [{ id: "e", person_id: "kit", person_name: "Kit", role: "top" }],
+    participants: [
+      { id: "1", person_id: "me", person_name: "Me", role: "bottom" },
+      { id: "2", person_id: "sam", person_name: "Sam", role: "audit" },
+      { id: "3", person_id: null, person_name: null, role: "top" },
+    ],
+  };
+
+  it("is linked to it, at its location, with its people (not educators), audit left blank", () => {
+    expect(tieFromWorkshop(workshop, "2026-11-07")).toEqual({
+      workshop_id: "w", workshop_title: "Intensive", tie_date: "2026-11-07", location_id: "loc", location_name: "Studio",
+      people: [{ person_id: "me", person_name: "Me", role: "bottom" }, { person_id: "sam", person_name: "Sam", role: null }],
+    });
+  });
+
+  it("is dated today while the workshop is on, otherwise its start date", () => {
+    expect(tieFromWorkshop(workshop, "2026-11-06").tie_date).toBe("2026-11-06");
+    expect(tieFromWorkshop(workshop, "2026-11-08").tie_date).toBe("2026-11-08");
+    expect(tieFromWorkshop(workshop, "2026-11-09").tie_date).toBe("2026-11-06");
+    expect(tieFromWorkshop(workshop, "2026-10-01").tie_date).toBe("2026-11-06");
+    const oneDay = { ...workshop, end_date: null };
+    expect(tieFromWorkshop(oneDay, "2026-11-06").tie_date).toBe("2026-11-06");
+    expect(tieFromWorkshop(oneDay, "2026-11-07").tie_date).toBe("2026-11-06");
+  });
+
+  it("has no location when the workshop's was deleted", () => {
+    expect(tieFromWorkshop({ ...workshop, location_id: null, location_name: null }, "2026-11-07"))
+      .toMatchObject({ location_id: null, location_name: null });
   });
 });

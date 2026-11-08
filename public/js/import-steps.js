@@ -113,14 +113,18 @@ export function remapTies(ties, items) {
 }
 
 /**
- * Swaps the file's ids on each workshop for my journal's, as remapTies does.
+ * Swaps the file's ids on each workshop for my journal's, as remapTies does,
+ * its linked ties too: tieIds maps the file's tie ids to mine, as the ties
+ * were saved (or found already there). A share has none.
  * @param {any[]} workshops
  * @param {ItemsResponse} items
+ * @param {Map<string, string>} [tieIds]
  * @returns {any[]}
  */
-export function remapWorkshops(workshops, items) {
+export function remapWorkshops(workshops, items, tieIds = new Map()) {
   const people = idMap(items.people);
   const locations = idMap(items.locations);
+  const plans = idMap(items.plans);
   return workshops.map((workshop, i) => {
     const name = workshop?.title ? `Workshop ${i + 1} ("${workshop.title}")` : `Workshop ${i + 1}`;
     /** @param {Map<string, string>} map @param {unknown} id @param {string} what */
@@ -133,11 +137,15 @@ export function remapWorkshops(workshops, items) {
     /** @param {unknown} list */
     const swapPeople = (list) => (Array.isArray(list) ? list : [])
       .map((/** @type {any} */ p) => ({ ...p, person_id: swap(people, p?.person_id, "a person") }));
+    /** @param {unknown} list @param {Map<string, string>} map @param {string} what */
+    const swapAll = (list, map, what) => (Array.isArray(list) ? list : []).map((id) => swap(map, id, what)).filter(Boolean);
     return {
       ...workshop,
       location_id: swap(locations, workshop?.location_id, "a location"),
       educators: swapPeople(workshop?.educators),
       participants: swapPeople(workshop?.participants),
+      ties: swapAll(workshop?.ties, tieIds, "a tie"),
+      plans: swapAll(workshop?.plans, plans, "a plan"),
     };
   });
 }
@@ -152,7 +160,7 @@ export function checkLinks(doc) {
   const fake = (list, label = "name") => list.map((x) => ({ file_id: String(x?.id), name: x?.[label], id: "x", matched: false }));
   const items = { people: fake(doc.people), locations: fake(doc.locations), plans: fake(doc.plans, "title"), new_tags: [] };
   remapTies(doc.ties, items);
-  remapWorkshops(doc.workshops, items);
+  remapWorkshops(doc.workshops, items, new Map(doc.ties.map((t) => [String(t?.id), "x"])));
 }
 
 /**

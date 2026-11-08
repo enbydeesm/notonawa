@@ -2997,3 +2997,73 @@ time. Mocked up first, then built (`pose-editor.js`, with
   role with theirs, blank when they had none. Someone with a default role
   still sets it, as that's usually what's meant.
 
+
+## Workshops: links, cost, more ratings; the visual viewer (November 2026)
+
+**Status:** built (2026-11-08)
+
+- **Education is the third tab**, between Plans and People: workshops sit
+  with the ties and plans they now link to.
+- **A tie or plan has one workshop** (`workshop_id` on each, migration
+  0030), not a link table: a tie happens at one workshop, and a plan is
+  learned at one. Deleting the workshop unlinks them (`ON DELETE SET
+  NULL`) rather than asking, as nothing is lost but the link. The link is
+  set from either side: the workshop's "Ties and plans" (the poser's
+  "Add pose to…" sheet with `what: "link"`, narrowed to ties and plans,
+  so picking or starting one works as it does there), or a tie's or
+  plan's Workshop row. A new workshop links nothing until it's saved (it
+  has no id yet); the form says so.
+- **A new tie from a workshop** starts linked, at its location (not one
+  since deleted), with its People but not its Educators (who teach), and
+  dated today while the workshop's on, else its start date (for logging
+  a weekend afterwards). Audit isn't a tie role, so someone auditing comes
+  over without one, and their usual role fills in as picking them would.
+- **The linked list is icon and title only**: its date and people would
+  repeat the workshop's, and we tried ratings and difficulty there but
+  dropped them; ties have no difficulty of their own (weighed: borrowing
+  the linked plan's, or a new column), and none is needed now.
+- **Cost is encrypted** (`workshops.cost`, the amount and currency sealed
+  as one field, "USD 180.00"), like the notes: it's money spent. Totals
+  are added up on the device, as Education and Analytics already open
+  every workshop. **Spend or earnings isn't stored**: it's earnings on a
+  workshop I teach (I'm one of its educators), as attended or taught is
+  worked out. The form's label says Cost or Earned as the educators
+  change. One amount is kept, so changing the educators moves it between
+  the two totals.
+- **Currencies are never converted**: each is added up on its own, the
+  most used (on the most workshops; the larger total breaks a tie) shown
+  as the number and the others in small type under it. Conversion would
+  need rates from somewhere, and a rate on which day. Nine currencies, US
+  dollars first; a new workshop starts on the one used last (worked out
+  from the workshops, as the currency is sealed: nothing new is stored).
+- **More ratings: content, teaching and value** under a fold, with
+  difficulty beside the overall rating (as a plan's). Weighed and dropped:
+  "space and vibe", and a workshop level field (listings often don't give
+  one; difficulty says how hard it was, and a tag can hold the advertised
+  level).
+- **Size, not Attendees**, so it fits beside the dates as a tie's Mins
+  does; its tooltip says "How many attended". **Location is open from the
+  start** on workshops (most have one); ties keep theirs behind + to stay
+  light.
+- **Analytics: workshops follow the period only.** Its role and More
+  filters are about ties, and the card says so. **A follow-up tie is one
+  on a plan linked to a workshop**: what was learned, tied again. Ties
+  linked straight to a workshop happened at it, so they don't count as
+  its follow-ups, and Practised most ranks by follow-ups (of any date).
+  Workshops on the map are teal diamonds, apart from the ties' pins by
+  shape as well as color, and not grouped (there are few). The cards are
+  hidden until there are workshops at all.
+- **The visual viewer: a big caption box and one row of icons.** The
+  caption grows as it's typed in (CSS `field-sizing`, and drags taller),
+  up to 1,000 characters (was 200; the server's sealed limit rose to fit
+  3-byte characters); its label moved into the placeholder, Save caption
+  became a ✓ in its corner shown once it's changed, and Close a ✕ at the
+  top as on other dialogs. Each action keeps its place in the row across
+  kinds (a photo leaves Edit's and Duplicate's empty), so swiping between
+  them doesn't move Copy to… or Delete. The icons narrow to fit a 320px
+  phone rather than wrap.
+- **Copy to… for photos and videos makes a new file**: each is sealed
+  bound to its own id, so the crypto Worker opens it and seals it again
+  for the new one (`copyMedia`), and the copy counts in the 1 GB. Weighed:
+  pointing two items at one file, which would need shared files and
+  reference counts when deleting.

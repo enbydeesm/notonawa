@@ -95,12 +95,14 @@ export function offerNew(targets, query, filter) {
 }
 
 /**
- * The kinds to offer making a new one of: all three, or the one filtered to.
+ * The kinds to offer making a new one of: all the sheet shows (all three,
+ * or ties and plans when linking to a workshop), or the one filtered to.
  * @param {Filter} filter
+ * @param {TargetKind[]} [kinds] the kinds the sheet shows
  * @returns {TargetKind[]}
  */
-export function newKinds(filter) {
-  return filter === "all" ? TARGET_KINDS.map(([k]) => k) : [filter];
+export function newKinds(filter, kinds = TARGET_KINDS.map(([k]) => k)) {
+  return filter === "all" ? kinds : [filter];
 }
 
 /**

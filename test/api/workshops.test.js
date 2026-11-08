@@ -27,7 +27,8 @@ describe("workshops", () => {
     const { kit, sam, loc } = await withPeople(user);
     const id = await user.post("/api/workshops", {
       title: "Intro to floor", start_date: "2026-03-01", end_date: "2026-03-02", location_id: loc,
-      attendee_count: 12, rating: 4, description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
+      attendee_count: 12, rating: 4, difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2,
+      cost: sealed("USD 180.00"), description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       educators: [{ person_id: kit, role: "top" }], participants: [{ person_id: sam, role: "bottom" }],
       tags: ["Floor", "kata"],
     });
@@ -36,12 +37,13 @@ describe("workshops", () => {
     expect(list).toHaveLength(1);
     expect(list[0]).toEqual({
       id, title: "Intro to floor", start_date: "2026-03-01", end_date: "2026-03-02", attendee_count: 12, rating: 4,
+      difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2, cost: sealed("USD 180.00"),
       description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       created_at: expect.any(String), updated_at: expect.any(String),
       location_id: loc, location_deleted: 0, location_name: "Studio", photo_count: 0,
       educators: [{ id: expect.any(String), person_id: kit, person_name: "Kit", role: "top" }],
       participants: [{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" }],
-      tags: ["Floor", "kata"],
+      tags: ["Floor", "kata"], linked: [],
     });
     expect((await user.send(`/api/workshops/${id}`)).body).toEqual(list[0]);
     // The tags are the same list as ties' and plans', counted for workshops.
@@ -66,6 +68,9 @@ describe("workshops", () => {
       { title: "x", start_date: "2026-03-01", end_date: "2026-02-01" },
       { title: "x", start_date: "2026-03-01", educators: [{ person_id: kit, role: "top" }], participants: [{ person_id: kit, role: "bottom" }] },
       { title: "x", start_date: "2026-03-01", notes: "plain" },
+      { title: "x", start_date: "2026-03-01", cost: "USD 10.00" }, // the cost is sealed
+      { title: "x", start_date: "2026-03-01", difficulty: 6 },
+      { title: "x", start_date: "2026-03-01", rating_value: 0 },
     ]) {
       expect((await user.send("/api/workshops", body)).status, JSON.stringify(body)).toBe(400);
     }
@@ -106,12 +111,15 @@ describe("workshops", () => {
 
     // Sam moves from participant to educator, Kit to participant.
     const res = await user.send(`/api/workshops/${id}`, {
-      title: "Intro 2", start_date: "2026-03-02", attendee_count: 3,
+      title: "Intro 2", start_date: "2026-03-02", attendee_count: 3, difficulty: 2, rating_teaching: 5, cost: sealed("CAD 40.00"),
       educators: [{ person_id: sam, role: "top" }], participants: [{ person_id: kit, role: "audit" }], tags: ["b"],
     }, "PUT");
     expect(res).toEqual({ status: 200, body: { id } });
     const w = (await user.send(`/api/workshops/${id}`)).body;
-    expect(w).toMatchObject({ title: "Intro 2", start_date: "2026-03-02", attendee_count: 3, location_id: null, tags: ["b"] });
+    expect(w).toMatchObject({
+      title: "Intro 2", start_date: "2026-03-02", attendee_count: 3, location_id: null, tags: ["b"],
+      difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: sealed("CAD 40.00"),
+    });
     expect(w.educators.map((/** @type {any} */ p) => [p.person_name, p.role])).toEqual([["Sam", "top"]]);
     expect(w.participants.map((/** @type {any} */ p) => [p.person_name, p.role])).toEqual([["Kit", "audit"]]);
     expect(w.updated_at).not.toBe("2026-01-01T00:00:00Z");
@@ -163,5 +171,62 @@ describe("workshops", () => {
     expect(await sql("SELECT id FROM media WHERE id = ?", photo).first()).toBeNull();
     expect((await user.send("/api/people?archived=all")).body.some((/** @type {any} */ p) => p.id === kit)).toBe(true);
     expect((await user.send("/api/tags")).body.map((/** @type {any} */ t) => t.name)).toEqual(["kept"]);
+  });
+
+  it("links ties and plans to a workshop, listing them plans first, and both ways", async () => {
+    const user = await freshUser();
+    const ws = await user.post("/api/workshops", { title: "Intensive", start_date: "2026-04-01" });
+    const other = await user.post("/api/workshops", { title: "Other", start_date: "2026-05-01" });
+    const plan = await user.post("/api/plans", { title: "Gote" });
+    const early = await user.post("/api/ties", { title: "First try", tie_date: "2026-04-01", tie_type: "floor" });
+    // Made already linked, as the tie form does for a tie started from a workshop.
+    const later = await user.post("/api/ties", { tie_date: "2026-04-02", tie_type: "floor", workshop_id: ws });
+    await sql("UPDATE ties SET updated_at = '2026-01-01T00:00:00Z' WHERE id = ?", early).run();
+
+    expect(await user.send(`/api/workshops/${ws}/links`, { tie_id: early })).toEqual({ status: 200, body: { id: early } });
+    expect((await user.send(`/api/workshops/${ws}/links`, { plan_id: plan })).status).toBe(200);
+    expect((await user.send(`/api/workshops/${ws}`)).body.linked).toEqual([
+      { kind: "plan", id: plan, title: "Gote", date: null },
+      { kind: "tie", id: early, title: "First try", date: "2026-04-01" },
+      { kind: "tie", id: later, title: null, date: "2026-04-02" },
+    ]);
+    // The other way: the tie and the plan name their workshop, and linking set updated_at.
+    const tie = (await user.send(`/api/ties/${early}`)).body;
+    expect([tie.workshop_id, tie.workshop_title, tie.updated_at === "2026-01-01T00:00:00Z"]).toEqual([ws, "Intensive", false]);
+    const plans = (await user.send("/api/plans?archived=false")).body;
+    expect(plans.map((/** @type {any} */ p) => [p.workshop_id, p.workshop_title])).toEqual([[ws, "Intensive"]]);
+
+    // One workshop each: linking it to another moves it.
+    await user.send(`/api/workshops/${other}/links`, { tie_id: early });
+    expect((await user.send(`/api/workshops/${ws}`)).body.linked.map((/** @type {any} */ l) => l.id)).toEqual([plan, later]);
+    // Unlinking only from the workshop it's on.
+    expect((await user.send(`/api/workshops/${ws}/links?tie_id=${early}`, undefined, "DELETE")).status).toBe(404);
+    expect((await user.send(`/api/workshops/${other}/links?tie_id=${early}`, undefined, "DELETE")).status).toBe(204);
+    expect((await user.send(`/api/ties/${early}`)).body.workshop_id).toBeNull();
+    // Both or neither isn't a link.
+    expect((await user.send(`/api/workshops/${ws}/links`, { tie_id: early, plan_id: plan })).status).toBe(400);
+    expect((await user.send(`/api/workshops/${ws}/links`, {})).status).toBe(400);
+
+    // Deleting the workshop unlinks its ties and plans, which stay.
+    await user.send(`/api/workshops/${ws}`, undefined, "DELETE");
+    expect((await user.send(`/api/ties/${later}`)).body.workshop_id).toBeNull();
+    expect((await user.send("/api/plans?archived=false")).body[0].workshop_id).toBeNull();
+  });
+
+  it("can't link someone else's ties and plans, or mine to their workshop", async () => {
+    const me = await freshUser();
+    const them = await freshUser();
+    const mine = await me.post("/api/workshops", { title: "Mine", start_date: "2026-04-01" });
+    const myTie = await me.post("/api/ties", { tie_date: "2026-04-01", tie_type: "floor" });
+    const theirs = await them.post("/api/workshops", { title: "Theirs", start_date: "2026-04-01" });
+    const theirTie = await them.post("/api/ties", { tie_date: "2026-04-01", tie_type: "floor" });
+    const theirPlan = await them.post("/api/plans", { title: "Theirs" });
+    expect((await me.send(`/api/workshops/${mine}/links`, { tie_id: theirTie })).status).toBe(404);
+    expect((await me.send(`/api/workshops/${mine}/links`, { plan_id: theirPlan })).status).toBe(404);
+    expect((await me.send(`/api/workshops/${theirs}/links`, { tie_id: myTie })).status).toBe(404);
+    expect(await me.send("/api/ties", { tie_date: "2026-04-01", tie_type: "floor", workshop_id: theirs }))
+      .toEqual({ status: 400, body: { error: "Linked item not found." } });
+    expect(await me.send("/api/plans", { title: "x", workshop_id: theirs })).toEqual({ status: 400, body: { error: "Linked item not found." } });
+    expect((await them.send(`/api/workshops/${theirs}`)).body.linked).toEqual([]);
   });
 });

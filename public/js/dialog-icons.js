@@ -7,7 +7,10 @@ import { h } from "./dom.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
-/** @typedef {"close" | "share" | "archive" | "restore" | "delete" | "rename" | "save"} IconKind */
+/**
+ * @typedef {"close" | "share" | "archive" | "restore" | "delete" | "rename" | "save"
+ *   | "earlier" | "later" | "duplicate" | "copy" | "check"} IconKind
+ */
 
 /** Each icon's shapes, on a 24 × 24 grid. */
 const SHAPES = /** @type {Record<IconKind, [string, Record<string, string | number>][]>} */ ({
@@ -36,6 +39,17 @@ const SHAPES = /** @type {Record<IconKind, [string, Record<string, string | numb
   delete: [
     ["path", { d: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" }],
   ],
+  // The visual viewer's row (visual-viewer.js): arrows to move it, two
+  // squares to duplicate it, a box with an arrow out to copy it elsewhere,
+  // and a tick to save its caption.
+  earlier: [["path", { d: "M19 12H5M11 6l-6 6 6 6" }]],
+  later: [["path", { d: "M5 12h14M13 6l6 6-6 6" }]],
+  duplicate: [
+    ["rect", { x: 8, y: 8, width: 12, height: 12, rx: 1.5 }],
+    ["path", { d: "M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" }],
+  ],
+  copy: [["path", { d: "M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" }]],
+  check: [["path", { d: "M5 12l5 5 9-10" }]],
 });
 
 /**
