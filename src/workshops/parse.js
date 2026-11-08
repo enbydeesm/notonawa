@@ -25,6 +25,7 @@ export const MAX_ATTENDEES = 100_000;
  *   rating_teaching: number | null,
  *   rating_value: number | null,
  *   cost: string | null,
+ *   event_url: string | null,
  *   description: string | null,
  *   notes: string | null,
  *   album_url: string | null,
@@ -36,7 +37,7 @@ export const MAX_ATTENDEES = 100_000;
 /**
  * Body: { title, start_date, end_date, location_id, attendee_count, rating,
  *         difficulty, rating_content, rating_teaching, rating_value (1-5),
- *         cost, description, notes, album_url (the last four sealed),
+ *         cost, event_url, description, notes, album_url (the last five sealed),
  *         educators: [{ person_id, role }], participants: [{ person_id, role }],
  *         tags: [name] }
  * A title and start date are required; the end date is for one lasting more
@@ -69,6 +70,8 @@ export function parseWorkshopInput(body) {
     // Encrypted in the browser. cost: the amount and its currency sealed
     // together (public/js/currency.js).
     cost: encryptedText(body.cost),
+    // The event's page (migration 0031), sealed as the album link is.
+    event_url: encryptedText(body.event_url),
     description: encryptedText(body.description),
     notes: encryptedText(body.notes),
     album_url: encryptedText(body.album_url),

@@ -67,7 +67,7 @@ const MAX_ID_LENGTH = 100;
  *   location_id: string | null, location_deleted: 0 | 1,
  *   attendee_count: number | null, rating: number | null, difficulty: number | null,
  *   rating_content: number | null, rating_teaching: number | null, rating_value: number | null,
- *   cost: string | null, description: string | null, notes: string | null, album_url: string | null,
+ *   cost: string | null, event_url: string | null, description: string | null, notes: string | null, album_url: string | null,
  *   people: ImportWorkshopPerson[], tags: string[], ties: string[], plans: string[],
  * }} WorkshopImport
  */
@@ -199,6 +199,7 @@ function parseWorkshop(w) {
     rating_teaching: toIntOrNull(w.rating_teaching, 1, 5),
     rating_value: toIntOrNull(w.rating_value, 1, 5),
     cost: encryptedText(w.cost),
+    event_url: encryptedText(w.event_url),
     description: encryptedText(w.description),
     notes: encryptedText(w.notes),
     album_url: encryptedText(w.album_url),

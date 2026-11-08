@@ -38,16 +38,26 @@ export default async function () {
     await openMenu();
     return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
+    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
       true, "/account", "/privacy"]);
-  check("Bug and feedback, What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
+  check("Tutorial, Bug and feedback, What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
     const box = (sel) => $(sel).getBoundingClientRect();
-    const panel = box(".menu-inner"), feedback = box(".menu-feedback"), news = box(".menu-whats-new"), privacy = box(".menu-privacy"),
-      out = box(".menu-sign-out"), version = box(".app-version");
+    const panel = box(".menu-inner"), tutorial = box(".menu-tutorial"), feedback = box(".menu-feedback"), news = box(".menu-whats-new"),
+      privacy = box(".menu-privacy"), out = box(".menu-sign-out"), version = box(".app-version");
     return [Math.round(panel.bottom - version.bottom), version.top > out.bottom, Math.round(out.top - privacy.bottom), Math.round(privacy.top - news.bottom),
-      Math.round(news.top - feedback.bottom), feedback.top - box(".nav-data").bottom > 100, $(".menu-inner .app-version").textContent];`),
-    [16, true, 0, 0, 0, true, `Version ${APP_VERSION}`]);
+      Math.round(news.top - feedback.bottom), Math.round(feedback.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
+      $(".menu-inner .app-version").textContent];`),
+    [16, true, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
+  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome in place of the menu", await run(`
+    const icon = $(".menu-tutorial svg");
+    const parts = [icon.querySelectorAll("path").length, icon.querySelectorAll("circle").length];
+    $(".menu-tutorial").click(); await calm(400);
+    const opened = [$("dialog.menu-panel") === null, !!$("dialog.welcome[open]")];
+    [...document.querySelectorAll("dialog.welcome[open] button")].pop().click(); await calm(300);
+    const closed = $("dialog[open]") === null;
+    await openMenu();
+    return [parts, opened, closed];`), [[3, 1], [true, true], true]);
   check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
     const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
     return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);

@@ -49,13 +49,16 @@ describe("shareToImport", () => {
     expect(addsItems(doc)).toBe(false);
   });
 
-  it("splits a workshop's people into educators and participants", () => {
+  it("splits a workshop's people into educators and participants, keeping its cost and event link", () => {
     const workshop = /** @type {any} */ (readItemShare("workshop", {
       v: 1, title: "W", start_date: "2026-10-01", people: [{ name: "Alex", role: "top", kind: "educator" }, { name: "Jude", role: "bottom" }],
+      cost: "GBP 60.00", event_url: "https://example.com/w",
     }));
     const { doc, known } = shareToImport("workshop", workshop, { people: [{ type: "new", name: "Alex" }, { type: "me" }], location: null, plans: [] }, "self");
     const [w] = remapWorkshops(doc.workshops, withKnown({ people: [{ file_id: "person-0", name: "Alex", id: "alex", matched: false }], locations: [], plans: [] }, known));
     expect([w.educators, w.participants, w.location_id]).toEqual([[{ person_id: "alex", role: "top" }], [{ person_id: "self", role: "bottom" }], null]);
+    // Its cost and event link come too (sealed with the rest when it's added).
+    expect([w.cost, w.event_url]).toEqual(["GBP 60.00", "https://example.com/w"]);
   });
 
   it("sends a shared plan as one new plan", () => {

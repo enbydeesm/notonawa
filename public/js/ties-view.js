@@ -29,7 +29,8 @@ export const TIE_TYPES = ["suspension", "partial suspension", "floor", "hashira"
 export function placeLine(tie) {
   /** @type {Label[]} */
   const parts = [];
-  if (tie.tie_type) parts.push({ text: capitalise(tie.tie_type), deleted: false });
+  // "Floor at Studio" reads oddly: a floor tie says so.
+  if (tie.tie_type) parts.push({ text: capitalise(tie.tie_type === "floor" ? "floor tie" : tie.tie_type), deleted: false });
   /** @type {Label | null} */
   const place = tie.location_name ? { text: tie.location_name, deleted: false }
     : tie.location_deleted ? { text: "(location deleted)", deleted: true }

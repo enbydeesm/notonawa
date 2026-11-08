@@ -14,6 +14,7 @@ import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
 import { openFeedback } from "./feedback-dialog.js";
+import { openWelcome } from "./welcome.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
@@ -163,8 +164,14 @@ function openMenu() {
         href: "/data", className: "menu-item nav-data",
         "aria-current": current === "/data" ? "page" : null,
       }, dataIcon(), h("span", {}, "Your data")),
-      // Feedback, What's new, the privacy policy and signing out are pinned
-      // to the bottom of the panel.
+      // The tutorial, feedback, What's new, the privacy policy and signing
+      // out are pinned to the bottom of the panel. The tutorial is the
+      // welcome for now; a click-through tour will take its place
+      // (roadmap.md).
+      h("button", {
+        type: "button", className: "menu-item menu-tutorial", "aria-haspopup": "dialog",
+        onclick: () => { dialog.close(); openWelcome(); },
+      }, tutorialIcon(), h("span", {}, "Tutorial")),
       h("button", {
         type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openFeedback(); },
@@ -330,6 +337,21 @@ function sparkleIcon() {
  * feedback. The bubble's outline stops short of the bug, so the two don't
  * cross.
  */
+/** A lightbulb with a question mark inside it. */
+function tutorialIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    // The bulb, narrowing to its base, and the base's two lines.
+    svg("path", { d: "M9 17.5c0-2-1-2.8-2.2-4.3A6.5 6.5 0 1 1 17.2 13.2C16 14.7 15 15.5 15 17.5" }),
+    svg("path", { d: "M9 17.5h6M9.8 20.5h4.4" }),
+    // The question mark inside.
+    svg("path", { d: "M10.4 8.2a1.8 1.8 0 1 1 2.6 1.6c-.6.3-1 .8-1 1.5v.4", "stroke-width": 1.6 }),
+    svg("circle", { cx: 12, cy: 13.6, r: 0.9, fill: "currentColor", stroke: "none" })
+  );
+  return icon;
+}
+
 function feedbackIcon() {
   const icon = lineIcon();
   icon.setAttribute("stroke-linejoin", "round");

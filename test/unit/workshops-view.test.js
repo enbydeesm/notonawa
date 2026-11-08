@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  EMPTY_SEARCH, hasWorkshopFilters, filterWorkshops, isTaught, amountLabel, tieFromWorkshop, moneyOf, splitByMe, workshopDays, dateRangeText, summarise,
+  EMPTY_SEARCH, hasWorkshopFilters, filterWorkshops, isTaught, amountLabel, tieFromWorkshop, moneyOf, splitByMe, workshopDays, dateRangeText, dateRangeLines, summarise,
   workshopCountText,
 } from "../../public/js/workshops-view.js";
 
@@ -82,11 +82,11 @@ describe("attended and taught", () => {
     expect(taught.map((x) => x.id)).toEqual(["c"]);
   });
 
-  it("label the cost Earned once I'm one of the educators", () => {
-    expect(amountLabel([], "me")).toBe("Cost");
-    expect(amountLabel(["kit"], "me")).toBe("Cost");
+  it("label the cost Paid, or Earned once I'm one of the educators", () => {
+    expect(amountLabel([], "me")).toBe("Paid");
+    expect(amountLabel(["kit"], "me")).toBe("Paid");
     expect(amountLabel(["kit", "me"], "me")).toBe("Earned");
-    expect(amountLabel(["me"], null)).toBe("Cost");
+    expect(amountLabel(["me"], null)).toBe("Paid");
   });
 });
 
@@ -100,7 +100,16 @@ describe("dates", () => {
 
   it("say one date, or the range", () => {
     expect(dateRangeText({ start_date: "2026-03-01", end_date: null }, "en-US")).toBe("Mar 1, 2026");
-    expect(dateRangeText({ start_date: "2026-03-01", end_date: "2026-03-03" }, "en-US")).toBe("Mar 1, 2026 – Mar 3, 2026");
+    expect(dateRangeText({ start_date: "2026-03-01", end_date: "2026-03-03" }, "en-US")).toBe("Mar 1 – 3, 2026");
+    expect(dateRangeText({ start_date: "2026-12-30", end_date: "2027-01-02" }, "en-US")).toBe("Dec 30, 2026 – Jan 2, 2027");
+  });
+
+  it("shows a card's dates as compactly as they read, across years on two lines", () => {
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: null }, "en-US")).toEqual(["Nov 6, 2026"]);
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-06" }, "en-US")).toEqual(["Nov 6, 2026"]);
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-08" }, "en-US")).toEqual(["Nov 6 – 8, 2026"]);
+    expect(dateRangeLines({ start_date: "2026-10-30", end_date: "2026-11-02" }, "en-US")).toEqual(["Oct 30 – Nov 2, 2026"]);
+    expect(dateRangeLines({ start_date: "2026-12-30", end_date: "2027-01-02" }, "en-US")).toEqual(["Dec 30, 2026", "– Jan 2, 2027"]);
     expect([0, 1, 2].map(workshopCountText)).toEqual(["0 workshops", "1 workshop", "2 workshops"]);
   });
 });

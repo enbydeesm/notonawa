@@ -13,7 +13,7 @@ const ORDER = "ORDER BY w.start_date DESC, w.created_at DESC, w.id DESC";
 // A workshop's own fields, its location's name and how many photos it has, for `workshops w`.
 const WORKSHOP_COLUMNS = `
   SELECT w.id, w.title, w.start_date, w.end_date, w.attendee_count, w.rating,
-         w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
+         w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost, w.event_url,
          w.description, w.notes, w.album_url, w.created_at, w.updated_at,
          w.location_id, w.location_deleted, l.name AS location_name,
          (SELECT COUNT(*) FROM media m WHERE m.workshop_id = w.id) AS photo_count
@@ -137,11 +137,11 @@ export async function insertWorkshop(db, ownerId, w) {
   await db.batch([
     db.prepare(
       `INSERT INTO workshops (id, owner_id, title, start_date, end_date, location_id, attendee_count, rating,
-                              difficulty, rating_content, rating_teaching, rating_value, cost,
+                              difficulty, rating_content, rating_teaching, rating_value, cost, event_url,
                               description, notes, album_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(id, ownerId, w.title, w.start_date, w.end_date, w.location_id, w.attendee_count, w.rating,
-      w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
+      w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost, w.event_url,
       w.description, w.notes, w.album_url),
     ...peopleStatements(db, id, w.people),
     ...await tagStatements(db, ownerId, "workshop", id, w.tags),
@@ -172,10 +172,10 @@ export async function updateWorkshop(db, ownerId, id, w) {
       `UPDATE workshops SET title = ?, start_date = ?, end_date = ?, location_id = ?,
               location_deleted = CASE WHEN ? IS NULL AND ? THEN location_deleted ELSE 0 END,
               attendee_count = ?, rating = ?, difficulty = ?, rating_content = ?, rating_teaching = ?,
-              rating_value = ?, cost = ?, description = ?, notes = ?, album_url = ?, updated_at = ${NOW}
+              rating_value = ?, cost = ?, event_url = ?, description = ?, notes = ?, album_url = ?, updated_at = ${NOW}
         WHERE id = ? AND owner_id = ?`
     ).bind(w.title, w.start_date, w.end_date, w.location_id, w.location_id, keep.location ? 1 : 0,
-      w.attendee_count, w.rating, w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost,
+      w.attendee_count, w.rating, w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost, w.event_url,
       w.description, w.notes, w.album_url, id, ownerId),
     db.prepare(
       `DELETE FROM workshop_people

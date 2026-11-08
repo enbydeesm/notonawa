@@ -28,7 +28,7 @@ describe("workshops", () => {
     const id = await user.post("/api/workshops", {
       title: "Intro to floor", start_date: "2026-03-01", end_date: "2026-03-02", location_id: loc,
       attendee_count: 12, rating: 4, difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2,
-      cost: sealed("USD 180.00"), description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
+      cost: sealed("USD 180.00"), event_url: sealed("https://ev"), description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       educators: [{ person_id: kit, role: "top" }], participants: [{ person_id: sam, role: "bottom" }],
       tags: ["Floor", "kata"],
     });
@@ -37,7 +37,7 @@ describe("workshops", () => {
     expect(list).toHaveLength(1);
     expect(list[0]).toEqual({
       id, title: "Intro to floor", start_date: "2026-03-01", end_date: "2026-03-02", attendee_count: 12, rating: 4,
-      difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2, cost: sealed("USD 180.00"),
+      difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2, cost: sealed("USD 180.00"), event_url: sealed("https://ev"),
       description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       created_at: expect.any(String), updated_at: expect.any(String),
       location_id: loc, location_deleted: 0, location_name: "Studio", photo_count: 0,
@@ -69,6 +69,7 @@ describe("workshops", () => {
       { title: "x", start_date: "2026-03-01", educators: [{ person_id: kit, role: "top" }], participants: [{ person_id: kit, role: "bottom" }] },
       { title: "x", start_date: "2026-03-01", notes: "plain" },
       { title: "x", start_date: "2026-03-01", cost: "USD 10.00" }, // the cost is sealed
+      { title: "x", start_date: "2026-03-01", event_url: "https://example.com" }, // and the event link
       { title: "x", start_date: "2026-03-01", difficulty: 6 },
       { title: "x", start_date: "2026-03-01", rating_value: 0 },
     ]) {

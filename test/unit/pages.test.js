@@ -28,13 +28,15 @@ describe("placeLine", () => {
   it("says the type at the location, keeping 'at' when there's no type", () => {
     expect(text({ ...base, tie_type: "partial suspension", location_name: "Studio" })).toBe("Partial suspension at Studio");
     expect(text({ ...base, location_name: "Studio" })).toBe("at Studio");
-    expect(text({ ...base, tie_type: "floor" })).toBe("Floor");
+    expect(text({ ...base, tie_type: "floor" })).toBe("Floor tie");
+    expect(text({ ...base, tie_type: "floor", location_name: "Rainbow Roost" })).toBe("Floor tie at Rainbow Roost");
+    expect(text({ ...base, tie_type: "hashira", location_name: "Studio" })).toBe("Hashira at Studio");
     expect(placeLine(base)).toEqual([]);
   });
 
   it("marks a deleted location", () => {
     expect(placeLine({ ...base, tie_type: "floor", location_deleted: 1 })).toEqual([
-      { text: "Floor", deleted: false }, { text: "at", deleted: false }, { text: "(location deleted)", deleted: true },
+      { text: "Floor tie", deleted: false }, { text: "at", deleted: false }, { text: "(location deleted)", deleted: true },
     ]);
   });
 });

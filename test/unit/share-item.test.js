@@ -65,6 +65,26 @@ describe("itemSource and buildItemShare", () => {
       people: [{ name: "Alex", role: "top", kind: "educator" }, { name: "Jude", role: "bottom", kind: "participant", sender: true }],
     });
   });
+
+  it("shares a workshop's cost and event link only when ticked, and reads them back checked", () => {
+    const workshop = {
+      id: "w1", title: "Intensive", start_date: "2026-10-01", end_date: null, cost: "EUR 180.00", event_url: "https://example.com/e",
+      educators: [], participants: [], tags: [], location_id: null,
+    };
+    const source = itemSource("workshop", workshop, { ...EXTRAS, location: null });
+    expect(FIELDS.workshop.map((f) => f.key)).toEqual(expect.arrayContaining(["cost", "event_url"]));
+    expect(buildItemShare("workshop", source, [])).toEqual({ v: 1, title: "Intensive", start_date: "2026-10-01" });
+    const shared = buildItemShare("workshop", source, ["cost", "event_url"]);
+    expect(shared).toMatchObject({ cost: "EUR 180.00", event_url: "https://example.com/e" });
+    expect(readItemShare("workshop", shared)).toMatchObject({ cost: "EUR 180.00", event_url: "https://example.com/e" });
+    // Anything else is dropped: not a cost we write, not a web link.
+    expect(readItemShare("workshop", { ...shared, cost: "180 euros", event_url: "javascript:alert(1)" }))
+      .toMatchObject({ cost: null, event_url: null });
+    expect(readItemShare("workshop", { ...shared, cost: "JPY 12000" })?.cost).toBe("JPY 12000");
+    // A tie or plan has neither.
+    expect(readItemShare("plan", { v: 1, title: "P", cost: "USD 1.00", event_url: "https://x.example" }))
+      .toMatchObject({ cost: null, event_url: null });
+  });
 });
 
 describe("readItemShare", () => {

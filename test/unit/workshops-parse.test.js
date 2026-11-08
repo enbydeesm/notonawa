@@ -9,14 +9,14 @@ describe("parseWorkshopInput", () => {
   it("reads a whole workshop, educators and participants as one list", () => {
     expect(parseWorkshopInput({
       ...BASE, end_date: "2026-03-02", location_id: "loc", attendee_count: "12", rating: 4,
-      difficulty: 3, rating_content: "5", rating_teaching: null, rating_value: 1, cost: sealed("USD 180.00"),
+      difficulty: 3, rating_content: "5", rating_teaching: null, rating_value: 1, cost: sealed("USD 180.00"), event_url: sealed("https://ev"),
       description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       educators: [{ person_id: "a", role: "top" }], participants: [{ person_id: "b", role: "model" }],
       tags: ["Floor", "floor", " kata "],
     })).toEqual({
       title: "Intro to floor", start_date: "2026-03-01", end_date: "2026-03-02", location_id: "loc",
       attendee_count: 12, rating: 4, difficulty: 3, rating_content: 5, rating_teaching: null, rating_value: 1,
-      cost: sealed("USD 180.00"), description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
+      cost: sealed("USD 180.00"), event_url: sealed("https://ev"), description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       // "model" is read as bottom, as on ties.
       people: [{ person_id: "a", kind: "educator", role: "top" }, { person_id: "b", kind: "participant", role: "bottom" }],
       tags: ["Floor", "kata"],
@@ -45,6 +45,7 @@ describe("parseWorkshopInput", () => {
     expect(() => parseWorkshopInput({ ...BASE, rating: 6 })).toThrow(BadInput);
     expect(() => parseWorkshopInput({ ...BASE, notes: "plain" })).toThrow("weren't encrypted");
     expect(() => parseWorkshopInput({ ...BASE, cost: "USD 10.00" })).toThrow("weren't encrypted");
+    expect(() => parseWorkshopInput({ ...BASE, event_url: "https://example.com" })).toThrow("weren't encrypted");
     for (const key of ["difficulty", "rating_content", "rating_teaching", "rating_value"]) {
       expect(() => parseWorkshopInput({ ...BASE, [key]: 0 }), key).toThrow(BadInput);
       expect(parseWorkshopInput({ ...BASE, [key]: 5 })[key]).toBe(5);

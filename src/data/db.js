@@ -44,7 +44,7 @@ export async function readAccount(db, userId) {
     q(`SELECT tt.tie_id, tg.name FROM tie_tags tt JOIN tags tg ON tg.id = tt.tag_id
         WHERE tg.owner_id = ? ORDER BY tg.name COLLATE NOCASE`),
     q(`SELECT id, title, start_date, end_date, location_id, location_deleted, attendee_count, rating,
-              difficulty, rating_content, rating_teaching, rating_value, cost,
+              difficulty, rating_content, rating_teaching, rating_value, cost, event_url,
               description, notes, album_url, created_at, updated_at
          FROM workshops WHERE owner_id = ? ORDER BY start_date, created_at, id`),
     q(`SELECT wp.workshop_id, wp.person_id, wp.kind, wp.role

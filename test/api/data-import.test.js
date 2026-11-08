@@ -198,7 +198,7 @@ async function fillJournal() {
   for (let i = 0; i < 5; i++) await create("/api/ties", { title: `Practice ${i}`, tie_type: "floor", tie_date: `2026-08-0${i + 1}` });
   const intensive = await create("/api/workshops", {
     title: "Intensive", start_date: "2026-04-01", end_date: "2026-04-03", location_id: studio, attendee_count: 14, rating: 5,
-    difficulty: 4, rating_content: 5, rating_teaching: 3, rating_value: 4, cost: sealed("EUR 250.00"),
+    difficulty: 4, rating_content: 5, rating_teaching: 3, rating_value: 4, cost: sealed("EUR 250.00"), event_url: sealed("https://example.com/intensive"),
     description: sealed("Uplines"), notes: sealed("Practise the TK"), album_url: sealed("https://photos.app.goo.gl/ws"),
     educators: [{ person_id: sam, role: "top" }, { person_id: gone, role: "audit" }],
     participants: [{ person_id: me, role: "top" }], tags: ["suspension", "floor"],

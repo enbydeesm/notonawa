@@ -27,7 +27,7 @@ export default async function () {
     [["Archive instead", "Delete permanently", "Cancel"], false, ["Me"]]);
   await go("/");
   check("tie shows what was deleted", await run(`return card(0);`),
-    [true, "Floor at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]);
+    [true, "Floor tie at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]);
   check("tapping a title opens the tie to edit, deleted links shown as kept", await run(`
     $(".tie-title").click(); await calm(1000);
     const d = $("dialog[open]");
@@ -42,12 +42,12 @@ export default async function () {
   check("saving an edit updates the tie, keeping the deleted links left in", await run(`
     set("#tie-title", "Floor session, edited"); $("#tie-save").click(); await calm(600); await settle();
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
-    [false, "Floor session, edited", [true, "Floor at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]]);
+    [false, "Floor session, edited", [true, "Floor tie at (location deleted)", 4, "With: (person deleted) (bottom), Me (top)", ["Futomomo"]]]);
   check("removing deleted links in the edit form drops them", await run(`
     $(".tie-title").click(); await calm(1000);
     $("#tie-participants .kept-deleted button").click(); $("#tie-location-deleted button").click();
     $("#tie-save").click(); await calm(600); await settle();
-    return card(0);`), [true, "Floor", 4, "With: Me (top)", ["Futomomo"]]);
+    return card(0);`), [true, "Floor tie", 4, "With: Me (top)", ["Futomomo"]]);
   await run(`await post("/api/ties", { title: "Throwaway", tie_type: "floor", tie_date: "2030-01-01" });`);
   await go("/");
   check("Delete tie asks first; Cancel keeps it, Delete tie deletes it", await run(`

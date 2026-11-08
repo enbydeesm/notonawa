@@ -12,6 +12,22 @@ import { normaliseKeyword } from "./search-match.js";
 export const PLAN_TYPE_NAMES = { idea: "Idea", harness: "Harness", sequence: "Sequence" };
 
 /**
+ * A plan card's second line: its tie type and plan type, "Hashira
+ * sequence" (just "Sequence" without a tie type), and, for a variation,
+ * what of: "Floor harness · variation of Gote".
+ * @param {{ tie_type?: string | null, plan_type?: string | null }} plan
+ * @param {string | null} [variationOf] the plan it's a variation of: its title, or "" if it's gone
+ * @returns {string}
+ */
+export function planKindText(plan, variationOf = null) {
+  const type = (PLAN_TYPE_NAMES[/** @type {keyof typeof PLAN_TYPE_NAMES} */ (plan.plan_type)] ?? plan.plan_type ?? "").toLowerCase();
+  const kind = [plan.tie_type, type].filter(Boolean).join(" ");
+  const text = kind.charAt(0).toUpperCase() + kind.slice(1);
+  if (variationOf === null) return text;
+  return [text, `variation of ${variationOf || "another plan"}`].filter(Boolean).join(" · ");
+}
+
+/**
  * @typedef {{ id: string, title: string | null, tie_date: string, success_rating: number | null }} LinkedTie
  * @typedef {{
  *   q: string,

@@ -4,6 +4,7 @@
 // item as last saved. See considerations.md, "Sharing between accounts".
 
 import { api, errorMessage } from "./api.js";
+import { readCost, formatMoney } from "./currency.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
 import { open, openMedia } from "./vault.js";
 import {
@@ -43,7 +44,9 @@ export async function openShareItem(kind, item) {
     })) : null;
     const offered = FIELDS[kind].filter((f) => hasField(source, f.key));
     const fields = offered.map((f) => h("label", { className: "inline share-field" },
-      h("input", { type: "checkbox", id: `share-item-${f.key}`, checked: true }),
+      // Everything starts ticked but what was paid or earned: money is
+      // shared only when chosen.
+      h("input", { type: "checkbox", id: `share-item-${f.key}`, checked: f.key !== "cost" }),
       h("span", {}, h("strong", {}, `${f.label}${shown(source, f.key) ? ":" : ""}`), " ", shown(source, f.key))));
     const expires = h("select", { id: "share-item-expires" },
       EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_EXPIRY }, c.label)));
@@ -172,6 +175,10 @@ function shown(source, key) {
     case "duration_minutes": return String(source.duration_minutes);
     case "success_rating": case "rating": case "est_difficulty": return `${source[key]}/5`;
     case "attendee_count": return String(source.attendee_count);
+    case "cost": {
+      const cost = readCost(source.cost);
+      return cost ? formatMoney(cost.minor, cost.currency) : "";
+    }
     case "plan_type": return PLAN_TYPE_NAMES[/** @type {keyof typeof PLAN_TYPE_NAMES} */ (source.plan_type)] ?? "";
     case "tie_type": return capitalise(source.tie_type ?? "");
     case "location": return source.location?.name ?? "";

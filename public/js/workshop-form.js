@@ -142,7 +142,7 @@ function showWorkshopForm(workshop, start) {
     const costInput = privateField(h("input", {
       id: "workshop-cost_amount", name: "cost_amount", inputMode: "decimal", placeholder: "0.00", maxLength: 14,
     }));
-    const costLabel = h("label", { htmlFor: "workshop-cost_amount", id: "workshop-cost-label" }, "Cost");
+    const costLabel = h("label", { htmlFor: "workshop-cost_amount", id: "workshop-cost-label" }, "Paid");
     // The ratings beyond "How was it?", folded away; opened when editing
     // one that has any.
     const extraRatings = ["content", "teaching", "value"].map((key) => ({
@@ -168,13 +168,8 @@ function showWorkshopForm(workshop, start) {
             id: "workshop-attendee_count", name: "attendee_count", type: "number", min: "0", max: "100000", inputMode: "numeric",
             placeholder: "10", title: "How many attended",
           })))),
-      h("div", { className: "row" },
-        h("div", {},
-          h("label", { htmlFor: "workshop-location", id: "workshop-location-label" }, "Location"),
-          locationRow, deletedLocationRow),
-        h("div", { className: "cost-field" },
-          costLabel,
-          h("div", { className: "cost-box" }, currencySelect, costInput))),
+      h("label", { htmlFor: "workshop-location", id: "workshop-location-label" }, "Location"),
+      locationRow, deletedLocationRow,
       h("div", { className: "label-row" },
         h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add()), selfHint.button),
       selfHint.text,
@@ -182,6 +177,23 @@ function showWorkshopForm(workshop, start) {
       h("div", { className: "label-row" },
         h("label", {}, "People"), addButton("workshop-add-participant", "Add person", () => participants.add())),
       participants.element,
+      // The event's page, and what it cost: Paid, or Earned on one I teach.
+      // Both sealed (crypto/fields.js); the link is checked as the album's is.
+      h("div", { className: "row" },
+        h("div", {},
+          h("label", { htmlFor: "workshop-event_url" }, "Event link"),
+          privateField(h("input", {
+            id: "workshop-event_url", name: "event_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
+            placeholder: "https://…", title: "A web address, starting with https://",
+          }))),
+        h("div", { className: "cost-field" },
+          costLabel,
+          h("div", { className: "cost-box" }, currencySelect, costInput))),
+      h("label", { htmlFor: "workshop-description" }, "Workshop description"),
+      privateField(h("textarea", {
+        id: "workshop-description", name: "description",
+        placeholder: "How it was originally described by educator, or summary of what it covered",
+      })),
       h("div", { className: "label-row rating-row" },
         h("label", { id: "workshop-rating-label" }, "How was it?"),
         ratingPicker({ name: "rating", labelledBy: "workshop-rating-label", value: workshop?.rating ?? null })),
@@ -189,11 +201,6 @@ function showWorkshopForm(workshop, start) {
         h("label", { id: "workshop-difficulty-label" }, "Difficulty"),
         ratingPicker({ name: "difficulty", labelledBy: "workshop-difficulty-label", value: workshop?.difficulty ?? null })),
       moreRatings,
-      h("label", { htmlFor: "workshop-description" }, "Workshop description"),
-      privateField(h("textarea", {
-        id: "workshop-description", name: "description",
-        placeholder: "How it was originally described by educator, or summary of what it covered",
-      })),
       h("label", { htmlFor: "workshop-notes" }, "Notes"),
       privateField(h("textarea", { id: "workshop-notes", name: "notes", placeholder: "Your takeaways, how it went" })),
       // Encrypted like the notes (crypto/fields.js).
@@ -413,6 +420,7 @@ function showWorkshopForm(workshop, start) {
       data.tags = tags;
       // Checked here: it's sealed before it's sent, so the server can't.
       data.album_url = webLinkOrNull(data.album_url);
+      data.event_url = webLinkOrNull(data.event_url);
       data.cost = costText(data.cost_currency, data.cost_amount);
       delete data.cost_currency;
       delete data.cost_amount;
@@ -462,6 +470,7 @@ function showWorkshopForm(workshop, start) {
       set("workshop-description", w.description);
       set("workshop-notes", w.notes);
       set("workshop-album_url", w.album_url);
+      set("workshop-event_url", w.event_url);
       const cost = readCost(w.cost);
       if (cost) {
         currencySelect.value = cost.currency;
@@ -470,7 +479,7 @@ function showWorkshopForm(workshop, start) {
       for (const { key, field } of extraRatings) field.set(w[`rating_${key}`] ?? null);
       moreRatings.open = extraRatings.some(({ key }) => w[`rating_${key}`] != null);
       if (w.unreadable?.length) {
-        showMessage(message, "This workshop's description, notes, album link or cost can't be decrypted. Saving replaces them.", true);
+        showMessage(message, "This workshop's description, notes, links or cost can't be decrypted. Saving replaces them.", true);
       }
       if (w.location_id) {
         location.pick({ id: w.location_id, name: w.location_name, created_at: "" });

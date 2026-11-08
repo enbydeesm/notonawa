@@ -105,8 +105,8 @@ analytics, advertising or tracking tools of any kind.
 **Encrypted on your device, so only you can read them:** every notes field
 (on ties, people, locations, plans and workshops, including plan and
 workshop descriptions), the photo album links on ties, plans and
-workshops, what you paid for a workshop (or earned teaching one), with its
-currency, where people are based and their
+workshops, a workshop's event link, what you paid for a workshop (or
+earned teaching one) with its currency, where people are based and their
 social and scene names, the About on your own profile and the About someone
 shared with you on theirs, your photos and videos, their thumbnails and
 captions, the captions of your drawings and poses, the names of the

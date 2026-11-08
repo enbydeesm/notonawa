@@ -54,8 +54,8 @@ const WORKSHOP_LINKS_KEY = `
   || ';' || COALESCE((SELECT group_concat(tag_id, ',' ORDER BY tag_id) FROM workshop_tags WHERE workshop_id = x.id), '')`;
 
 // My workshop x is the same as the file's j in everything but what's
-// encrypted (description, notes, album link, cost: the page compares the
-// first two itself).
+// encrypted (description, notes, album and event links, cost: the page
+// compares the first two itself).
 const SAME_WORKSHOP = `
        x.owner_id = ?1 AND x.start_date = ${j("start_date")} AND x.title = ${j("title")}
    AND x.end_date IS ${j("end_date")} AND x.location_id IS ${j("location_id")}
@@ -133,11 +133,11 @@ const SQL = {
              WHERE ${TIE_INSERTED}`,
   candidates: `SELECT ${j("i")} AS i, x.id, x.notes FROM json_each(?2) j JOIN ties x ON ${SAME_BUT_NOTES}`,
   workshops: `INSERT INTO workshops (id, owner_id, title, start_date, end_date, location_id, location_deleted, attendee_count,
-                                     rating, difficulty, rating_content, rating_teaching, rating_value, cost,
+                                     rating, difficulty, rating_content, rating_teaching, rating_value, cost, event_url,
                                      description, notes, album_url, created_at, updated_at)
               SELECT ${j("id")}, ?1, ${j("title")}, ${j("start_date")}, ${j("end_date")}, ${j("location_id")},
                      ${j("location_deleted")}, ${j("attendee_count")}, ${j("rating")}, ${j("difficulty")},
-                     ${j("rating_content")}, ${j("rating_teaching")}, ${j("rating_value")}, ${j("cost")},
+                     ${j("rating_content")}, ${j("rating_teaching")}, ${j("rating_value")}, ${j("cost")}, ${j("event_url")},
                      ${j("description")}, ${j("notes")},
                      ${j("album_url")}, ${time("created_at")}, ${time("updated_at")}
                 FROM json_each(?2) j`,

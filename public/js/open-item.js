@@ -29,6 +29,8 @@ import { duplicateMatches } from "./import-dedupe.js";
 import { saveDrawing } from "./drawings-ui.js";
 import { savePose } from "./poses-ui.js";
 import { albumLink } from "./tie-card.js";
+import { isWebLink } from "./links.js";
+import { readCost, formatMoney } from "./currency.js";
 import { ratingHanks } from "./rope-rating.js";
 import { roleName } from "./roles.js";
 import { capitalise, formatDate } from "./format.js";
@@ -365,7 +367,7 @@ function itemCard(kind, item) {
     ? [formatDate(item.tie_date), capitalise(item.tie_type ?? ""), item.duration_minutes !== null ? `${item.duration_minutes} mins` : null]
     : kind === "workshop"
       ? [dateRangeText({ start_date: /** @type {string} */ (item.start_date), end_date: item.end_date }),
-        item.attendee_count !== null ? `${item.attendee_count} attendees` : null]
+        item.attendee_count !== null ? `${item.attendee_count} attended` : null]
       : [PLAN_TYPE_NAMES[/** @type {keyof typeof PLAN_TYPE_NAMES} */ (item.plan_type)] ?? null,
         item.tie_type ? capitalise(item.tie_type) : null];
   const rating = kind === "tie" ? item.success_rating : kind === "workshop" ? item.rating : item.est_difficulty;
@@ -386,7 +388,28 @@ function itemCard(kind, item) {
       : line(item.people.length > 0 && `With: ${names(item.people)}`, "open-people"),
     item.description ? h("p", { className: "item-notes", id: "open-description" }, item.description) : null,
     item.notes ? h("p", { className: "item-notes", id: "open-notes" }, item.notes) : null,
+    kind === "workshop" ? line(costLine(item.cost), "open-cost") : null,
+    eventLink(item.event_url),
     albumLink(item.album_url, "item-meta"),
     line(visuals, "open-visuals"),
     item.tags.length ? h("div", { className: "tag-row" }, item.tags.map((t) => h("span", { className: "tag outline" }, t))) : null);
+}
+
+/**
+ * A shared workshop's cost: "Cost: €180".
+ * @param {string | null} cost as shared ("EUR 180.00")
+ */
+function costLine(cost) {
+  const read = readCost(cost);
+  return read ? `Cost: ${formatMoney(read.minor, read.currency)}` : null;
+}
+
+/**
+ * A shared workshop's event link, as its album link shows: "Open link".
+ * @param {string | null} url checked as a web link when read
+ */
+function eventLink(url) {
+  if (!isWebLink(url)) return null;
+  return h("span", { className: "item-meta", id: "open-event" },
+    h("a", { href: /** @type {string} */ (url), target: "_blank", rel: "noopener noreferrer" }, "Open link"));
 }

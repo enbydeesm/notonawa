@@ -35,7 +35,7 @@ describe("exportDocument", () => {
       plans: [{ id: "pl1", title: "TK", workshop_id: "w1" }],
       workshops: [{
         id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: 1,
-        attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c",
+        attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c", event_url: "e1.e",
         description: "e1.d", notes: null, album_url: null,
         created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
       }],
@@ -48,7 +48,7 @@ describe("exportDocument", () => {
     }, "2026-10-13T10:00:00Z");
     expect(doc.workshops).toEqual([{
       id: "w1", title: "Intro", start_date: "2026-03-01", end_date: null, location_id: null, location_deleted: true,
-      attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c",
+      attendee_count: 9, rating: 4, difficulty: 2, rating_content: null, rating_teaching: 5, rating_value: null, cost: "e1.c", event_url: "e1.e",
       description: "e1.d", notes: null, album_url: null,
       created_at: "2026-03-01T00:00:00Z", updated_at: "2026-03-01T00:00:00Z",
       educators: [{ person_id: "kit", role: "top" }], participants: [{ person_id: null, role: "bottom" }],

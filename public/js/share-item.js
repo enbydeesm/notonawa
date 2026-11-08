@@ -20,6 +20,7 @@ import { ROLES, WORKSHOP_ROLES, TIE_TYPES } from "./ties-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
 import { MAX_TAGS, MAX_TAG_LENGTH, tagKey } from "./tags.js";
 import { isWebLink } from "./links.js";
+import { readCost } from "./currency.js";
 import { MAX_DRAWINGS } from "./drawing-format.js";
 import { MAX_POSES } from "./pose-format.js";
 import { MAX_CAPTION } from "./crypto/media.js";
@@ -79,9 +80,13 @@ export const FIELDS = /** @type {Record<ItemKind, ShareField[]>} */ ({
   ],
   workshop: [
     { key: "location", label: "Location" },
-    { key: "attendee_count", label: "Attendees" },
+    { key: "attendee_count", label: "Size (how many attended)" },
     { key: "rating", label: "Rating" },
     { key: "people", label: "Educators and people, with their roles" },
+    { key: "event_url", label: "Event link" },
+    // Paid or earned: it reads as the other person's own once added (Paid,
+    // unless they're one of its educators).
+    { key: "cost", label: "Cost" },
     { key: "description", label: "Description" },
     { key: "notes", label: "Notes" },
     { key: "album_url", label: "Album link" },
@@ -152,6 +157,7 @@ export const isMedia = (visual) => visual.kind === "photo" || visual.kind === "v
  *   start_date: string | null, end_date: string | null, attendee_count: number | null, rating: number | null,
  *   location: SharedPlace | null, plans: string[], people: SharedPerson[], tags: string[],
  *   description: string | null, notes: string | null, album_url: string | null, visuals: SharedVisual[],
+ *   event_url: string | null, cost: string | null,
  * }} SharedItem
  */
 
@@ -161,6 +167,7 @@ function emptyItem() {
     title: null, tie_date: null, tie_type: null, duration_minutes: null, success_rating: null, plan_type: null,
     est_difficulty: null, start_date: null, end_date: null, attendee_count: null, rating: null, location: null,
     plans: [], people: [], tags: [], description: null, notes: null, album_url: null, visuals: [],
+    event_url: null, cost: null,
   };
 }
 
@@ -463,6 +470,10 @@ export function readItemShare(kind, data) {
     const end = date(d.end_date);
     item.end_date = end && end > item.start_date ? end : null;
     item.attendee_count = whole(d.attendee_count, 0, MAX_ATTENDEES);
+    item.event_url = isWebLink(typeof d.event_url === "string" ? d.event_url.trim() : null) ? /** @type {string} */ (d.event_url).trim() : null;
+    // As my own costs are written ("USD 180.00"), read back the same way.
+    const cost = readCost(typeof d.cost === "string" ? d.cost : null);
+    item.cost = cost ? `${cost.currency} ${cost.amount}` : null;
     item.rating = whole(d.rating, 1, 5);
     item.location = readPlace(d.location);
     item.people = readPeople(d.people, kind);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tieSummary, tieCountText, filterPlans, hasPlanFilters, EMPTY_SEARCH } from "../../public/js/plans-view.js";
+import { tieSummary, tieCountText, filterPlans, hasPlanFilters, EMPTY_SEARCH, planKindText } from "../../public/js/plans-view.js";
 
 /** @param {number | null} success_rating */
 const tie = (success_rating) => ({ id: "t", title: "x", tie_date: "2026-01-01", success_rating });
@@ -53,5 +53,15 @@ describe("filterPlans", () => {
     expect(hasPlanFilters({ ...EMPTY_SEARCH, q: "  " })).toBe(false);
     expect(hasPlanFilters({ ...EMPTY_SEARCH, tie_types: ["floor"] })).toBe(true);
     expect(hasPlanFilters({ ...EMPTY_SEARCH, tag_match: "all" })).toBe(false);
+  });
+});
+
+describe("a plan card's second line", () => {
+  it("says its tie type and plan type, and what it's a variation of", () => {
+    expect(planKindText({ tie_type: "hashira", plan_type: "sequence" })).toBe("Hashira sequence");
+    expect(planKindText({ tie_type: "partial suspension", plan_type: "harness" })).toBe("Partial suspension harness");
+    expect(planKindText({ tie_type: null, plan_type: "sequence" })).toBe("Sequence");
+    expect(planKindText({ tie_type: "floor", plan_type: "idea" }, "Gote")).toBe("Floor idea · variation of Gote");
+    expect(planKindText({ tie_type: null, plan_type: "idea" }, "")).toBe("Idea · variation of another plan");
   });
 });

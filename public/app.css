@@ -640,7 +640,7 @@ dialog.menu-panel {
 @starting-style { dialog.menu-panel[open] { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
-.menu-feedback { margin-top: auto; }
+.menu-tutorial { margin-top: auto; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 .menu-item {
   display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
@@ -1197,6 +1197,8 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .subtabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
 /* A workshop's dates can be a range: let it wrap rather than push the title. */
 .workshop-card .tie-date { white-space: normal; text-align: right; }
+/* Dates across years: one line each, the second starting with its dash. */
+.workshop-card .tie-date .date-line { display: block; white-space: nowrap; }
 .summary-card .stat-pairs { margin-bottom: 12px; }
 .summary-card .item-meta { margin: 4px 0 0; }
 

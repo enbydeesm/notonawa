@@ -7,10 +7,11 @@ export default async function () {
   console.log("Plans");
   await go("/plans");
   const addPlan = `$("#add-plan").click(); await calm(300);`;
-  // A plan's card, by its title, and what it shows: its type (top right),
-  // tie type and variation, difficulty hanks, ties, and how many buttons.
+  // A plan's card, by its title, and what it shows: its tie type and plan
+  // type ("Hashira sequence") and variation, difficulty hanks, ties, and how
+  // many buttons.
   const planCard = `const cardOf = (t) => [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === t);
-    const parts = (c) => [c.querySelector(".plan-type").innerText, c.querySelector(".tie-place").innerText,
+    const parts = (c) => [c.querySelector(".tie-place").innerText,
       c.querySelectorAll(".tie-rating .hank.filled").length, c.querySelector(".plan-ties").innerText, c.querySelectorAll("button").length];`;
   check("Plans starts with a small \"Add a Plan\" card, its yellow + first at the left, then the search, then the list", await run(`
     const cards = [...document.querySelectorAll("#view > section.card")];
@@ -30,7 +31,7 @@ export default async function () {
     ${planCard}
     return [opened, types, closed, $("#stage"), parts(cardOf("Hip harness")), parts(cardOf("Hip harness, one-sided"))];`),
     [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
-      ["Harness", "", 3, "0 ties", 1], ["Idea", "variation of Hip harness", 0, "0 ties", 1]]);
+      ["Harness", 3, "0 ties", 1], ["Idea · variation of Hip harness", 0, "0 ties", 1]]);
   check("tapping a plan's card opens it, with Delete, Archive and Share icons on the heading's row", await run(`
     ${planCard}
     cardOf("Hip harness").querySelector(".plan-ties").click(); await calm(400);
@@ -66,7 +67,7 @@ export default async function () {
     link.addEventListener("click", (e) => e.preventDefault(), { once: true }); link.click(); await calm(300);
     return [types, refused, chips, item.querySelector(".tie-place").innerText, tagChips(".plan-card .tie-tags"),
       [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags, !!document.querySelector("#plan-dialog[open]")];`),
-    [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor",
+    [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor harness",
       ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"], false]);
   check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
     await clickIn("Hip harness", "Edit");
@@ -99,12 +100,12 @@ export default async function () {
     await post("/api/ties", { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] });
     await post("/api/ties", { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] });`);
   await go("/plans");
-  check("a plan's card counts its ties, bottom right, with its type top right and tags at the bottom", await run(`
+  check("a plan's card says its tie type and plan type on its second line (nothing in the corner), counts its ties bottom right, tags at the bottom", await run(`
     ${planCard}
     const c = cardOf("Linked plan"), box = c.getBoundingClientRect(), ties = c.querySelector(".plan-ties").getBoundingClientRect();
-    const typeBox = c.querySelector(".plan-type").getBoundingClientRect(), tags = c.querySelector(".tie-tags").getBoundingClientRect();
-    return [parts(c), box.right - ties.right < 16, box.right - typeBox.right < 16, typeBox.top - box.top < 20, tags.top >= ties.bottom - 1,
-      tagChips(".plan-card .tie-tags")];`), [["Sequence", "Suspension", 0, "2 ties", 1], true, true, true, true, ["search-tag"]]);
+    const tags = c.querySelector(".tie-tags").getBoundingClientRect();
+    return [parts(c), !!c.querySelector(".tie-date, .plan-type"), box.right - ties.right < 16, tags.top >= ties.bottom - 1,
+      tagChips(".plan-card .tie-tags")];`), [["Suspension sequence", 0, "2 ties", 1], false, true, true, ["search-tag"]]);
   check("its form lists the linked ties, folded under 'Linked ties (2)' until tapped, newest first, each with its rating at the end of the row", await run(`
     await clickIn("Linked plan", "Edit");
     const folded = [$("#plan-linked").open, $("#plan-linked summary").textContent.trim(), $("#plan-linked-ties").checkVisibility({ contentVisibilityAuto: true })];

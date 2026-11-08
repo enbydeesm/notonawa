@@ -172,7 +172,7 @@ export function exportDocument(rows, exportedAt) {
         location_id: w.location_id, location_deleted: !!w.location_deleted,
         attendee_count: w.attendee_count, rating: w.rating, difficulty: w.difficulty,
         rating_content: w.rating_content, rating_teaching: w.rating_teaching, rating_value: w.rating_value,
-        cost: w.cost, description: w.description, notes: w.notes, album_url: w.album_url,
+        cost: w.cost, event_url: w.event_url, description: w.description, notes: w.notes, album_url: w.album_url,
         created_at: w.created_at, updated_at: w.updated_at,
         educators: of("educator"), participants: of("participant"),
         tags: (tagsByWorkshop.get(w.id) ?? []).map((x) => x.name),

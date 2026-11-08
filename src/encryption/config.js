@@ -10,7 +10,7 @@ export const ENCRYPTED_COLUMNS = {
   profile_notes: ["description"],
   locations: ["notes"],
   plans: ["description", "notes", "album_url"],
-  workshops: ["description", "notes", "album_url", "cost"],
+  workshops: ["description", "notes", "album_url", "cost", "event_url"],
   drawings: ["caption"],
   poses: ["caption"],
   pose_presets: ["name"],

@@ -124,10 +124,10 @@ export function tieFromWorkshop(workshop, today) {
  * which it is follows the educators, as isTaught does.
  * @param {string[]} educatorIds the people chosen as educators so far
  * @param {string | null} selfId
- * @returns {"Cost" | "Earned"}
+ * @returns {"Paid" | "Earned"}
  */
 export function amountLabel(educatorIds, selfId) {
-  return selfId !== null && educatorIds.includes(selfId) ? "Earned" : "Cost";
+  return selfId !== null && educatorIds.includes(selfId) ? "Earned" : "Paid";
 }
 
 /**
@@ -159,8 +159,27 @@ export function workshopDays({ start_date, end_date }) {
  * @param {string} [locale]
  */
 export function dateRangeText({ start_date, end_date }, locale) {
-  const start = formatDate(start_date, locale);
-  return end_date ? `${start} – ${formatDate(end_date, locale)}` : start;
+  return dateRangeLines({ start_date, end_date }, locale).join(" ");
+}
+
+/**
+ * A workshop's dates as compactly as they read: "Nov 6 – 8, 2026" in one
+ * month, "Oct 30 – Nov 2, 2026" across months, and across years two lines,
+ * "Dec 30, 2026" and "– Jan 2, 2027" (a card's corner is narrow). The
+ * browser's own range format, so other languages get theirs.
+ * @param {{ start_date: string, end_date: string | null }} workshop
+ * @param {string} [locale]
+ * @returns {string[]} one line, or two
+ */
+export function dateRangeLines({ start_date, end_date }, locale) {
+  if (!end_date || end_date === start_date) return [formatDate(start_date, locale)];
+  if (end_date.slice(0, 4) !== start_date.slice(0, 4)) {
+    return [formatDate(start_date, locale), `– ${formatDate(end_date, locale)}`];
+  }
+  const asDate = (/** @type {string} */ iso) => new Date(`${iso}T00:00:00Z`);
+  const format = new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+  // Its spaces around the dash are thin ones: plain spaces, as elsewhere.
+  return [format.formatRange(asDate(start_date), asDate(end_date)).replace(/\u2009/g, " ")];
 }
 
 /**

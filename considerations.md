@@ -3067,3 +3067,29 @@ time. Mocked up first, then built (`pose-editor.js`, with
   for the new one (`copyMedia`), and the copy counts in the 1 GB. Weighed:
   pointing two items at one file, which would need shared files and
   reference counts when deleting.
+
+## Workshop event links, card wording, Tutorial (November 2026)
+
+**Status:** built (2026-11-08)
+
+- **A workshop's event link is encrypted** (`workshops.event_url`,
+  migration 0031), as its album link is: it can show what I went to.
+  It's checked as an http or https link before sealing and again before
+  "Open link" makes it clickable, before "Open album" on the card.
+- **Paid, not Cost**: the field says what it is from my side (Earned on
+  one I teach). The ratings moved after the description, so the facts
+  (where, who, the link and the money) come first.
+- **Card dates use the browser's own range format** (`formatRange`):
+  "Nov 6 – 8, 2026", "Oct 30 – Nov 2, 2026", and across years two lines,
+  as the card's corner is narrow. Other languages get their own order.
+  The attendee count left the card (it's in the form and the Summary).
+- **"Floor tie at …"**: "Floor at Studio" read oddly. The other types
+  read fine as they are. **Plan cards** say "Hashira sequence" on their
+  second line, so the corner no longer repeats the plan type.
+- **Sharing a workshop's cost is offered unticked**: it's money, so it's
+  shared only when chosen; its event link starts ticked as the album link
+  does. The recipient's copy reads as their Paid (unless they're one of
+  its educators). Its new ratings aren't offered yet.
+- **Tutorial in the menu reopens the welcome** until a click-through tour
+  replaces it (roadmap.md).
+

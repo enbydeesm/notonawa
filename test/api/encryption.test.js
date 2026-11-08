@@ -36,7 +36,7 @@ describe("encrypting older notes", () => {
       profile_notes: [{ id: `n-${me.id}`, description: "plain like" }],
       locations: [{ id: `l-${me.id}`, notes: "plain location" }],
       plans: [{ id: `pl-${me.id}`, description: "plain steps", notes: sealed("already sealed"), album_url: null }],
-      workshops: [{ id: `w-${me.id}`, description: "plain class", notes: null, album_url: null, cost: null }],
+      workshops: [{ id: `w-${me.id}`, description: "plain class", notes: null, album_url: null, cost: null, event_url: null }],
       drawings: [{ id: `d-${me.id}`, caption: "plain caption" }],
       poses: [{ id: `po-${me.id}`, caption: "plain pose" }],
       // A share's name, and a saved preset's, is sealed when it's made, so

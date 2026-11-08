@@ -100,6 +100,11 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 - **A smaller body file**: fewer components, or a lighter mesh, if 2 MB is
   slow on phones.
 
+## A click-through tutorial
+
+The menu's Tutorial (nav.js) shows the welcome message for now. In its
+place: a step-by-step tour of the app, opened from the same row.
+
 ## Ideas, not yet committed
 
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.

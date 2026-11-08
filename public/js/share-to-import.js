@@ -89,7 +89,7 @@ export function shareToImport(kind, item, choices, selfId) {
     doc.workshops.push({
       title: item.title, start_date: item.start_date, end_date: item.end_date, location_id: locationId,
       attendee_count: item.attendee_count, rating: item.rating, description: item.description, notes: item.notes,
-      album_url: item.album_url, educators: people((p) => p.kind === "educator"), participants: people((p) => p.kind !== "educator"),
+      album_url: item.album_url, event_url: item.event_url, cost: item.cost, educators: people((p) => p.kind === "educator"), participants: people((p) => p.kind !== "educator"),
       tags: item.tags,
     });
   }

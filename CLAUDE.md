@@ -285,7 +285,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   before it, `attendee_count` (the form's Size), `rating`, and since
   migration 0030 `difficulty`, `rating_content`, `rating_teaching`,
   `rating_value` (1–5) and `cost` (sealed: the amount and its currency,
-  `public/js/currency.js`), educators and participants (the form's
+  `public/js/currency.js`), `event_url` (migration 0031, sealed, checked
+  as album links are), educators and participants (the form's
   People) each with a role, sent as two lists and stored as one,
   `workshop_people`, with a `kind`; a person is on a workshop once;
   `parseLink`), `db.js` (tags through `tags/db.js`, as `"workshop"`; each
@@ -359,7 +360,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ready, or revoked if a step fails),
   `share-profile-dialog.js` ("Share my profile", from my own profile in
   People), `share-item.js` (pure: a shared tie, plan or workshop, built
-  from the ticked fields and read strictly; people as names and roles, the
+  from the ticked fields and read strictly (a workshop's cost, offered
+  unticked, and its event link too); people as names and roles, the
   sender marked; Drawings and poses and Photos and videos ticked
   separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
   workshop's dialog), `share-people.js` (pure: Who is this? suggestions for
@@ -540,7 +542,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide; the + button and the ☰ menu panel: Settings, Account, Your
-  data, Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Tutorial (the welcome again, for now), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
@@ -553,16 +555,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   from a workshop's audit, takes the person's usual one), `workshop-form.js`
   (the "Add a workshop" dialog; educators are only people marked
   Educator, the rest are the picker source's `elsewhere`, and one added
-  there is saved as an educator; Location open from the start, beside
-  Cost (Earned once I'm an educator), its currency starting on the last
-  one used; More ratings folded; "Ties and plans", whose + opens
+  there is saved as an educator; Location open from the start; Event link
+  beside Paid (Earned once I'm an educator), its currency starting on the
+  last one used; the ratings after the description, More ratings folded; "Ties and plans", whose + opens
   `add-to-picker.js` with `what: "link"` (ties and plans only), linking
   one or starting a new one linked to it, a tie through
   `tieFromWorkshop`), `workshop-link.js` (a tie's or plan's Workshop row:
   + shows a drop-down of my workshops; its name opens it, × unlinks it),
   `currency.js` (pure: the currencies, USD first; a cost sealed as one
   field, "USD 180.00"; totals per currency, never converted, the most
-  used first; `formatMoney`; `lastCurrency`), `workshop-card.js`,
+  used first; `formatMoney`; `lastCurrency`), `workshop-card.js` (dates as
+  `dateRangeLines` gives them, two lines across years; "Open link" before
+  "Open album"),
   `workshops-view.js` (pure: the Education search, attended or taught,
   the Summary's numbers (`moneyOf`: Total spend, Avg per workshop,
   Earned), `amountLabel`, `tieFromWorkshop`: a new tie from a workshop,
@@ -823,6 +827,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `plans.notes`, `plans.album_url`, `workshops.description`,
   `workshops.notes`, `workshops.album_url` (migration 0018),
   `workshops.cost` (migration 0030: the amount and currency together),
+  `workshops.event_url` (migration 0031),
   `drawings.caption` (migration 0019; a drawing's lines aren't),
   `poses.caption` (migration 0020; a pose's numbers aren't),
   `pose_presets.name` (migration 0025; a preset's angles aren't),

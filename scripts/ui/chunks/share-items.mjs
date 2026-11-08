@@ -46,8 +46,10 @@ export default async function () {
     const full = await (await canvas.convertToBlob({ type: "image/jpeg" })).arrayBuffer();
     const { uploadPhoto } = await import("/js/photo-upload.js");
     await uploadPhoto({ item: { tie_id: ${JSON.stringify(tieId)} }, prepared: { thumb: full.slice(0), full, mime: "image/jpeg" }, caption: "Front" });
-    await post("/api/workshops", { title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",
-      educators: [{ person_id: ${JSON.stringify(ids.sam)}, role: "top" }], participants: [{ person_id: ${JSON.stringify(ids.me)}, role: "bottom" }] });`);
+    // Its cost and event link are sealed, as the form seals them.
+    await post("/api/workshops", await sealOne("workshop", { title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",
+      cost: "EUR 180.00", event_url: "https://example.com/floor-intensive",
+      educators: [{ person_id: ${JSON.stringify(ids.sam)}, role: "top" }], participants: [{ person_id: ${JSON.stringify(ids.me)}, role: "bottom" }] }));`);
 
   await go("/");
   check("a saved tie has Share; its dialog ticks everything it has, photos too with what they take of my 1 GB, asks the name to show for me, and explains behind ?s", await run(`
@@ -97,11 +99,16 @@ export default async function () {
     $("#workshop-share").click();
     for (let i = 0; i < 50 && !$("#share-item-make"); i++) await wait(100);
     const people = [...document.querySelectorAll(".share-item .share-field")].find((l) => l.innerText.startsWith("Educators"))?.innerText;
+    const field = (key) => [$("#share-item-" + key)?.closest(".share-field").innerText, $("#share-item-" + key)?.checked];
+    const money = [field("event_url"), field("cost")];
+    $("#share-item-cost").click();
     ${MAKE({ "#share-item-my-name": "Jude", "#share-item-label": "Workshop" })}
     [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await calm(200);
-    return [people, link];`);
+    return [people, link, money];`);
   check("a workshop's Share lists its educators and participants", workshopLink[0],
     "Educators and people, with their roles: Sam (top), you (bottom)");
+  check("…and offers its event link, ticked, and its cost, not ticked until chosen", workshopLink[2],
+    [["Event link", true], ["Cost: €180", false]]);
   await go("/data");
   check("Shared by me lists them by kind", await run(`
     for (let i = 0; i < 30 && document.querySelectorAll(".share-item").length < 3; i++) await wait(100);
@@ -184,14 +191,18 @@ export default async function () {
   check("a shared workshop asks about its educators and participants, and saves them as chosen", await run(`
     ${OPENED}
     const shown = [$("#open-when").textContent, $("#open-educators").textContent, $("#open-people").textContent,
-      $("label[for=open-person-0]").innerText, $("label[for=open-person-1]").innerText];
+      $("label[for=open-person-0]").innerText, $("label[for=open-person-1]").innerText,
+      $("#open-cost").textContent, $("#open-event a").getAttribute("href")];
     set("#open-person-0", "me"); set("#open-person-1", "person:${newJude}");
     ${ADD}
     const [w] = await (await fetch("/api/workshops")).json();
+    const [opened] = await (await import("/js/vault.js")).open("workshop", [w]);
     const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self).id;
     return [shown, $("#open-done")?.textContent, w.title,
-      w.educators.map((p) => [p.person_id === me ? "me" : p.person_name, p.role]), w.participants.map((p) => [p.person_name, p.role])];`),
-  [["Mar 1, 2026 – Mar 2, 2026", "Educators: Sam (top)", "People: Jude (bottom)",
-    "Sam Top · educator", "Jude Bottom · participant · shared this"],
-  "The workshop is in your journal.", "Floor intensive", [["me", "top"]], [["Jude", "bottom"]]]);
+      w.educators.map((p) => [p.person_id === me ? "me" : p.person_name, p.role]), w.participants.map((p) => [p.person_name, p.role]),
+      [/^e1\\./.test(w.cost), /^e1\\./.test(w.event_url), opened.cost, opened.event_url]];`),
+  [["Mar 1 – 2, 2026", "Educators: Sam (top)", "People: Jude (bottom)",
+    "Sam Top · educator", "Jude Bottom · participant · shared this", "Cost: €180", "https://example.com/floor-intensive"],
+  "The workshop is in your journal.", "Floor intensive", [["me", "top"]], [["Jude", "bottom"]],
+  [true, true, "EUR 180.00", "https://example.com/floor-intensive"]]);
 }

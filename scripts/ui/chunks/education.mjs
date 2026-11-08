@@ -61,7 +61,7 @@ export default async function () {
     const participant = lastBox("#workshop-participants"); participant.focus(); await wait(50);
     const participants = pickerList(participant).sort(); participant.blur();
     return [opened, offered, me, participants, leakyFields()];`),
-    [["Add a workshop", true, false, true, "End date (optional)", "10", "Size", "How many attended", true, false, "Cost", "USD", "USD CAD EUR GBP",
+    [["Add a workshop", true, false, true, "End date (optional)", "10", "Size", "How many attended", true, false, "Paid", "USD", "USD CAD EUR GBP",
       false, "How it was originally described by educator, or summary of what it covered", "Your takeaways, how it went",
       "To log a workshop you taught, tick Educator on your own profile in People."], ["Sam"],
       ["No matches.", '"Me" isn\'t marked as an educator. Tick Educator on them in People to choose them here.'], ["Me (you)", "Sam"], []]);
@@ -82,6 +82,11 @@ export default async function () {
     $("#workshop-more-ratings summary").click(); await wait(50);
     document.querySelectorAll("#workshop-more-ratings .hank-button")[14].click();
     $("#workshop-cost_currency").value = "EUR"; set("#workshop-cost_amount", "180");
+    set("#workshop-event_url", "https://example.com/intro"); set("#workshop-album_url", "https://example.com/album");
+    // The form's order: Location on its own row, Event link beside Paid, the ratings after the description.
+    const order = [...document.querySelectorAll("#workshop-form label")].map((l) => l.textContent)
+      .filter((t) => ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"].includes(t));
+    const beside = $("#workshop-event_url").closest(".row") === $("#workshop-cost_amount").closest(".row");
     set("#workshop-description", "Gote basics"); set("#workshop-notes", "Practise the stem");
     $("#workshop-add-tags").click(); await calm(400);
     $("#tags-search").value = "floor"; $("#tags-add").click(); $("#tags-ok").click(); await calm(200);
@@ -91,10 +96,14 @@ export default async function () {
     return [$("dialog[open]") === null, c.querySelector(".tie-title").textContent, c.querySelector(".tie-date").textContent,
       c.querySelectorAll(".tie-rating .hank.filled").length, [...c.querySelectorAll(".tie-with")].map((l) => l.innerText),
       tagChips(".workshop-card"), $("#workshop-count").textContent,
-      [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), /^e1\\./.test(stored.cost), stored.attendee_count,
-        stored.rating, stored.difficulty, stored.rating_content, stored.rating_value]];`),
-    [true, "Intro to floor", "Mar 1, 2026 – Mar 2, 2026", 4, ["Educators: Sam (bottom)", "With: Me (top)"], ["floor"], "1 workshop",
-      [true, true, true, 12, 4, 2, null, 5]]);
+      [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), /^e1\\./.test(stored.cost), /^e1\\./.test(stored.event_url),
+        stored.attendee_count, stored.rating, stored.difficulty, stored.rating_content, stored.rating_value],
+      order, beside, c.querySelector(".tie-place").textContent,
+      [...c.querySelectorAll(".tie-visuals-end a")].map((a) => [a.textContent, a.getAttribute("href"), a.target])];`),
+    [true, "Intro to floor", "Mar 1 – 2, 2026", 4, ["Educators: Sam (bottom)", "With: Me (top)"], ["floor"], "1 workshop",
+      [true, true, true, true, 12, 4, 2, null, 5],
+      ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"], true, "",
+      [["Open link", "https://example.com/intro", "_blank"], ["Open album", "https://example.com/album", "_blank"]]]);
   check("Taught is empty until I'm one of the educators, and says so", await run(`
     $("#tab-taught").click(); await wait(100);
     return [$("#tab-taught").getAttribute("aria-selected"), $("#tab-attended").getAttribute("aria-selected"), flat($("#education-panel"))];`),
@@ -119,7 +128,7 @@ export default async function () {
     const attended = titles();
     $("#tab-taught").click(); await wait(100);
     return [hint, before, earned, attended, titles()];`),
-    [true, "Cost", "Earned", ["Intro to floor"], ["Teaching gote"]]);
+    [true, "Paid", "Earned", ["Intro to floor"], ["Teaching gote"]]);
   check("the search narrows every tab: a keyword in the description, and educators (folded under More options)", await run(`
     $("#tab-attended").click(); await wait(100);
     await type("#search-q", "GOTE"); const keyword = [titles(), $("#workshop-count").textContent, $("#search-clear").hidden];

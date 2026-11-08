@@ -16,7 +16,7 @@ import { visualsRow } from "../tie-card.js";
 import { multiSelect } from "../multi-select.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 import {
-  PLAN_TYPE_NAMES, EMPTY_SEARCH, tieSummary, tieCountText, filterPlans, hasPlanFilters,
+  PLAN_TYPE_NAMES, planKindText, EMPTY_SEARCH, tieSummary, tieCountText, filterPlans, hasPlanFilters,
 } from "../plans-view.js";
 
 /** @typedef {import("../plans-view.js").PlanSearch} PlanSearch */
@@ -83,12 +83,10 @@ export function mount(_root, { signal }) {
    */
   function planCard(plan, open) {
     const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
-    const kind = [plan.tie_type ? capitalise(plan.tie_type) : null,
-      plan.variation_of ? `variation of ${parent ? parent.title : "another plan"}` : null].filter(Boolean).join(" · ");
+    const kind = planKindText(plan, plan.variation_of ? (parent ? parent.title : "") : null);
     const { count } = tieSummary(plan.linked_ties ?? []);
     return [
       h("button", { type: "button", className: "tie-title", onclick: open }, plan.title),
-      h("span", { className: "tie-date plan-type" }, PLAN_TYPE_NAMES[plan.plan_type] || plan.plan_type),
       h("div", { className: "tie-place" }, kind),
       plan.est_difficulty != null
         ? h("div", { className: "tie-rating" }, ratingHanks(plan.est_difficulty, `Difficulty ${plan.est_difficulty}/5`))
