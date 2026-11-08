@@ -769,8 +769,13 @@ async function ropes({ tap, slide, topDialog }) {
   const editPose = `$("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await wait(500);`;
-  const savePose = `$("#pose-save").click();
-    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);`;
+  // "Pose saved" can still be showing from the save before, so it also
+  // waits for the stored pose to change (a few seconds at most, for a save
+  // that changes nothing).
+  const savePose = `{ const storedBefore = JSON.stringify((await ${tiePose}).data);
+    $("#pose-save").click();
+    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
+    for (let i = 0; i < 30 && JSON.stringify((await ${tiePose}).data) === storedBefore; i++) await wait(100); }`;
 
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Rope test").click(); await wait(1500);
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
@@ -871,9 +876,10 @@ async function ropes({ tap, slide, topDialog }) {
   [["Added rope: 1 point. Keep tapping, then Finish.", false], ["Added rope: 2 points. Keep tapping, then Finish.", true]]);
   // The right upline above its two bends (the cinches), toward the ring.
   await tapRope(bridged, 2, 2, 0.5);
-  check("…the slack, saved with the pose", await run(`
-    if (!$("#pose-slack")) return ["no slack slider", $("#pose-rope-hint").textContent];
-    ${slide("pose-slack", 30)}
+  // Body to ring, two points: it has a Length, and 30 cm more is 30 cm of slack.
+  check("…its Length raised, as slack, saved with the pose", await run(`
+    if (!$("#pose-length") || $("#pose-slack")) return ["no length slider", $("#pose-rope-hint").textContent];
+    { const el = $("#pose-length"); el.value = String(Number(el.value) + 30); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await calm(200); }
     ${savePose}
     const saved = (await ${tiePose}).data;
     return [saved.ropes.length, saved.ropes[5].p[0].slice(0, 2), saved.ropes[5].p.length, saved.ropes[2].k];`),
@@ -902,7 +908,7 @@ async function ropes({ tap, slide, topDialog }) {
     $("#pose-along-bamboo-down").click(); await wait(200);
     const value = $("#pose-along-bamboo").value;
     $("#pose-along-start").click(); await wait(200);
-    const back = [!!$("#pose-along-bamboo"), !!$("#pose-slack")];
+    const back = [!!$("#pose-along-bamboo"), !!$("#pose-length")];
     ${savePose}
     const saved = (await ${tiePose}).data;
     return [labels, pressed, range, value, back, saved.ropes[1].p.at(-1), saved.ropes[2].p.at(-1), saved.ropes[3].l > 0];`),
@@ -910,9 +916,10 @@ async function ropes({ tap, slide, topDialog }) {
 }
 
 /**
- * A cinch on ropes round the body only (no hardpoint): two wraps across
- * the front, one over the chest and one over the belly, cinched together
- * from the first; it pulls them together, and has no "Move the body".
+ * Ropes round the body only (no hardpoint): two wraps across the front,
+ * one over the chest and one over the belly. Each has a Length (two
+ * points); cinched together from the first, Move the body bends the trunk
+ * to bring them closer.
  * @param {{ tap: (fx: number, fy: number) => Promise<void>, topDialog: string }} helpers
  */
 async function bodyCinch({ tap, topDialog }) {
@@ -975,26 +982,36 @@ async function bodyCinch({ tap, topDialog }) {
     await tap(fx, fy);
   };
   await tapRope(0);
-  check("a rope round the body, with no upline anywhere, has Cinch as well as Add rope", await run(`
-    return [$("#pose-chosen-title")?.textContent, $("#pose-cinch-start")?.textContent, $("#pose-added-start")?.textContent];`),
-  ["Rope selected", "Cinch", "Add rope"]);
+  check("a rope round the body, with no upline anywhere, has Cinch as well as Add rope, and a Length from 0 to twice its own", await run(`
+    const length = $("#pose-length");
+    return [$("#pose-chosen-title")?.textContent, $("#pose-cinch-start")?.textContent, $("#pose-added-start")?.textContent,
+      !!$("#pose-slack"), length?.min, Number(length?.max) === 2 * Number(length?.value), Number(length?.value) > 20];`),
+  ["Rope selected", "Cinch", "Add rope", false, "0", true, true]);
+  check("raising its Length gives it slack, the body staying put", await run(`
+    const el = $("#pose-length"), was = Number(el.value);
+    el.value = String(was + 25); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(400);
+    return [Number($("#pose-length").value) === was + 25, $("#pose-length").max === String(2 * was)];`),
+  [true, true]);
+  // Back to taut.
+  await run(`{ const el = $("#pose-length"); el.value = String(Number(el.max) / 2); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(400); }`);
   await run(`$("#pose-cinch-start").click(); await wait(200);`);
   await tapRope(1);
-  check("Cinch to the other wrap ties it: pulling the ropes together, with no Move the body", await run(`
+  check("Cinch to the other wrap ties it, with Move the body ticked, to draw them together", await run(`
     $("#pose-finish-rope").click(); await wait(300);
     const length = $("#pose-cinch-length");
-    return [$("#pose-rope-note").textContent, !!$("#pose-cinch-body"), length?.value === length?.max, $("#pose-rope-hint").textContent];`),
-  ["Cinch tied. Shorten it to pull the ropes together.", false, true,
-    "Shorten the cinch to pull the ropes together. Tap Cinch again when you're done."]);
-  check("shortening it is saved with the pose, the body left as it was", await run(`
+    return [$("#pose-rope-note").textContent, $("#pose-cinch-body")?.checked, length?.value === length?.max, $("#pose-rope-hint").textContent];`),
+  ["Cinch tied. Shorten it to draw them together.", true, true,
+    "Shorten the cinch to draw them together. Tap Cinch again when you're done."]);
+  check("shortening it bends the body to bring the wraps together, and is saved with the pose; the body's place stays", await run(`
     const max = Number($("#pose-cinch-length").max);
     { const el = $("#pose-cinch-length"); el.value = String(Math.floor(max / 2)); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await wait(500); }
     $("#pose-save").click();
     for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
     const saved = (await ${tiePose}).data;
     const cinch = saved.ropes[2];
-    return [cinch?.l === Math.floor(max / 2), cinch?.p.map((p) => [p[0], p[1], p[2]]), JSON.stringify(saved.body), saved.lift];`),
-  [true, [["rope", 0, 0], ["rope", 1, 0]], "[0,0,0]", 99]);
+    const bent = ["spine", "chest"].some((j) => (saved.joints[j] ?? [0, 0, 0]).some((a) => a !== 0));
+    return [cinch?.l === Math.floor(max / 2), cinch?.p.map((p) => [p[0], p[1], p[2]]), JSON.stringify(saved.body), saved.lift, bent];`),
+  [true, [["rope", 0, 0], ["rope", 1, 0]], "[0,0,0]", 99, true]);
 }
 
 /**

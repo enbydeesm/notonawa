@@ -156,7 +156,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   poses), ropes with `l` (cinches: tied through two or more spots on
   ropes, `["rope", index, segment, along]`, or the body, any number on a
   rope), a rope added to another (its first point a spot on an earlier
-  rope), `k` (slack, cm) or `s` (see-saws),
+  rope), `k` (slack, cm, up to 300) or `s` (see-saws),
   `JOINTS` and their limits (with `hips`, the pelvis's tilt, hike and
   turn, and each foot's `toes`; older poses have neither, read as at
   rest), the same as `public/js/figure-rig.js`'s and
@@ -471,7 +471,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   change takes it out of reach; feet not moved are left as set; tested),
   `pose-constraints.js`
   (moving the body to keep uplines' lengths: a cinch's "Move the body",
-  see-saw ropes; the drag solver's method, tested), `pose-marks.js` (pure:
+  see-saw ropes; a cinch round the body drawing the parts it's tied to
+  together; a two-point rope's Length, `setRopeLength`, shorter moving the
+  body, longer as slack; the drag solver's method, tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
   (their layer over the view, and drawing them onto a picture),
   `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging

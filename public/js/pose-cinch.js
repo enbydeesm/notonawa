@@ -19,7 +19,7 @@
 // worked out as if the others weren't pulling the same ropes.
 
 import { Vector3 } from "./vendor/three.js";
-import { ROPE, isCinch, isAdded, hangs, pullsUplines } from "./pose-format.js";
+import { ROPE, isCinch, isAdded, hangs, sags, pullsUplines } from "./pose-format.js";
 import { ropePoint } from "./pose-skeleton.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -121,7 +121,7 @@ export function spotPoint(skeleton, pose, spot, bent = bends(skeleton, pose)) {
   const rope = pose.ropes[index];
   const line = [pointAt(skeleton, pose, index, segment, bent), ...bendsOn(bent, index, segment), pointAt(skeleton, pose, index, segment + 1, bent)];
   // On a slack rope's hanging stretch, on the sag it's drawn with.
-  const total = rope.k && hangs(rope, segment) ? hangingLength(skeleton, pose, index, bent) : 0;
+  const total = rope.k && sags(rope, segment) ? hangingLength(skeleton, pose, index, bent) : 0;
   let left = lineLength(line) * along / 1000;
   for (let k = 1; k < line.length; k++) {
     const step = line[k].distanceTo(line[k - 1]);
@@ -151,7 +151,7 @@ function hangingLength(skeleton, pose, index, bent) {
   const rope = pose.ropes[index];
   let total = 0;
   for (let segment = 0; segment + 1 < rope.p.length; segment++) {
-    if (!hangs(rope, segment)) continue;
+    if (!sags(rope, segment)) continue;
     total += lineLength([pointAt(skeleton, pose, index, segment, bent), ...bendsOn(bent, index, segment), pointAt(skeleton, pose, index, segment + 1, bent)]);
   }
   return total;
@@ -216,9 +216,9 @@ export function sagging(a, b, extra) {
 
 /**
  * A rope's line in the room as the runs it's drawn in: its stretches
- * hanging from the ring or bamboo each straight on their own (pulled taut,
- * a cinch's bends making more), sagging with the rope's slack, the rest,
- * round the body, curving through their points.
+ * hanging from the ring or bamboo, or a rope of two points, each straight
+ * on their own (pulled taut, a cinch's bends making more), sagging with the
+ * rope's slack, the rest, round the body, curving through their points.
  * @param {Skeleton} skeleton
  * @param {Pose} pose
  * @param {number} index
@@ -237,7 +237,7 @@ export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose)) {
   let curve = [];
   for (let segment = 0; segment + 1 < points.length; segment++) {
     const [a, b] = [points[segment], points[segment + 1]];
-    if (!hangs(rope, segment)) {
+    if (!sags(rope, segment)) {
       // Round the body: curving through its points, and any bends a cinch
       // pulls in it.
       if (!curve.length) curve.push(a);

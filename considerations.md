@@ -3152,11 +3152,30 @@ time. Mocked up first, then built (`pose-editor.js`, with
   that much shorter. Keeping the tie-on point and growing the ring upward
   was the other way, and not wanted.
 - **A cinch on ropes round the body only** (no point on an upline's
-  hanging stretch) pulls its points on those ropes toward each other, the
-  same way a cinch pulls uplines, and they bend there; its points on the
-  body stay. It has no "Move the body", as no upline's length changes.
-  Drawing it only, pulling nothing, was the other option. A cinch with
-  even one point on an upline works as before, pulling only the uplines,
-  so poses saved before this don't change. The wraps can lift a little
-  off the skin as they're pulled: an approximation, like the rest.
+  hanging stretch) has "Move the body", ticked to begin with: shortening
+  it turns the joints between the parts it's tied to (the ends of the
+  ropes it's tied through, and its own points on the body) so they come
+  closer, the ropes staying where they're tied (`pose-constraints.js`,
+  `drawTogether`). Only joints: the whole body's tilt and height bring
+  nothing together. What the joints can't close (at their limits, or both
+  ends on one part, like two chest wraps) is taken up as it was first
+  built, by pulling its points on the ropes toward each other, and so is
+  all of it with Move the body unticked. The first version only did that,
+  which pulled the wraps off the body: a cinch draws the body in, not the
+  rope out. Drawing it only, pulling nothing, was also offered. A cinch
+  with even one point on an upline works as before.
+- **A two-point rope has a Length, not a Slack** (`hasLength`,
+  `setRopeLength`): body to body, body to the ring, bamboo or hashira, or
+  body to a spot on another rope (Add rope). The slider runs from 0 to
+  twice the rope's length when it was chosen, starting in the middle, and
+  keeps that range while it stays chosen. Below its taut length the body
+  moves to bring the ends that close: the limbs it's tied to, or for the
+  trunk tied to a hardpoint or a spot, the whole body's tilt and height;
+  between two parts, joints only. Above it, the rest is slack, and a
+  two-point rope sags whether or not it hangs (`sags`). Nothing keeps the
+  length afterwards: moving the body later changes it, as for any rope.
+  Uplines of three points or more keep Slack. Cinches keep their own
+  length, which only shortens: a longer, sagging cinch was offered and
+  not wanted for now. Slack went from 100 cm to 300 cm, so twice a long
+  upline's length fits.
 

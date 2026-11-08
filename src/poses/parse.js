@@ -120,7 +120,7 @@ export const BAMBOO_MIDDLE = 5;
 /** A cinch's length, cm. */
 export const CINCH_RANGE = /** @type {const} */ ([0, 1000]);
 /** A rope's slack, cm. */
-export const SLACK_RANGE = /** @type {const} */ ([0, 100]);
+export const SLACK_RANGE = /** @type {const} */ ([0, 300]);
 /** A cinch's point on another rope. */
 export const ROPE = "rope";
 /** The hashira (a post from the floor up): its x and z in cm, and its turn. */
