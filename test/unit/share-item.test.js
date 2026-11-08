@@ -113,6 +113,13 @@ describe("readItemShare", () => {
     expect([read?.people.length, read?.visuals.length, read?.end_date]).toEqual([LIMITS.people, 20, null]);
     expect(read?.people[0].kind).toBe("participant");
   });
+
+  it("reads audit as a role on a workshop only", () => {
+    const people = [{ name: "Sam", role: "audit", kind: "participant" }, { name: "Alex", role: "audit", kind: "educator" }];
+    expect(readItemShare("workshop", { v: 1, title: "W", start_date: "2026-01-02", people })?.people)
+      .toEqual([{ name: "Sam", role: "audit", kind: "participant" }, { name: "Alex", role: "audit", kind: "educator" }]);
+    expect(readItemShare("tie", { v: 1, tie_date: "2026-01-01", tie_type: "floor", people })?.people).toEqual([]);
+  });
 });
 
 describe("SHARE_LEGEND", () => {

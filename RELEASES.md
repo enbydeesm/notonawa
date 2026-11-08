@@ -10,6 +10,10 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- Workshops have a new role, Audit, for educators and participants alike. It's only on workshops, not ties.
+- Picking a person in a tie or workshop no longer clears the role you'd already chosen when they have no default role. Someone with a default role still sets it.
+
 ## 2026.11.05.0231
 Model Poser UI Overhaul!!
 - New layout: Pose, Rope and Scene are tabs across the top. Undo, redo and the pencil sit on the view's top left, and a cube on its top right picks the view (front, sides, back or above). Download and Add to visuals moved to the foot, beside Save pose, as icons.

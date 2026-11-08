@@ -21,6 +21,13 @@ describe("parseWorkshopInput", () => {
     });
   });
 
+  it("takes audit as a role, which ties don't", () => {
+    expect(parseWorkshopInput({
+      ...BASE, educators: [{ person_id: "a", role: "audit" }], participants: [{ person_id: "b", role: "audit" }],
+    }).people).toEqual([{ person_id: "a", kind: "educator", role: "audit" }, { person_id: "b", kind: "participant", role: "audit" }]);
+    expect(() => parseWorkshopInput({ ...BASE, participants: [{ person_id: "b", role: "auditor" }] })).toThrow("Expected one of");
+  });
+
   it("needs a title and a start date, and an end date not before it", () => {
     expect(() => parseWorkshopInput({ start_date: "2026-03-01" })).toThrow("Add a title.");
     expect(() => parseWorkshopInput({ title: "x" })).toThrow("Add a start date.");

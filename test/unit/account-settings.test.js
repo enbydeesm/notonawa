@@ -27,6 +27,7 @@ describe("parseSettings", () => {
   it("refuses the other roles' names, long names, non-text and unknown themes", () => {
     expect(() => parseSettings({ top_label: "Self tie" }, DEFAULTS)).toThrow("already a role");
     expect(() => parseSettings({ bottom_label: "spotter" }, DEFAULTS)).toThrow("already a role");
+    expect(() => parseSettings({ bottom_label: "Audit" }, DEFAULTS)).toThrow("already a role");
     expect(() => parseSettings({ top_label: "x".repeat(MAX_ROLE_NAME + 1) }, DEFAULTS)).toThrow(`${MAX_ROLE_NAME} characters`);
     expect(parseSettings({ top_label: "x".repeat(MAX_ROLE_NAME) }, DEFAULTS)).toEqual({ top_label: "x".repeat(MAX_ROLE_NAME) });
     expect(() => parseSettings({ top_label: 5 }, DEFAULTS)).toThrow("should be text");

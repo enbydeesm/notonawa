@@ -2981,3 +2981,19 @@ time. Mocked up first, then built (`pose-editor.js`, with
   but mechanical; "Through the ring" didn't fit the bamboo.
 - **The heading takes focus when the poser opens**, as other dialogs'
   do: before, the browser gave it to the Pose tab, which showed a ring.
+
+## Audit on workshops, and roles kept on pick (November 2026)
+
+**Status:** built (2026-11-07)
+
+- **Audit is a workshop role only** (`WORKSHOP_ROLES` in
+  `src/ties/parse.js` and `public/js/ties-view.js`; migration 0029
+  rebuilds `workshop_people` for its CHECK). It's offered for educators and
+  participants alike. Ties and a person's default role keep the five tie
+  roles: auditing is sitting in on a class, not a side of a tie. Top and
+  bottom can't be named "audit" either.
+- **Picking a person keeps a chosen role** when they have no default
+  (`roleAfterPick` in `roles.js`): before, picking anyone replaced the
+  role with theirs, blank when they had none. Someone with a default role
+  still sets it, as that's usually what's meant.
+

@@ -5,7 +5,7 @@
 
 import { h, $, removeX } from "./dom.js";
 import { participantLabel } from "./ties-view.js";
-import { roleName, roleOptions } from "./roles.js";
+import { roleName, roleOptions, workshopRoleOptions, roleAfterPick } from "./roles.js";
 import { searchPicker } from "./search-picker.js";
 
 /** @typedef {import("./search-choices.js").PickerSource} PickerSource */
@@ -23,14 +23,17 @@ let rowCount = 0;
  *   startWithMe?: boolean,
  *   exclude?: () => Set<string>,
  *   picker?: Partial<Parameters<typeof searchPicker>[0]>,
+ *   workshop?: boolean,
  * }} config
  *   id: the list's element id; idPrefix: the start of its search boxes'
  *   ids; source: the people offered; startWithMe: the first row added
  *   starts with me in it (a new tie); exclude: ids chosen elsewhere, not
  *   offered (a row's own person is always offered); picker: more of
- *   searchPicker's options (newFields, onAdd, elsewhereNote).
+ *   searchPicker's options (newFields, onAdd, elsewhereNote); workshop:
+ *   the roles offered are a workshop's, with Audit.
  */
-export function personRows({ id, idPrefix, source, onError, startWithMe = false, exclude, picker = {} }) {
+export function personRows({ id, idPrefix, source, onError, startWithMe = false, exclude, picker = {}, workshop = false }) {
+  const options = workshop ? workshopRoleOptions() : roleOptions();
   const element = h("div", { id });
   let addedPerson = !startWithMe;
 
@@ -53,7 +56,7 @@ export function personRows({ id, idPrefix, source, onError, startWithMe = false,
     const row = h("div", { className: "picker-row removable person-row" });
     const role = h("select", { className: "role", "aria-label": "Role" },
       h("option", { value: "" }, "Choose Role"),
-      roleOptions().map((r) => h("option", { value: r.value }, r.label)));
+      options.map((r) => h("option", { value: r.value }, r.label)));
     const person = searchPicker({
       ...picker,
       kind: "people", id: `${idPrefix}-${++rowCount}`, label: { text: "Person" },
@@ -63,9 +66,10 @@ export function personRows({ id, idPrefix, source, onError, startWithMe = false,
         skip.delete(hidden.value);
         return skip;
       }),
-      // Picking someone sets their usual role (or none), replacing any
-      // role chosen for whoever was there before. It can still be changed.
-      onPick: (item) => { role.value = item.defaultRole ?? ""; },
+      // Picking someone with a usual role sets it, replacing any role
+      // chosen before; picking someone without one keeps the role chosen.
+      // It can still be changed.
+      onPick: (item) => { role.value = roleAfterPick(role.value, item.defaultRole, options.map((r) => r.value)); },
     });
     const hidden = /** @type {HTMLInputElement} */ ($(".person", person.element));
     row.append(person.element, role, removeButton(row));

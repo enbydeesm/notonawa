@@ -7,7 +7,7 @@
 // journal is unlocked (and back to the defaults when it locks), so anything
 // drawn after that uses them.
 
-import { ROLES } from "./ties-view.js";
+import { ROLES, WORKSHOP_ROLES } from "./ties-view.js";
 import { capitalise } from "./format.js";
 
 /** @typedef {{ top: string, bottom: string }} RoleNames */
@@ -54,6 +54,28 @@ export function roleName(role, using = names) {
  */
 export function roleOptions(using = names) {
   return ROLES.map((role) => ({ value: role, label: capitalise(roleName(role, using)) }));
+}
+
+/**
+ * The roles for a workshop's drop-downs: the tie roles, then Audit, which
+ * only workshops have.
+ * @param {RoleNames} [using]
+ * @returns {{ value: string, label: string }[]}
+ */
+export function workshopRoleOptions(using = names) {
+  return WORKSHOP_ROLES.map((role) => ({ value: role, label: capitalise(roleName(role, using)) }));
+}
+
+/**
+ * A row's role once a person is picked: their usual role if they have
+ * one, or else the role already chosen (blank if none was).
+ * @param {string} current the row's role before the pick ("" for none)
+ * @param {string | undefined} defaultRole the person's usual role
+ * @param {readonly string[]} [allowed] the roles the row offers
+ * @returns {string}
+ */
+export function roleAfterPick(current, defaultRole, allowed = WORKSHOP_ROLES) {
+  return defaultRole && allowed.includes(defaultRole) ? defaultRole : current;
 }
 
 /**

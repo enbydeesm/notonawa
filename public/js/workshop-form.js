@@ -81,7 +81,7 @@ function showWorkshopForm(workshop, start) {
     // Someone is on a workshop once: as an educator or a participant.
     const chosen = () => new Set([...educators.chosenIds(), ...participants.chosenIds()]);
     const educators = personRows({
-      id: "workshop-educators", idPrefix: "workshop-educator", source: sources.educators, onError, exclude: chosen,
+      id: "workshop-educators", idPrefix: "workshop-educator", source: sources.educators, onError, exclude: chosen, workshop: true,
       picker: {
         // Someone added here teaches.
         newFields: { is_educator: 1 },
@@ -90,7 +90,7 @@ function showWorkshopForm(workshop, start) {
       },
     });
     const participants = personRows({
-      id: "workshop-participants", idPrefix: "workshop-participant", source: sources.people, onError, exclude: chosen,
+      id: "workshop-participants", idPrefix: "workshop-participant", source: sources.people, onError, exclude: chosen, workshop: true,
       picker: { onAdd: (item) => (sources.educators.elsewhere ??= []).push(item) },
     });
     // Behind a "?" beside Educators, shown once my own profile isn't marked Educator.

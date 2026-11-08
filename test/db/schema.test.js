@@ -76,7 +76,7 @@ describe("constraints", () => {
     for (const role of ["top", "bottom", "self tie", "spotter", "photographer"]) {
       await sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, ?)", newId("tp"), tie, person, role).run();
     }
-    for (const role of ["rigger", "model"]) {
+    for (const role of ["rigger", "model", "audit"]) {
       await expect(sql("INSERT INTO tie_participants (id, tie_id, person_id, role) VALUES (?, ?, ?, ?)", newId("tp"), tie, person, role).run())
         .rejects.toThrow("CHECK constraint failed");
     }
@@ -190,6 +190,10 @@ describe("workshops (migration 0018)", () => {
     await expect(add("teacher", "top")).rejects.toThrow("CHECK constraint failed");
     await expect(add("educator", "rigger")).rejects.toThrow("CHECK constraint failed");
     await add("educator", "top");
+    // Audit is a workshop's role (migration 0029), not a tie's.
+    const other = newId("p");
+    await sql("INSERT INTO people (id, owner_id, name) VALUES (?, ?, 'Sam')", other, me).run();
+    await sql("INSERT INTO workshop_people (id, workshop_id, person_id, kind, role) VALUES (?, ?, ?, 'participant', 'audit')", newId("wp"), w, other).run();
     await expect(add("participant", "bottom")).rejects.toThrow("UNIQUE constraint failed");
   });
 

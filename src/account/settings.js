@@ -17,7 +17,8 @@ import { SHAPE_RANGES } from "../poses/parse.js";
 export const THEMES = ["light", "dark"];
 export const MAX_ROLE_NAME = 24;
 /** Words a role name can't be, as they'd be confused with another role. */
-const OTHER_ROLES = ["self tie", "spotter", "photographer"];
+// Audit is a workshop role (migration 0029): top and bottom can't be called that either.
+const OTHER_ROLES = ["self tie", "spotter", "photographer", "audit"];
 
 /**
  * @typedef {{

@@ -10,6 +10,8 @@ import { parseTagNames } from "../tags/parse.js";
  * bottom_label; see src/account/settings.js).
  */
 export const ROLES = ["top", "bottom", "self tie", "spotter", "photographer"];
+/** A workshop's people can also audit (sit in and watch), not a role on a tie (migration 0029). */
+export const WORKSHOP_ROLES = [...ROLES, "audit"];
 /** What older exports, CSVs and pages call top and bottom. */
 const OLD_ROLES = /** @type {Record<string, string>} */ ({ rigger: "top", model: "bottom" });
 export const TIE_TYPES = ["suspension", "partial suspension", "floor", "hashira"];
@@ -35,8 +37,23 @@ export const TAG_MATCHES = ["any", "all"];
  * @returns {string | null}
  */
 export function toRoleOrNull(value) {
+  return roleFrom(value, ROLES);
+}
+
+/**
+ * A role on a workshop (a tie's, or audit), or null if empty; read as
+ * toRoleOrNull reads them.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function toWorkshopRoleOrNull(value) {
+  return roleFrom(value, WORKSHOP_ROLES);
+}
+
+/** @param {unknown} value @param {string[]} roles */
+function roleFrom(value, roles) {
   const text = cleanText(value);
-  return toChoiceOrNull(text !== null && Object.hasOwn(OLD_ROLES, text) ? OLD_ROLES[text] : text, ROLES);
+  return toChoiceOrNull(text !== null && Object.hasOwn(OLD_ROLES, text) ? OLD_ROLES[text] : text, roles);
 }
 
 /**

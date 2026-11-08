@@ -10,6 +10,8 @@ import { capitalise } from "./format.js";
  * the account's names for them (roles.js).
  */
 export const ROLES = ["top", "bottom", "self tie", "spotter", "photographer"];
+/** A workshop's people can also audit (sit in and watch), which isn't a role on a tie (migration 0029). */
+export const WORKSHOP_ROLES = [...ROLES, "audit"];
 export const TIE_TYPES = ["suspension", "partial suspension", "floor", "hashira"];
 
 /**

@@ -16,7 +16,7 @@
 // and no longer than it could be here. Drawings' and poses' own numbers
 // are checked by the server when they're saved, as an import's are.
 
-import { ROLES, TIE_TYPES } from "./ties-view.js";
+import { ROLES, WORKSHOP_ROLES, TIE_TYPES } from "./ties-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
 import { MAX_TAGS, MAX_TAG_LENGTH, tagKey } from "./tags.js";
 import { isWebLink } from "./links.js";
@@ -374,7 +374,8 @@ function readPeople(value, kind) {
   for (const item of value.slice(0, LIMITS.people)) {
     if (!item || typeof item !== "object") continue;
     const name = text(item.name, LIMITS.name);
-    const role = choice(item.role, ROLES);
+    // Audit is a workshop's only.
+    const role = choice(item.role, kind === "workshop" ? WORKSHOP_ROLES : ROLES);
     if (!name || !role) continue;
     /** @type {SharedPerson} */
     const person = { name, role };

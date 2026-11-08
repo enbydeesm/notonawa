@@ -67,6 +67,8 @@ describe("parseParticipants", () => {
     expect(() => parseParticipants([{ person_id: "p1" }])).toThrow("needs a person and a role");
     expect(() => parseParticipants([{ role: "bottom" }])).toThrow("needs a person and a role");
     expect(() => parseParticipants([{ person_id: "p1", role: "chef" }])).toThrow("Expected one of");
+    // Audit is a workshop's only.
+    expect(() => parseParticipants([{ person_id: "p1", role: "audit" }])).toThrow("Expected one of");
   });
 
   it("keeps one of the same person in the same role, but allows different roles", () => {

@@ -189,7 +189,7 @@ async function fillJournal() {
   const intensive = await create("/api/workshops", {
     title: "Intensive", start_date: "2026-04-01", end_date: "2026-04-03", location_id: studio, attendee_count: 14, rating: 5,
     description: sealed("Uplines"), notes: sealed("Practise the TK"), album_url: sealed("https://photos.app.goo.gl/ws"),
-    educators: [{ person_id: sam, role: "top" }, { person_id: gone, role: "bottom" }],
+    educators: [{ person_id: sam, role: "top" }, { person_id: gone, role: "audit" }],
     participants: [{ person_id: me, role: "top" }], tags: ["suspension", "floor"],
   });
   await create("/api/workshops", {

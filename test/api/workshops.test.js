@@ -107,13 +107,13 @@ describe("workshops", () => {
     // Sam moves from participant to educator, Kit to participant.
     const res = await user.send(`/api/workshops/${id}`, {
       title: "Intro 2", start_date: "2026-03-02", attendee_count: 3,
-      educators: [{ person_id: sam, role: "top" }], participants: [{ person_id: kit, role: "spotter" }], tags: ["b"],
+      educators: [{ person_id: sam, role: "top" }], participants: [{ person_id: kit, role: "audit" }], tags: ["b"],
     }, "PUT");
     expect(res).toEqual({ status: 200, body: { id } });
     const w = (await user.send(`/api/workshops/${id}`)).body;
     expect(w).toMatchObject({ title: "Intro 2", start_date: "2026-03-02", attendee_count: 3, location_id: null, tags: ["b"] });
     expect(w.educators.map((/** @type {any} */ p) => [p.person_name, p.role])).toEqual([["Sam", "top"]]);
-    expect(w.participants.map((/** @type {any} */ p) => [p.person_name, p.role])).toEqual([["Kit", "spotter"]]);
+    expect(w.participants.map((/** @type {any} */ p) => [p.person_name, p.role])).toEqual([["Kit", "audit"]]);
     expect(w.updated_at).not.toBe("2026-01-01T00:00:00Z");
   });
 

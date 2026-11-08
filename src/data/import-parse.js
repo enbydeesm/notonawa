@@ -11,7 +11,7 @@
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toFlag, toChoiceOrNull, toDateOrNull, toTimestampOrNull, encryptedText } from "../parse.js";
 import { RESOURCES, parseFields } from "../resources/config.js";
-import { TIE_TYPES, TYPE_NEEDED, toRoleOrNull } from "../ties/parse.js";
+import { TIE_TYPES, TYPE_NEEDED, toRoleOrNull, toWorkshopRoleOrNull } from "../ties/parse.js";
 import { tagKey, MAX_TAG_LENGTH, parseTagNames } from "../tags/parse.js";
 import { PEOPLE_KINDS, MAX_ATTENDEES } from "../workshops/parse.js";
 
@@ -171,7 +171,7 @@ function parseWorkshop(w) {
     for (const item of list(w[`${kind}s`], kind === "educator" ? "Educators" : "Participants", MAX_WORKSHOP_PEOPLE)) {
       const p = asObject(item);
       const personId = parseId(p.person_id, true);
-      const role = toRoleOrNull(p.role);
+      const role = toWorkshopRoleOrNull(p.role);
       if (!role) throw new BadInput(`Each ${kind} needs a role.`);
       // The same person twice (a file edited by hand): kept once, as
       // whichever comes first. Deleted people (null) never clash.

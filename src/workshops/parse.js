@@ -3,7 +3,7 @@
 import { BadInput } from "../http.js";
 import { cleanText, toIntOrNull, toDateOrNull, encryptedText } from "../parse.js";
 import { parseTagNames } from "../tags/parse.js";
-import { toRoleOrNull } from "../ties/parse.js";
+import { toWorkshopRoleOrNull } from "../ties/parse.js";
 
 /** Who someone is on a workshop (migration 0018). */
 export const PEOPLE_KINDS = ["educator", "participant"];
@@ -103,7 +103,7 @@ function peopleList(value, kind) {
   if (!Array.isArray(value)) throw new BadInput(`The ${kind}s should be a list.`);
   return value.map((item) => {
     const personId = cleanText(item?.person_id);
-    const role = toRoleOrNull(item?.role);
+    const role = toWorkshopRoleOrNull(item?.role);
     if (!personId || !role) throw new BadInput(`Each ${kind} needs a person and a role.`);
     return { person_id: personId, kind, role };
   });

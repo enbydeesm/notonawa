@@ -144,4 +144,21 @@ export default async function () {
     return [editing, renamed, flat($("#education-panel"))];`),
     [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true], ["Intro to floor, day one"],
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above."]);
+  check("a workshop's roles add Audit; picking someone without a usual role keeps the role chosen, someone with one sets it", await run(`
+    $("#add-workshop").click(); await wait(800);
+    $("#workshop-add-participant").click(); await wait(50);
+    const roles = [...document.querySelector("#workshop-participants .role").options].map((o) => o.text);
+    document.querySelectorAll("#workshop-participants .role")[0].value = "audit";
+    await choosePick(lastBox("#workshop-participants"), "Me", "Me (you)");
+    const kept = document.querySelectorAll("#workshop-participants .role")[0].value;
+    $("#workshop-add-participant").click(); await wait(50);
+    document.querySelectorAll("#workshop-participants .role")[1].value = "audit";
+    await choosePick(lastBox("#workshop-participants"), "Sam", "Sam (knotsam)");
+    const usual = document.querySelectorAll("#workshop-participants .role")[1].value;
+    set("#workshop-title", "Audit day"); set("#workshop-start_date", "2026-06-01");
+    $("#workshop-save").click(); await wait(1500);
+    const stored = (await (await fetch("/api/workshops")).json()).find((w) => w.title === "Audit day");
+    const full = await (await fetch("/api/workshops/" + stored.id)).json();
+    return [roles, kept, usual, full.participants.map((p) => [p.person_name, p.role])];`),
+    [["Choose Role", "Top", "Bottom", "Self tie", "Spotter", "Photographer", "Audit"], "audit", "bottom", [["Me", "audit"], ["Sam", "bottom"]]]);
 }

@@ -104,7 +104,7 @@ export default async function () {
     hanks[1].click(); const two = value(); hanks[1].click(); const cleared = value(); hanks[3].click();
     return [two, cleared, value(), [...hanks].map((b) => b.classList.contains("filled") ? "x" : "o").join("")];`),
     ["2", "", "4", "xxxxo"]);
-  check("only the first person row starts with me; picking someone sets their default role, replacing a hand-picked one", await run(`
+  check("only the first person row starts with me; picking someone with a default role sets it, replacing a hand-picked one; someone without one keeps it", await run(`
     $("#tie-add-participant").click(); await wait(50);
     const box = lastBox("#tie-participants"), role = () => document.querySelectorAll(".role")[1];
     const empty = [box.value, role().value];
@@ -113,7 +113,7 @@ export default async function () {
     role().value = "spotter"; await choosePick(box, "Sam", "Sam (knotsam)"); const back = role().value;
     box.blur();
     return [empty, sam, me, back];`),
-    [["", ""], "bottom", "", "bottom"]);
+    [["", ""], "bottom", "spotter", "bottom"]);
   check("save a full tie: the dialog closes and the list shows it", await run(`
     set("#tie-tie_type", "floor");
     document.querySelectorAll(".role")[0].value = "top";

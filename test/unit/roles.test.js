@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import {
   namesFrom, setRoleNames, roleNames, roleName, roleOptions, roleFromName, namesToAdopt, DEFAULT_NAMES,
+  workshopRoleOptions, roleAfterPick,
 } from "../../public/js/roles.js";
 
 const RIGGER = namesFrom({ top_label: "rigger", bottom_label: "rope bunny" });
@@ -49,5 +50,24 @@ describe("role names", () => {
     expect(namesToAdopt({ top_label: null, bottom_label: null }, file)).toEqual({ top: "rigger", bottom: "" });
     expect(namesToAdopt({ top_label: "dom", bottom_label: null }, file)).toBeNull();
     expect(namesToAdopt({ top_label: null, bottom_label: null }, null)).toBeNull();
+  });
+});
+
+describe("workshop roles", () => {
+  it("are the tie roles and Audit, which ties don't offer", () => {
+    expect(workshopRoleOptions(RIGGER).map((r) => r.label)).toEqual(["Rigger", "Rope bunny", "Self tie", "Spotter", "Photographer", "Audit"]);
+    expect(roleOptions(RIGGER).map((r) => r.value)).not.toContain("audit");
+  });
+});
+
+describe("a role once a person's picked", () => {
+  it("is their usual role if they have one, or else the one already chosen", () => {
+    expect(roleAfterPick("", "bottom")).toBe("bottom");
+    expect(roleAfterPick("top", "bottom")).toBe("bottom");
+    expect(roleAfterPick("top", undefined)).toBe("top");
+    expect(roleAfterPick("audit", undefined)).toBe("audit");
+    expect(roleAfterPick("", undefined)).toBe("");
+    // A usual role the row doesn't offer leaves the chosen one.
+    expect(roleAfterPick("spotter", "audit", ["top", "spotter"])).toBe("spotter");
   });
 });

@@ -766,7 +766,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   if the journal has none.
 - **Roles: one each for the two sides of a tie** (migration 0013): top,
   bottom, self tie, spotter, photographer, on ties and as a person's
-  default role. The words shown for top and bottom are each account's
+  default role. Workshops' people can also be `audit` (migration 0029,
+  `WORKSHOP_ROLES`, `toWorkshopRoleOrNull`), never on ties. Picking a
+  person sets their default role only if they have one
+  (`roleAfterPick`). The words shown for top and bottom are each account's
   (`users.top_label`, `bottom_label`; null for "top", "bottom"): always
   show a role through `roleName()` (public/js/roles.js), never the stored
   value. Stored role names are plain text, can't be another role's name,
