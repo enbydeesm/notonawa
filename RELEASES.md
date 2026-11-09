@@ -18,7 +18,7 @@ Workshops, round two!
 - Track what a workshop cost, in US, Canadian or Australian dollars, euros, pounds, yen and more: a new workshop starts on the currency you used last. On one you teach, it's what you earned. Only your device can read it.
 - Rate a workshop's difficulty, and under More ratings, its content, teaching and value.
 - Education's Summary adds up Total spend and Avg per workshop (and Earned, for the ones you taught), each currency on its own.
-- Analytics has a Workshops card (once you have any; its ? explains the numbers), a cap before each month you went to one (tap it to list them), Practiced most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds. The two workshop cards come last.
+- Analytics has a Workshops card (once you have any; its ? explains the numbers), a cap under each month you went to one (tap it to list them), Practiced most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds. The two workshop cards come last.
 - A visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.
 - A workshop's Event link, beside what it cost (now Paid, or Earned on one you teach). The ratings now come after the description.
 - Workshop cards say who taught it where ("Alex & Lily at Studio"), the location linking to the event's page; with no location, "Open link" is at the bottom. Their dates are smaller ("Nov 6–8", the year under it), and the rating hanks are gone. A workshop you taught shows how many attended.

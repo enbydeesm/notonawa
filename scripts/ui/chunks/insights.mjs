@@ -145,20 +145,21 @@ export default async function () {
     q.click(); await wait(50);
     return [box.right - qr.right < 24, Math.abs(qr.top - title.top) < 8, before, shown, note.hidden, wc.querySelectorAll("p.hint").length];`),
     [true, true, true, [false, true], true, 0]);
-  check("Practiced most ranks it by its follow-up ties, which a tap lists; Tie count has a cap before its month's label, which a tap lists", await run(`
+  check("Practiced most ranks it by its follow-up ties, which a tap lists; Tie count has a cap under its month's label, which a tap lists", await run(`
     const rows = [...document.querySelectorAll("#practised-chart .rank-row")].map((r) => r.getAttribute("aria-label"));
     $("#practised-chart .rank-row").click(); await calm(1000);
     const listed = document.querySelectorAll("#tl-list .tie-card").length;
     $("#tl-close").click(); await calm(200);
     const marks = [...document.querySelectorAll("#tie-count-chart .bar-mark")].map((m) => m.getAttribute("aria-label").replace(/^.*: /, ""));
-    // The cap sits just before the month's label, and its button covers the labels' band, under the bars.
+    // The cap sits under the month's label, centred, and its button covers the band under the bars.
     const cap = $("#tie-count-chart .axis-cap").getBoundingClientRect(), mark = $("#tie-count-chart .bar-mark").getBoundingClientRect();
+    const mid = (r) => (r.left + r.right) / 2;
     const label = [...document.querySelectorAll("#tie-count-chart .bar-label")].map((t) => t.getBoundingClientRect())
-      .find((r) => r.left >= cap.right - 1 && r.left - cap.right < 6);
+      .find((r) => Math.abs(mid(r) - mid(cap)) < 3);
     const chart = $("#tie-count-chart .bar-chart").getBoundingClientRect();
-    const placed = [!!label, label && Math.abs((label.top + label.bottom) / 2 - (cap.top + cap.bottom) / 2) < 4,
-      mark.left <= cap.left && mark.right >= (label?.right ?? 0) - 3, Math.abs(mark.bottom - chart.bottom) < 2, mark.height < 30,
-      document.querySelectorAll("#tie-count-chart .bar-marks").length];
+    const placed = [!!label, label && cap.top >= label.bottom - 2 && cap.top - label.bottom < 6,
+      mark.left <= cap.left && mark.right >= cap.right && mark.top <= (label?.top ?? 0) + 1, Math.abs(mark.bottom - chart.bottom) < 2,
+      mark.height < 40, document.querySelectorAll("#tie-count-chart .bar-marks").length];
     $("#tie-count-chart .bar-mark").click(); await calm(500);
     const opened = [...document.querySelectorAll(".workshop-list-dialog .item-title")].map((t) => t.textContent);
     $(".workshop-list-dialog .dialog-cancel").click(); await calm(200);
