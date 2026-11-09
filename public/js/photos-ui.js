@@ -37,6 +37,7 @@ import { chooseCopyTarget } from "./drawing-copy.js";
  * @typedef {{
  *   id: string, kind: "photo" | "video", mime: string, caption: string | null, unreadable?: boolean,
  *   thumbUrl?: string, prepared?: PreparedPhoto | PreparedVideo, position?: number, created_at?: string,
+ *   size?: [number, number],
  * }} Photo
  */
 
@@ -118,6 +119,11 @@ export function photoKind(ctx) {
   function setThumb(photo, url) {
     if (photo.thumbUrl) revoke(photo.thumbUrl);
     photo.thumbUrl = url;
+    // Its shape, from the thumbnail (the full size has the same), so the
+    // viewer opens at its size rather than growing once it's loaded.
+    const probe = new Image();
+    probe.onload = () => { photo.size = [probe.naturalWidth, probe.naturalHeight]; };
+    probe.src = url;
     ctx.draw();
   }
 
@@ -222,7 +228,12 @@ export function photoKind(ctx) {
     const isVideoShown = photo.kind === "video";
     const image = isVideoShown
       ? h("video", { className: "photo-full", id: `${idPrefix}-video`, controls: true, playsInline: true, preload: "metadata", poster: photo.thumbUrl })
-      : h("img", { className: "photo-full", alt: photo.caption ?? "" });
+      // The thumbnail at once (it's in memory), at the photo's shape, until
+      // the full size replaces it: no empty box or alt text while it loads.
+      : h("img", {
+        className: photo.size ? "photo-full sized" : "photo-full", alt: photo.caption ?? "", src: photo.thumbUrl ?? "",
+        ...(photo.size ? { width: photo.size[0], height: photo.size[1] } : {}),
+      });
     // The speed is kept on the element's default too, as loading the
     // video resets the rate to it.
     const speedButtons = SPEEDS.map((speed) => h("button", {
@@ -279,8 +290,7 @@ export function photoKind(ctx) {
         return;
       }
       // A video shows its thumbnail as its poster until it's loaded.
-      if (!isVideoShown) image.src = photo.thumbUrl ?? "";
-      else tell("Loading the video…");
+      if (isVideoShown) tell("Loading the video…");
       try {
         const url = photoUrl(await openPhoto(photo.id, "full", photo.kind), photo.mime);
         if (!dialog.open) {

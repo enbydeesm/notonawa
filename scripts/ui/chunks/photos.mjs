@@ -40,8 +40,17 @@ export default async function () {
     const text = new TextDecoder("latin1").decode(sealed);
     return [photo.mime, sealed[0] === 0xff && sealed[1] === 0xd8, text.includes("SECRET-GPS"), text.includes("Exif"), text.includes("WEBP")];`),
     ["image/webp", false, false, false, false]);
-  check("opened on the device: shrunk, with no metadata left", await run(`
+  check("the viewer opens at the photo's size, showing the thumbnail at once, and stays that size once the full one loads", await run(`
     [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Photo test").click(); await calm(1500);
+    $("#tie-visuals .photo-thumb").click();
+    const img = $("dialog[open] .photo-full"), dialog = $("dialog[open]");
+    const at = () => [Math.round(img.getBoundingClientRect().height), Math.round(dialog.getBoundingClientRect().width)];
+    const first = [img.getAttribute("src")?.startsWith("blob:"), img.classList.contains("sized")], before = at();
+    await calm(1500);
+    const after = at();
+    $("#tie-photo-close").click(); await calm(300);
+    return [first, before[0] > 50, Math.abs(before[0] - after[0]) < 3, Math.abs(before[1] - after[1]) < 3];`), [[true, true], true, true, true]);
+  check("opened on the device: shrunk, with no metadata left", await run(`
     $("#tie-visuals .photo-thumb").click(); await calm(1500);
     const img = $("dialog[open] .photo-full");
     // The bytes shown, read through the app (the CSP's connect-src keeps

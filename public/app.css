@@ -187,6 +187,8 @@ nav .nav-poser:disabled { opacity: 0.4; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .photo-full { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto; border-radius: 8px; }
+/* Its shape known (from the thumbnail): the box is that size from the start. */
+img.photo-full.sized { width: 100%; height: auto; object-fit: contain; }
 video.photo-full { width: 100%; background: var(--bg); }
 .photo-thumb { position: relative; }
 .video-badge {
