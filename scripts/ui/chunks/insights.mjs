@@ -115,7 +115,7 @@ export default async function () {
     $("#map-fit").click(); await calm(200);
     return [Math.round(before / closer), apart, width() === before, document.querySelectorAll(".map-pin").length];`), [2, 3, true, 2]);
 
-  check("with no workshops, Analytics has no Workshops or Practised most card", await run(`
+  check("with no workshops, Analytics has no Workshops or Practiced most card", await run(`
     return [$("#workshops-card").hidden, $("#practised-card").hidden];`), [true, true]);
 
   // A workshop today at Sydney studio, with a cost (sealed); a plan learned
@@ -135,18 +135,37 @@ export default async function () {
     await calm(1500);
     const pairs = [...document.querySelectorAll("#workshop-stats .stat")].map((s) => s.querySelector("dt").textContent + " " + s.querySelector("dd").textContent);
     return [$("#workshops-card").hidden, pairs];`),
-    [false, ["Attended 1", "Taught 0", "Days 1", "Spend $120", "Earned –", "Follow-up ties 117%"]]);
-  check("Practised most ranks it by its follow-up ties, which a tap lists; Tie count has a cap over its month", await run(`
+    [false, ["Attended 1", "Taught 0", "Days 1", "Spent $120", "Earned –", "Follow-up ties 117%"]]);
+  check("…its explanation is behind a ? in the top right, shown on a tap, not at the foot of the card", await run(`
+    const wc = $("#workshops-card"), q = wc.querySelector(".info-button"), note = $("#workshops-info");
+    const box = wc.getBoundingClientRect(), qr = q.getBoundingClientRect(), title = wc.querySelector("h2").getBoundingClientRect();
+    const before = note.hidden;
+    q.click(); await wait(50);
+    const shown = [note.hidden, note.textContent.startsWith("Follow-up ties are on a plan linked to a workshop")];
+    q.click(); await wait(50);
+    return [box.right - qr.right < 24, Math.abs(qr.top - title.top) < 8, before, shown, note.hidden, wc.querySelectorAll("p.hint").length];`),
+    [true, true, true, [false, true], true, 0]);
+  check("Practiced most ranks it by its follow-up ties, which a tap lists; Tie count has a cap before its month's label, which a tap lists", await run(`
     const rows = [...document.querySelectorAll("#practised-chart .rank-row")].map((r) => r.getAttribute("aria-label"));
     $("#practised-chart .rank-row").click(); await calm(1000);
     const listed = document.querySelectorAll("#tl-list .tie-card").length;
     $("#tl-close").click(); await calm(200);
     const marks = [...document.querySelectorAll("#tie-count-chart .bar-mark")].map((m) => m.getAttribute("aria-label").replace(/^.*: /, ""));
+    // The cap sits just before the month's label, and its button covers the labels' band, under the bars.
+    const cap = $("#tie-count-chart .axis-cap").getBoundingClientRect(), mark = $("#tie-count-chart .bar-mark").getBoundingClientRect();
+    const label = [...document.querySelectorAll("#tie-count-chart .bar-label")].map((t) => t.getBoundingClientRect())
+      .find((r) => r.left >= cap.right - 1 && r.left - cap.right < 6);
+    const chart = $("#tie-count-chart .bar-chart").getBoundingClientRect();
+    const placed = [!!label, label && Math.abs((label.top + label.bottom) / 2 - (cap.top + cap.bottom) / 2) < 4,
+      mark.left <= cap.left && mark.right >= (label?.right ?? 0) - 3, Math.abs(mark.bottom - chart.bottom) < 2, mark.height < 30,
+      document.querySelectorAll("#tie-count-chart .bar-marks").length];
     $("#tie-count-chart .bar-mark").click(); await calm(500);
     const opened = [...document.querySelectorAll(".workshop-list-dialog .item-title")].map((t) => t.textContent);
     $(".workshop-list-dialog .dialog-cancel").click(); await calm(200);
-    return [$("#practised-card").hidden, rows, listed, marks, opened];`),
-    [false, ["Rope intensive: 1 tie"], 1, ["1 workshop"], ["Rope intensive"]]);
+    // The Workshops card, then Practiced most, come last.
+    const cards = [...document.querySelectorAll("#view section.card")].filter((c) => !c.hidden).slice(-2).map((c) => c.querySelector("h2").textContent);
+    return [$("#practised-card").hidden, rows, listed, marks, placed, opened, cards];`),
+    [false, ["Rope intensive: 1 tie"], 1, ["1 workshop"], [true, true, true, true, true, 1], ["Rope intensive"], ["Workshops", "Practiced most"]]);
   check("the map shows the workshop as a teal diamond at Sydney studio", await run(`
     $("#map-card").scrollIntoView();
     for (let i = 0; i < 100 && !document.querySelector(".world-map .map-workshop"); i++) await wait(100);

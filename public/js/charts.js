@@ -58,8 +58,8 @@ export function roleKey(keys) {
  * there are many bars). A bar with segments is stacked, first part at the
  * bottom; without, it's yellow.
  * Bars with ties are buttons (an invisible row over the chart, one per bar),
- * which call onPick. marks: a row over the bars, a cap over each bar with
- * a workshop (Analytics), a button that calls its onPick.
+ * which call onPick. marks: a cap before the axis label of each bar with
+ * a workshop (Analytics), the label's band a button that calls its onPick.
  * @template {Bar} B
  * @param {B[]} bars
  * @param {string} description what the chart shows, e.g. "Ties each month"
@@ -103,8 +103,20 @@ export function barChart(bars, description, onPick, marks) {
     if (showCounts && bar.count) {
       group.append(svg("text", { x: (x + barWidth / 2).toFixed(2), y: (y - 3).toFixed(2), class: "bar-value" }, String(bar.count)));
     }
-    if (i % every === 0) {
-      group.append(svg("text", { x: (x + barWidth / 2).toFixed(2), y: height - 4, class: "bar-label" }, bar.label));
+    const marked = Boolean(marks?.[i]);
+    const label = i % every === 0 ? bar.label : "";
+    if (label || marked) {
+      // The cap and the label centred together under the bar (the label's
+      // width estimated: 9-unit text is about 5 units a character).
+      const center = x + barWidth / 2;
+      const textWidth = label.length * 5;
+      const start = center - (marked ? (CAP_WIDTH + 1.5 + textWidth) / 2 : 0);
+      if (marked) group.append(axisCap(start, height - 12));
+      if (label) {
+        group.append(svg("text", {
+          x: (marked ? start + CAP_WIDTH + 1.5 + textWidth / 2 : center).toFixed(2), y: height - 4, class: "bar-label",
+        }, label));
+      }
     }
     chart.append(group);
   });
@@ -117,15 +129,30 @@ export function barChart(bars, description, onPick, marks) {
         onclick: () => onPick(bar),
       })
       : h("span", { "aria-hidden": "true" })));
+  // The marks' buttons cover the axis labels' band, under the bars' buttons.
   const markRow = marks?.some(Boolean)
     ? h("div", { className: "bar-marks" }, marks.map((mark) => (mark
-      ? h("button", { type: "button", className: "bar-mark", "aria-label": mark.label, title: mark.label, onclick: mark.onPick }, capMark())
+      ? h("button", { type: "button", className: "bar-mark", "aria-label": mark.label, title: mark.label, onclick: mark.onPick })
       : h("span", { "aria-hidden": "true" }))))
     : null;
-  return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, markRow, chart, hits);
+  return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, chart, hits, markRow);
 }
 
-/** The graduation cap (as Education's tab), small: a bar's mark, a plan card's workshop. */
+/** How wide the axis's cap is, in the chart's units. */
+const CAP_WIDTH = 8.8;
+
+/**
+ * The Education cap on a bar chart's axis, before a label: 24-unit paths
+ * scaled to the labels' size.
+ * @param {number} x its left
+ * @param {number} y its top
+ */
+function axisCap(x, y) {
+  return svg("g", { class: "axis-cap", transform: `translate(${(x - 0.8).toFixed(2)} ${y}) scale(0.4)` },
+    svg("path", { d: "M2 9l10-5 10 5-10 5z" }), svg("path", { d: "M6 11v5c3 2.2 9 2.2 12 0v-5" }));
+}
+
+/** The graduation cap (as Education's tab), small: a plan card's workshop. */
 export function capMark() {
   return svg("svg", { viewBox: "0 0 24 24", class: "cap-mark", "aria-hidden": "true", focusable: "false" },
     svg("path", { d: "M2 9l10-5 10 5-10 5z" }), svg("path", { d: "M6 11v5c3 2.2 9 2.2 12 0v-5" }));

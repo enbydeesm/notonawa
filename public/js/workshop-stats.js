@@ -76,7 +76,7 @@ export function workshopNumbers(workshops, followUpTies, ties, selfId) {
 }
 
 /**
- * Practised most: the period's workshops with follow-up ties (of any
+ * Practiced most: the period's workshops with follow-up ties (of any
  * date), the most first (then the newest), up to max.
  * @param {StatsWorkshop[]} workshops in the period
  * @param {Map<string, Set<string>>} followUpTies

@@ -382,22 +382,9 @@
         <dl class="stat-pairs" id="insights-stats"></dl>
       </section>
 
-      <!-- Hidden until there are workshops at all (views/analytics.js). -->
-      <section class="card" id="workshops-card" hidden>
-        <h2>Workshops</h2>
-        <dl class="stat-pairs" id="workshop-stats"></dl>
-        <p class="hint">Follow-up ties are on a plan linked to a workshop; ties at the workshop itself aren't counted. Workshops follow the time period only: the role and More filters are for ties.</p>
-      </section>
-
       <section class="card">
         <h2>Tie count</h2>
         <div id="tie-count-chart"></div>
-      </section>
-
-      <section class="card" id="practised-card" hidden>
-        <h2>Practised most</h2>
-        <p class="hint">The period's workshops, by their follow-up ties (of any date).</p>
-        <div id="practised-chart"></div>
       </section>
 
       <section class="card">
@@ -428,6 +415,19 @@
       <section class="card">
         <h2>Days of the week</h2>
         <div id="weekday-chart"></div>
+      </section>
+
+      <!-- Hidden until there are workshops at all (views/analytics.js). -->
+      <section class="card" id="workshops-card" hidden>
+        <!-- Its ? (views/analytics.js) shows what the numbers count. -->
+        <div class="card-header info-header" id="workshops-header"><h2>Workshops</h2></div>
+        <dl class="stat-pairs" id="workshop-stats"></dl>
+      </section>
+
+      <section class="card" id="practised-card" hidden>
+        <h2>Practiced most</h2>
+        <p class="hint">The period's workshops, by their follow-up ties (of any date).</p>
+        <div id="practised-chart"></div>
       </section>
     </div>
   </template>

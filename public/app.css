@@ -111,6 +111,11 @@ nav .nav-poser:disabled { opacity: 0.4; }
 }
 .card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .card-header h2 { margin-bottom: 12px; }
+/* A card's heading with a ? in its top right corner (Analytics' Workshops). */
+.card-header.info-header { align-items: flex-start; }
+.card-header.info-header .info-button { flex: none; margin-top: 2px; }
+/* Analytics' Workshops numbers in three rows: Spent heads the second column, above Earned. */
+#workshop-stats { grid-template-rows: repeat(3, auto); }
 /* The ties list's header: "My ties", the count right after it, and the
    page size and sort button at the far right. */
 .list-header { justify-content: flex-start; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
@@ -1216,8 +1221,10 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 /* A workshop's days beside the title and its year (or, across years, the
    end date) under them, beside who taught it where: smaller and muted. */
 .workshop-card .tie-date, .workshop-card .tie-year { font-size: 0.85rem; color: var(--muted); }
-.workshop-card .tie-year { grid-column: 2; justify-self: end; white-space: nowrap; align-self: baseline; }
-.workshop-card .tie-date { align-self: baseline; }
+/* The two lines meet in the middle (the days at the foot of the title's
+   row, the year at the top of the next), so they read as one date. */
+.workshop-card .tie-year { grid-column: 2; justify-self: end; white-space: nowrap; align-self: start; line-height: 1.3; }
+.workshop-card .tie-date { align-self: end; line-height: 1.3; }
 .summary-card .stat-pairs { margin-bottom: 12px; }
 .summary-card .item-meta { margin: 4px 0 0; }
 
@@ -1281,11 +1288,14 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .workshop-link-name { flex: 1; min-width: 0; padding: 4px 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .add-to-row .badge.linked { background: var(--accent); color: var(--accent-text); }
 
-/* Analytics' workshops (views/analytics.js): a cap over each bar a
-   workshop started in, a button lined up with its bar, as .bar-hits are. */
-.bar-marks { display: flex; height: 22px; margin-bottom: -4px; }
-.bar-marks > * { flex: 1; min-width: 0; display: flex; justify-content: center; }
-.bar-mark { padding: 0; border: none; background: transparent; color: var(--chart-teal); }
+/* Analytics' workshops (views/analytics.js): a cap before the axis label
+   of each bar a workshop started in; the label's band (the chart's bottom
+   18 of 150 units) is a button lined up with its bar, as .bar-hits are. */
+.bar-chart .axis-cap { fill: none; stroke: var(--chart-teal); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.bar-marks { position: absolute; left: 0; right: 0; bottom: 0; height: 12%; display: flex; }
+.bar-marks > * { flex: 1; min-width: 0; }
+.bar-mark { width: 100%; height: 100%; padding: 0; border: none; border-radius: 4px; background: transparent; }
+.bar-mark:hover { background: color-mix(in srgb, var(--chart-teal) 15%, transparent); }
 .cap-mark { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 /* On the map: a teal diamond for a workshop's location. */
 .map-workshop { cursor: pointer; }

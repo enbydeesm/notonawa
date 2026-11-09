@@ -10,7 +10,7 @@
 
 import { roleName, roleOptions } from "../roles.js";
 import { api, errorMessage } from "../api.js";
-import { h, $ } from "../dom.js";
+import { h, $, infoTip } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
 import { hankIcon } from "../rope-rating.js";
@@ -66,6 +66,12 @@ async function fetchTies(body) {
  */
 export function mount(_root, { signal }) {
   const today = todayIn();
+  // The Workshops card's ? (tap, or hover with a mouse): what its numbers count.
+  const workshopsTip = infoTip("workshops-info", "About these numbers",
+    "Follow-up ties are on a plan linked to a workshop; ties at the workshop itself aren't counted. " +
+    "Workshops follow the time period only: the role and More filters are for ties.");
+  $("#workshops-header").append(workshopsTip.button);
+  $("#workshops-header").after(workshopsTip.text);
   // Only the newest answer is shown, if the filters change quickly.
   let insightsRequest = 0;
 
@@ -246,7 +252,7 @@ export function mount(_root, { signal }) {
   let shownWorkshops = [];
 
   /**
-   * The Workshops card and Practised most: hidden until there are any
+   * The Workshops card and Practiced most: hidden until there are any
    * workshops at all.
    * @param {any[]} workshops the period's
    * @param {StatsTie[]} ties the period's, as filtered
@@ -263,7 +269,7 @@ export function mount(_root, { signal }) {
       stat("Attended", String(n.attended)),
       stat("Taught", String(n.taught)),
       stat("Days", String(n.days)),
-      moneyStat("Spend", n.spend),
+      moneyStat("Spent", n.spend),
       moneyStat("Earned", n.earned),
       stat("Follow-up ties", String(n.followUps), `${n.followUpShare}%`));
     const ranked = practisedMost(workshops, follow);

@@ -3131,3 +3131,10 @@ time. Mocked up first, then built (`pose-editor.js`, with
 - **The nav is pinned to the top** (`position: sticky`, on the page's
   background with a line under it), so the tabs are always in reach in
   long lists; `scroll-padding-top` keeps what's scrolled to below it.
+- **Analytics' workshops come last**: the Workshops card (Spent heading
+  the second column, above Earned; what it counts behind a ? in its
+  corner), then Practiced most (US spelling, as elsewhere in the app). The
+  tie count's cap sits before the month's or day's label on the axis,
+  drawn in the chart, and the label's band under that bar is its button,
+  listing that month's or day's workshops; over the bars it crowded the
+  counts.

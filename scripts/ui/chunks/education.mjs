@@ -102,11 +102,13 @@ export default async function () {
         stored.attendee_count, stored.rating, stored.difficulty, stored.rating_content, stored.rating_value],
       order, beside, c.querySelector(".tie-place").textContent,
       [...c.querySelectorAll(".tie-visuals-start a")].map((a) => [a.textContent, a.getAttribute("href"), a.target]),
-      c.querySelector(".tie-visuals-end")];`),
+      c.querySelector(".tie-visuals-end"),
+      // The days and the year sit close, one under the other.
+      c.querySelector(".tie-year").getBoundingClientRect().top - c.querySelector(".tie-date").getBoundingClientRect().bottom < 6];`),
     [true, "Intro to floor", "Mar 1–2", "2026", 0, ["With: Me (top)"], ["floor"], "1 workshop",
       [true, true, true, true, 12, 4, 2, null, 5],
       ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"], true, "Sam",
-      [["Open link", "https://example.com/intro", "_blank"], ["Open album", "https://example.com/album", "_blank"]], null]);
+      [["Open link", "https://example.com/intro", "_blank"], ["Open album", "https://example.com/album", "_blank"]], null, true]);
   check("Taught is empty until I'm one of the educators, and says so", await run(`
     $("#tab-taught").click(); await wait(100);
     return [$("#tab-taught").getAttribute("aria-selected"), $("#tab-attended").getAttribute("aria-selected"), flat($("#education-panel"))];`),

@@ -61,7 +61,7 @@ describe("workshops in analytics", () => {
     expect(workshopNumbers([], new Map(), [], "me").followUpShare).toBe(0);
   });
 
-  it("rank Practised most by follow-up ties, leaving out ones with none", () => {
+  it("rank Practiced most by follow-up ties, leaving out ones with none", () => {
     const f = followUps(WORKSHOPS, PLANS);
     expect(practisedMost(WORKSHOPS, f)).toEqual([
       { id: "a", title: "Intensive", tieIds: ["t1", "t2"] },
