@@ -3138,3 +3138,6 @@ time. Mocked up first, then built (`pose-editor.js`, with
   drawn in the chart, and the label's band under that bar is its button,
   listing that month's or day's workshops; over the bars it crowded the
   counts.
+- **A workshop card's dates float as one block** in the top right,
+  spanning the title's and the teachers' rows, rather than a line in
+  each: a title wrapping to two lines pushed the year away from its days.

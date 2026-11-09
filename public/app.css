@@ -1221,10 +1221,13 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 /* A workshop's days beside the title and its year (or, across years, the
    end date) under them, beside who taught it where: smaller and muted. */
 .workshop-card .tie-date, .workshop-card .tie-year { font-size: 0.85rem; color: var(--muted); }
-/* The two lines meet in the middle (the days at the foot of the title's
-   row, the year at the top of the next), so they read as one date. */
-.workshop-card .tie-year { grid-column: 2; justify-self: end; white-space: nowrap; align-self: start; line-height: 1.3; }
-.workshop-card .tie-date { align-self: end; line-height: 1.3; }
+/* The two lines as one block in the top right corner, spanning the title's
+   and the teachers' rows, so neither row's height pulls them apart. */
+.workshop-card .workshop-dates {
+  grid-column: 2; grid-row: 1 / span 2; justify-self: end; align-self: start;
+  display: flex; flex-direction: column; align-items: flex-end; padding-top: 2px; line-height: 1.3;
+}
+.workshop-card .workshop-dates .tie-date, .workshop-card .workshop-dates .tie-year { white-space: nowrap; }
 .summary-card .stat-pairs { margin-bottom: 12px; }
 .summary-card .item-meta { margin: 4px 0 0; }
 

@@ -103,8 +103,9 @@ export default async function () {
       order, beside, c.querySelector(".tie-place").textContent,
       [...c.querySelectorAll(".tie-visuals-start a")].map((a) => [a.textContent, a.getAttribute("href"), a.target]),
       c.querySelector(".tie-visuals-end"),
-      // The days and the year sit close, one under the other.
-      c.querySelector(".tie-year").getBoundingClientRect().top - c.querySelector(".tie-date").getBoundingClientRect().bottom < 6];`),
+      // The days and the year sit close, one under the other, level with the title's top.
+      c.querySelector(".tie-year").getBoundingClientRect().top - c.querySelector(".tie-date").getBoundingClientRect().bottom < 3 &&
+        Math.abs(c.querySelector(".tie-date").getBoundingClientRect().top - c.querySelector(".tie-title").getBoundingClientRect().top) < 6];`),
     [true, "Intro to floor", "Mar 1–2", "2026", 0, ["With: Me (top)"], ["floor"], "1 workshop",
       [true, true, true, true, 12, 4, 2, null, 5],
       ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"], true, "Sam",

@@ -74,9 +74,12 @@ export function workshopCard(workshop, onEdit, { taught = false } = {}) {
 
   return opensOnTap(h("article", { className: "tie-card workshop-card" },
     h("button", { type: "button", className: "tie-title", onclick: () => onEdit(workshop.id) }, workshop.title),
-    h("span", { className: "tie-date" }, days),
+    // The two date lines as one block in the corner, beside the title and
+    // who taught it, whatever their heights.
+    h("div", { className: "workshop-dates" },
+      h("span", { className: "tie-date" }, days),
+      h("span", { className: "tie-year" }, second)),
     h("div", { className: "tie-place" }, teachersLine(workshop, linked)),
-    h("span", { className: "tie-year" }, second),
     withLine(workshop.participants),
     workshop.tags.length
       ? h("div", { className: "tag-row tie-tags" }, workshop.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
