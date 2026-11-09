@@ -44,9 +44,7 @@ export async function openShareItem(kind, item) {
     })) : null;
     const offered = FIELDS[kind].filter((f) => hasField(source, f.key));
     const fields = offered.map((f) => h("label", { className: "inline share-field" },
-      // Everything starts ticked but what was paid or earned: money is
-      // shared only when chosen.
-      h("input", { type: "checkbox", id: `share-item-${f.key}`, checked: f.key !== "cost" }),
+      h("input", { type: "checkbox", id: `share-item-${f.key}`, checked: true }),
       h("span", {}, h("strong", {}, `${f.label}${shown(source, f.key) ? ":" : ""}`), " ", shown(source, f.key))));
     const expires = h("select", { id: "share-item-expires" },
       EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_EXPIRY }, c.label)));

@@ -360,8 +360,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ready, or revoked if a step fails),
   `share-profile-dialog.js` ("Share my profile", from my own profile in
   People), `share-item.js` (pure: a shared tie, plan or workshop, built
-  from the ticked fields and read strictly (a workshop's cost, offered
-  unticked, and its event link too); people as names and roles, the
+  from the ticked fields and read strictly (a workshop's cost and event
+  link too); people as names and roles, the
   sender marked; Drawings and poses and Photos and videos ticked
   separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
   workshop's dialog), `share-people.js` (pure: Who is this? suggestions for

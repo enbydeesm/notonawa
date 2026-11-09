@@ -101,14 +101,13 @@ export default async function () {
     const people = [...document.querySelectorAll(".share-item .share-field")].find((l) => l.innerText.startsWith("Educators"))?.innerText;
     const field = (key) => [$("#share-item-" + key)?.closest(".share-field").innerText, $("#share-item-" + key)?.checked];
     const money = [field("event_url"), field("cost")];
-    $("#share-item-cost").click();
     ${MAKE({ "#share-item-my-name": "Jude", "#share-item-label": "Workshop" })}
     [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click(); await calm(200);
     return [people, link, money];`);
   check("a workshop's Share lists its educators and participants", workshopLink[0],
     "Educators and people, with their roles: Sam (top), you (bottom)");
-  check("…and offers its event link, ticked, and its cost, not ticked until chosen", workshopLink[2],
-    [["Event link", true], ["Cost: €180", false]]);
+  check("…and offers its event link and its cost, both ticked", workshopLink[2],
+    [["Event link", true], ["Cost: €180", true]]);
   await go("/data");
   check("Shared by me lists them by kind", await run(`
     for (let i = 0; i < 30 && document.querySelectorAll(".share-item").length < 3; i++) await wait(100);

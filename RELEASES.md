@@ -23,7 +23,7 @@ Workshops, round two!
 - A workshop's Event link, beside what it cost (now Paid, or Earned on one you teach). Its card has "Open link" at the bottom right, next to Open album. The ratings now come after the description.
 - Workshop cards show their dates more simply ("Nov 6 – 8, 2026"), on two lines when they cross into a new year, and no longer show the attendee count.
 - Floor ties read "Floor tie at …" on their cards, and plan cards say "Hashira sequence" and the like on their second line.
-- When you share a workshop, you can include its event link and, if you tick it, its cost.
+- When you share a workshop, you can include its event link and its cost.
 - Tutorial, in the menu, brings the welcome message back up.
 - Workshops have a new role, Audit, for educators and participants alike. It's only on workshops, not ties.
 - Picking a person in a tie or workshop no longer clears the role you'd already chosen when they have no default role. Someone with a default role still sets it.

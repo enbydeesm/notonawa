@@ -3086,9 +3086,9 @@ time. Mocked up first, then built (`pose-editor.js`, with
 - **"Floor tie at …"**: "Floor at Studio" read oddly. The other types
   read fine as they are. **Plan cards** say "Hashira sequence" on their
   second line, so the corner no longer repeats the plan type.
-- **Sharing a workshop's cost is offered unticked**: it's money, so it's
-  shared only when chosen; its event link starts ticked as the album link
-  does. The recipient's copy reads as their Paid (unless they're one of
+- **Sharing a workshop offers its cost and event link**, both ticked to
+  start, as everything else is (we weighed leaving the cost unticked, as
+  it's money, but chose to match the rest). The recipient's copy reads as their Paid (unless they're one of
   its educators). Its new ratings aren't offered yet.
 - **Tutorial in the menu reopens the welcome** until a click-through tour
   replaces it (roadmap.md).
