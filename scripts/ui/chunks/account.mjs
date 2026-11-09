@@ -53,7 +53,7 @@ export default async function () {
   await go("/signin");
   await run(`$("#sign-in").click();`);
   await sleep(2500);
-  check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 1 of 1 tie"]);
+  check("sign in with the passkey", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 1 of 1"]);
   await run(`await openMenu(); $(".menu-sign-out").click();`);
   await sleep(1500);
   check("Sign Out in the menu signs out too, and locks the journal", await run(`
@@ -62,7 +62,7 @@ export default async function () {
   await go("/signin");
   await run(`$("#sign-in").click();`);
   await sleep(2500);
-  check("…and signing in again works", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 1 of 1 tie"]);
+  check("…and signing in again works", await run(`return [location.pathname, $("#tie-count").textContent];`), ["/", "Showing 1 of 1"]);
 
   console.log("Recovery");
   // Lose the phone: its passkey is gone. The new device has a new
@@ -87,7 +87,7 @@ export default async function () {
   check("adding a passkey finishes signing in, unlocked with the code, with a new recovery code", [
     /^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/.test(shownAfterRecovery ?? ""),
     ...await run(`return [location.pathname, $("#tie-count").textContent];`),
-  ], [true, "/", "Showing 1 of 1 tie"]);
+  ], [true, "/", "Showing 1 of 1"]);
   account.currentCode = shownAfterRecovery ?? "";
   await go("/account", { unlock: false });
   check("a passkey that can't unlock signs in, then asks for the recovery code", await run(`

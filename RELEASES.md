@@ -20,8 +20,11 @@ Workshops, round two!
 - Education's Summary adds up Total spend and Avg per workshop (and Earned, for the ones you taught), each currency on its own.
 - Analytics has a Workshops card (once you have any), a cap over each month you went to one, Practised most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds.
 - A visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.
-- A workshop's Event link, beside what it cost (now Paid, or Earned on one you teach). Its card has "Open link" at the bottom right, next to Open album. The ratings now come after the description.
-- Workshop cards show their dates more simply ("Nov 6 – 8, 2026"), on two lines when they cross into a new year, and no longer show the attendee count.
+- A workshop's Event link, beside what it cost (now Paid, or Earned on one you teach). The ratings now come after the description.
+- Workshop cards say who taught it where ("Alex & Lily at Studio"), the location linking to the event's page; with no location, "Open link" is at the bottom. Their dates are smaller ("Nov 6–8", the year under it), and the rating hanks are gone. A workshop you taught shows how many attended.
+- Every card counts what's attached at the bottom left ("4 visuals, 2 plans, 6 ties": photos, videos, drawings and poses all count as visuals), with Open album after it. Dates on cards have no commas.
+- A plan's card names the workshop it's linked to, under its type. The Plans list is now "My plans", says how many show, and Show archived is under More options.
+- The tabs stay at the top of the screen while you scroll.
 - Floor ties read "Floor tie at …" on their cards, and plan cards say "Hashira sequence" and the like on their second line.
 - When you share a workshop, you can include its event link and its cost.
 - Tutorial, in the menu, brings the welcome message back up.

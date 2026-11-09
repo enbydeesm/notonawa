@@ -5,7 +5,7 @@
 import { api } from "./api.js";
 import { h, $, opensOnTap } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
-import { formatDate } from "./format.js";
+import { cardDate, attachedText } from "./format.js";
 import { ratingHanks } from "./rope-rating.js";
 import { placeLine, participantLabel, peopleThatFit } from "./ties-view.js";
 import { roleName } from "./roles.js";
@@ -20,8 +20,8 @@ function renderLabel(label) {
 
 /**
  * A tie as a card (tap it to edit; its title is the button): title and date; type and location, and the
- * rating; who took part, on one line; its tags; how many photos, with its
- * album link on the right. Call fitPeople() on its container once it's on the page.
+ * rating; who took part, on one line; its tags; how many visuals and plans
+ * it has, then its album link. Call fitPeople() on its container once it's on the page.
  * @param {Record<string, any>} tie as POST /api/ties/search returns it, opened
  * @param {(id: string) => void} onEdit runs when the card is tapped
  */
@@ -34,7 +34,7 @@ export function tieCard(tie, onEdit) {
 
   return opensOnTap(h("article", { className: "tie-card" },
     h("button", { type: "button", className: "tie-title", onclick: () => onEdit(tie.id) }, tie.title || "Untitled tie"),
-    h("span", { className: "tie-date" }, formatDate(tie.tie_date)),
+    h("span", { className: "tie-date" }, cardDate(tie.tie_date)),
     h("div", { className: "tie-place" }, place.flatMap((part, i) => (i === 0 ? [renderLabel(part)] : [" ", renderLabel(part)]))),
     tie.success_rating != null
       ? h("div", { className: "tie-rating" }, ratingHanks(tie.success_rating, `Rating ${tie.success_rating}/5`))
@@ -45,24 +45,27 @@ export function tieCard(tie, onEdit) {
     tie.tags.length
       ? h("div", { className: "tag-row tie-tags" }, tie.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
       : null,
-    visualsRow(tie.photo_count, tie.album_url)
+    visualsRow(attachedText({
+      visuals: tie.visual_count, plans: tie.plans.filter((/** @type {any} */ p) => p.plan_id !== null).length,
+    }), tie.album_url)
   ), () => onEdit(tie.id));
 }
 
 /**
- * A card's row of how many photos (left) and its album link (right), null
- * when it has neither. Anything else (a plan's tie count) goes after the
- * link, at the end.
- * @param {number} count
- * @param {unknown} url opened
- * @param {...any} after
+ * A card's bottom row: what's attached ("4 visuals, 2 plans") and then its
+ * links (the album's, and a workshop's event link), on the left; anything
+ * else (a taught workshop's attendees) on the right. Null when it has
+ * none of them.
+ * @param {string} text attachedText's
+ * @param {unknown} url the album link, opened
+ * @param {{ links?: (HTMLElement | null)[], end?: HTMLElement | null }} [more]
  */
-export function visualsRow(count, url, ...after) {
-  const album = albumLink(url, "tie-album");
-  if (!count && !album && !after.length) return null;
+export function visualsRow(text, url, { links = [], end = null } = {}) {
+  const shown = [...links, albumLink(url, "tie-album")].filter((link) => link !== null);
+  if (!text && !shown.length && !end) return null;
   return h("div", { className: "tie-visuals" },
-    h("span", { className: "tie-photos" }, count ? (count === 1 ? "1 photo" : `${count} photos`) : ""),
-    h("span", { className: "tie-visuals-end" }, album, ...after));
+    h("span", { className: "tie-visuals-start" }, text ? h("span", { className: "tie-photos" }, text) : null, ...shown),
+    end ? h("span", { className: "tie-visuals-end" }, end) : null);
 }
 
 /**

@@ -56,6 +56,8 @@ export const RESOURCES = {
               archived_at, created_at, updated_at, workshop_id,
               (SELECT w.title FROM workshops w WHERE w.id = plans.workshop_id) AS workshop_title,
               (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) AS photo_count,
+         (SELECT COUNT(*) FROM media m WHERE m.plan_id = plans.id) + (SELECT COUNT(*) FROM drawings d WHERE d.plan_id = plans.id)
+           + (SELECT COUNT(*) FROM poses p WHERE p.plan_id = plans.id) AS visual_count,
               (SELECT json_group_array(name) FROM (SELECT t.name FROM plan_tags pt JOIN tags t ON t.id = pt.tag_id
                 WHERE pt.plan_id = plans.id ORDER BY t.name COLLATE NOCASE)) AS tags,
               (SELECT json_group_array(json_object('id', id, 'title', title, 'tie_date', tie_date, 'success_rating', success_rating))

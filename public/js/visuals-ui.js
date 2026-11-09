@@ -91,6 +91,8 @@ export function visualSection({ item, idPrefix }) {
   /** @param {string} text @param {boolean} [isError] */
   const say = (text, isError = false) => showMessage(status, text, isError);
 
+  // Whether one was added or deleted, so the list behind the form redraws its count.
+  let touched = false;
   /** @type {VisualContext} */
   const ctx = {
     item: () => item,
@@ -99,10 +101,12 @@ export function visualSection({ item, idPrefix }) {
     draw,
     append: (kind, ref) => {
       visuals.push({ kind, ref });
+      touched = true;
       draw();
     },
     remove: (ref) => {
       visuals = visuals.filter((v) => v.ref !== ref);
+      touched = true;
       draw();
     },
     nav: (ref) => ({
@@ -265,6 +269,8 @@ export function visualSection({ item, idPrefix }) {
     close,
     /** Whether visuals are still being prepared or saved. */
     get busy() { return busyCount > 0; },
+    /** Whether a visual was added or deleted since it opened. */
+    get touched() { return touched; },
     /** Whether any visuals are waiting for the item to be saved. */
     get waiting() { return visuals.some((v) => kinds[v.kind].waiting(v.ref)); },
   };

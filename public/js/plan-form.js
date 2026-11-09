@@ -151,7 +151,7 @@ function showPlanForm(plan, start, fromWorkshop) {
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
-      resolve(changed);
+      resolve(changed || visuals.touched);
     });
 
     /**

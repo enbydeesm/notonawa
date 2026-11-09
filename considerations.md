@@ -3093,3 +3093,41 @@ time. Mocked up first, then built (`pose-editor.js`, with
 - **Tutorial in the menu reopens the welcome** until a click-through tour
   replaces it (roadmap.md).
 
+
+## Card counts and lines, a pinned nav (November 2026)
+
+**Status:** built (2026-11-08)
+
+- **Cards count everything attached** at the bottom left: "4 visuals, 2
+  plans, 6 ties", leaving out what's none, with Open album after it. A
+  visual is any photo, video, drawing or pose (`visual_count` in each
+  list's query, beside the older `photo_count`, kept for imports and
+  tests). A tie counts its plans (not deleted ones), a plan its ties, a
+  workshop both. A form that added or deleted a visual (or a workshop
+  that linked or unlinked one) resolves true on closing, so the list
+  redraws its counts; before, a photo added without saving left the count
+  as it was.
+- **Workshop cards** say who taught it where ("Alex & Lily at Studio"):
+  the names without roles, joined with &, the clearest way to read two
+  teachers. The location links to the event link, which saves a separate
+  "Open link"; that stays at the bottom only with no location to link.
+  The rating hanks left the card (they're in the form and the Summary).
+  A taught one shows "Attendees: 12" at the bottom right: it's what a
+  teacher wants to see, and an attendee's would just be a guess.
+- **Workshop dates replace the earlier range format**: the days beside
+  the title ("Nov 6–8", no spaces round the dash) and the year on the
+  next line, beside the teachers, small and muted, so the title and the
+  people have the room; across years, "Dec 30 2026–" and "Jan 2 2027".
+  We weighed three options in a mock-up (one line, two lines, a smaller
+  muted pair) and chose the last. Dates on every card drop their commas
+  (`cardDate`); `dateRangeText`, used outside cards, keeps them.
+- **A plan's card names its workshop** under its type, with the
+  Education cap (`capMark`, shared with Analytics' marks).
+- **Lists**: "My plans", with "Showing 3 of 5" as Ties and Education have
+  (none of the three repeat the noun any more). Plans' Show archived is
+  under More options, at the right of the Has Tags row, as it's a filter
+  like the rest. The hints under the People and Educator(s) filters went:
+  the boxes say enough.
+- **The nav is pinned to the top** (`position: sticky`, on the page's
+  background with a line under it), so the tabs are always in reach in
+  long lists; `scroll-padding-top` keeps what's scrolled to below it.

@@ -169,7 +169,7 @@ function showTieForm(tie, start, fromWorkshop) {
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
-      resolve(saved);
+      resolve(saved || visuals.touched);
     });
 
     /**

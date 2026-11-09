@@ -1,8 +1,24 @@
 // Pure helpers used by the pages (public/js). No DOM needed.
 import { describe, it, expect } from "vitest";
-import { formatDate, capitalise } from "../../public/js/format.js";
+import { formatDate, capitalise, cardDate, attachedText } from "../../public/js/format.js";
 import { placeLine, showingText, peopleThatFit, participantLabel, planLabel, nextRating, ROLES, TIE_TYPES } from "../../public/js/ties-view.js";
 import { TIE_TYPES as API_TIE_TYPES, ROLES as API_ROLES } from "../../src/ties/parse.js";
+
+describe("cardDate", () => {
+  it("drops the commas", () => {
+    expect(cardDate("2026-10-12", "en-US")).toBe("Oct 12 2026");
+    expect(cardDate(null)).toBe("No date");
+  });
+});
+
+describe("attachedText", () => {
+  it("counts what's attached, leaving out what isn't", () => {
+    expect(attachedText({ visuals: 4, plans: 2, ties: 6 })).toBe("4 visuals, 2 plans, 6 ties");
+    expect(attachedText({ visuals: 1, ties: 0 })).toBe("1 visual");
+    expect(attachedText({ plans: 1, ties: 1 })).toBe("1 plan, 1 tie");
+    expect(attachedText({})).toBe("");
+  });
+});
 
 describe("formatDate", () => {
   it("formats a plain date without shifting it by time zone", () => {
@@ -43,9 +59,9 @@ describe("placeLine", () => {
 
 describe("showingText", () => {
   it("says how many match out of all my ties", () => {
-    expect(showingText(3, 40)).toBe("Showing 3 of 40 ties");
-    expect(showingText(0, 0)).toBe("Showing 0 of 0 ties");
-    expect(showingText(1, 1)).toBe("Showing 1 of 1 tie");
+    expect(showingText(3, 40)).toBe("Showing 3 of 40");
+    expect(showingText(0, 0)).toBe("Showing 0 of 0");
+    expect(showingText(1, 1)).toBe("Showing 1 of 1");
   });
 });
 

@@ -16,7 +16,9 @@ const WORKSHOP_COLUMNS = `
          w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost, w.event_url,
          w.description, w.notes, w.album_url, w.created_at, w.updated_at,
          w.location_id, w.location_deleted, l.name AS location_name,
-         (SELECT COUNT(*) FROM media m WHERE m.workshop_id = w.id) AS photo_count
+         (SELECT COUNT(*) FROM media m WHERE m.workshop_id = w.id) AS photo_count,
+         (SELECT COUNT(*) FROM media m WHERE m.workshop_id = w.id) + (SELECT COUNT(*) FROM drawings d WHERE d.workshop_id = w.id)
+           + (SELECT COUNT(*) FROM poses p WHERE p.workshop_id = w.id) AS visual_count
     FROM workshops w
     LEFT JOIN locations l ON l.id = w.location_id`;
 

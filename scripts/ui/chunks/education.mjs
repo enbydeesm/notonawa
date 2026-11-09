@@ -53,15 +53,17 @@ export default async function () {
       $("#workshop-cost_currency").value, [...$("#workshop-cost_currency").options].map((o) => o.value).slice(0, 4).join(" "),
       $("#workshop-more-ratings").open, $("#workshop-description").placeholder, $("#workshop-notes").placeholder];
     $("[aria-controls=workshop-self-hint]").click(); opened.push($("#workshop-self-hint").textContent);
-    $("#workshop-add-educator").click(); await wait(50);
+    // One educator row is there to start; the ?'s tap area doesn't reach the +'s (each reaches 12px past its edge).
+    const start = [document.querySelectorAll("#workshop-educators .person-row").length, lastBox("#workshop-educators").value,
+      $("[aria-controls=workshop-self-hint]").getBoundingClientRect().left - 12 - ($("#workshop-add-educator").getBoundingClientRect().right + 12) >= 0];
     const educator = lastBox("#workshop-educators"); educator.focus(); await wait(50);
     const offered = pickerList(educator); educator.blur();
     searchIn(educator, "me"); await wait(50); const me = pickerList(educator); educator.blur();
     $("#workshop-add-participant").click(); await wait(50);
     const participant = lastBox("#workshop-participants"); participant.focus(); await wait(50);
     const participants = pickerList(participant).sort(); participant.blur();
-    return [opened, offered, me, participants, leakyFields()];`),
-    [["Add a workshop", true, false, true, "End date (optional)", "10", "Size", "How many attended", true, false, "Paid", "USD", "USD CAD EUR GBP",
+    return [start, opened, offered, me, participants, leakyFields()];`),
+    [[1, "", true], ["Add a workshop", true, false, true, "End date (optional)", "10", "Size", "How many attended", true, false, "Paid", "USD", "USD CAD EUR GBP",
       false, "How it was originally described by educator, or summary of what it covered", "Your takeaways, how it went",
       "To log a workshop you taught, tick Educator on your own profile in People."], ["Sam"],
       ["No matches.", '"Me" isn\'t marked as an educator. Tick Educator on them in People to choose them here.'], ["Me (you)", "Sam"], []]);
@@ -94,16 +96,17 @@ export default async function () {
     const stored = (await (await fetch("/api/workshops")).json())[0];
     const c = $(".workshop-card");
     return [$("dialog[open]") === null, c.querySelector(".tie-title").textContent, c.querySelector(".tie-date").textContent,
-      c.querySelectorAll(".tie-rating .hank.filled").length, [...c.querySelectorAll(".tie-with")].map((l) => l.innerText),
+      c.querySelector(".tie-year").textContent, c.querySelectorAll(".hank").length, [...c.querySelectorAll(".tie-with")].map((l) => l.innerText),
       tagChips(".workshop-card"), $("#workshop-count").textContent,
       [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), /^e1\\./.test(stored.cost), /^e1\\./.test(stored.event_url),
         stored.attendee_count, stored.rating, stored.difficulty, stored.rating_content, stored.rating_value],
       order, beside, c.querySelector(".tie-place").textContent,
-      [...c.querySelectorAll(".tie-visuals-end a")].map((a) => [a.textContent, a.getAttribute("href"), a.target])];`),
-    [true, "Intro to floor", "Mar 1 – 2, 2026", 4, ["Educators: Sam (bottom)", "With: Me (top)"], ["floor"], "1 workshop",
+      [...c.querySelectorAll(".tie-visuals-start a")].map((a) => [a.textContent, a.getAttribute("href"), a.target]),
+      c.querySelector(".tie-visuals-end")];`),
+    [true, "Intro to floor", "Mar 1–2", "2026", 0, ["With: Me (top)"], ["floor"], "1 workshop",
       [true, true, true, true, 12, 4, 2, null, 5],
-      ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"], true, "",
-      [["Open link", "https://example.com/intro", "_blank"], ["Open album", "https://example.com/album", "_blank"]]]);
+      ["Location", "People", "Event link", "Paid", "Workshop description", "How was it?", "Notes"], true, "Sam",
+      [["Open link", "https://example.com/intro", "_blank"], ["Open album", "https://example.com/album", "_blank"]], null]);
   check("Taught is empty until I'm one of the educators, and says so", await run(`
     $("#tab-taught").click(); await wait(100);
     return [$("#tab-taught").getAttribute("aria-selected"), $("#tab-attended").getAttribute("aria-selected"), flat($("#education-panel"))];`),
@@ -118,7 +121,6 @@ export default async function () {
   check("once Me is an educator, a workshop with me teaching is under Taught, not Attended", await run(`
     $("#add-workshop").click(); await calm(800);
     const hint = $("[aria-controls=workshop-self-hint]").hidden;
-    $("#workshop-add-educator").click(); await wait(50);
     const before = $("#workshop-cost-label").textContent;
     await choosePick(lastBox("#workshop-educators"), "Me", "Me (you)");
     const earned = $("#workshop-cost-label").textContent;
@@ -139,7 +141,7 @@ export default async function () {
     await pick("#search-educators", "Sam"); const bySam = titles();
     $("#tab-attended").click(); await wait(100); const attendedBySam = titles();
     return [keyword, taughtToo, folded, unfolded, filterOptions("#search-educators"), bySam, attendedBySam];`),
-    [[["Intro to floor"], "Showing 1 of 1 workshop", false], ["Teaching gote"], [false, false], [true, true], ["Me", "Sam"], [], ["Intro to floor"]]);
+    [[["Intro to floor"], "Showing 1 of 1", false], ["Teaching gote"], [false, false], [true, true], ["Me", "Sam"], [], ["Intro to floor"]]);
   check("Summary shows a card each for Attended and Taught, following the search", await run(`
     $("#search-clear").click(); await wait(100);
     $("#tab-summary").click(); await wait(100);
@@ -151,6 +153,24 @@ export default async function () {
       ["Workshops 1", "Days 1", "Attendees 8", "Co-teachers 0", "Locations 0", "Partners 0", "Avg rating –", "Earned –"],
       ["Learned most from: Sam (1)", "Top tags: floor (1)", "First: Intro to floor, Mar 1, 2026"]],
       "Attended | No workshops match the search.", "Workshops 1"]);
+  check("a taught workshop's card says who taught it at the location (linking to the event), the attendees bottom right", await run(`
+    await fetch("/api/locations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Dojo" }) });
+    $("#search-clear").click(); $("#tab-taught").click(); await wait(100);
+    const wcard = () => $(".workshop-card");
+    const before = [wcard().querySelector(".tie-place").innerText, wcard().querySelector(".tie-year").innerText,
+      wcard().querySelector(".tie-visuals").innerText.replace(/\\n+/g, " | ")];
+    wcard().querySelector(".tie-title").click(); await calm(1200);
+    $("#workshop-add-educator").click(); await wait(50);
+    await choosePick(lastBox("#workshop-educators"), "Sam", "Sam (knotsam)");
+    if ($("#workshop-location-show")) { $("#workshop-location-show").click(); await wait(50); }
+    await choosePick($("#workshop-location"), "Dojo");
+    set("#workshop-event_url", "https://example.com/gote");
+    $("#workshop-save").click(); await calm(1500);
+    const link = wcard().querySelector(".tie-place a");
+    return [before, wcard().querySelector(".tie-place").innerText, link?.getAttribute("href"), link?.target,
+      [...wcard().querySelectorAll(".tie-visuals a")].map((a) => a.textContent), wcard().querySelector(".tie-visuals-end").innerText,
+      wcard().querySelector(".tie-visuals-end").getBoundingClientRect().right > wcard().getBoundingClientRect().right - 20];`),
+    [["Me", "2026", "Attendees: 8"], "Me & Sam at Dojo", "https://example.com/gote", "_blank", [], "Attendees: 8", true]);
   check("a workshop's title opens it to edit; saving changes the card, and Delete removes it", await run(`
     $("#search-clear").click(); await wait(100); $("#tab-attended").click(); await wait(100);
     $(".workshop-card .tie-title").click(); await calm(1200);
@@ -183,8 +203,9 @@ export default async function () {
     $("#workshop-save").click(); await wait(1500);
     const stored = (await (await fetch("/api/workshops")).json()).find((w) => w.title === "Audit day");
     const full = await (await fetch("/api/workshops/" + stored.id)).json();
-    return [roles, kept, usual, full.participants.map((p) => [p.person_name, p.role])];`),
-    [["Choose Role", "Top", "Bottom", "Self tie", "Spotter", "Photographer", "Audit"], "audit", "bottom", [["Me", "audit"], ["Sam", "bottom"]]]);
+    // The educator row it started with, left empty, saved no one.
+    return [roles, kept, usual, full.participants.map((p) => [p.person_name, p.role]), full.educators];`),
+    [["Choose Role", "Top", "Bottom", "Self tie", "Spotter", "Photographer", "Audit"], "audit", "bottom", [["Me", "audit"], ["Sam", "bottom"]], []]);
 
   check("a new workshop can't link ties and plans until it's saved", await run(`
     $("#add-workshop").click(); await calm(800);
@@ -225,4 +246,14 @@ export default async function () {
     $("#workshop-close").click(); await calm(300);
     return [linked, rows, shown, unlinked, after];`),
     [["Audit practice"], ["Plan: Hip harness", "Tie: Audit practice"], ["Audit day", true], ["", false], ["Plan: Hip harness"]]);
+  check("the workshop's card counts the plan linked to it; the plan's card names the workshop under its type", await run(`
+    const counted = [...document.querySelectorAll(".workshop-card")].find((c) => c.querySelector(".tie-title").textContent === "Audit day")
+      .querySelector(".tie-photos")?.textContent;
+    return counted;`), "1 plan");
+  await go("/plans");
+  check("…on the third line, after its type, with the Education cap", await run(`
+    const c = [...document.querySelectorAll(".plan-card")].find((x) => x.querySelector(".tie-title").innerText === "Hip harness");
+    const line = c.querySelector(".plan-workshop");
+    return [line?.innerText, !!line?.querySelector("svg.cap-mark"), line && line.getBoundingClientRect().top >= c.querySelector(".tie-place").getBoundingClientRect().bottom - 1];`),
+    ["Audit day", true, true]);
 }

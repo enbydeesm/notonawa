@@ -31,7 +31,7 @@ export default async function () {
   check("…and is uploaded when it's saved, counted on the card", await run(`
     $("#tie-save").click(); await calm(2500); await settle();
     const c = [...document.querySelectorAll(".tie-card")].find((x) => x.querySelector(".tie-title").innerText === "Photo test");
-    return [!!document.querySelector("dialog"), c?.querySelector(".tie-photos")?.innerText ?? null];`), [false, "1 photo"]);
+    return [!!document.querySelector("dialog"), c?.querySelector(".tie-photos")?.innerText ?? null];`), [false, "1 visual"]);
   check("the server only has it encrypted", await run(`
     const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
       .ties.find((t) => t.title === "Photo test");
@@ -179,14 +179,14 @@ export default async function () {
     const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
     $("#tie-delete").click(); await calm(300);
     [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
-    return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 0 of 0 ties"]);
+    return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 0 of 0"]);
 
   await go("/plans");
   await run(`$("#add-plan").click(); await calm(300); set("#plan-title", "Photo plan");`);
   check("a new plan's photo waits for the plan to be saved", await pickPhoto("plan", 800, 600, "plan.jpg"), [true, 1, ""]);
   check("…is uploaded when it's saved, closing the form, and counted in the list", await run(`
     await submit(); await calm(2000);
-    return [!!document.querySelector("#plan-dialog[open]"), items().find((i) => i.startsWith("Photo plan"))?.includes("1 photo") ?? false];`),
+    return [!!document.querySelector("#plan-dialog[open]"), items().find((i) => i.startsWith("Photo plan"))?.includes("1 visual") ?? false];`),
     [false, true]);
   check("editing the plan shows its photo", await run(`
     await clickIn("Photo plan", "Edit"); await calm(1500);

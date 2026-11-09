@@ -125,8 +125,8 @@ export function barChart(bars, description, onPick, marks) {
   return h("div", { className: "bar-chart-wrap", role: "group", "aria-label": description }, markRow, chart, hits);
 }
 
-/** The graduation cap (as Education's tab), small, for a bar's mark. */
-function capMark() {
+/** The graduation cap (as Education's tab), small: a bar's mark, a plan card's workshop. */
+export function capMark() {
   return svg("svg", { viewBox: "0 0 24 24", class: "cap-mark", "aria-hidden": "true", focusable: "false" },
     svg("path", { d: "M2 9l10-5 10 5-10 5z" }), svg("path", { d: "M6 11v5c3 2.2 9 2.2 12 0v-5" }));
 }

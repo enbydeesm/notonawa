@@ -15,7 +15,7 @@ export default async function () {
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),
-    ["Showing 23 of 23 ties", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
+    ["Showing 23 of 23", 20, ["Floor session", "Practice 21", "Practice 20"], ["‹ Prev", "1*", "2", "Next ›"]]);
   const foldState = (rest) => `[$("#search-more").open, $("#search-more summary").textContent.trim(), $("#${rest}").checkVisibility({ contentVisibilityAuto: true })]`;
   check("the filters under the keyword are folded under More options, opened by tapping it", await run(`
     const closed = ${foldState("people-filter")}; $("#search-more summary").click(); await wait(100);
@@ -59,7 +59,7 @@ export default async function () {
   check("people filter: ties with all chosen people", await run(`
     await pick("#people-filter", "Me"); await pick("#people-filter", "Sam");
     return [titles(), $("#people-filter summary").textContent, $("#tie-count").textContent, pagerButtons()];`),
-    [["Floor session"], "Me, Sam", "Showing 1 of 23 ties", []]);
+    [["Floor session"], "Me, Sam", "Showing 1 of 23", []]);
   check("an archived person can be searched for", await run(`
     await pick("#people-filter", "Me"); await pick("#people-filter", "Sam"); await pick("#people-filter", "Alex");
     return titles();`), ["Hotel night"]);
@@ -73,7 +73,7 @@ export default async function () {
   check("Clear search resets everything", await run(`
     $("#clear").click(); await calm(800);
     return [$("#tie-count").textContent, $("#from").value, $("#people-filter summary").textContent, $("#clear").hidden, location.search];`),
-    ["Showing 23 of 23 ties", "", "Anyone", true, ""]);
+    ["Showing 23 of 23", "", "Anyone", true, ""]);
   check("…and leaves More options open", await run(`return $("#search-more").open;`), true);
   await go("/?from=2026-01-05");
   check("an address with a filter opens More options by itself", await run(`
@@ -107,7 +107,7 @@ export default async function () {
     const kept = [tagChips("#tag-filter"), $("#tags-all").getAttribute("aria-pressed"), titles()];
     $("#clear").click(); await calm(800);
     return [kept, tagChips("#tag-filter"), $("#tags-any").getAttribute("aria-pressed"), $("#tie-count").textContent, location.search];`),
-    [[["Futomomo"], "true", ["Floor session", "Hotel night"]], [], "true", "Showing 23 of 23 ties", ""]);
+    [[["Futomomo"], "true", ["Floor session", "Hotel night"]], [], "true", "Showing 23 of 23", ""]);
   check("keyword matches a linked plan's title, and stays out of the URL", await run(`await type("#q", "hip"); return [titles(), location.search];`),
     [["Floor session"], ""]);
   check("the keyword stays out of the URL alongside other filters, and survives paging Back", await run(`

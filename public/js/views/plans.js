@@ -10,13 +10,14 @@ import { openPlanForm } from "../plan-form.js";
 import { PLAN_SAVED } from "../nav.js";
 import { ratingHanks } from "../rope-rating.js";
 import { pickTags } from "../tag-picker.js";
-import { TIE_TYPES } from "../ties-view.js";
-import { capitalise } from "../format.js";
+import { TIE_TYPES, showingText } from "../ties-view.js";
+import { capitalise, attachedText } from "../format.js";
+import { capMark } from "../charts.js";
 import { visualsRow } from "../tie-card.js";
 import { multiSelect } from "../multi-select.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 import {
-  PLAN_TYPE_NAMES, planKindText, EMPTY_SEARCH, tieSummary, tieCountText, filterPlans, hasPlanFilters,
+  PLAN_TYPE_NAMES, planKindText, EMPTY_SEARCH, filterPlans, hasPlanFilters,
 } from "../plans-view.js";
 
 /** @typedef {import("../plans-view.js").PlanSearch} PlanSearch */
@@ -31,6 +32,7 @@ export function mount(_root, { signal }) {
   /** @type {HTMLInputElement} */
   const archivedToggle = $("#show-archived");
   const list = $("#list");
+  const count = $("#plan-count");
   /** The plans loaded: active, or archived with Show archived. @type {Record<string, any>[]} */
   let plans = [];
 
@@ -52,6 +54,7 @@ export function mount(_root, { signal }) {
 
   /** Draws the list: all of it, or what the search finds. Tapping a card anywhere opens it. */
   function draw() {
+    count.textContent = plans.length ? showingText(filterPlans(plans, search).length, plans.length) : "";
     if (plans.length === 0) {
       list.replaceChildren(h("p", { className: "empty" }, archivedToggle.checked ? "Nothing archived." : "Nothing here yet. Add one above."));
       return;
@@ -75,8 +78,8 @@ export function mount(_root, { signal }) {
   /**
    * A card like a tie's: the title (which opens the form, as tapping the
    * card does) and the plan type; the tie type and what it's a variation
-   * of, and the difficulty in hanks; how many photos, then on the right
-   * the album and how many ties it's on; the tags. Its description and
+   * of, and the difficulty in hanks; the workshop it's from; how many
+   * visuals and ties, then the album link; the tags. Its description and
    * notes are in the form only.
    * @param {Record<string, any>} plan
    * @param {() => void} open
@@ -84,14 +87,16 @@ export function mount(_root, { signal }) {
   function planCard(plan, open) {
     const parent = plan.variation_of && plans.find((p) => p.id === plan.variation_of);
     const kind = planKindText(plan, plan.variation_of ? (parent ? parent.title : "") : null);
-    const { count } = tieSummary(plan.linked_ties ?? []);
     return [
       h("button", { type: "button", className: "tie-title", onclick: open }, plan.title),
       h("div", { className: "tie-place" }, kind),
       plan.est_difficulty != null
         ? h("div", { className: "tie-rating" }, ratingHanks(plan.est_difficulty, `Difficulty ${plan.est_difficulty}/5`))
         : null,
-      visualsRow(plan.photo_count, plan.album_url, h("span", { className: "plan-ties" }, tieCountText(count))),
+      plan.workshop_id
+        ? h("div", { className: "plan-workshop" }, capMark(), plan.workshop_title ?? "")
+        : null,
+      visualsRow(attachedText({ visuals: plan.visual_count, ties: (plan.linked_ties ?? []).length }), plan.album_url),
       plan.tags?.length
         ? h("div", { className: "tag-row tie-tags" }, plan.tags.map((/** @type {string} */ name) => h("span", { className: "tag outline" }, name)))
         : null,
@@ -170,3 +175,4 @@ export function mount(_root, { signal }) {
     update({ ...EMPTY_SEARCH });
   });
 }
+

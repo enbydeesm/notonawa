@@ -40,7 +40,7 @@ describe("workshops", () => {
       difficulty: 3, rating_content: 5, rating_teaching: 4, rating_value: 2, cost: sealed("USD 180.00"), event_url: sealed("https://ev"),
       description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       created_at: expect.any(String), updated_at: expect.any(String),
-      location_id: loc, location_deleted: 0, location_name: "Studio", photo_count: 0,
+      location_id: loc, location_deleted: 0, location_name: "Studio", photo_count: 0, visual_count: 0,
       educators: [{ id: expect.any(String), person_id: kit, person_name: "Kit", role: "top" }],
       participants: [{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" }],
       tags: ["Floor", "kata"], linked: [],

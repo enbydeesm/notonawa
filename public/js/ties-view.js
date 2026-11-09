@@ -40,12 +40,12 @@ export function placeLine(tie) {
 }
 
 /**
- * The list header's count: "Showing 3 of 40 ties".
- * @param {number} shown ties matching the search
- * @param {number} total all my ties
+ * A list header's count: "Showing 3 of 40" (Ties and Plans).
+ * @param {number} shown matching the search
+ * @param {number} total all of mine
  */
 export function showingText(shown, total) {
-  return `Showing ${shown} of ${total} ${total === 1 ? "tie" : "ties"}`;
+  return `Showing ${shown} of ${total}`;
 }
 
 /**

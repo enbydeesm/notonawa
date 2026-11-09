@@ -41,7 +41,6 @@
 
         <label id="people-label">People</label>
         <div id="people-filter"></div>
-        <p class="hint">Ties with all of the people you choose.</p>
 
         <label id="locations-label">Locations</label>
         <div id="locations-filter"></div>
@@ -125,6 +124,7 @@
             <button type="button" id="search-tags-any" aria-pressed="true" title="Plans with any of the tags">OR</button>
             <button type="button" id="search-tags-all" aria-pressed="false" title="Plans with all of the tags">AND</button>
           </div>
+          <label class="archived-toggle"><input type="checkbox" id="show-archived"> Show archived</label>
         </div>
         <div class="tag-row" id="search-tag-filter" aria-labelledby="search-tags-label"></div>
       </details>
@@ -133,9 +133,9 @@
     </section>
 
     <section class="card">
-      <div class="card-header">
-        <h2>Your plans</h2>
-        <label class="inline"><input type="checkbox" id="show-archived"> Show archived</label>
+      <div class="card-header list-header">
+        <h2>My plans</h2>
+        <span class="item-meta" id="plan-count"></span>
       </div>
       <div id="list"><p class="empty">Loading…</p></div>
     </section>
@@ -456,7 +456,6 @@
 
         <label id="search-educators-label">Educator(s)</label>
         <div id="search-educators"></div>
-        <p class="hint">Workshops with all of the people and educators you choose.</p>
 
         <label id="search-locations-label">Locations</label>
         <div id="search-locations"></div>

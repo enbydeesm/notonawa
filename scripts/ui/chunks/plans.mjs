@@ -12,7 +12,7 @@ export default async function () {
   // many buttons.
   const planCard = `const cardOf = (t) => [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === t);
     const parts = (c) => [c.querySelector(".tie-place").innerText,
-      c.querySelectorAll(".tie-rating .hank.filled").length, c.querySelector(".plan-ties").innerText, c.querySelectorAll("button").length];`;
+      c.querySelectorAll(".tie-rating .hank.filled").length, c.querySelector(".tie-photos")?.innerText ?? "", c.querySelectorAll("button").length];`;
   check("Plans starts with a small \"Add a Plan\" card, its yellow + first at the left, then the search, then the list", await run(`
     const cards = [...document.querySelectorAll("#view > section.card")];
     const plus = $("#add-plan"), navPlus = $("nav .nav-add"), label = $("#add-plan-label");
@@ -31,10 +31,10 @@ export default async function () {
     ${planCard}
     return [opened, types, closed, $("#stage"), parts(cardOf("Hip harness")), parts(cardOf("Hip harness, one-sided"))];`),
     [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
-      ["Harness", 3, "0 ties", 1], ["Idea · variation of Hip harness", 0, "0 ties", 1]]);
+      ["Harness", 3, "", 1], ["Idea · variation of Hip harness", 0, "", 1]]);
   check("tapping a plan's card opens it, with Delete, Archive and Share icons on the heading's row", await run(`
     ${planCard}
-    cardOf("Hip harness").querySelector(".plan-ties").click(); await calm(400);
+    cardOf("Hip harness").querySelector(".tie-place").click(); await calm(400);
     const opened = [!!document.querySelector("#plan-dialog[open]"), $("#plan-title").value, headerIcons("#plan-dialog"),
       getComputedStyle(cardOf("Hip harness")).cursor];
     $("[data-cancel-edit]").click(); await calm(200);
@@ -100,12 +100,13 @@ export default async function () {
     await post("/api/ties", { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] });
     await post("/api/ties", { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] });`);
   await go("/plans");
-  check("a plan's card says its tie type and plan type on its second line (nothing in the corner), counts its ties bottom right, tags at the bottom", await run(`
+  check("a plan's card says its tie type and plan type on its second line (nothing in the corner), counts its ties bottom left, tags at the bottom; the list says My plans and how many show", await run(`
     ${planCard}
-    const c = cardOf("Linked plan"), box = c.getBoundingClientRect(), ties = c.querySelector(".plan-ties").getBoundingClientRect();
+    const c = cardOf("Linked plan"), box = c.getBoundingClientRect(), ties = c.querySelector(".tie-photos").getBoundingClientRect();
     const tags = c.querySelector(".tie-tags").getBoundingClientRect();
-    return [parts(c), !!c.querySelector(".tie-date, .plan-type"), box.right - ties.right < 16, tags.top >= ties.bottom - 1,
-      tagChips(".plan-card .tie-tags")];`), [["Suspension sequence", 0, "2 ties", 1], false, true, true, ["search-tag"]]);
+    return [parts(c), !!c.querySelector(".tie-date, .plan-type"), ties.left - box.left < 16, tags.top >= ties.bottom - 1,
+      tagChips(".plan-card .tie-tags"), flat($("#list").closest(".card").querySelector(".card-header"))];`),
+    [["Suspension sequence", 0, "2 ties", 1], false, true, true, ["search-tag"], "My plans | Showing 3 of 3"]);
   check("its form lists the linked ties, folded under 'Linked ties (2)' until tapped, newest first, each with its rating at the end of the row", await run(`
     await clickIn("Linked plan", "Edit");
     const folded = [$("#plan-linked").open, $("#plan-linked summary").textContent.trim(), $("#plan-linked-ties").checkVisibility({ contentVisibilityAuto: true })];
@@ -174,4 +175,12 @@ export default async function () {
     set("#show-archived", false); await calm(600);
     return [opened, !!document.querySelector("#plan-dialog[open]"), archived, titles().includes("Linked plan")];`),
     [[true, "Linked plan", ["Delete plan", "Restore plan", "Share plan", "Close"]], false, [], true]);
+  check("Show archived is folded under More options, at the right of the Has Tags row, worded like its label", await run(`
+    const box = $("#show-archived"), label = box.closest("label"), row = $("#search-tags-label").closest(".label-row");
+    const folded = [box.closest("details") === $("#search-more"), label.closest(".label-row") === row];
+    $("#search-more summary").click(); await wait(100);
+    const r = row.getBoundingClientRect(), l = label.getBoundingClientRect(), tags = $("#search-tags-label");
+    return [folded, r.right - l.right < 4, Math.abs((l.top + l.bottom) / 2 - (r.top + r.bottom) / 2) < 6,
+      getComputedStyle(label).fontSize === getComputedStyle(tags).fontSize, getComputedStyle(label).color === getComputedStyle(tags).color];`),
+    [[true, true], true, true, true, true]);
 }

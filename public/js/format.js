@@ -18,6 +18,26 @@ export function formatDate(isoDate, locale) {
   });
 }
 
+/**
+ * A date as a card shows it, without commas: "Oct 12 2026".
+ * @param {string | null | undefined} isoDate
+ * @param {string} [locale]
+ */
+export function cardDate(isoDate, locale) {
+  return formatDate(isoDate, locale).replace(/,/g, "");
+}
+
+/**
+ * What's attached to a card, left out where there's none: "4 visuals, 2
+ * plans, 6 ties", "1 visual". Empty when nothing is.
+ * @param {{ visuals?: number, plans?: number, ties?: number }} counts
+ */
+export function attachedText({ visuals = 0, plans = 0, ties = 0 }) {
+  /** @type {[number, string][]} */
+  const parts = [[visuals, "visual"], [plans, "plan"], [ties, "tie"]];
+  return parts.filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}${n === 1 ? "" : "s"}`).join(", ");
+}
+
 /** @param {string} text */
 export function capitalise(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);

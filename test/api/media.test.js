@@ -3,6 +3,7 @@ import { SELF, env, createScheduledController } from "cloudflare:test";
 import worker from "../../src/index.js";
 import { ORIGIN, call, create, createOtherUser, sessionCookieFor, signedInUser, sql, sealed, fakeWrap } from "../helpers.js";
 import { MAX_ACCOUNT_BYTES } from "../../src/media/parse.js";
+import { JOINTS } from "../../src/poses/parse.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -89,6 +90,28 @@ describe("uploading a photo", () => {
     const found = res.body.ties.find((/** @type {any} */ t) => t.id === tie);
     expect(found.photo_count).toBe(2);
     expect((await call(`/api/ties/${tie}`)).body.photo_count).toBe(2);
+  });
+
+  it("is counted with the drawings and poses as visuals, on ties, plans and workshops", async () => {
+    const pose = {
+      v: 1, joints: Object.fromEntries(Object.entries(JOINTS).map(([name, r]) => [name, r.map(() => 0)])),
+      body: [0, 0, 0], lift: 99, camera: [20, 10, 300, 110, 0, 0], ring: null, bamboo: null, hashira: null, ropes: [],
+    };
+    const drawing = { v: 1, strokes: [{ c: "red", w: 2, p: [10, 20, 30, 40] }] };
+    const tie = await newTie();
+    const plan = await newPlan();
+    const workshop = await create("/api/workshops", { title: "Intro", start_date: "2026-10-01" });
+    for (const item of [{ tie_id: tie }, { plan_id: plan }, { workshop_id: workshop }]) {
+      await upload(item);
+      expect((await call("/api/drawings", { method: "POST", body: { ...item, data: drawing } })).status).toBe(201);
+      expect((await call("/api/poses", { method: "POST", body: { ...item, data: pose } })).status).toBe(201);
+    }
+    const ties = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties;
+    expect(ties.find((/** @type {any} */ t) => t.id === tie)).toMatchObject({ photo_count: 1, visual_count: 3 });
+    const plans = (await call("/api/plans?archived=false")).body;
+    expect(plans.find((/** @type {any} */ p) => p.id === plan)).toMatchObject({ photo_count: 1, visual_count: 3 });
+    const workshops = (await call("/api/workshops")).body;
+    expect(workshops.find((/** @type {any} */ w) => w.id === workshop)).toMatchObject({ photo_count: 1, visual_count: 3 });
   });
 
   it("works on plans too", async () => {

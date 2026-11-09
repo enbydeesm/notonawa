@@ -32,7 +32,7 @@ export default async function () {
     // The confirmation's "Delete tie" (opened last), not the form's own.
     $("#tie-delete").click(); await calm(300);
     [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
-    return [titles().includes("Knot test"), $("#tie-count").textContent];`), [false, "Showing 1 of 1 tie"]);
+    return [titles().includes("Knot test"), $("#tie-count").textContent];`), [false, "Showing 1 of 1"]);
 
   // Notes written before encryption: plain text in the database.
   sql("UPDATE people SET notes = 'Written before encryption' WHERE name = 'Sam'");

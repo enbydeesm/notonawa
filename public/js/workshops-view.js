@@ -159,27 +159,46 @@ export function workshopDays({ start_date, end_date }) {
  * @param {string} [locale]
  */
 export function dateRangeText({ start_date, end_date }, locale) {
-  return dateRangeLines({ start_date, end_date }, locale).join(" ");
+  if (!end_date || end_date === start_date) return formatDate(start_date, locale);
+  if (end_date.slice(0, 4) !== start_date.slice(0, 4)) {
+    return `${formatDate(start_date, locale)} – ${formatDate(end_date, locale)}`;
+  }
+  // Its spaces around the dash are thin ones: plain spaces, as elsewhere.
+  return utcFormat(locale, true).formatRange(utcDate(start_date), utcDate(end_date)).replace(/\u2009/g, " ");
+}
+
+/** @param {string} iso YYYY-MM-DD */
+function utcDate(iso) {
+  return new Date(`${iso}T00:00:00Z`);
 }
 
 /**
- * A workshop's dates as compactly as they read: "Nov 6 – 8, 2026" in one
- * month, "Oct 30 – Nov 2, 2026" across months, and across years two lines,
- * "Dec 30, 2026" and "– Jan 2, 2027" (a card's corner is narrow). The
- * browser's own range format, so other languages get theirs.
+ * @param {string | undefined} locale
+ * @param {boolean} withYear
+ */
+function utcFormat(locale, withYear) {
+  return new Intl.DateTimeFormat(locale, { ...(withYear ? { year: "numeric" } : {}), month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * A workshop's dates as a card shows them, in two lines with no commas:
+ * the days, then the year ("Nov 6–8" and "2026", "Oct 30–Nov 2" and
+ * "2026"), or across years the start and the end ("Dec 30 2026–" and
+ * "Jan 2 2027"). The first goes beside the title, the second on the line
+ * under it. The browser's own range format, so other languages get theirs.
  * @param {{ start_date: string, end_date: string | null }} workshop
  * @param {string} [locale]
- * @returns {string[]} one line, or two
+ * @returns {[string, string]}
  */
 export function dateRangeLines({ start_date, end_date }, locale) {
-  if (!end_date || end_date === start_date) return [formatDate(start_date, locale)];
-  if (end_date.slice(0, 4) !== start_date.slice(0, 4)) {
-    return [formatDate(start_date, locale), `– ${formatDate(end_date, locale)}`];
+  const plain = (/** @type {string} */ text) => text.replace(/,/g, "").replace(/\s*[–-]\s*/g, "–").replace(/\u2009/g, " ");
+  if (end_date && end_date.slice(0, 4) !== start_date.slice(0, 4)) {
+    return [`${plain(utcFormat(locale, true).format(utcDate(start_date)))}–`, plain(utcFormat(locale, true).format(utcDate(end_date)))];
   }
-  const asDate = (/** @type {string} */ iso) => new Date(`${iso}T00:00:00Z`);
-  const format = new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
-  // Its spaces around the dash are thin ones: plain spaces, as elsewhere.
-  return [format.formatRange(asDate(start_date), asDate(end_date)).replace(/\u2009/g, " ")];
+  const days = !end_date || end_date === start_date
+    ? utcFormat(locale, false).format(utcDate(start_date))
+    : utcFormat(locale, false).formatRange(utcDate(start_date), utcDate(end_date));
+  return [plain(days), start_date.slice(0, 4)];
 }
 
 /**

@@ -102,7 +102,9 @@ const TIE_COLUMNS = `
   SELECT t.id, t.title, t.tie_date, t.tie_type, t.duration_minutes, t.success_rating, t.notes, t.album_url, t.created_at, t.updated_at,
          t.location_id, t.location_deleted, l.name AS location_name,
          t.workshop_id, w.title AS workshop_title,
-         (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count
+         (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) AS photo_count,
+         (SELECT COUNT(*) FROM media m WHERE m.tie_id = t.id) + (SELECT COUNT(*) FROM drawings d WHERE d.tie_id = t.id)
+           + (SELECT COUNT(*) FROM poses p WHERE p.tie_id = t.id) AS visual_count
     FROM ties t
     LEFT JOIN locations l ON l.id = t.location_id
     LEFT JOIN workshops w ON w.id = t.workshop_id`;

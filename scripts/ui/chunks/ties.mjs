@@ -127,6 +127,17 @@ export default async function () {
     const stored = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ties[0];
     return [link?.textContent, link?.href, link?.target, link?.rel, stored.album_url.startsWith("e1.")];`),
     ["Open album", "https://photos.app.goo.gl/floor", "_blank", "noopener noreferrer", true]);
+  check("the card's date has no commas, and the album link follows what's attached, at the left", await run(`
+    const c = document.querySelector(".tie-card"), album = c.querySelector(".tie-album").getBoundingClientRect();
+    return [c.querySelector(".tie-date").textContent.includes(","), c.querySelector(".tie-visuals").innerText.replace(/\\s+/g, " "),
+      album.left - c.querySelector(".tie-photos").getBoundingClientRect().right < 20];`), [false, "1 plan Open album", true]);
+  check("the nav stays pinned at the top while the list scrolls under it, and the people filter has no hint under it", await run(`
+    const filler = document.createElement("div"); filler.className = "ui-filler"; filler.textContent = "x".repeat(20000);
+    $("#view").append(filler); scrollTo(0, 2000); await wait(100);
+    const top = $("nav").getBoundingClientRect().top, bg = getComputedStyle($("nav")).backgroundColor;
+    filler.remove(); scrollTo(0, 0);
+    return [Math.abs(top) < 1, bg === getComputedStyle(document.body).backgroundColor,
+      $("#people-filter").nextElementSibling?.classList.contains("hint") ?? false];`), [true, true, false]);
   check("a tie needs a date: the form won't save without one", await run(`
     $(".nav-add").click(); await calm(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await calm(600);

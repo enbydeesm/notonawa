@@ -192,9 +192,9 @@ export function mount(_root, { signal }) {
       h("div", { className: "card-header list-header" },
         h("h2", {}, tab === "taught" ? "Workshops taught" : "Workshops attended"),
         h("span", { className: "item-meta", id: "workshop-count" },
-          hasWorkshopFilters(search) ? `Showing ${shown.length} of ${workshopCountText(total)}` : workshopCountText(total))),
+          hasWorkshopFilters(search) ? `Showing ${shown.length} of ${total}` : workshopCountText(total))),
       h("div", { id: "workshop-list" },
-        shown.length ? shown.map((w) => workshopCard(w, openWorkshop)) : h("p", { className: "empty" }, emptyText(total)))));
+        shown.length ? shown.map((w) => workshopCard(w, openWorkshop, { taught: tab === "taught" })) : h("p", { className: "empty" }, emptyText(total)))));
     fitPeople(panel);
   }
 

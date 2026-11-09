@@ -105,11 +105,11 @@ describe("dates", () => {
   });
 
   it("shows a card's dates as compactly as they read, across years on two lines", () => {
-    expect(dateRangeLines({ start_date: "2026-11-06", end_date: null }, "en-US")).toEqual(["Nov 6, 2026"]);
-    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-06" }, "en-US")).toEqual(["Nov 6, 2026"]);
-    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-08" }, "en-US")).toEqual(["Nov 6 – 8, 2026"]);
-    expect(dateRangeLines({ start_date: "2026-10-30", end_date: "2026-11-02" }, "en-US")).toEqual(["Oct 30 – Nov 2, 2026"]);
-    expect(dateRangeLines({ start_date: "2026-12-30", end_date: "2027-01-02" }, "en-US")).toEqual(["Dec 30, 2026", "– Jan 2, 2027"]);
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: null }, "en-US")).toEqual(["Nov 6", "2026"]);
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-06" }, "en-US")).toEqual(["Nov 6", "2026"]);
+    expect(dateRangeLines({ start_date: "2026-11-06", end_date: "2026-11-08" }, "en-US")).toEqual(["Nov 6–8", "2026"]);
+    expect(dateRangeLines({ start_date: "2026-10-30", end_date: "2026-11-02" }, "en-US")).toEqual(["Oct 30–Nov 2", "2026"]);
+    expect(dateRangeLines({ start_date: "2026-12-30", end_date: "2027-01-02" }, "en-US")).toEqual(["Dec 30 2026–", "Jan 2 2027"]);
     expect([0, 1, 2].map(workshopCountText)).toEqual(["0 workshops", "1 workshop", "2 workshops"]);
   });
 });

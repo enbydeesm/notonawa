@@ -75,6 +75,8 @@ function showWorkshopForm(workshop, start) {
     let current = workshop;
     /** Its linked ties and plans, as shown. @type {{ kind: "tie" | "plan", id: string, title: string | null, date: string | null }[]} */
     let linkedItems = [];
+    let linkedShown = false;
+    let linksChanged = false;
     // Filled in once loaded. Educators: only people marked Educator; the
     // rest are `elsewhere`, so typing one points to People instead of
     // offering to add them again.
@@ -171,7 +173,8 @@ function showWorkshopForm(workshop, start) {
       h("label", { htmlFor: "workshop-location", id: "workshop-location-label" }, "Location"),
       locationRow, deletedLocationRow,
       h("div", { className: "label-row" },
-        h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add()), selfHint.button),
+        h("label", {}, "Educators"), addButton("workshop-add-educator", "Add educator", () => educators.add()),
+        Object.assign(selfHint.button, { className: `${selfHint.button.className} apart` })),
       selfHint.text,
       educators.element,
       h("div", { className: "label-row" },
@@ -243,7 +246,7 @@ function showWorkshopForm(workshop, start) {
     dialog.addEventListener("close", () => {
       visuals.close();
       dialog.remove();
-      resolve(saved);
+      resolve(saved || linksChanged || visuals.touched);
     });
 
     /**
@@ -279,6 +282,10 @@ function showWorkshopForm(workshop, start) {
      * @param {{ kind: "tie" | "plan", id: string, title: string | null, date: string | null }[]} linked
      */
     function showLinked(linked) {
+      // A tie or plan linked or unlinked here: the list's counts change.
+      const key = (/** @type {typeof linked} */ list) => list.map((item) => item.id).join(",");
+      if (linkedShown && key(linked) !== key(linkedItems)) linksChanged = true;
+      linkedShown = true;
       linkedItems = linked;
       linkedList.replaceChildren(...linked.map((item) => {
         const title = item.title || (item.date ? `Tie, ${formatDate(item.date)}` : "Untitled tie");
@@ -525,6 +532,8 @@ function showWorkshopForm(workshop, start) {
     }
 
     if (workshop) fill(workshop);
+    // One educator row to start, as nearly every workshop has one; left empty, it isn't saved.
+    if (!educators.element.querySelector(".person-row")) educators.add();
     showLinked(workshop?.linked ?? []);
     // Cost or Earned, as the educators change: a pick fires "change"; a
     // removed row, only the observer.
