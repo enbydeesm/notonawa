@@ -10,26 +10,16 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
-Workshops, round two!
-- Education is now the third tab, between Plans and People.
-- Link ties and plans to a workshop: + under a workshop's new "Ties and plans" links one you have, or starts a new one already linked. A new tie from a workshop starts at its location, with its people, dated today while the workshop's on (or its start date otherwise). A tie's or plan's own form shows its workshop too.
-- A workshop's Participants are now People, as on ties. Attendees is now Size, on the dates row, and Location is open from the start.
-- Track what a workshop cost, in US, Canadian or Australian dollars, euros, pounds, yen and more: a new workshop starts on the currency you used last. On one you teach, it's what you earned. Only your device can read it.
-- Rate a workshop's difficulty, and under More ratings, its content, teaching and value.
-- Education's Summary adds up Total spend and Avg per workshop (and Earned, for the ones you taught), each currency on its own.
-- Analytics has a Workshops card (once you have any; its ? explains the numbers), a cap under each month you went to one (tap it to list them), Practiced most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds. The two workshop cards come last.
-- A visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.
-- A workshop's Event link, beside what it cost (now Paid, or Earned on one you teach). The ratings now come after the description.
-- Workshop cards say who taught it where ("Alex & Lily at Studio"), the location linking to the event's page; with no location, "Open link" is at the bottom. Their dates are smaller ("Nov 6–8", the year under it), and the rating hanks are gone. A workshop you taught shows how many attended.
-- Every card counts what's attached at the bottom left ("4 visuals, 2 plans, 6 ties": photos, videos, drawings and poses all count as visuals), with Open album after it. Dates on cards have no commas.
-- A plan's card names the workshop it's linked to, under its type. The Plans list is now "My plans", says how many show, and Show archived is under More options.
-- The tabs stay at the top of the screen while you scroll.
-- Floor ties read "Floor tie at …" on their cards, and plan cards say "Hashira sequence" and the like on their second line.
-- When you share a workshop, you can include its event link and its cost.
-- Tutorial, in the menu, brings the welcome message back up.
-- Workshops have a new role, Audit, for educators and participants alike. It's only on workshops, not ties.
-- Picking a person in a tie or workshop no longer clears the role you'd already chosen when they have no default role. Someone with a default role still sets it.
+## 2026.11.09.0624
+Workshop updates and visual viewer improvements
+- Workshops moved to 3rd position and the top navigation bar is now pinned at the top
+- Workshops have a new role, "audit"
+- Link ties and plans to a workshop: + under a workshop's new "Ties and plans" links one you have, or starts a new one already linked. A tie's or plan's own entry shows its workshop too.
+- Workshop form updates: Attendees is now Size, Location and 1 educator is open from the start, new rating fields (difficulty, value, etc), track what a workshop cost, and total your spend in the summary and analytics views. On a workshop you teach, the cost is what you earned.
+- Analytics has a Workshops card, a cap under each month you went to one (tap it to list them), Practiced most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds.
+- Updates to visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.
+- New option in the menu, Tutorial: brings the welcome message back up. (Coming soon: a click through tutorial of app features)
+- Various updates to cards in the list view and some fixes: picking a person no longer clears the role you'd already chosen when they have no default role. Photos now start at full width when swiping through visuals.
 
 ## 2026.11.05.0231
 Model Poser UI Overhaul!!

@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.11.05.0231";
+export const APP_VERSION = "2026.11.09.0624";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,22 @@ export const APP_VERSION = "2026.11.05.0231";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.11.09.0624",
+    "intro": [
+      "Workshop updates and visual viewer improvements"
+    ],
+    "notes": [
+      "Workshops moved to 3rd position and the top navigation bar is now pinned at the top",
+      "Workshops have a new role, \"audit\"",
+      "Link ties and plans to a workshop: + under a workshop's new \"Ties and plans\" links one you have, or starts a new one already linked. A tie's or plan's own entry shows its workshop too.",
+      "Workshop form updates: Attendees is now Size, Location and 1 educator is open from the start, new rating fields (difficulty, value, etc), track what a workshop cost, and total your spend in the summary and analytics views. On a workshop you teach, the cost is what you earned.",
+      "Analytics has a Workshops card, a cap under each month you went to one (tap it to list them), Practiced most (your workshops by the ties on plans you learned there), and workshops on the map as teal diamonds.",
+      "Updates to visual's details: a much bigger caption box that grows as you write (up to 1,000 characters), a ✓ to save it, and all its buttons as icons on one row. Photos and videos can be copied to another tie, plan or workshop too.",
+      "New option in the menu, Tutorial: brings the welcome message back up. (Coming soon: a click through tutorial of app features)",
+      "Various updates to cards in the list view and some fixes: picking a person no longer clears the role you'd already chosen when they have no default role. Photos now start at full width when swiping through visuals."
+    ]
+  },
   {
     "version": "2026.11.05.0231",
     "intro": [
