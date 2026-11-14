@@ -57,6 +57,19 @@ export function numberOrNull(value, min, max) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number | null}
+ */
+export function intOrNull(value, min, max) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) throw new BadEdit(`Expected a whole number from ${min} to ${max}.`);
+  return n;
+}
+
+/**
  * An http(s) link, so a stored link can never run script when clicked.
  * @param {unknown} value
  * @returns {string | null}

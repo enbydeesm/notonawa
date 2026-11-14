@@ -3406,3 +3406,24 @@ Phase 4, slice 2: people and locations in format 2 (`store/v2/resources.js`).
   to `POST /api/locations/coords`. PRIVACY.md still says full links are
   read on our server, which now overstates what's sent; it's corrected in
   phase 7's rewrite rather than with a policy version of its own.
+
+## Encrypt everything: plans and tags as built (November 2026)
+
+Phase 4, slice 3: plans and tags in format 2.
+
+- **Tags are records** (`{ name }`), and a tie, plan or workshop lists its
+  tags' ids. Saving an item with tag names matches them to my tags
+  ignoring capitals and makes records for new ones in the same batch;
+  deleting a tag takes it off everything, then deletes it.
+- **Two devices can make the same new tag at once** (random ids, so
+  neither save is stale), leaving two tags of one name. Weighed: ids worked
+  out from the name, as "Me"'s are; refused, as a deleted id can never
+  come back, so a tag once deleted could never be made again. Rare, and
+  visible (both show in the tag list, each deletable); merging them can
+  come later if it happens.
+- **Deleting a plan** changes its ties as the person chose (off them, or
+  "(plan deleted)"), stops other plans being variations of it, deletes its
+  drawings and poses, and frees its photos' and videos' files, in one
+  save (several batches if over 50, the plan's delete last).
+- **A plan's `version`** stays 1, as format 1's never rose either; ties
+  keep the version they were logged against.

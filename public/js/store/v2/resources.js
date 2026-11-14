@@ -1,16 +1,18 @@
-// People and locations over the journal in memory (format 2): the same
-// functions as v1/resources.js, so the pages don't change. The rules the
-// server and the database kept for format 1 (one "Me", one default
-// location, deleted ones left on ties and workshops) are records/edits.js's.
-// Plans come in the next slice.
+// Plans, people and locations over the journal in memory (format 2): the
+// same functions as v1/resources.js, so the pages don't change. The rules
+// the server and the database kept for format 1 (one "Me", one default
+// location, deleted ones left on ties and workshops, a plan's tags and
+// linked ties) are records/edits.js's and records/tags.js's.
 
 import { records, record, save } from "./journal.js";
 import { newId } from "../../records/ids.js";
 import { stamp, BadEdit } from "../../records/parse.js";
 import {
-  personBody, locationBody, clearOtherDefaults, archived, restored, personDeleted, locationDeleted,
+  personBody, locationBody, planBody, clearOtherDefaults, archived, restored, personDeleted, locationDeleted, planDeleted,
 } from "../../records/edits.js";
+import { linkTags } from "../../records/tags.js";
 import { listPeople, listLocations } from "../queries/resources.js";
+import { listPlans } from "../queries/plans.js";
 
 /** @typedef {import("../v1/resources.js").ResourceKind} ResourceKind */
 /** @typedef {import("../v1/resources.js").Archived} Archived */
@@ -18,18 +20,15 @@ import { listPeople, listLocations } from "../queries/resources.js";
 /** Each kind's record kind. */
 const RECORD = /** @type {const} */ ({ plans: "plan", people: "person", locations: "location" });
 
-/** @param {ResourceKind} kind */
-function notYet(kind) {
-  if (kind === "plans") throw new Error("Plans aren't ready in this version yet.");
-}
-
 /**
  * @param {ResourceKind} kind
  * @param {Archived} archived
  * @returns {Promise<any[]>}
  */
 export async function listItems(kind, archived) {
-  notYet(kind);
+  if (kind === "plans") {
+    return listPlans({ plans: records("plan"), ties: records("tie"), tags: records("tag"), workshops: records("workshop") }, archived);
+  }
   return kind === "people" ? listPeople(records("person"), archived) : listLocations(records("location"), archived);
 }
 
@@ -50,10 +49,15 @@ function existing(kind, id) {
  * @returns {Promise<string>} its id
  */
 export async function saveItem(kind, id, fields) {
-  notYet(kind);
   const now = stamp();
   const prev = id ? existing(kind, id) : null;
   const itemId = id ?? newId();
+  if (kind === "plans") {
+    const tags = linkTags(records("tag"), fields.tags, now);
+    const body = planBody(fields, prev?.body ?? null, { id: itemId, tagIds: tags.ids, plans: records("plan"), now });
+    await save({ writes: [...tags.writes, { kind: "plan", id: itemId, body, from: prev?.body ?? undefined }] });
+    return itemId;
+  }
   if (kind === "people") {
     const body = personBody(fields, prev?.body ?? null, now);
     if (!prev && body.is_self && records("person").some((p) => p.body?.is_self)) {
@@ -75,7 +79,6 @@ export async function saveItem(kind, id, fields) {
  * @param {string} id
  */
 export async function archiveItem(kind, id) {
-  notYet(kind);
   await save({ writes: [archived(existing(kind, id), stamp())] });
 }
 
@@ -84,7 +87,6 @@ export async function archiveItem(kind, id) {
  * @param {string} id
  */
 export async function restoreItem(kind, id) {
-  notYet(kind);
   await save({ writes: [restored(existing(kind, id), stamp())] });
 }
 
@@ -103,9 +105,15 @@ export async function deleteItem(kind, id) {
 }
 
 /**
- * @param {string} _id
- * @param {"remove" | "keep"} _linkedTies
+ * Deletes a plan for good. linkedTies: "remove" takes it off its ties too;
+ * "keep" leaves them showing "(plan deleted)". Its drawings and poses go
+ * with it, and its photos' and videos' files are freed.
+ * @param {string} id
+ * @param {"remove" | "keep"} linkedTies
  */
-export async function deletePlan(_id, _linkedTies) {
-  notYet("plans");
+export async function deletePlan(id, linkedTies) {
+  const plan = existing("plans", id);
+  const { writes, deletes } = planDeleted(plan, [...records("tie"), ...records("plan")], linkedTies, stamp());
+  // A drawing or pose that never synced here can't be deleted from here.
+  await save({ writes, deletes: deletes.filter((d) => d.id === id || record(d.id)) });
 }

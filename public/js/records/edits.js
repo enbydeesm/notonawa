@@ -5,7 +5,10 @@
 // with the whole journal in memory. Pure: each takes the records it needs
 // and gives back the writes to save, all in one batch.
 
-import { cleanText, requiredText, flag, numberOrNull, urlOrNull, dateOrNull, roleOrNull, compact, BadEdit } from "./parse.js";
+import {
+  cleanText, requiredText, flag, numberOrNull, intOrNull, urlOrNull, dateOrNull, roleOrNull, choiceOrNull, compact, BadEdit,
+} from "./parse.js";
+import { PLAN_STAGES, PLAN_TYPES, TIE_TYPES } from "./schema.js";
 import { readAliases } from "../aliases.js";
 
 /**
@@ -154,4 +157,78 @@ export function locationDeleted(location, items, now) {
     const { location_id: _gone, ...rest } = body;
     return [{ kind: /** @type {any} */ (item.kind), id: item.id, from: body, body: { ...rest, location_deleted: true, updated_at: now } }];
   });
+}
+
+/**
+ * A plan's record from the plan form's fields, with its tags' ids
+ * (records/tags.js's linkTags). Its stage is set when it's added and left
+ * alone after (no longer on the form); its visuals and anything else the
+ * form hasn't stay as they were. A plan can be a variation of another of
+ * mine, not of itself.
+ * @param {Record<string, unknown>} fields
+ * @param {Record<string, any> | null} prev
+ * @param {{ id: string, tagIds: string[], plans: Entry[], now: string }} where
+ */
+export function planBody(fields, prev, { id, tagIds, plans, now }) {
+  const variationOf = cleanText(fields.variation_of);
+  if (variationOf === id) throw new BadEdit("A plan can't be a variation of itself.");
+  if (variationOf && !plans.some((p) => p.id === variationOf)) throw new BadEdit("Linked item not found.");
+  return compact({
+    ...prev,
+    title: requiredText(fields.title, "Give the plan a title."),
+    stage: prev ? prev.stage : (choiceOrNull(fields.stage, PLAN_STAGES) ?? "idea"),
+    description: cleanText(fields.description),
+    notes: cleanText(fields.notes),
+    est_difficulty: intOrNull(fields.est_difficulty, 1, 5),
+    variation_of: variationOf,
+    plan_type: choiceOrNull(fields.plan_type, PLAN_TYPES) ?? "idea",
+    tie_type: choiceOrNull(fields.tie_type, TIE_TYPES),
+    album_url: cleanText(fields.album_url),
+    workshop_id: cleanText(fields.workshop_id),
+    tags: tagIds.length ? tagIds : null,
+    version: prev?.version ?? 1,
+    archived_at: prev ? prev.archived_at : (flag(fields.archive_now) ? now : null),
+    created_at: prev?.created_at ?? now,
+    updated_at: now,
+  });
+}
+
+/**
+ * Deleting a plan: what else changes. Its ties lose it ("remove") or show
+ * "(plan deleted)" ("keep"); plans that were variations of it stop being;
+ * its drawings and poses go with it, and its photos' and videos' files are
+ * freed.
+ * @param {Entry} plan
+ * @param {Entry[]} others every tie and plan
+ * @param {"remove" | "keep"} linkedTies
+ * @param {string} now
+ * @returns {{ writes: Write[], deletes: { kind: any, id: string, files?: string[] }[] }}
+ */
+export function planDeleted(plan, others, linkedTies, now) {
+  if (linkedTies !== "remove" && linkedTies !== "keep") throw new BadEdit("Say what to do with the plan's linked ties.");
+  /** @type {Write[]} */
+  const writes = [];
+  for (const item of others) {
+    const body = item.body;
+    if (!body || item.id === plan.id) continue;
+    if (item.kind === "tie" && Array.isArray(body.plans) && body.plans.some((/** @type {any} */ p) => p?.plan_id === plan.id)) {
+      const plans = linkedTies === "remove"
+        ? body.plans.filter((/** @type {any} */ p) => p?.plan_id !== plan.id)
+        : body.plans.map((/** @type {any} */ p) => (p?.plan_id === plan.id ? { ...p, plan_id: null } : p));
+      writes.push({ kind: "tie", id: item.id, from: body, body: { ...body, plans, updated_at: now } });
+    }
+    if (item.kind === "plan" && body.variation_of === plan.id) {
+      const { variation_of: _gone, ...rest } = body;
+      writes.push({ kind: "plan", id: item.id, from: body, body: { ...rest, updated_at: now } });
+    }
+  }
+  const visuals = Array.isArray(plan.body?.visuals) ? plan.body.visuals : [];
+  return {
+    writes,
+    deletes: [
+      ...visuals.filter((/** @type {any} */ v) => v?.kind === "drawing" || v?.kind === "pose")
+        .map((/** @type {any} */ v) => ({ kind: v.kind, id: v.id })),
+      { kind: "plan", id: plan.id, files: visuals.filter((/** @type {any} */ v) => v?.kind === "file").map((/** @type {any} */ v) => v.id) },
+    ],
+  };
 }

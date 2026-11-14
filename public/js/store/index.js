@@ -41,7 +41,11 @@ export { setVisualOrder } from "./v1/visuals.js";
 export {
   listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
 } from "./v1/presets.js";
-export { listTags, deleteTag } from "./v1/tags.js";
+import * as v1Tags from "./v1/tags.js";
+import * as v2Tags from "./v2/tags.js";
+
+export const listTags = byFormat(v1Tags.listTags, v2Tags.listTags);
+export const deleteTag = byFormat(v1Tags.deleteTag, v2Tags.deleteTag);
 export { statsTies } from "./v1/stats.js";
 export { getSettings, saveSettings } from "./v1/settings.js";
 export { exportSealed, importItems, importTies, importWorkshops } from "./v1/data.js";

@@ -30,7 +30,10 @@ vi.mock("../../public/js/api.js", () => ({
 // api.js) that the Node type check can't follow, mocked above.
 const STORE = "../../public/js/store/v2/resources.js";
 const MAPS = "../../public/js/store/maps.js";
-/** @type {Record<"listItems" | "saveItem" | "archiveItem" | "restoreItem" | "deleteItem", (...args: any[]) => Promise<any>>} */
+const TAGS = "../../public/js/store/v2/tags.js";
+/** @type {Record<"listTags" | "deleteTag", (...args: any[]) => Promise<any>>} */
+const tagStore = await import(TAGS);
+/** @type {Record<"listItems" | "saveItem" | "archiveItem" | "restoreItem" | "deleteItem" | "deletePlan", (...args: any[]) => Promise<any>>} */
 const store = await import(STORE);
 /** @type {{ mapLinkCoords: (link: string) => Promise<{ latitude: number | null, longitude: number | null }> }} */
 const { mapLinkCoords } = await import(MAPS);
@@ -113,8 +116,31 @@ describe("the v2 store", () => {
     expect(journal.get("t1").body.participants).toEqual([{ person_id: null, role: "bottom" }]);
   });
 
-  it("doesn't have plans yet, nor someone else's kind", async () => {
-    await expect(store.listItems("plans", false)).rejects.toThrow(/Plans/);
+  it("saves a plan with its tags, new ones made in the same batch, and deletes it with its drawings", async () => {
+    put("tag", "t-box", { name: "Box" });
+    const id = await store.saveItem("plans", null, { title: "TK", tags: ["box", "Ebi"] });
+    expect(saved[0].writes.map((/** @type {any} */ w) => w.kind)).toEqual(["tag", "plan"]);
+    const tags = journal.get(id).body.tags;
+    expect([tags[0], journal.get(tags[1]).body.name]).toEqual(["t-box", "Ebi"]);
+    expect((await store.listItems("plans", false))[0]).toMatchObject({ title: "TK", tags: ["Box", "Ebi"] });
+    put("drawing", "d1", { data: { v: 1, strokes: [] } });
+    put("plan", id, { ...journal.get(id).body, visuals: [{ kind: "drawing", id: "d1" }, { kind: "drawing", id: "never-synced" }] });
+    put("tie", "t1", { tie_date: "2026-11-14", tie_type: "floor", plans: [{ plan_id: id, plan_version: 1 }] });
+    await store.deletePlan(id, "remove");
+    expect(saved[1]).toMatchObject({ writes: [{ id: "t1" }], deletes: [{ id: "d1" }, { id }] });
+    expect(journal.get("t1").body.plans).toEqual([]);
+  });
+
+  it("deletes a tag from everything it's on, in one batch", async () => {
+    put("tag", "x", { name: "Box" });
+    put("plan", "p", { title: "P", tags: ["x"] });
+    expect((await tagStore.listTags()).map((/** @type {any} */ t) => [t.name, t.plan_count])).toEqual([["Box", 1]]);
+    await tagStore.deleteTag("x");
+    expect(saved[0]).toMatchObject({ writes: [{ id: "p", body: { tags: [] } }], deletes: [{ kind: "tag", id: "x" }] });
+    await expect(tagStore.deleteTag("p")).rejects.toThrow(/Not found/);
+  });
+
+  it("refuses another kind's id", async () => {
     put("location", "l1", { name: "L" });
     await expect(store.archiveItem("people", "l1")).rejects.toThrow(/Not found/);
   });

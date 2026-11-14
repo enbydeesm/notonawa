@@ -163,7 +163,7 @@ export const AREAS = [
   {
     name: "resources",
     files: ["src/resources/", "public/js/resource-page.js", "public/js/store/v1/resources.js", "public/js/store/v2/resources.js",
-      "public/js/store/queries/resources.js"],
+      "public/js/store/queries/resources.js", "public/js/store/queries/plans.js"],
     ui: ["people", "locations", "plans", "deleting"],
   },
   {
@@ -184,7 +184,8 @@ export const AREAS = [
   },
   {
     name: "tags",
-    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js", "public/js/store/v1/tags.js"],
+    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js", "public/js/store/v1/tags.js", "public/js/store/v2/tags.js",
+      "public/js/store/queries/tags.js"],
     ui: ["plans", "ties", "search", "education"],
   },
   {

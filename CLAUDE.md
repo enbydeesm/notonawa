@@ -451,8 +451,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   a form's fields as a record, keeping fields the form hasn't, and the
   rules across records the database kept for format 1: one default
   location, "Me" not archived or deleted, a deleted person or location
-  left on ties and workshops as "(… deleted)"; each gives the writes for
-  one batch), the cache:
+  left on ties and workshops as "(… deleted)", a plan's variation and
+  deletion (its ties' choice, its drawings, poses and files); each gives
+  the writes for one batch), `records/tags.js` (pure: tag names read as
+  the server does, matched to my tag records ignoring capitals, new ones
+  made in the same batch; a deleted tag taken off everything), the cache:
   `cache/db.js` (IndexedDB `notonawa-<user id>`, opened in the crypto
   Worker: the sealed rows, the highest version seen of each id and the
   ids deleted, and `since`; `wipeCaches`, on signing out and deleting the
@@ -632,9 +635,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   format 2's, over the journal in memory (`v2/journal.js`), chosen when
   each function is called by the account's format (`byFormat` in
   `index.js`; an area not yet built for v2 is v1's only):
-  `v2/resources.js` (people and locations; plans next), with the pages'
-  rows made by the pure `queries/` (`queries/resources.js`: format 1's
-  columns, a unit test checks, and order); and `maps.js`, both formats'
+  `v2/resources.js` (plans, people and locations) and `v2/tags.js`, with
+  the pages' rows made by the pure `queries/` (`queries/resources.js`,
+  `queries/plans.js` (tags by name, linked ties newest first, the
+  workshop's title, visuals counted) and `queries/tags.js` (most recently
+  on a tie first, with counts): format 1's columns, unit tests check, and
+  order); and `maps.js`, both formats'
   `mapLinkCoords`: a full Google Maps link read on the device
   (`public/js/maps.js`, a copy of `src/locations/maps.js` kept the same by
   a unit test), only a short link sent to `POST /api/locations/coords` to
