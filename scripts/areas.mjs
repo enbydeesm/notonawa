@@ -162,7 +162,8 @@ export const AREAS = [
   },
   {
     name: "resources",
-    files: ["src/resources/", "public/js/resource-page.js", "public/js/store/v1/resources.js"],
+    files: ["src/resources/", "public/js/resource-page.js", "public/js/store/v1/resources.js", "public/js/store/v2/resources.js",
+      "public/js/store/queries/resources.js"],
     ui: ["people", "locations", "plans", "deleting"],
   },
   {
@@ -173,7 +174,7 @@ export const AREAS = [
   },
   {
     name: "locations",
-    files: ["src/locations/", "public/js/views/locations.js"],
+    files: ["src/locations/", "public/js/views/locations.js", "public/js/maps.js", "public/js/store/maps.js"],
     ui: ["locations"],
   },
   {

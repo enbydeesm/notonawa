@@ -321,7 +321,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: which Google Maps links we accept, reading their coordinates),
   `resolve.js` (following a short link's redirects; `fetch` is passed in),
   `routes.js` (`POST /api/locations/coords` with `{ url }`; routed before
-  resources in `index.js`).
+  resources in `index.js`; the page sends only short links, reading full
+  ones itself).
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body;
   a keyword is searched for on the device, which sends `match_ids`) is filtered and paged (20 per page by default)
@@ -445,7 +446,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   ids, and conversion, "this is me" and settings ids by HMAC under the id
   key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
   `records/schema.js` (pure: each kind's fields and the checks on one
-  record; rules across records come with the cache), the cache:
+  record), `records/parse.js` (pure: the server's field parsers, with its
+  messages, `BadEdit`; `stamp`, `compact`) and `records/edits.js` (pure:
+  a form's fields as a record, keeping fields the form hasn't, and the
+  rules across records the database kept for format 1: one default
+  location, "Me" not archived or deleted, a deleted person or location
+  left on ties and workshops as "(… deleted)"; each gives the writes for
+  one batch), the cache:
   `cache/db.js` (IndexedDB `notonawa-<user id>`, opened in the crypto
   Worker: the sealed rows, the highest version seen of each id and the
   ids deleted, and `since`; `wipeCaches`, on signing out and deleting the
@@ -609,7 +616,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`) and
   `v1/resources.js` (plans, people and locations by kind: `listItems`,
   `saveItem`, `archiveItem`, `restoreItem`, `deleteItem`, `deletePlan`
-  with the linked ties' choice, `mapLinkCoords`) and `v1/workshops.js`
+  with the linked ties' choice) and `v1/workshops.js`
   (`listWorkshops`, `getWorkshop`, `saveWorkshop`, `deleteWorkshop`,
   `linkToWorkshop`), `v1/media.js` (photos and videos: `uploadPhoto`,
   sealing and uploading one prepared photo or video and its caption,
@@ -621,9 +628,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`statsTies`), `v1/settings.js` (`getSettings`, `saveSettings`; kept in
   memory by `settings.js`), `v1/data.js` (export and import, passing
   today's sealed shapes through: `exportSealed`, `importItems`,
-  `importTies`, `importWorkshops`) and `v1/connections.js`; the
-  encrypted cache's `v2/` comes in beside it, chosen by the account's
-  format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
+  `importTies`, `importWorkshops`) and `v1/connections.js`; `v2/` is
+  format 2's, over the journal in memory (`v2/journal.js`), chosen when
+  each function is called by the account's format (`byFormat` in
+  `index.js`; an area not yet built for v2 is v1's only):
+  `v2/resources.js` (people and locations; plans next), with the pages'
+  rows made by the pure `queries/` (`queries/resources.js`: format 1's
+  columns, a unit test checks, and order); and `maps.js`, both formats'
+  `mapLinkCoords`: a full Google Maps link read on the device
+  (`public/js/maps.js`, a copy of `src/locations/maps.js` kept the same by
+  a unit test), only a short link sent to `POST /api/locations/coords` to
+  be followed), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's
   corner, like a tag's), `opensOnTap`: a list's
   card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),

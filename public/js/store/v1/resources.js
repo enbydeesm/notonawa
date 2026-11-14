@@ -82,13 +82,3 @@ export async function deletePlan(id, linkedTies) {
   await api(`/api/plans/${encodeURIComponent(id)}?linked_ties=${linkedTies}`, { method: "DELETE" });
   forgetSearch();
 }
-
-/**
- * A Google Maps link's coordinates, worked out by the server (which follows
- * a short link's redirects); null when it has none.
- * @param {string} url
- * @returns {Promise<{ latitude: number | null, longitude: number | null }>}
- */
-export function mapLinkCoords(url) {
-  return api("/api/locations/coords", { method: "POST", body: { url } });
-}

@@ -3381,3 +3381,28 @@ is untouched, and opens no IndexedDB (the lock walkthrough checks).
 - **Wiping**: signing out and deleting the account delete every
   `notonawa-*` database on the device. A session that just ends (a 401)
   doesn't: the cache is sealed, and named for its account.
+
+## Encrypt everything: people and locations as built (November 2026)
+
+Phase 4, slice 2: people and locations in format 2 (`store/v2/resources.js`).
+
+- **The pages don't change**: the v2 store gives the same rows as format
+  1's API (`store/queries/resources.js`; a unit test compares the columns
+  with `src/resources/config.js`), in the same order, and takes the same
+  fields. `store/index.js` picks v1 or v2 when each function is called.
+- **The rules the database kept** are `records/edits.js`'s, given the
+  whole journal: one default location (making one clears the other in the
+  same batch), "Me" never archived or deleted, a deleted person or
+  location left on its ties and workshops. A form's fields keep what the
+  form hasn't (profile notes, fields a newer version added). The server's
+  parsers are copied with their messages (`records/parse.js`), so the
+  same mistake reads the same in both formats.
+- **Big edits**: the server takes 50 changes a batch. Deleting someone
+  who's on more ties than that goes in several batches, the ties first and
+  the delete last, so one that fails leaves nothing pointing at a record
+  that's gone (the person is just still there).
+- **Maps links, both formats**: a full Google Maps link is read on the
+  device now, never sent; only a short link, which has to be followed, goes
+  to `POST /api/locations/coords`. PRIVACY.md still says full links are
+  read on our server, which now overstates what's sent; it's corrected in
+  phase 7's rewrite rather than with a policy version of its own.

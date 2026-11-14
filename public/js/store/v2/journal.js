@@ -177,14 +177,36 @@ async function reread(s, changed, removed) {
   emit({ changed: read.map((r) => r.id), removed });
 }
 
+/** The most the server takes in one batch (src/records/parse.js's MAX_BATCH). */
+export const MAX_BATCH = 50;
+
 /**
- * Saves records and deletes others, all or none. If another device saved
- * one of them first, syncs, carries each edit onto the newer version and
- * saves once more; a new record whose id another device took first (the
- * same "this is me" made on two at once) is left as theirs.
+ * Saves records and deletes others: all or none, up to MAX_BATCH at once.
+ * More (deleting someone who's on many ties) go in several batches, the
+ * writes first and the deletes last, so a batch that fails leaves nothing
+ * pointing at a record that's gone. If another device saved one of them
+ * first, syncs, carries each edit onto the newer version and saves once
+ * more; a new record whose id another device took first (the same "this
+ * is me" made on two at once) is left as theirs.
  * @param {{ writes?: Write[], deletes?: Delete[] }} batch
  */
 export async function save({ writes = [], deletes = [] }) {
+  /** @type {{ write?: Write, del?: Delete }[]} */
+  const ops = [...writes.map((w) => ({ write: w })), ...deletes.map((d) => ({ del: d }))];
+  for (let i = 0; i < ops.length; i += MAX_BATCH) {
+    const part = ops.slice(i, i + MAX_BATCH);
+    await saveBatch(
+      part.flatMap((o) => (o.write ? [o.write] : [])),
+      part.flatMap((o) => (o.del ? [o.del] : [])),
+    );
+  }
+}
+
+/**
+ * @param {Write[]} writes
+ * @param {Delete[]} deletes
+ */
+async function saveBatch(writes, deletes) {
   const s = live();
   const result = await attempt(s, writes, deletes);
   if (!("stale" in result)) return;
