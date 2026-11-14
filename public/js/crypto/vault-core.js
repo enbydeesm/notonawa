@@ -366,6 +366,39 @@ export class VaultCore {
   }
 
   /**
+   * Format 2: one of my v3 files, fetched and opened with the key from its
+   * record, and sealed again for a share with its link's key, as the object
+   * to upload. What's opened never leaves the Worker.
+   * @param {{ shareId: string, key: string, fileId: string, sourceId: string, sourceKey: string, kind: "photo" | "video" }} args
+   *   fileId: the share's file's id; sourceId and sourceKey: mine
+   * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async reshareFile({ shareId, key, fileId, sourceId, sourceKey, kind }) {
+    const thumb = await this.openFile({ fileId: sourceId, key: sourceKey, part: "thumb" });
+    const full = await this.openFile({ fileId: sourceId, key: sourceKey, part: "full" });
+    const linkKey = fromBase64url(key);
+    try {
+      return await sealShareFile({ shareId, fileId, key: linkKey, video: kind === "video", thumb, full });
+    } finally {
+      linkKey.fill(0);
+    }
+  }
+
+  /**
+   * Format 2: a share's photo or video, fetched and opened with its link's
+   * key, and sealed as one of my v3 files under a new key of its own (for
+   * its item's record). Throws CantOpen if it won't open.
+   * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", newFileId: string }} args
+   * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async adoptShareAsFile({ shareId, key, fileId, kind, newFileId }) {
+    this.#unlocked();
+    const thumb = await this.#openShared({ shareId, key, fileId, kind, part: "thumb" });
+    const full = await this.#openShared({ shareId, key, fileId, kind, part: "full" });
+    return this.sealFile({ fileId: newFileId, thumb, full });
+  }
+
+  /**
    * One of my photos or videos, fetched, opened and sealed again bound to a
    * new id, as the object to upload: Copy to… another tie, plan or workshop
    * (photos-ui.js). Each is bound to its own id, so a copy is a new file;

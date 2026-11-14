@@ -9,6 +9,7 @@ import { readAliases, PLATFORMS } from "./aliases.js";
 import { buildProfile, suggestedName } from "./profile-share.js";
 import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
 import { saveShare } from "./share-save.js";
+import { canConnect } from "./store/index.js";
 import { showShareCode } from "./share-code.js";
 import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
 import { roleName } from "./roles.js";
@@ -80,8 +81,9 @@ export function openShareProfile(me) {
       "Someone you invite can add your profile to their People. Your private notes are never shared.");
     const form = h("form", { onsubmit: make },
       aboutInfo.text,
-      h("label", { className: "inline share-connect" }, connect, " ", h("strong", {}, "Connect our accounts")),
-      disclosure,
+      // Format 2 accounts connect through contacts, which come later.
+      canConnect() ? h("label", { className: "inline share-connect" }, connect, " ", h("strong", {}, "Connect our accounts")) : null,
+      canConnect() ? disclosure : null,
       h("div", { className: "label-row" }, h("label", { htmlFor: "share-profile-name" }, "Profile name"), nameInfo.button),
       nameInfo.text,
       name,

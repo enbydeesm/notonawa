@@ -16,14 +16,13 @@
 
 import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { seal, open, forgetSearch, openShareThumb, adoptShareFile } from "./vault.js";
+import { open, forgetSearch, openShareThumb } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readItemShare, isMedia, visualCounts } from "./share-item.js";
 import { photoUrl } from "./photo-urls.js";
 import { suggestPeople, peopleProblem, suggestItem, plansProblem } from "./share-people.js";
 import { shareToImport, addsItems, withKnown, duplicatePlan } from "./share-to-import.js";
 import { itemsBody, remapTies, remapWorkshops } from "./import-steps.js";
-import { convertJournal } from "./journal-fields.js";
 import { duplicateMatches } from "./import-dedupe.js";
 import { saveDrawing } from "./drawings-ui.js";
 import { savePose } from "./poses-ui.js";
@@ -36,7 +35,7 @@ import { capitalise, formatDate } from "./format.js";
 import { placeText } from "./list-order.js";
 import { dateRangeText } from "./workshops-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
-import { listItems, uploadSealed, importItems, importTies, importWorkshops } from "./store/index.js";
+import { listItems, adoptSharedMedia, sealImport, importItems, importTies, importWorkshops } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -128,7 +127,7 @@ export async function showItem(body, opened, signal) {
     showMessage(message, "Adding…");
     try {
       const { doc, known } = shareToImport(kind, item, choices, selfId ?? "");
-      const sealed = await convertJournal(doc, seal);
+      const sealed = await sealImport(doc);
       if (!anotherCopy && await alreadyThere(kind, item, doc, sealed, known)) {
         showMessage(message, `This ${noun} looks like one already in your journal.`);
         add.disabled = false;
@@ -283,9 +282,7 @@ async function saveVisuals(target, visuals, opened, progress) {
     progress(`Adding its visuals… ${i + 1} of ${visuals.length}`);
     try {
       if (isMedia(visual)) {
-        const id = crypto.randomUUID();
-        const sealed = await adoptShareFile({ shareId: opened.id, key: opened.key, fileId: visual.file, kind: visual.kind, mediaId: id });
-        await uploadSealed({ item: target, id, kind: visual.kind, mime: visual.mime, ...sealed, caption: visual.caption });
+        await adoptSharedMedia({ target, shareId: opened.id, linkKey: opened.key, visual });
       } else {
         const entry = { data: /** @type {any} */ (visual.data), caption: visual.caption };
         await (visual.kind === "drawing" ? saveDrawing(target, entry) : savePose(target, entry));

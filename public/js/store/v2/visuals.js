@@ -11,7 +11,7 @@
 // listing a file that isn't there.
 
 import { api } from "../../api.js";
-import { sealFile, openFile, copyFile } from "../../vault.js";
+import { sealFile, openFile, copyFile, reshareFile, adoptShareAsFile } from "../../vault.js";
 import { records, record, save } from "./journal.js";
 import { newId } from "../../records/ids.js";
 import { stamp, BadEdit } from "../../records/parse.js";
@@ -54,11 +54,13 @@ function located(id) {
  */
 async function addFile({ item, id, kind, mime, key, body, thumbBytes, caption }) {
   itemOf(item);
+  // Read before the upload: its size, for the Share dialog's estimate.
+  const bytes = body.byteLength;
   const query = new URLSearchParams({ kind, thumb_bytes: String(thumbBytes) });
   await api(`/api/files/${encodeURIComponent(id)}?${query}`, { method: "PUT", body });
   const now = stamp();
   /** @type {import("../../records/visuals.js").Visual} */
-  const visual = { kind: "file", id, key, file_kind: kind, mime, created_at: now, ...(caption ? { caption } : {}) };
+  const visual = { kind: "file", id, key, file_kind: kind, mime, bytes, created_at: now, ...(caption ? { caption } : {}) };
   // The item as it is after the upload, which can take a while.
   await save({ writes: [visualAdded(itemOf(item), visual, now)] });
 }
@@ -79,12 +81,38 @@ export async function uploadPhoto({ item, prepared, caption = null, id = newId()
 }
 
 /**
- * Adding a share's photos and videos into a format 2 journal comes with
- * shares (the next slice).
+ * Format 1's upload of a photo already sealed as mine: format 2 adds a
+ * share's photos with adoptSharedMedia instead.
  * @param {any} _photo
  */
 export async function uploadSealed(_photo) {
-  throw new Error("Adding a share's photos isn't ready in this version yet.");
+  throw new Error("Reload the app to add this.");
+}
+
+/**
+ * One of my photos or videos sealed again for a share with its link's key
+ * (in the crypto Worker, with the key from its item's record), as the
+ * object to upload to the share.
+ * @param {{ shareId: string, linkKey: string, file: { file: string, mediaId: string, kind: "photo" | "video" } }} args
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export async function shareFileObject({ shareId, linkKey, file }) {
+  const { visual } = located(file.mediaId);
+  return reshareFile({ shareId, key: linkKey, fileId: file.file, sourceId: file.mediaId, sourceKey: visual.key, kind: file.kind });
+}
+
+/**
+ * A share's photo or video added to one of my items: opened with its
+ * link's key and sealed as a v3 file of mine in the crypto Worker,
+ * uploaded, then listed last on the item.
+ * @param {{ target: Item, shareId: string, linkKey: string,
+ *   visual: { file: string, kind: "photo" | "video", mime: string, caption: string | null } }} args
+ */
+export async function adoptSharedMedia({ target, shareId, linkKey, visual }) {
+  itemOf(target);
+  const id = newId();
+  const sealed = await adoptShareAsFile({ shareId, key: linkKey, fileId: visual.file, kind: visual.kind, newFileId: id });
+  await addFile({ item: target, id, kind: visual.kind, mime: visual.mime, caption: captionOf(visual.caption), ...sealed });
 }
 
 /**

@@ -8,7 +8,8 @@
 // is revoked, so no half of it is left.
 
 import { api } from "./api.js";
-import { sealShare, sealOne, reshareMedia } from "./vault.js";
+import { sealShare, sealOne } from "./vault.js";
+import { shareFileObject } from "./store/index.js";
 import { newShareId } from "./crypto/share.js";
 import { toBase64url } from "./crypto/keys.js";
 import { maxUsesFor } from "./share-options.js";
@@ -37,7 +38,7 @@ export async function saveShare({ kind, data, label, expires, uses, connect = fa
   try {
     for (const [i, file] of files.entries()) {
       progress(i, files.length);
-      const object = await reshareMedia({ shareId: id, key, fileId: file.file, mediaId: file.mediaId, kind: file.kind });
+      const object = await shareFileObject({ shareId: id, linkKey: key, file });
       const query = new URLSearchParams({ kind: file.kind, thumb_bytes: String(object.thumbBytes) });
       await api(`/api/shares/${id}/files/${file.file}?${query}`, { method: "PUT", body: object.body });
     }

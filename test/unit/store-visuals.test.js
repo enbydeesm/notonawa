@@ -32,6 +32,8 @@ vi.mock("../../public/js/vault.js", () => ({
   sealFile: async (/** @type {string} */ fileId) => ({ key: `key-of-${fileId}`.padEnd(43, "x").slice(0, 43), body: new ArrayBuffer(8), thumbBytes: 3 }),
   openFile: async (/** @type {any} */ args) => args,
   copyFile: async (/** @type {any} */ args) => ({ key: "copied-key".padEnd(43, "x"), body: new ArrayBuffer(8), thumbBytes: 3, from: args }),
+  reshareFile: async (/** @type {any} */ args) => ({ body: new ArrayBuffer(6), thumbBytes: 2, args }),
+  adoptShareAsFile: async (/** @type {any} */ args) => ({ key: "adopted-key".padEnd(43, "x"), body: new ArrayBuffer(9), thumbBytes: 4, args }),
 }));
 // By a path in a variable: they load page modules the Node type check can't follow.
 const VISUALS = "../../public/js/store/v2/visuals.js";
@@ -115,6 +117,24 @@ describe("the v2 visuals store", () => {
     expect(journal.get("t1").body.visuals[1]).toMatchObject({ kind: "file", id, file_kind: "photo", mime: "image/jpeg", caption: "Front" });
     expect(await store.listMedia({ tie_id: "t1" })).toMatchObject([{ id, kind: "photo", position: 1, caption: "Front" }]);
     expect(await store.openMediaPart({ id }, "thumb")).toEqual({ fileId: id, key: journal.get("t1").body.visuals[1].key, part: "thumb" });
+  });
+
+  it("keeps each file's size, for the Share dialog's estimate", async () => {
+    put("tie", "t1", TIE);
+    const id = await store.uploadPhoto({ item: { tie_id: "t1" }, prepared: { mime: "image/jpeg", thumb: new ArrayBuffer(3), full: new ArrayBuffer(5) } });
+    expect((await store.listMedia({ tie_id: "t1" }))[0]).toMatchObject({ id, bytes: 8 });
+  });
+
+  it("seals a file again for a share with its key from the record, and adds a share's file as a new one of mine", async () => {
+    put("tie", "t1", { ...TIE, visuals: [{ kind: "file", id: "f1", key: KEY, file_kind: "photo", mime: "image/jpeg" }] });
+    const object = await store.shareFileObject({ shareId: "sh", linkKey: "lk", file: { file: "s1", mediaId: "f1", kind: "photo" } });
+    expect(object.args).toEqual({ shareId: "sh", key: "lk", fileId: "s1", sourceId: "f1", sourceKey: KEY, kind: "photo" });
+    put("plan", "p1", { title: "P" });
+    await store.adoptSharedMedia({ target: { plan_id: "p1" }, shareId: "sh", linkKey: "lk",
+      visual: { file: "s1", kind: "photo", mime: "image/jpeg", caption: " Shared " } });
+    const [adopted] = journal.get("p1").body.visuals;
+    expect(adopted).toMatchObject({ kind: "file", file_kind: "photo", caption: "Shared", bytes: 9, key: "adopted-key".padEnd(43, "x") });
+    expect(apiCalls.at(-1)).toEqual([`/api/files/${adopted.id}?kind=photo&thumb_bytes=4`, "PUT", expect.any(ArrayBuffer)]);
   });
 
   it("refuses a caption too long before anything's uploaded", async () => {

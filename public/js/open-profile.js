@@ -17,7 +17,7 @@ import { roleName } from "./roles.js";
 import { capitalise, today } from "./format.js";
 import { linkablePeople, linkConnection, connectionsChanged } from "./connections.js";
 import { ACCEPT_DISCLOSURE } from "./connection-text.js";
-import { saveItem, acceptConnection } from "./store/index.js";
+import { saveItem, acceptConnection, canConnect } from "./store/index.js";
 
 /** @typedef {import("./profile-share.js").SharedProfile} SharedProfile */
 /** @typedef {import("./pending-share.js").OpenedShare} OpenedShare */
@@ -74,7 +74,8 @@ function connectChoice(adding) {
   if (adding.opened.connectionId) {
     return h("p", { className: "hint", id: "open-connected" }, "Your accounts are connected: the card you add them to will be linked to theirs.");
   }
-  if (!adding.opened.offer) return null;
+  // Format 2 accounts connect through contacts, which come later.
+  if (!adding.opened.offer || !canConnect()) return null;
   const tick = h("input", { type: "checkbox", id: "open-connect", checked: adding.connect,
     onchange: () => { adding.connect = tick.checked; } });
   return h("div", { className: "open-connect" },

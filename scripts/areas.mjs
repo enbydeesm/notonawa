@@ -228,7 +228,7 @@ export const AREAS = [
     // Shares: profile invites, their codes, Shared by me, opening one, and
     // the connections between accounts they can make.
     name: "shares",
-    files: ["src/shares/", "src/connections/", "public/js/store/v1/connections.js", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
+    files: ["src/shares/", "src/connections/", "public/js/store/v1/connections.js", "public/js/store/v2/connections.js", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
       "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
       "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js",
       "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js",

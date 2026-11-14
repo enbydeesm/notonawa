@@ -63,6 +63,8 @@ export const setMediaCaption = byFormat(v1Media.setMediaCaption, v2Visuals.setMe
 export const deleteMedia = byFormat(v1Media.deleteMedia, v2Visuals.deleteMedia);
 export const openMediaPart = byFormat(v1Media.openMediaPart, v2Visuals.openMediaPart);
 export const copyMediaTo = byFormat(v1Media.copyMediaTo, v2Visuals.copyMediaTo);
+export const shareFileObject = byFormat(v1Media.shareFileObject, v2Visuals.shareFileObject);
+export const adoptSharedMedia = byFormat(v1Media.adoptSharedMedia, v2Visuals.adoptSharedMedia);
 export const listDrawings = byFormat(v1Drawings.listDrawings, v2Visuals.listDrawings);
 export const addDrawing = byFormat(v1Drawings.addDrawing, v2Visuals.addDrawing);
 export const updateDrawing = byFormat(v1Drawings.updateDrawing, v2Visuals.updateDrawing);
@@ -96,6 +98,16 @@ export const sealImport = byFormat(v1Data.sealImport, v2Data.sealImport);
 export const importItems = byFormat(v1Data.importItems, v2Data.importItems);
 export const importTies = byFormat(v1Data.importTies, v2Data.importTies);
 export const importWorkshops = byFormat(v1Data.importWorkshops, v2Data.importWorkshops);
-export {
-  listConnections, acceptConnection, setConnectionPerson, markConnectionAnswered, deleteConnection,
-} from "./v1/connections.js";
+import * as v1Connections from "./v1/connections.js";
+import * as v2Connections from "./v2/connections.js";
+
+export const listConnections = byFormat(v1Connections.listConnections, v2Connections.listConnections);
+export const acceptConnection = byFormat(v1Connections.acceptConnection, v2Connections.acceptConnection);
+export const setConnectionPerson = byFormat(v1Connections.setConnectionPerson, v2Connections.setConnectionPerson);
+export const markConnectionAnswered = byFormat(v1Connections.markConnectionAnswered, v2Connections.markConnectionAnswered);
+export const deleteConnection = byFormat(v1Connections.deleteConnection, v2Connections.deleteConnection);
+
+/** Whether the account can connect to others (format 2's contacts come later). */
+export function canConnect() {
+  return accountFormat() !== 2;
+}

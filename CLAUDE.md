@@ -646,7 +646,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   sealing and uploading one prepared photo or video and its caption,
   `uploadSealed`, `listMedia`, `setMediaCaption`, `deleteMedia`, and,
   both formats through the store, `openMediaPart` (a part opened in the
-  Worker) and `copyMediaTo` (Copy to…)),
+  Worker), `copyMediaTo` (Copy to…), `shareFileObject` (one sealed again
+  with a share's link key, for share-save.js) and `adoptSharedMedia` (a
+  share's added to one of my items, for open-item.js)),
   `v1/drawings.js` (drawings and poses alike: `listDrawings`,
   `addDrawing`, `updateDrawing`, `deleteDrawing` and the same for poses),
   `v1/visuals.js` (`setVisualOrder`) and `v1/presets.js` (poser presets,
@@ -668,7 +670,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   by `vault.sealFile`, uploaded with `PUT /api/files/:id`, then listed on
   their item; removed from the item, then the file deleted; drawings and
   poses as records listed in their item's visuals, one save each; the
-  order), `v2/presets.js` (records, 50 at most; ones saved together
+  order; a file's entry keeps its `bytes`; a share's files through the
+  Worker's `reshareFile` and `adoptShareAsFile`), `v2/connections.js`
+  (none for format 2 until contacts; the store's `canConnect()` hides
+  Connect our accounts and an invite's offer), `v2/presets.js` (records, 50 at most; ones saved together
   keep their `order`), `v2/settings.js` (role names and the poser's
   default body in the settings record, the rest on the server, given as
   one) and `v2/data.js` (`exportJournal`: the server's export for the

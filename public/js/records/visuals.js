@@ -117,12 +117,12 @@ export function visualsOrdered(item, order, now) {
  * position is the place among all its visuals.
  * @param {Entry} item
  * @returns {{ id: string, kind: "photo" | "video", mime: string, caption: string | null, position: number, created_at: string,
- *   unreadable?: string[] }[]}
+ *   bytes?: number, unreadable?: string[] }[]}
  */
 export function mediaRows(item) {
   return visualsOf(item.body).flatMap((v, position) => (v.kind !== "file" ? [] : [{
     id: v.id, kind: /** @type {"photo" | "video"} */ (v.file_kind), mime: v.mime ?? (v.file_kind === "video" ? "video/mp4" : "image/jpeg"),
-    caption: v.caption ?? null, position, created_at: v.created_at ?? "",
+    caption: v.caption ?? null, position, created_at: v.created_at ?? "", ...(typeof v.bytes === "number" ? { bytes: v.bytes } : {}),
   }]));
 }
 

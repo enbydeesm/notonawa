@@ -6,7 +6,7 @@
 // a share's photos, which the Worker has sealed already. See store/index.js.
 
 import { api } from "../../api.js";
-import { sealPhoto, sealVideo, sealCaption, openMedia, openPhoto, copyMedia } from "../../vault.js";
+import { sealPhoto, sealVideo, sealCaption, openMedia, openPhoto, copyMedia, reshareMedia, adoptShareFile } from "../../vault.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("../../photo-prep.js").PreparedPhoto} PreparedPhoto */
@@ -101,4 +101,26 @@ export async function copyMediaTo(photo, to) {
   const sealed = await copyMedia({ mediaId: photo.id, newId: id, kind: photo.kind });
   await uploadSealed({ item: to, id, kind: photo.kind, mime: photo.mime, caption: photo.caption, ...sealed });
   return id;
+}
+
+/**
+ * One of my photos or videos sealed again for a share with its link's key
+ * (in the crypto Worker), as the object to upload to the share.
+ * @param {{ shareId: string, linkKey: string, file: { file: string, mediaId: string, kind: "photo" | "video" } }} args
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function shareFileObject({ shareId, linkKey, file }) {
+  return reshareMedia({ shareId, key: linkKey, fileId: file.file, mediaId: file.mediaId, kind: file.kind });
+}
+
+/**
+ * A share's photo or video added to one of my items: opened with its
+ * link's key and sealed as mine in the crypto Worker, then uploaded.
+ * @param {{ target: Item, shareId: string, linkKey: string,
+ *   visual: { file: string, kind: "photo" | "video", mime: string, caption: string | null } }} args
+ */
+export async function adoptSharedMedia({ target, shareId, linkKey, visual }) {
+  const id = crypto.randomUUID();
+  const sealed = await adoptShareFile({ shareId, key: linkKey, fileId: visual.file, kind: visual.kind, mediaId: id });
+  await uploadSealed({ item: target, id, kind: visual.kind, mime: visual.mime, ...sealed, caption: visual.caption });
 }

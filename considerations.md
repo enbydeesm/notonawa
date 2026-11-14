@@ -3543,3 +3543,24 @@ Phase 4, slice 7b: importing into a format 2 journal.
   same, a format 1 export imports into format 2 the same way. Linking a tie
   or plan to an imported workshop leaves its `updated_at`, as format 1's
   import did.
+
+## Encrypt everything: shares as built (November 2026)
+
+Phase 4, slice 7c: shares made from and opened into a format 2 journal.
+
+- **The share stays as it is**: a snapshot and its files sealed with the
+  link's key, the same format whichever format the sender's or the
+  opener's journal is, so a format 1 account can open a format 2 one's
+  share and the other way round.
+- **Photos move through the crypto Worker**: sharing one of my v3 files
+  opens it there with the key from its item's record and seals it again
+  with the link's key (`reshareFile`); adding a share's file into a format
+  2 journal opens it with the link's key and seals it as a new v3 file
+  under a key of its own (`adoptShareAsFile`). The pages ask the store
+  (`shareFileObject`, `adoptSharedMedia`), which picks the format 1 or 2
+  way, so share-save.js and open-item.js don't change between them.
+- **A file's size** is kept in its entry (`bytes`), as the Share dialog
+  says how big a share's photos are.
+- **No connections yet for format 2**: they become contact records in
+  phase 6. Until then a format 2 account lists none, Share my profile
+  doesn't offer Connect our accounts, and an invite's offer isn't shown.

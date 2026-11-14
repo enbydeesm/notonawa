@@ -116,6 +116,8 @@ const OPERATIONS = {
   sealFile: (args) => vault.sealFile(args),
   openFile: (args) => vault.openFile(args),
   copyFile: (args) => vault.copyFile(args),
+  reshareFile: (args) => vault.reshareFile(args),
+  adoptShareAsFile: (args) => vault.adoptShareAsFile(args),
   makeIdentity: () => vault.makeIdentity(),
   openIdentity: (args) => vault.openIdentity(args),
 };

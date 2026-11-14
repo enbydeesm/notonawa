@@ -114,7 +114,8 @@ const visual = (v, p) => {
   if (base) return base;
   const entry = /** @type {any} */ (v);
   return entry.kind === "file"
-    ? shape({ key: required(key), file_kind: required(oneOf(["photo", "video"])), mime: text(100), caption: text(LIMITS.caption) })(v, p)
+    ? shape({ key: required(key), file_kind: required(oneOf(["photo", "video"])), mime: text(100), caption: text(LIMITS.caption),
+      bytes: int(0, 2_000_000_000) })(v, p)
     : null;
 };
 
