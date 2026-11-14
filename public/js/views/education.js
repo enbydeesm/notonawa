@@ -20,6 +20,7 @@ import { WORKSHOP_SAVED } from "../nav.js";
 import {
   EMPTY_SEARCH, TABS, hasWorkshopFilters, filterWorkshops, splitByMe, summarise, workshopCountText,
 } from "../workshops-view.js";
+import { listItems } from "../store/index.js";
 
 /** @typedef {import("../workshops-view.js").Workshop} Workshop */
 /** @typedef {import("../workshops-view.js").WorkshopSearch} WorkshopSearch */
@@ -273,8 +274,8 @@ export function mount(_root, { signal }) {
         api("/api/workshops"),
         // Archived ones too: a search covers your whole history. People
         // are opened, for their aliases (searched too).
-        api("/api/people?archived=all").then((list) => open("person", list)),
-        api("/api/locations?archived=all"),
+        listItems("people", "all"),
+        listItems("locations", "all"),
       ]);
       workshops = /** @type {Workshop[]} */ (await open("workshop", rows));
       const me = people.find((p) => p.is_self);

@@ -7,7 +7,7 @@
 
 import { api } from "./api.js";
 import { formatDate } from "./format.js";
-import { findTies } from "./store/index.js";
+import { findTies, listItems } from "./store/index.js";
 import { SHOWN } from "./add-to-choices.js";
 
 /** @typedef {import("./add-to-choices.js").Target} Target */
@@ -34,7 +34,7 @@ export async function loadTies(query) {
  * @returns {Promise<Target[]>}
  */
 export async function loadPlans() {
-  return (await api("/api/plans?archived=false")).map((/** @type {any} */ p) => ({
+  return (await listItems("plans", false)).map((/** @type {any} */ p) => ({
     kind: /** @type {const} */ ("plan"), id: p.id, title: p.title, meta: "", recent: p.updated_at ?? "",
   }));
 }

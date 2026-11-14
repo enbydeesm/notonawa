@@ -29,6 +29,7 @@ import {
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
 } from "../stats-period.js";
+import { listItems } from "../store/index.js";
 
 /**
  * @typedef {import("../stats.js").StatsTie} StatsTie
@@ -106,9 +107,9 @@ export function mount(_root, { signal }) {
   // Workshops are extras here: if they can't load, the ties still show.
   const loadLearning = () => Promise.all([
     api("/api/workshops").then((rows) => open("workshop", rows)),
-    api("/api/plans?archived=all"),
-    api("/api/locations?archived=all"),
-    api("/api/people?archived=false"),
+    listItems("plans", "all"),
+    listItems("locations", "all"),
+    listItems("people", false),
   ]).then(([workshops, plans, locations, people]) => {
     learning = { workshops, plans, locations, selfId: people.find((/** @type {any} */ p) => p.is_self)?.id ?? null };
   }, () => { learning = null; });
@@ -434,7 +435,7 @@ function openMoreFilters(current, preview) {
     (async () => {
       try {
         const [peopleList, locationList, tagList] = await Promise.all([
-          api("/api/people?archived=all"), api("/api/locations?archived=all"), api("/api/tags"),
+          listItems("people", "all"), listItems("locations", "all"), api("/api/tags"),
         ]);
         /** @param {Record<string, any>} item */
         const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });

@@ -520,7 +520,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   goes through `store/index.js`, never `api()` directly: plain text in,
   opened rows out, sealing, opening and the keyword search done inside;
   `v1/` is today's API, one file per feature, e.g. `v1/ties.js`
-  (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`); the
+  (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`) and
+  `v1/resources.js` (plans, people and locations by kind: `listItems`,
+  `saveItem`, `archiveItem`, `restoreItem`, `deleteItem`, `deletePlan`
+  with the linked ties' choice, `mapLinkCoords`); the
   encrypted cache's `v2/` comes in beside it, chosen by the account's
   format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's

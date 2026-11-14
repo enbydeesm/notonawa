@@ -6,10 +6,11 @@
 
 import { api, errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { open, sealOne } from "./vault.js";
+import { open } from "./vault.js";
 import { choose } from "./dialog.js";
 import { convertConnections } from "./journal-fields.js";
 import { REMOVE_ABOUT_NOTE } from "./connection-text.js";
+import { listItems, saveItem } from "./store/index.js";
 
 /** @typedef {import("./connection-text.js").Connection} Connection */
 
@@ -80,7 +81,7 @@ export async function removeConnection(id, name) {
  * @returns {Promise<any[]>}
  */
 export async function linkablePeople() {
-  return (await open("person", await api("/api/people?archived=false"))).filter((p) => !p.is_self);
+  return (await listItems("people", false)).filter((p) => !p.is_self);
 }
 
 /**
@@ -137,7 +138,7 @@ export function chooseConnectionPerson(id, { newPerson = false, suggested = null
         let personName = people.find((p) => p.id === personId)?.name ?? "";
         if (newPerson) {
           personName = name.value.trim();
-          personId = (await api("/api/people", { method: "POST", body: await sealOne("person", { name: personName }) })).id;
+          personId = await saveItem("people", null, { name: personName });
         }
         await linkConnection(id, personId);
         result = personName;

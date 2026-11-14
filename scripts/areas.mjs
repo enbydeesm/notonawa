@@ -160,7 +160,7 @@ export const AREAS = [
   },
   {
     name: "resources",
-    files: ["src/resources/", "public/js/resource-page.js"],
+    files: ["src/resources/", "public/js/resource-page.js", "public/js/store/v1/resources.js"],
     ui: ["people", "locations", "plans", "deleting"],
   },
   {

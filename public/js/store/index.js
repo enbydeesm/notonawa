@@ -8,3 +8,6 @@
 // a keyword happen inside.
 
 export { findTies, getTie, saveTie, deleteTie, recentOnTies } from "./v1/ties.js";
+export {
+  listItems, saveItem, archiveItem, restoreItem, deleteItem, deletePlan, mapLinkCoords,
+} from "./v1/resources.js";

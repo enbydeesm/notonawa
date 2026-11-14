@@ -18,6 +18,7 @@ import { showShareCode } from "./share-code.js";
 import { roleName } from "./roles.js";
 import { capitalise } from "./format.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
+import { listItems } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -142,8 +143,8 @@ async function loadSource(kind, item) {
   const hasPeople = kind !== "plan" && [...(item.participants ?? []), ...(item.educators ?? [])].length > 0;
   /** @type {[any[], any[], any[], any[], any[]]} */
   const [people, locations, media, drawings, poses] = await Promise.all([
-    hasPeople ? api("/api/people?archived=false") : [],
-    item.location_id ? api("/api/locations?archived=all") : [],
+    hasPeople ? listItems("people", false) : [],
+    item.location_id ? listItems("locations", "all") : [],
     api(`/api/media?${where}`).then((list) => openMedia(list)),
     api(`/api/drawings?${where}`).then((list) => open("drawing", list)),
     api(`/api/poses?${where}`).then((list) => open("pose", list)),

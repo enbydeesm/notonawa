@@ -11,6 +11,7 @@ import { KIND_NAMES, endsText, usesText } from "./share-options.js";
 import { showShareCode } from "./share-code.js";
 import { loadConnections, chooseConnectionPerson, removeConnection, linkIcon, CONNECTIONS_CHANGED } from "./connections.js";
 import { connectionTitle, connectionDetail } from "./connection-text.js";
+import { listItems } from "./store/index.js";
 
 /**
  * Fills the "Shared by me" card's list, and again after a revoke.
@@ -77,7 +78,7 @@ export async function showConnections(list, message, signal) {
   }
   try {
     // Archived people too (a connection can be on one); names aren't sealed.
-    const [connections, people] = await Promise.all([loadConnections(), api("/api/people?archived=all")]);
+    const [connections, people] = await Promise.all([loadConnections(), listItems("people", "all")]);
     const names = new Map(people.map((/** @type {any} */ p) => [p.id, p.name]));
     list.replaceChildren(...(connections.length
       ? connections.map((c) => connectionItem(c, c.person_id ? names.get(c.person_id) ?? null : null, message))

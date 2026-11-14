@@ -18,6 +18,7 @@ import { roleName } from "./roles.js";
 import { capitalise, today } from "./format.js";
 import { linkablePeople, linkConnection, connectionsChanged } from "./connections.js";
 import { ACCEPT_DISCLOSURE } from "./connection-text.js";
+import { saveItem } from "./store/index.js";
 
 /** @typedef {import("./profile-share.js").SharedProfile} SharedProfile */
 /** @typedef {import("./pending-share.js").OpenedShare} OpenedShare */
@@ -96,7 +97,7 @@ async function showChoice(adding) {
       addNew.disabled = true;
       showMessage(message, "Adding…");
       try {
-        const { id } = await api("/api/people", { method: "POST", body: await sealOne("person", newPerson(profile, today())) });
+        const id = await saveItem("people", null, newPerson(profile, today()));
         done(adding, profile.name, await connectTo(adding, id));
       } catch (err) {
         showMessage(message, "Couldn't add them: " + errorMessage(err), true);
@@ -211,7 +212,7 @@ function showMerge(adding, person) {
         const picked = choices.map((c) => ({ ...c, choice: /** @type {"mine" | "theirs"} */ (chosen(`open-${c.field}`) ?? c.choice) }));
         const aliases = /** @type {import("./contact-merge.js").AliasChoice} */ (chosen("open-aliases") ?? "keep");
         const record = mergedPerson(person, profile, picked, aliases, today());
-        await api(`/api/people/${person.id}`, { method: "PUT", body: await sealOne("person", record) });
+        await saveItem("people", person.id, record);
         done(adding, record.name, await connectTo(adding, person.id));
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);

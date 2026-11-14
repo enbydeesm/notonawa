@@ -3,7 +3,8 @@
 // Archive (or Restore) and Delete; the cards have no buttons.
 
 import { h, $ } from "../dom.js";
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
+import { listItems, mapLinkCoords } from "../store/index.js";
 import { choose, confirmDeleteOrArchive } from "../dialog.js";
 import { setupResourcePage } from "../resource-page.js";
 import { placeText } from "../list-order.js";
@@ -31,7 +32,7 @@ export function mount(_root, { signal }) {
     let current;
     try {
       /** @type {Record<string, any>[]} */
-      const active = await api("/api/locations?archived=false");
+      const active = await listItems("locations", false);
       current = active.find((loc) => loc.is_default && loc.id !== editingId);
     } catch {
       return; // the server still keeps just one
@@ -125,7 +126,7 @@ export function mount(_root, { signal }) {
     mapsHint.textContent = "Finding coordinates…";
     let text;
     try {
-      const coords = await api("/api/locations/coords", { method: "POST", body: { url: link } });
+      const coords = await mapLinkCoords(link);
       if (current !== lookup) return;
       if (coords.latitude === null) {
         text = "Couldn't find coordinates in that link. Enter them yourself.";

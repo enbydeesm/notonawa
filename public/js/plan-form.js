@@ -9,7 +9,7 @@
 // Ids start with "plan-": this dialog opens over views (People, Locations)
 // whose own forms use ids like #title, and the tie form opens over it.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, $, showMessage, privateField } from "./dom.js";
 import { choose } from "./dialog.js";
 import { capitalise } from "./format.js";
@@ -17,7 +17,7 @@ import { pickTags } from "./tag-picker.js";
 import { TIE_TYPES } from "./ties-view.js";
 import { ratingField, ratingHanks } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { sealOne, forgetSearch } from "./vault.js";
+import { listItems, saveItem, archiveItem, restoreItem, deletePlan } from "./store/index.js";
 import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogIcon, iconButton } from "./dialog-icons.js";
@@ -205,7 +205,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       try {
         if (!(await editTie(id))) return;
         changed = true;
-        const fresh = (await api("/api/plans?archived=all")).find((/** @type {any} */ p) => p.id === savedId);
+        const fresh = (await listItems("plans", "all")).find((/** @type {any} */ p) => p.id === savedId);
         if (fresh && dialog.open) showLinkedTies(fresh.linked_ties ?? []);
       } catch (err) {
         say("Couldn't open the tie: " + errorMessage(err), true);
@@ -219,7 +219,7 @@ function showPlanForm(plan, start, fromWorkshop) {
      */
     async function loadVariations() {
       try {
-        const active = await api("/api/plans?archived=false");
+        const active = await listItems("plans", false);
         if (!dialog.open && !document.body.contains(dialog)) return;
         const untouched = !changes.changed();
         const chosen = variationSelect.value || plan?.variation_of || "";
@@ -270,12 +270,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       changes.busy(true);
       say("Saving…");
       try {
-        // The description, notes and album link are sealed here, on the device.
-        const body = await sealOne("plan", collect());
-        if (savedId) await api(`/api/plans/${encodeURIComponent(savedId)}`, { method: "PUT", body });
-        else savedId = /** @type {string} */ ((await api("/api/plans", { method: "POST", body })).id);
-        // A plan's title is searched in, with the ties it's on.
-        forgetSearch();
+        savedId = await saveItem("plans", savedId, collect());
         changed = true;
         if (visuals.waiting) {
           const problem = await visuals.savePending({ plan_id: /** @type {string} */ (savedId) });
@@ -303,8 +298,7 @@ function showPlanForm(plan, start, fromWorkshop) {
      */
     async function act(p, action, errorPrefix) {
       try {
-        await api(`/api/plans/${encodeURIComponent(p.id)}/${action}`, { method: "POST" });
-        forgetSearch();
+        await (action === "archive" ? archiveItem : restoreItem)("plans", p.id);
         changed = true;
         dialog.close();
       } catch (err) {
@@ -328,8 +322,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       });
       if (!choice) return;
       try {
-        await api(`/api/plans/${encodeURIComponent(p.id)}?linked_ties=${choice}`, { method: "DELETE" });
-        forgetSearch();
+        await deletePlan(p.id, /** @type {"remove" | "keep"} */ (choice));
         changed = true;
         dialog.close();
       } catch (err) {

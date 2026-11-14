@@ -13,8 +13,7 @@ import { showingText } from "../ties-view.js";
 import { tieCard, fitPeople, editTie } from "../tie-card.js";
 import { openTieForm } from "../tie-form.js";
 import { readSearch, pageQuery, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
-import { open } from "../vault.js";
-import { findTies } from "../store/index.js";
+import { findTies, listItems } from "../store/index.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -186,7 +185,7 @@ export function mount(_root, { signal }) {
     try {
       // People are opened, for their aliases (searched too).
       const [people, locations] = await Promise.all([
-        api("/api/people?archived=all").then((rows) => open("person", rows)), api("/api/locations?archived=all"),
+        listItems("people", "all"), listItems("locations", "all"),
       ]);
       /** @param {Record<string, any>} item */
       const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });

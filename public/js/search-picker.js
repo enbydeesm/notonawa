@@ -6,9 +6,10 @@
 // gets a pointer to restoring it instead. The chosen id goes in a hidden
 // input, so the form can read it with the rest.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, privateField } from "./dom.js";
 import { searchChoices, addOffer, choiceLabel } from "./search-choices.js";
+import { saveItem } from "./store/index.js";
 
 /**
  * @typedef {import("./search-choices.js").PickerItem} PickerItem
@@ -182,7 +183,7 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
     close();
     try {
       const body = { ...newFields, [words.field]: name, archive_now: archive };
-      const { id: newId } = await api(`/api/${kind}`, { method: "POST", body });
+      const newId = await saveItem(kind, null, body);
       const item = { id: newId, name, created_at: new Date().toISOString() };
       (archive ? source.archived : source.active).push(item);
       onAdd?.(item, archive);

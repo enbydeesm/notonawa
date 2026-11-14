@@ -37,6 +37,7 @@ import { capitalise, formatDate } from "./format.js";
 import { placeText } from "./list-order.js";
 import { dateRangeText } from "./workshops-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
+import { listItems } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -153,9 +154,9 @@ export async function showItem(body, opened, signal) {
  */
 async function loadMine(kind, item) {
   const [people, locations, plans] = await Promise.all([
-    item.people.length ? api("/api/people?archived=false") : [],
-    item.location ? api("/api/locations?archived=false") : [],
-    kind === "tie" && item.plans.length ? api("/api/plans?archived=false") : [],
+    item.people.length ? listItems("people", false) : [],
+    item.location ? listItems("locations", false) : [],
+    kind === "tie" && item.plans.length ? listItems("plans", false) : [],
   ]);
   return {
     people: /** @type {import("./share-people.js").MyPerson[]} */ (people),
@@ -232,7 +233,7 @@ function itemChoice(id, shared, newWord, suggested, mine) {
  * @param {import("./share-to-import.js").Known} known
  */
 async function alreadyThere(kind, item, doc, sealed, known) {
-  if (kind === "plan") return duplicatePlan(item, await open("plan", await api("/api/plans?archived=all"))) !== null;
+  if (kind === "plan") return duplicatePlan(item, await listItems("plans", "all")) !== null;
   if (addsItems(doc)) return false;
   const items = withKnown({ people: [], locations: [], plans: [] }, known);
   if (kind === "tie") {

@@ -51,7 +51,7 @@ export function choose({ title, message, content, choices, cancelLabel = "Cancel
  * The delete dialog for people and locations: delete for good, or (if it's
  * not archived already) archive instead.
  * @param {{ title: string, message: string, archived: boolean }} options
- * @returns {Promise<{ archive: true } | { query: string } | null>}
+ * @returns {Promise<{ archive: true } | { delete: true } | null>}
  */
 export async function confirmDeleteOrArchive({ title, message, archived }) {
   const choice = await choose({
@@ -63,6 +63,6 @@ export async function confirmDeleteOrArchive({ title, message, archived }) {
     ],
   });
   if (choice === "archive") return { archive: true };
-  if (choice === "delete") return { query: "" };
+  if (choice === "delete") return { delete: true };
   return null;
 }

@@ -27,7 +27,7 @@ import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
-import { recentOnTies } from "./store/index.js";
+import { recentOnTies, listItems } from "./store/index.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -323,7 +323,7 @@ function showWorkshopForm(workshop, start) {
           await editTie(item.id);
         } else {
           // As the Plans view opens one: from the list, opened on the device.
-          const plans = await api("/api/plans?archived=all");
+          const plans = await listItems("plans", "all");
           const found = plans.find((/** @type {any} */ p) => p.id === item.id);
           if (!found) throw new Error("It's no longer there.");
           const [plan] = await open("plan", [found]);
@@ -375,8 +375,8 @@ function showWorkshopForm(workshop, start) {
         // it instead of adding a second one. People are opened, for their
         // aliases (searched too).
         const [people, locations, recentPeople, recentLocations, mine] = await Promise.all([
-          api("/api/people?archived=all").then((rows) => open("person", rows)),
-          api("/api/locations?archived=all"),
+          listItems("people", "all"),
+          listItems("locations", "all"),
           recentOnTies("people"),
           recentOnTies("locations"),
           // A new one's currency starts as the last one used (sealed, so

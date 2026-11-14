@@ -2,7 +2,7 @@
 // same form edits a tie (opened from its title in the list), with Delete and
 // Share icons beside its ✕.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, $, showMessage, privateField, removeX } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today, capitalise } from "./format.js";
@@ -13,8 +13,7 @@ import { personRows } from "./person-rows.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { open } from "./vault.js";
-import { saveTie, deleteTie, recentOnTies } from "./store/index.js";
+import { saveTie, deleteTie, recentOnTies, listItems } from "./store/index.js";
 import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
@@ -265,7 +264,7 @@ function showTieForm(tie, start, fromWorkshop) {
         const kinds = /** @type {const} */ (["locations", "people", "plans"]);
         const loaded = await Promise.all(kinds.map((kind) => Promise.all([
           // People are opened, for their aliases (searched too).
-          api(`/api/${kind}?archived=all`).then((rows) => (kind === "people" ? open("person", rows) : rows)),
+          listItems(kind, "all"),
           recentOnTies(kind),
         ])));
         // Filled in place: the pickers already hold these objects.
