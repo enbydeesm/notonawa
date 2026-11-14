@@ -193,8 +193,16 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `POST /api/records`; both refuse a format 1 account unless it's
   converting). A record's `version` rises by one per write and a deleted
   id can't come back (triggers); deletion markers are kept for good.
-- `src/files/`: format v3 photos and videos in R2, `<owner>/files/<id>`
-  (`storage.js`).
+- `src/files/`: format v3 photos and videos in R2, `<owner>/files/<id>`;
+  the row has only sizes, nothing says which item a file is on (its key is
+  in the item's record). `parse.js` (pure: today's per-file limits;
+  `roomLeft`: while converting, format 1 media doesn't count toward the
+  1 GB), `db.js` (the quota checked in the insert), `storage.js`,
+  `routes.js` (`PUT /api/files/:id?kind=&thumb_bytes=`, `GET
+  /api/files/:id/thumb|full`, `GET /api/files` (ids and sizes, for the
+  device's orphan check), `POST /api/files/delete` with `{ ids }`; format 2
+  or converting only). The daily sweep (`media/storage.js`) keeps a file
+  object with a row.
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the share clean-up, the photo sweep
   (which checks share files too) and the backup, each carrying on if one

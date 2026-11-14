@@ -22,3 +22,11 @@ export async function deleteFileObjects(bucket, ownerId, ids) {
     await bucket.delete(ids.slice(i, i + BATCH).map((id) => fileObjectKey(ownerId, id)));
   }
 }
+
+/**
+ * Whether an R2 key is a format v3 file's.
+ * @param {string} key
+ */
+export function isFileKey(key) {
+  return /^[^/]+\/files\/[^/]+$/.test(key);
+}
