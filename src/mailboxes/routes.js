@@ -50,7 +50,6 @@ export async function handleMailboxSend(request, env, url) {
  */
 export async function handleMailboxes(request, env, user, url) {
   if (!url.pathname.startsWith("/api/mailboxes")) return null;
-  if (user.format !== 2) return json({ error: "Reload the app to use this.", reload: true }, 410);
   const { method } = request;
 
   // POST /api/mailboxes  body { id, token, kind: "intro" | "contact" } -> 201:

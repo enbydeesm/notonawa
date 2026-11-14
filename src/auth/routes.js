@@ -13,6 +13,7 @@ import {
 } from "./parse.js";
 import { isFresh, lifetimeMs, sha256Hex } from "./session.js";
 import { getUser } from "./user.js";
+import { newAccountFormat } from "../format.js";
 import { parseWrap, parseOptionalWrap } from "../keys/parse.js";
 import { insertWrapStatement } from "../keys/db.js";
 import { registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication } from "./webauthn.js";
@@ -99,7 +100,7 @@ export async function handleAuth(request, env, url) {
     const userId = challenge.new_user_id;
     const { token, statements: start } = await newSessionStatements(db, userId, { kind: "full", passkeyId: passkey.id });
     await db.batch([
-      ...newUserStatements(db, userId, challenge.invite_hash, recoveryHash),
+      ...newUserStatements(db, userId, challenge.invite_hash, recoveryHash, newAccountFormat(env.NEW_ACCOUNT_FORMAT)),
       insertPasskeyStatement(db, userId, passkey),
       insertWrapStatement(db, userId, recoveryWrap, { kind: "recovery", passkeyId: null, recoveryHash }),
       ...wrapStatements(userId),

@@ -19,7 +19,6 @@ import { getIdentity, addIdentity, replaceIdentity } from "./db.js";
  */
 export async function handleIdentity(request, env, user, url) {
   if (url.pathname !== "/api/identity") return null;
-  if (user.format !== 2 && !user.converting) return json({ error: "Reload the app to use this.", reload: true }, 410);
   const { method } = request;
 
   // GET /api/identity -> { public_key, sealed_seed, created_at }, or 404 if

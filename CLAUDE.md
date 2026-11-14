@@ -52,6 +52,8 @@ building live in [roadmap.md](roadmap.md).
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
   account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
+  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"1"` in both
+  until the format 2 store exists): the format new sign-ups start in.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -218,6 +220,23 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `MAILBOX_RATE_LIMIT` per IP; a wrong token and no such mailbox are the
   same 404. Signed in: `POST /api/mailboxes`, `DELETE /api/mailboxes/:id`,
   `GET /api/mailboxes/messages`, `POST /api/mailboxes/messages/ack`).
+- `src/format.js` (pure): the format gate, applied in `index.js` to every
+  signed-in request after consent. The format 1 journal's routes refuse a
+  format 2 account (410 `{ reload: true }`) and, while converting, refuse
+  changes (409; GETs and the two POSTs that only read, `/api/ties/search`
+  and `/api/stats/ties`, still work). `/api/sync`, `/api/records`,
+  `/api/files` and `/api/identity` refuse format 1 unless converting;
+  mailboxes, format 1 always. `/api/locations/coords`, the account,
+  keys, shares, notices and the rest are either's. `newAccountFormat`
+  reads `NEW_ACCOUNT_FORMAT`.
+- `src/convert/`: converting an account to format 2 (the device does the
+  work). `db.js` (`V1_TABLES`, the format 1 journal in the order it's
+  deleted; `startConversion`; `finishConversion`, one batch: refused
+  unless converting and with at least one record, the media ids read,
+  `format = 2`, `converted_at`, and every `V1_TABLES` row of mine deleted,
+  children by cascade; connections and shares stay), `routes.js` (`POST
+  /api/convert/start` (once: again keeps the first time; 409 once format
+  2), `POST /api/convert/finish` (then the old photos' R2 objects)).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the share clean-up, the photo sweep
   (which checks share files too) and the backup, each carrying on if one
@@ -826,7 +845,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 
 - **Scope every query to the signed-in user** with `owner_id = ?` bound to
   `user.id`. `getUser` also gives the account's `format` (1 or 2) and
-  whether it's `converting` (migration 0032). Users are keyed by `users.id`. `users.email` is a leftover that
+  whether it's `converting` (migration 0032); `src/format.js` decides which
+  routes each may use. Users are keyed by `users.id`. `users.email` is a leftover that
   just holds the id (see migration 0003); never read it or put anything in it.
 - **Ownership is also enforced in the database**: triggers reject linking rows
   that belong to different users, and `owner_id` can't change. Errors start
@@ -867,13 +887,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   cleared when the connection goes. Import keeps it only for one of my
   connections not already on someone (`links_dropped` counts the rest).
 - **Every journal has a "this is me" profile**, named "Me" when the account
-  is made (`newUserStatements`; migration 0005 added one to older accounts).
+  is made (`newUserStatements`, format 1; migration 0005 added one to older accounts).
   It can be renamed, but not archived or deleted (the API refuses: the tie
   form, Calendar, Analytics and Education rely on it), and edits can't change who it
   is (`is_self` is `createOnly` in `src/resources/config.js`; only adding a
   person, or an import into a journal without one, sets it). A unique index
   allows at most one. The People form shows "This is me" only on it, ticked
   and greyed out, and the People list keeps it at the top.
+  A format 2 account has no `people` row for it: its device writes "Me"
+  as a record, with an id from `selfId` (`records/ids.js`).
 - **At most one default location** (`locations.is_default`, migration 0011;
   a unique partial index per owner). Setting one clears the old one in the
   same batch; archiving clears it, and an archived location can't be made

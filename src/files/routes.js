@@ -26,7 +26,6 @@ export async function handleFiles(request, env, user, url) {
   if (!url.pathname.startsWith("/api/files")) return null;
   const db = env.DB;
   const { method } = request;
-  if (user.format !== 2 && !user.converting) return json({ error: "Reload the app to use this.", reload: true }, 410);
 
   // GET /api/files -> [{ id, kind, thumb_bytes, bytes, created_at }]: every
   //   file of mine, for the device to find ones no record lists

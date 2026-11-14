@@ -20,8 +20,7 @@ import { deleteFileObjects } from "../files/storage.js";
 export async function handleRecords(request, env, user, url) {
   const { method } = request;
   if (url.pathname !== "/api/sync" && url.pathname !== "/api/records") return null;
-  // Only an account in format 2, or being converted to it.
-  if (user.format !== 2 && !user.converting) return json({ error: "Reload the app to use this.", reload: true }, 410);
+  // Only an account in format 2, or being converted to it (src/format.js).
 
   // GET /api/sync?since=<seq>&limit=<n> -> { changes: [{ id, kind, seq,
   //   deleted, version, key, body }], next, done }: my records and deletion

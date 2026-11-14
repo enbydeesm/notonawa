@@ -58,7 +58,7 @@ export function batches(chunks, jobs, seconds = UI_SECONDS) {
 export const SHARED = [
   "package.json", "package-lock.json", "wrangler.jsonc", "worker-configuration.d.ts", "vitest.config.js",
   "tsconfig.json", "public/tsconfig.json", "eslint.config.js", "migrations/",
-  "src/index.js", "src/errors.js", "src/http.js", "src/parse.js", "src/sql.js", "src/security-headers.js",
+  "src/index.js", "src/format.js", "src/errors.js", "src/http.js", "src/parse.js", "src/sql.js", "src/security-headers.js",
   "src/encryption/config.js",
   "public/index.html", "public/app.css", "public/_headers",
   "public/js/app.js", "public/js/api.js", "public/js/dom.js", "public/js/dialog.js", "public/js/dialog-icons.js",
@@ -281,7 +281,8 @@ export const AREAS = [
     // Format 2 records, ids and v3 files: nothing on the page uses them
     // yet, but the crypto Worker loads them, so a change runs basics.
     name: "records",
-    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/"],
+    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/",
+      "src/convert/"],
     ui: ["basics"],
   },
   {

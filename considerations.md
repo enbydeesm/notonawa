@@ -3295,3 +3295,54 @@ bundle with them, at unlock. Everything is AES-256-GCM with a random
   `openIdentity`, `sealAcceptance`, `openAcceptance`, `sealMessage`,
   `openMessage`. Item keys leave only sealed; file and pair keys only
   inside records; the seed only sealed, and it's forgotten on lock.
+
+## Encrypt everything: server v2 as built (November 2026)
+
+Phase 3: the server's side of format 2, in migration 0032 and `src/records/`,
+`src/files/`, `src/identity/`, `src/mailboxes/`, `src/convert/` and
+`src/format.js`. Built and tested; no account uses it yet
+(`NEW_ACCOUNT_FORMAT` is 1 in both environments until phase 4's store).
+
+- **Records**: one D1 batch per `POST /api/records`, all or nothing. A
+  stale write, a reused or deleted id, or going over the 1 GB is caught by
+  an INSERT into an always-empty table (`version_checks`, `quota_checks`)
+  whose NOT NULL column fails the batch, as D1 has no way to abort a batch
+  on a condition otherwise. The page seals the version it writes (one more
+  than it read) and the server only checks it, with triggers so the version
+  only rises by one and a deleted id never comes back. Sequence numbers come
+  from raising `users.sync_seq` by the batch's size, each op taking its
+  place below the new value. Deletion markers are kept for good, so a
+  device away for months still syncs.
+- **Files**: `<owner>/files/<id>` in the photos bucket; the row has sizes
+  only. The quota is checked in the insert. While converting, format 1
+  media doesn't count against the 1 GB (`roomLeft`), since the conversion
+  holds two copies for a while.
+- **Mailboxes**: the plan had a daily cap per mailbox; built instead as at
+  most 100 messages waiting in a mailbox (the next send gets 429). Read
+  messages are deleted, so this stops a flood just as well, and nothing has
+  to count per day. Only the token's hash is stored; a wrong token and no
+  such mailbox are the same 404. D1's `meta.changes` on a DELETE counts
+  rows removed by cascade, so a delete checks `> 0`, not `=== 1`.
+- **The gate** (`src/format.js`): one pure function for every signed-in
+  request, rather than a check in each route, so a route can't forget it.
+  410 with `reload: true` is "this page is the wrong version for your
+  account". While converting, the format 1 journal answers reads (the
+  conversion reads everything through the export) but refuses changes with
+  409, so an old open page can't write after the conversion has read. Two
+  POSTs only read (the tie search and the stats) and stay open. Mailboxes
+  wait for format 2: nothing during the conversion needs them.
+- **Conversion** (`src/convert/`): start marks the account converting once
+  (starting again keeps the first time, which another device reads as when
+  it began). Finish is one batch: refused unless converting and with at
+  least one record (a conversion always writes "Me", so a page gone wrong
+  can't delete a journal that has no copy), the format 1 photos' ids read,
+  the account made format 2, and every format 1 journal table's rows of
+  mine deleted, items that link to others first, children by cascade; the
+  old R2 objects after it (the daily sweep catches any missed). A second
+  finish is refused. Connections and shares stay: a connection has another
+  account's side (phase 6 decides), and a share is sealed with its link's
+  key. The settings columns on `users` stay too, until the settings record
+  replaces them.
+- **Sign-up**: `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`) picks a new account's
+  format; a format 2 account gets no plain "Me" row, as its device writes
+  "Me" as a record.
