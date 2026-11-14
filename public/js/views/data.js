@@ -28,7 +28,6 @@ import {
   readExport, exportRoleNames, exportDefaultShape, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
 } from "../import-steps.js";
 import { adoptRoleNames, adoptDefaultShape } from "../settings.js";
-import { convertJournal } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
 import { takeDrawings } from "../import-drawings.js";
@@ -43,11 +42,11 @@ import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import {
   uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets, listDrawings, listPoses,
-  exportJournal, openMediaPart, importItems, importTies, importWorkshops,
+  exportJournal, openMediaPart, sealImport, importItems, importTies, importWorkshops,
 } from "../store/index.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
-import { seal, open, forgetSearch } from "../vault.js";
+import { open, forgetSearch } from "../vault.js";
 import { showSharedByMe, showConnections } from "../shared-by-me.js";
 import { linksDroppedText } from "../connection-text.js";
 
@@ -219,7 +218,7 @@ export function mount(_root, { signal }) {
       const doc = poses.doc;
       checkLinks(doc);
       // Sealed once, on the device; only the sealed copy is sent.
-      const sealed = await convertJournal(doc, seal);
+      const sealed = await sealImport(doc);
       // Sets the message itself (e.g. when there's nothing new).
       await showPreview({ plain: doc, sealed, photos, drawings, poses, files });
     } catch (err) {

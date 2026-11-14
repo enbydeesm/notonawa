@@ -4,7 +4,7 @@
 // does the import on the device instead. See store/index.js.
 
 import { api } from "../../api.js";
-import { open, openMedia } from "../../vault.js";
+import { open, openMedia, seal } from "../../vault.js";
 import { convertJournal, withoutUnreadableMarks } from "../../journal-fields.js";
 
 /**
@@ -72,4 +72,15 @@ export async function exportJournal() {
     if (c.unreadable) unreadableCaptions++;
   });
   return { doc, unreadable: unreadable + unreadableCaptions };
+}
+
+/**
+ * An import's notes and other sealed fields sealed on the device, before
+ * anything is sent: format 1's server keeps them as they come.
+ * @template T
+ * @param {T} doc
+ * @returns {Promise<T>}
+ */
+export function sealImport(doc) {
+  return /** @type {Promise<T>} */ (convertJournal(/** @type {any} */ (doc), seal));
 }

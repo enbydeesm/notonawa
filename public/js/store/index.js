@@ -92,6 +92,7 @@ import * as v2Data from "./v2/data.js";
 
 export const exportJournal = byFormat(v1Data.exportJournal, v2Data.exportJournal);
 export const exportSealed = byFormat(v1Data.exportSealed, v2Data.exportSealed);
+export const sealImport = byFormat(v1Data.sealImport, v2Data.sealImport);
 export const importItems = byFormat(v1Data.importItems, v2Data.importItems);
 export const importTies = byFormat(v1Data.importTies, v2Data.importTies);
 export const importWorkshops = byFormat(v1Data.importWorkshops, v2Data.importWorkshops);

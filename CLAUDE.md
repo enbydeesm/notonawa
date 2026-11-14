@@ -447,7 +447,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
   `records/schema.js` (pure: each kind's fields and the checks on one
   record), `records/parse.js` (pure: the server's field parsers, with its
-  messages, `BadEdit`; `stamp`, `compact`), `records/settings.js` (pure:
+  messages, `BadEdit`; `stamp`, `compact`), `records/import.js` (pure:
+  format 1's import on the device: the server's parsing and messages,
+  matching people, locations and plans by name, new tags, duplicate ties
+  and workshops (the same but for their notes) for the page to compare; a
+  unit test imports an export back into an empty journal and into the
+  same one), `records/settings.js` (pure:
   the settings record's role names and default body, with the server's
   checks) and `records/edits.js` (pure:
   a form's fields as a record, keeping fields the form hasn't, and the
@@ -650,7 +655,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   memory by `settings.js`), `v1/data.js` (export and import, passing
   today's sealed shapes through: `exportSealed`, `importItems`,
   `importTies`, `importWorkshops`; `exportJournal`, both formats: the
-  whole journal opened, captions too, with the count left out) and `v1/connections.js`; `v2/` is
+  whole journal opened, captions too, with the count left out;
+  `sealImport`, both formats: an import's fields sealed before sending
+  for format 1, left plain for format 2) and `v1/connections.js`; `v2/` is
   format 2's, over the journal in memory (`v2/journal.js`), chosen when
   each function is called by the account's format (`byFormat` in
   `index.js`; an area not yet built for v2 is v1's only):
@@ -665,7 +672,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   keep their `order`), `v2/settings.js` (role names and the poser's
   default body in the settings record, the rest on the server, given as
   one) and `v2/data.js` (`exportJournal`: the server's export for the
-  account part, the journal from the records; import next), with the
+  account part, the journal from the records; `importItems`,
+  `importTies`, `importWorkshops`: format 1's requests and answers,
+  worked out by `records/import.js` and saved as records), with the
   pages' rows made by the pure `queries/`
   (`queries/workshops.js`: format 1's `WORKSHOP_COLUMNS`, a unit test
   checks, educators and participants with link ids `w<n>`, the linked

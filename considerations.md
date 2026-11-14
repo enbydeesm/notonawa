@@ -3516,3 +3516,30 @@ Phase 4, slice 7a. (Slice 7 is split: 7a settings and export, 7b import,
   file from either imports into either.
 - **Presets saved together** (an import's) share a time; each has its place
   in the save (`order`), as the cache gives records back in id order.
+
+## Encrypt everything: import as built (November 2026)
+
+Phase 4, slice 7b: importing into a format 2 journal.
+
+- **The same steps for both formats**: the Your data view still sends
+  items, then ties and workshops in batches, previewing each batch for
+  duplicates first. For format 2 the store answers those requests itself
+  (`records/import.js`, a port of `src/data/import-*.js`: the parsing and
+  messages, matching by name, one default location, new tags, a plan's
+  variation, duplicates the same but for their notes) and saves records.
+  Nothing is sealed first (`sealImport`): records are sealed whole when
+  saved. Connections come with contacts, so a person's `connection_id` is
+  dropped and counted.
+- **Not all or nothing per batch**: format 1 saved a batch of 200 ties in
+  one transaction; format 2's saves go 50 at a time. A batch that fails
+  part-way leaves some ties added, and importing again finishes the job, as
+  every batch is checked for duplicates just before it's saved (as format 1
+  already did for a failure between batches).
+- **Exactly back**: a unit test exports a journal with something of every
+  kind (deleted links, a variation, a workshop with linked ties and plans)
+  and imports it through the page's own steps into an empty journal (the
+  same export again) and into the same journal (nothing added, every tie
+  and workshop a duplicate). As 7a showed both formats' exports are the
+  same, a format 1 export imports into format 2 the same way. Linking a tie
+  or plan to an imported workshop leaves its `updated_at`, as format 1's
+  import did.
