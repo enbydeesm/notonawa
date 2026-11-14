@@ -288,7 +288,8 @@ export const AREAS = [
     // Identity keys, the acceptance, pair-key messages and safety numbers:
     // the crypto Worker loads them too.
     name: "contacts",
-    files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js"],
+    files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
+      "src/mailboxes/"],
     ui: ["basics"],
   },
   {

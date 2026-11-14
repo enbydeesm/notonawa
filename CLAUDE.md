@@ -51,7 +51,7 @@ building live in [roadmap.md](roadmap.md).
   passkeys are tied to `RP_ID` for good, so changing domain means everyone
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
-  account.
+  account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -203,6 +203,21 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   device's orphan check), `POST /api/files/delete` with `{ ids }`; format 2
   or converting only). The daily sweep (`media/storage.js`) keeps a file
   object with a row.
+- `src/identity/`: my identity key, format 2 (`GET`/`PUT /api/identity`:
+  the X-Wing public key, plain, and its seed sealed `i1.`; set once,
+  replaced only with a fresh session). No route gives anyone else's key:
+  keys travel inside invites.
+- `src/mailboxes/`: where connected accounts' devices leave each other
+  sealed messages, format 2. `parse.js` (pure: ids and 32-byte tokens made
+  by the device; an intro lasts a day; 100 waiting a mailbox, 1,000
+  mailboxes an account, 200,000 characters a message, 90 days unfetched),
+  `db.js` (only the token's hash kept; a `profile` message replaces one
+  waiting), `cleanup.js` (the daily job), `routes.js` (`POST
+  /api/mailboxes/:id/messages` with `{ token, slot?, body }`: no session,
+  routed in `index.js` before signing in is checked, cookies ignored,
+  `MAILBOX_RATE_LIMIT` per IP; a wrong token and no such mailbox are the
+  same 404. Signed in: `POST /api/mailboxes`, `DELETE /api/mailboxes/:id`,
+  `GET /api/mailboxes/messages`, `POST /api/mailboxes/messages/ack`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the share clean-up, the photo sweep
   (which checks share files too) and the backup, each carrying on if one
