@@ -7,7 +7,7 @@
 
 import { api } from "./api.js";
 import { formatDate } from "./format.js";
-import { searchTies } from "./vault.js";
+import { findTies } from "./store/index.js";
 import { SHOWN } from "./add-to-choices.js";
 
 /** @typedef {import("./add-to-choices.js").Target} Target */
@@ -19,17 +19,13 @@ import { SHOWN } from "./add-to-choices.js";
  *   matched: the ids the keyword found (null without one)
  */
 export async function loadTies(query) {
-  const q = query.trim();
-  const matchIds = q ? await searchTies(q) : null;
-  const { ties } = await api("/api/ties/search", {
-    method: "POST", body: { match_ids: matchIds, page: 1, page_size: SHOWN, sort: "newest" },
-  });
+  const { ties, matched } = await findTies({ q: query, page_size: SHOWN });
   return {
     targets: ties.map((/** @type {any} */ t) => ({
       kind: /** @type {const} */ ("tie"), id: t.id, title: t.title || "Untitled tie", meta: formatDate(t.tie_date),
       recent: t.updated_at ?? t.created_at ?? "",
     })),
-    matched: matchIds ? new Set(matchIds) : null,
+    matched: matched ? new Set(matched) : null,
   };
 }
 

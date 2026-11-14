@@ -27,6 +27,7 @@ import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
+import { recentOnTies } from "./store/index.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -376,8 +377,8 @@ function showWorkshopForm(workshop, start) {
         const [people, locations, recentPeople, recentLocations, mine] = await Promise.all([
           api("/api/people?archived=all").then((rows) => open("person", rows)),
           api("/api/locations?archived=all"),
-          api("/api/ties/recent/people"),
-          api("/api/ties/recent/locations"),
+          recentOnTies("people"),
+          recentOnTies("locations"),
           // A new one's currency starts as the last one used (sealed, so
           // only the device can tell which).
           workshop ? Promise.resolve([]) : api("/api/workshops").then((rows) => open("workshop", rows)),

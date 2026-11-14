@@ -516,7 +516,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them; three.js
   is bundled there from only the parts in `scripts/vendor/three-entry.mjs`,
   with our own types, `scripts/vendor/three.d.ts`), `lock-rules.js` (pure) and `lock.js`
-  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
+  (locking by itself), `api.js`, `store/` (every journal read and write
+  goes through `store/index.js`, never `api()` directly: plain text in,
+  opened rows out, sealing, opening and the keyword search done inside;
+  `v1/` is today's API, one file per feature, e.g. `v1/ties.js`
+  (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`); the
+  encrypted cache's `v2/` comes in beside it, chosen by the account's
+  format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's
   corner, like a tag's), `opensOnTap`: a list's
   card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),

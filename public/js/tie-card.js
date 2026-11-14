@@ -2,14 +2,13 @@
 // tie form. Shared by the Ties view and the Analytics view's list of the
 // ties behind a chart.
 
-import { api } from "./api.js";
 import { h, $, opensOnTap } from "./dom.js";
 import { openTieForm } from "./tie-form.js";
 import { cardDate, attachedText } from "./format.js";
 import { ratingHanks } from "./rope-rating.js";
 import { placeLine, participantLabel, peopleThatFit } from "./ties-view.js";
 import { roleName } from "./roles.js";
-import { open } from "./vault.js";
+import { getTie } from "./store/index.js";
 import { isWebLink } from "./links.js";
 
 /** @param {import("./ties-view.js").Label} label */
@@ -112,6 +111,5 @@ export function fitPeople(container) {
  * @returns {Promise<boolean>}
  */
 export async function editTie(id) {
-  const [tie] = await open("tie", [await api(`/api/ties/${encodeURIComponent(id)}`)]);
-  return openTieForm(tie);
+  return openTieForm(await getTie(id));
 }

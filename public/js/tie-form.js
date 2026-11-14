@@ -13,7 +13,8 @@ import { personRows } from "./person-rows.js";
 import { pickerSource } from "./search-choices.js";
 import { ratingPicker } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { sealOne, forgetSearch, open } from "./vault.js";
+import { open } from "./vault.js";
+import { saveTie, deleteTie, recentOnTies } from "./store/index.js";
 import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
@@ -265,7 +266,7 @@ function showTieForm(tie, start, fromWorkshop) {
         const loaded = await Promise.all(kinds.map((kind) => Promise.all([
           // People are opened, for their aliases (searched too).
           api(`/api/${kind}?archived=all`).then((rows) => (kind === "people" ? open("person", rows) : rows)),
-          api(`/api/ties/recent/${kind}`),
+          recentOnTies(kind),
         ])));
         // Filled in place: the pickers already hold these objects.
         kinds.forEach((kind, i) => Object.assign(sources[kind], pickerSource(...loaded[i])));
@@ -333,8 +334,7 @@ function showTieForm(tie, start, fromWorkshop) {
       if (choice !== "delete" || !tie) return;
       showMessage(message, "Deleting…");
       try {
-        await api(`/api/ties/${encodeURIComponent(tie.id)}`, { method: "DELETE" });
-        forgetSearch();
+        await deleteTie(tie.id);
         saved = true;
         dialog.close();
       } catch (err) {
@@ -402,12 +402,7 @@ function showTieForm(tie, start, fromWorkshop) {
       changes.busy(true);
       showMessage(message, "Saving…");
       try {
-        // The notes are sealed here, on the device, before they're sent.
-        const body = await sealOne("tie", collectTie());
-        if (savedId) await api(`/api/ties/${encodeURIComponent(savedId)}`, { method: "PUT", body });
-        else savedId = (await api("/api/ties", { method: "POST", body })).id;
-        // The search index has this tie's old notes (or none): fetch it afresh.
-        forgetSearch();
+        savedId = await saveTie(savedId, collectTie());
         saved = true;
         if (visuals.waiting) {
           const problem = await visuals.savePending({ tie_id: /** @type {string} */ (savedId) });

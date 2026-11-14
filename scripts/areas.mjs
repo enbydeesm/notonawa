@@ -65,7 +65,7 @@ export const SHARED = [
   "public/js/form-changes.js", "public/js/router.js",
   "public/js/navigate.js", "public/js/nav.js", "public/js/format.js", "public/js/vault.js",
   "public/js/crypto-worker.js", "public/js/crypto/fields.js", "public/js/crypto/keys.js",
-  "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc",
+  "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc", "public/js/store/index.js",
 ];
 
 /** The tests and their helpers: Vitest runs them all anyway, so a change runs no chunk. */
@@ -188,7 +188,7 @@ export const AREAS = [
     name: "ties",
     files: ["src/ties/", "public/js/tie-form.js", "public/js/search-picker.js", "public/js/search-choices.js",
       "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/ties-view.js", "public/js/views/ties.js",
-      "public/js/links.js", "public/js/person-rows.js"],
+      "public/js/links.js", "public/js/person-rows.js", "public/js/store/v1/ties.js"],
     ui: ["ties", "plans", "search", "notes", "deleting", "education"],
   },
   {

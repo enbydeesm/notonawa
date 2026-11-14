@@ -289,7 +289,7 @@ export default async function () {
     speeds.find((b) => b.textContent === "1.5×").click();
     return [video.src.startsWith("blob:"), video.poster.startsWith("blob:"), Math.round(video.duration), speeds.map((b) => b.textContent),
       video.playbackRate, speeds.filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent),
-      $("#tie-photo-delete").textContent, leakyFields()];`),
+      $("#tie-photo-delete").getAttribute("aria-label"), leakyFields()];`),
     [true, true, 2, ["0.25×", "0.5×", "0.75×", "1×", "1.5×", "2×"], 1.5, ["1.5×"], "Delete video", []]);
   check("a phone's upright clip (stored on its side, with a rotation) comes out upright, the rotation drawn in", await run(`
     [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);

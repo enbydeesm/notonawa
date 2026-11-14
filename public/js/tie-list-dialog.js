@@ -3,10 +3,10 @@
 // title opens the tie in the tie form; saving or deleting it reloads the
 // list and tells the view, so its numbers catch up.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h } from "./dom.js";
 import { tieCard, fitPeople, editTie } from "./tie-card.js";
-import { open } from "./vault.js";
+import { findTies } from "./store/index.js";
 
 const PAGE_SIZE = 100;
 
@@ -36,11 +36,8 @@ export function openTieList({ heading, tieIds, onChange }) {
     message.textContent = "";
     more.disabled = true;
     try {
-      const res = await api("/api/ties/search", {
-        method: "POST", body: { match_ids: tieIds, page: n, page_size: PAGE_SIZE, sort: "newest" },
-      });
-      // Opened on the device for the cards' album links.
-      const ties = await open("tie", res.ties);
+      const res = await findTies({ ids: tieIds, page: n, page_size: PAGE_SIZE });
+      const ties = res.ties;
       if (n === 1) list.replaceChildren();
       list.append(...ties.map((/** @type {Record<string, any>} */ tie) => tieCard(tie, openTie)));
       fitPeople(list);
