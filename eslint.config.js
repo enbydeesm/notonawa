@@ -5,7 +5,7 @@ import globals from "globals";
 import { defineConfig } from "eslint/config";
 
 // The API paths of journal data (and "/api/" followed by a variable).
-const JOURNAL = "/^\\/api\\/(ties|plans|people|locations|workshops|tags|stats|media|drawings|poses|pose-presets|visuals|connections|data|account\\/settings)\\b|^\\/api\\/$/";
+const JOURNAL = "/^\\/api\\/(ties|plans|people|locations|workshops|tags|stats|media|drawings|poses|pose-presets|visuals|connections|data|account\\/settings|sync|records|files|identity|convert)\\b|^\\/api\\/$/";
 
 export default defineConfig([
   { ignores: ["node_modules/", ".wrangler/", "backups/", "worker-configuration.d.ts", "public/js/vendor/"] },

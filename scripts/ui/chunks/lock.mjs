@@ -49,6 +49,34 @@ export default async function () {
 
   // An account from before encryption: no key yet.
   const userId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
+  // Format 2's cache: IndexedDB in the crypto Worker, in a real browser (the
+  // unit tests use one in memory). While converting, the records routes are
+  // open to this format 1 account.
+  sql(`UPDATE users SET converting_since = '2026-11-14T00:00:00Z' WHERE id = '${userId}'`);
+  check("format 2: the Worker saves records sealed into its own IndexedDB cache, reads and syncs them; locking and wiping delete it",
+    await run(`
+    const vault = await import("/js/vault.js");
+    const { wipeCaches } = await import("/js/cache/db.js");
+    await vault.openCache();
+    const body = { tie_date: "2026-11-14", tie_type: "floor", title: "Cached" };
+    const saved = await vault.saveRecords({ writes: [{ kind: "tie", id: "ui-cache-1", base_version: 0, body }] });
+    const read = (await vault.readCache(["ui-cache-1"]))[0]?.body?.title;
+    const names = (await indexedDB.databases()).map((d) => d.name);
+    const sealedInCache = await new Promise((resolve, reject) => {
+      const open = indexedDB.open(names[0]);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const get = open.result.transaction("records").objectStore("records").get("ui-cache-1");
+        get.onsuccess = () => { open.result.close(); resolve(get.result.body.startsWith("e2.") && !get.result.body.includes("Cached")); };
+      };
+    });
+    const synced = (await vault.syncCache()).records.map((r) => r.body.title);
+    vault.lock();
+    await wipeCaches();
+    return [saved, read, names, sealedInCache, synced, (await indexedDB.databases()).length];`),
+    [{ saved: [{ kind: "tie", id: "ui-cache-1", version: 1 }] }, "Cached", [`notonawa-${userId}`], true, ["Cached"], 0]);
+  sql(`UPDATE users SET converting_since = NULL WHERE id = '${userId}'`);
+  sql(`DELETE FROM records WHERE owner_id = '${userId}'`);
   sql(`DELETE FROM key_wraps WHERE user_id = '${userId}'`);
   await go("/", { unlock: false });
   check("an account without a key is asked to set one up after the passkey", await run(`

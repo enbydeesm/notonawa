@@ -25,6 +25,7 @@ import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
+import { startJournal } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
 import { showWelcome } from "./welcome.js";
 import { takeShareLink } from "./pending-share.js";
@@ -183,6 +184,10 @@ function warmUp() {
 async function routeFor(addressed) {
   if (!addressed.needsKey) return addressed;
   if (!isUnlocked()) return UNLOCK;
+  // Format 2: the journal opened from the cache (the first time on this
+  // device, synced down first). If it can't be, the view's own requests
+  // say why; the next view tries again.
+  await startJournal().catch(() => {});
   // My role names and mode, before the journal is drawn with them.
   await loadSettings().catch(() => {
     // Unreachable for now: the defaults until the next view tries again.

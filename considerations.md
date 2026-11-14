@@ -3346,3 +3346,38 @@ Phase 3: the server's side of format 2, in migration 0032 and `src/records/`,
 - **Sign-up**: `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`) picks a new account's
   format; a format 2 account gets no plain "Me" row, as its device writes
   "Me" as a record.
+
+## Encrypt everything: the cache as built (November 2026)
+
+Phase 4, slice 1: the cache, syncing and the journal in memory, for
+format 2 accounts (none yet: `NEW_ACCOUNT_FORMAT` is still 1). Format 1
+is untouched, and opens no IndexedDB (the lock walkthrough checks).
+
+- **Where things live**: the crypto Worker opens the cache, syncs it and
+  saves records itself (fetching `/api/sync` and posting `/api/records`,
+  as it already fetches photos), so the cache and the server stay in step
+  in one place. The page gets records opened, whole, and holds them in
+  memory (`store/v2/journal.js`) while unlocked; the queries run there.
+- **Saving needs a connection**, as before: the cache is for reading
+  and searching. Weighed: a queue of offline saves; left for later
+  (roadmap.md, "Saving while offline"), as it brings its own conflicts.
+- **A save another device beat** (409 stale): the store syncs, carries
+  each edit onto the newer version field by field (`mergeEdit`: the
+  fields I changed take mine, the rest theirs; mine wins a clash, as I'm
+  the one saving and can see what I typed), and tries once more. A new
+  record whose id another device took first (both making "Me") is left
+  as theirs. Weighed: refusing ("changed on another device", the edit
+  lost) and last write wins (the other device's change silently lost).
+- **Tabs**: one syncs or saves at a time per account, with the browser's
+  Web Locks (simpler than choosing a leader tab, and nothing to hand over
+  when a tab closes); a BroadcastChannel tells the others which ids
+  changed, so each reads them again from the shared cache, and locking
+  one locks all.
+- **The settings record has a worked-out id**, like "Me"'s (`settingsId`:
+  HMAC of `notonawa settings v1|<user>` under the id key), so two devices
+  making it at once write the same record. Every unlock makes "Me", the
+  settings record and the identity key if they're missing, so an account
+  whose sign-up stopped half-way catches up.
+- **Wiping**: signing out and deleting the account delete every
+  `notonawa-*` database on the device. A session that just ends (a 401)
+  doesn't: the cache is sealed, and named for its account.

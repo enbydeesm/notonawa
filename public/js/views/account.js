@@ -8,6 +8,7 @@ import { formatDate } from "../format.js";
 import { withReauth } from "../auth-flows.js";
 import { addPasskey, replaceRecoveryCode } from "../key-flows.js";
 import { lock } from "../vault.js";
+import { wipeCaches } from "../cache/db.js";
 import { forgetPasskeys } from "../webauthn.js";
 import { showNav } from "../nav.js";
 import { navigate } from "../navigate.js";
@@ -190,6 +191,7 @@ export function mount(root) {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
       lock();
+      await wipeCaches();
       navigate("/signin", { replace: true });
     } catch (err) {
       showMessage($("#sign-out-message"), errorMessage(err), true);
@@ -203,6 +205,7 @@ export function mount(root) {
     try {
       const { passkey_ids } = await withReauth(() => api("/api/account", { method: "DELETE" }));
       lock({ quiet: true });
+      await wipeCaches();
       await forgetPasskeys(passkey_ids);
       showNav(false);
       root.replaceChildren(

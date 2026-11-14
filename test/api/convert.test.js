@@ -46,6 +46,18 @@ describe("starting", () => {
   });
 });
 
+describe("GET /api/keys", () => {
+  it("says the account's format, and whether it's converting, so the page picks its store", async () => {
+    const { id, cookie } = await v1User();
+    expect((await call("/api/keys", { cookie })).body).toMatchObject({ format: 1, converting: false });
+    await start(cookie);
+    expect((await call("/api/keys", { cookie })).body).toMatchObject({ format: 1, converting: true });
+    await addRecord(id);
+    await finish(cookie);
+    expect((await call("/api/keys", { cookie })).body).toMatchObject({ format: 2, converting: false });
+  });
+});
+
 describe("while converting", () => {
   it("the format 1 journal can be read but not changed, and format 2's routes open", async () => {
     const { cookie } = await v1User();

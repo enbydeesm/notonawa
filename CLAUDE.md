@@ -442,13 +442,31 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   that touches the library), `crypto/pair.js` (pure: the acceptance,
   pair-key messages `m1.`, `acceptCounter`), `crypto/safety-number.js`
   (pure: Signal's numeric fingerprint), `records/ids.js` (pure: random
-  ids, and conversion and "this is me" ids by HMAC under the id key, from
-  the data key through `keys.js`'s `unwrapKeyMaterial`) and
+  ids, and conversion, "this is me" and settings ids by HMAC under the id
+  key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
   `records/schema.js` (pure: each kind's fields and the checks on one
-  record; rules across records come with the cache),
-  `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
-  (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
-  `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
+  record; rules across records come with the cache), the cache:
+  `cache/db.js` (IndexedDB `notonawa-<user id>`, opened in the crypto
+  Worker: the sealed rows, the highest version seen of each id and the
+  ids deleted, and `since`; `wipeCaches`, on signing out and deleting the
+  account), `cache/sync-rules.js` (pure: `planPage`, a sync page refusing
+  older versions and deleted ids; `mergeEdit`, a stale edit carried onto
+  the newer version, mine winning a clash; the `CacheDb` type),
+  `cache/sync.js` (the sync loop, run alone across tabs with Web Locks,
+  `webLock`), `cache/tabs.js` (a BroadcastChannel per account: which ids
+  changed, and locking together), and `store/v2/journal.js` (the journal
+  in memory: `startJournal` at every unlock reads `GET /api/keys`'s
+  `format`, and for format 2 opens the cache, syncs (waiting the first
+  time on a device) and makes "Me", the settings record and the identity
+  key if missing; `records`, `record`, `save` (one retry after a stale
+  write), `sync` (also on coming back to the tab), `onJournalChange`;
+  dropped on lock),
+  `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
+  /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
+  reaches the cache and the routes), `crypto-worker.js` (the Worker
+  itself: it fetches `/api/sync` and posts `/api/records` too), `vault.js`
+  (the page's side of it: unlock, lock, `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
   code with proof, sign-up, recovery), `search-match.js` (pure: keyword
   matching), `journal-fields.js` (pure: a whole export or import, kind by
   kind), `import-dedupe.js` (pure: import duplicates from candidates),
@@ -1052,8 +1070,11 @@ change affects what's collected, stored, readable or kept, update it too.
   Never add a Worker operation that returns the key, or that wraps it
   without proof (an existing wrap and its secret, given just now). The
   encrypted notes' operations work on whole records, never a general
-  decrypt. Nothing decrypted goes to localStorage, sessionStorage,
-  IndexedDB or a cache. Anything that ends the session or signs out must
+  decrypt; format 2's open whole records only. Nothing decrypted goes to
+  localStorage, sessionStorage, IndexedDB or a cache: the format 2 cache
+  holds records sealed, as the server does. Inside an IndexedDB
+  transaction, await nothing but its own requests (Safari and Firefox end
+  it otherwise). Anything that ends the session or signs out must
   `lock()`.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery

@@ -66,6 +66,8 @@ export const SHARED = [
   "public/js/navigate.js", "public/js/nav.js", "public/js/format.js", "public/js/vault.js",
   "public/js/crypto-worker.js", "public/js/crypto/fields.js", "public/js/crypto/keys.js",
   "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc", "public/js/store/index.js",
+  // The cache and the journal in memory: opened at every unlock (format 2).
+  "public/js/cache/", "public/js/store/v2/journal.js",
 ];
 
 /** The tests and their helpers: Vitest runs them all anyway, so a change runs no chunk. */

@@ -18,6 +18,7 @@ import { openWelcome } from "./welcome.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
+import { wipeCaches } from "./cache/db.js";
 import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
 import { currentTheme } from "./settings.js";
 import { HANK_PATH } from "./rope-rating.js";
@@ -197,6 +198,8 @@ function openMenu() {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
       lock();
+      // The journal's sealed copy on this device goes too: someone else may use it next.
+      await wipeCaches();
       dialog.close();
       navigate("/signin", { replace: true });
     } catch (err) {

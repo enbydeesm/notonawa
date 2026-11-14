@@ -105,6 +105,14 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 The menu's Tutorial (nav.js) shows the welcome message for now. In its
 place: a step-by-step tour of the app, opened from the same row.
 
+## Saving while offline (format 2)
+
+The format 2 cache lets the journal be read offline, but a save still goes
+straight to the server (as before), and fails without a connection. A
+queue of saves made offline, sent when back online, would need its own
+rules for edits another device made meanwhile (cache/sync-rules.js's
+mergeEdit is where they'd start) and for showing what isn't saved yet.
+
 ## Ideas, not yet committed
 
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.

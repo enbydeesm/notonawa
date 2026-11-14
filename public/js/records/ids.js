@@ -4,8 +4,9 @@
 //
 // - A converted record's: from its table and the id the server gave it in
 //   format 1, so a conversion that's run again writes the same records.
-// - "This is me": one per account, so two devices making it at once write
-//   the same record, and the second is refused as stale.
+// - "This is me" and the settings record: one each per account, so two
+//   devices making one at once write the same record, and the second is
+//   refused as stale.
 //
 // Both are HMAC-SHA256 under the id key, shaped as a UUID (RFC 9562
 // version 8). The id key comes from the data key (HKDF-SHA256, info
@@ -74,4 +75,13 @@ export function convertedId(idKey, userId, table, oldId) {
  */
 export function selfId(idKey, userId) {
   return idFor(idKey, `notonawa self v1|${userId}`);
+}
+
+/**
+ * The account's settings record's id.
+ * @param {CryptoKey} idKey
+ * @param {string} userId
+ */
+export function settingsId(idKey, userId) {
+  return idFor(idKey, `notonawa settings v1|${userId}`);
 }

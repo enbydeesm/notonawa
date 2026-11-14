@@ -21,8 +21,9 @@ import { RECORD_KINDS, newItemKey, openItemKey, sealBody, openBody } from "./rec
 import { newFileKey, fileKey, sealFile, openPart as openFilePart } from "./files.js";
 import { newIdentity, sealSeed, openSeed } from "./identity.js";
 import { sealAcceptance, openAcceptance, sealMessage, openMessage } from "./pair.js";
-import { idKeyFrom, convertedId, selfId } from "../records/ids.js";
+import { idKeyFrom, convertedId, selfId, settingsId } from "../records/ids.js";
 import { checkRecord } from "../records/schema.js";
+import { syncCache } from "../cache/sync.js";
 
 /** @typedef {import("./keys.js").Wrap} Wrap */
 /** @typedef {import("./fields.js").RecordKind} RecordKind */
@@ -31,6 +32,22 @@ import { checkRecord } from "../records/schema.js";
  * A secret as sent by the page: a passkey's PRF output, or a recovery code
  * (canonical, see readRecoveryCode).
  * @typedef {{ prf: ArrayBuffer } | { code: string }} Secret
+ */
+/**
+ * How the Worker reaches the cache and the server for records (format 2):
+ * cache/db.js's openCache, GET /api/sync, POST /api/records (its status
+ * and JSON), and a lock per account across tabs (cache/sync.js's webLock).
+ * @typedef {{
+ *   open: (userId: string) => Promise<import("../cache/sync-rules.js").CacheDb>,
+ *   fetchSync: (since: number) => Promise<import("../cache/sync.js").SyncPage>,
+ *   postRecords: (batch: unknown) => Promise<{ status: number, body: any }>,
+ *   exclusive: (userId: string) => import("../cache/sync.js").Exclusive,
+ * }} CacheIo
+ */
+/**
+ * A record opened.
+ * @typedef {{ kind: string, id: string, version: number, key: string, body: Record<string, unknown> | null,
+ *   unreadable?: true }} Opened
  */
 
 export class VaultCore {
@@ -44,6 +61,8 @@ export class VaultCore {
   #idKey = null;
   /** @type {Uint8Array | null} my identity key's seed, once opened */
   #identity = null;
+  /** @type {import("../cache/sync-rules.js").CacheDb | null} the account's cache, once opened */
+  #cache = null;
 
   /**
    * @param {() => Promise<IndexEntry[]>} [loadIndex] fetches the ties' search
@@ -56,8 +75,10 @@ export class VaultCore {
    *   fetches a sealed part of a share's photo, likewise
    * @param {(fileId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} [loadFile]
    *   fetches a sealed part of a format v3 file, likewise
+   * @param {CacheIo} [cacheIo] the cache and the records routes (format 2)
    */
-  constructor(loadIndex, loadPart, loadShareFile, loadFile) {
+  constructor(loadIndex, loadPart, loadShareFile, loadFile, cacheIo) {
+    this.#cacheIo = cacheIo ?? null;
     this.#loadIndex = loadIndex ?? (async () => []);
     this.#loadPart = loadPart ?? (async () => { throw new Error("No photos here."); });
     this.#loadShareFile = loadShareFile ?? (async () => { throw new Error("No shared photos here."); });
@@ -66,6 +87,8 @@ export class VaultCore {
 
   /** @type {(fileId: string, part: "thumb" | "full") => Promise<ArrayBuffer>} */
   #loadFile;
+  /** @type {CacheIo | null} */
+  #cacheIo;
 
   /** @type {() => Promise<IndexEntry[]>} */
   #loadIndex;
@@ -142,6 +165,8 @@ export class VaultCore {
     this.#idKey = null;
     this.#identity?.fill(0);
     this.#identity = null;
+    this.#cache?.close();
+    this.#cache = null;
   }
 
   /**
@@ -376,16 +401,17 @@ export class VaultCore {
 
   /**
    * Record ids worked out rather than random (records/ids.js): a converted
-   * row's, and "this is me"'s.
-   * @param {{ converted?: { table: string, oldId: string | number }[], self?: boolean }} args
-   * @returns {Promise<{ converted: string[], self: string | null }>}
+   * row's, "this is me"'s and the settings record's.
+   * @param {{ converted?: { table: string, oldId: string | number }[], self?: boolean, settings?: boolean }} args
+   * @returns {Promise<{ converted: string[], self: string | null, settings: string | null }>}
    */
-  async recordIds({ converted = [], self = false }) {
+  async recordIds({ converted = [], self = false, settings = false }) {
     const [, userId] = this.#unlocked();
     const idKey = /** @type {CryptoKey} */ (this.#idKey);
     return {
       converted: await Promise.all(converted.map(({ table, oldId }) => convertedId(idKey, userId, table, oldId))),
       self: self ? await selfId(idKey, userId) : null,
+      settings: settings ? await settingsId(idKey, userId) : null,
     };
   }
 
@@ -543,6 +569,87 @@ export class VaultCore {
   async openMessage({ pairKey, mailboxId, sealed }) {
     this.#unlocked();
     return openMessage(pairKey, mailboxId, sealed);
+  }
+
+  /**
+   * Opens the account's cache (format 2), once per unlock.
+   */
+  async openCache() {
+    const [, userId] = this.#unlocked();
+    if (!this.#cacheIo) throw new Error("No cache here.");
+    this.#cache ??= await this.#cacheIo.open(userId);
+    return null;
+  }
+
+  /**
+   * Brings the cache up to date with the server, and gives what changed,
+   * opened (cache/sync.js).
+   * @returns {Promise<{ records: Opened[], removed: string[], refused: string[] }>}
+   */
+  async syncCache() {
+    const [cache, io, userId] = this.#cacheOpen();
+    const { changed, removed, refused } = await syncCache({ db: cache, fetchPage: io.fetchSync, exclusive: io.exclusive(userId) });
+    return { records: await this.openRecords({ rows: await cache.rows(changed) }), removed, refused };
+  }
+
+  /**
+   * Records from the cache, opened: every one, or those asked for (an id
+   * not there has been deleted, or never synced).
+   * @param {{ ids?: string[] }} [args]
+   * @returns {Promise<Opened[]>}
+   */
+  async readCache({ ids } = {}) {
+    const [cache] = this.#cacheOpen();
+    return this.openRecords({ rows: await cache.rows(ids) });
+  }
+
+  /**
+   * Seals and saves records, and deletes others, in one batch (POST
+   * /api/records, all or none), then puts them in the cache. A write's
+   * version is one more than base_version (0 for a new record); its item
+   * key is the cache's, or a new one. Stale (another device saved first):
+   * nothing's saved, and the ids come back for the store to sync and
+   * carry the edit over (cache/sync-rules.js's mergeEdit).
+   * @param {{ writes?: { kind: import("./records.js").RecordKind, id: string, base_version: number,
+   *     body: Record<string, unknown> }[],
+   *   deletes?: { kind: import("./records.js").RecordKind, id: string, base_version: number, files?: string[] }[] }} args
+   * @returns {Promise<{ saved: { kind: string, id: string, version: number | null }[] } | { stale: string[] }>}
+   */
+  async saveRecords({ writes = [], deletes = [] }) {
+    const [cache, io, userId] = this.#cacheOpen();
+    return io.exclusive(userId)(async () => {
+      const keys = new Map((await cache.rows(writes.filter((w) => w.base_version > 0).map((w) => w.id))).map((r) => [r.id, r.key]));
+      const sealed = await this.sealRecords({ records: writes.map((w) => ({
+        kind: w.kind, id: w.id, version: w.base_version + 1, key: keys.get(w.id) ?? null, body: w.body,
+      })) });
+      const batch = {
+        writes: sealed.map((row, i) => ({ id: row.id, kind: row.kind, base_version: writes[i].base_version, key: row.key, body: row.body })),
+        deletes: deletes.map((d) => ({ id: d.id, kind: d.kind, base_version: d.base_version, files: d.files ?? [] })),
+      };
+      const res = await io.postRecords(batch);
+      if (res.status === 409 && Array.isArray(res.body?.stale)) return { stale: /** @type {string[]} */ (res.body.stale) };
+      if (res.status !== 200) throw new Error(res.body?.error ?? "Couldn't save. Check your connection and try again.");
+      const seqs = new Map(/** @type {{ id: string, seq: number }[]} */ (res.body.saved).map((s) => [s.id, s.seq]));
+      await cache.apply({
+        puts: sealed.map((row) => ({ ...row, seq: /** @type {number} */ (seqs.get(row.id)) })),
+        removes: deletes.map((d) => d.id),
+        seen: [
+          ...sealed.map((row) => ({ id: row.id, version: row.version, deleted: false })),
+          ...deletes.map((d) => ({ id: d.id, version: d.base_version, deleted: true })),
+        ],
+      });
+      return { saved: [
+        ...sealed.map((row) => ({ kind: row.kind, id: row.id, version: row.version })),
+        ...deletes.map((d) => ({ kind: d.kind, id: d.id, version: null })),
+      ] };
+    });
+  }
+
+  /** @returns {[import("../cache/sync-rules.js").CacheDb, CacheIo, string]} */
+  #cacheOpen() {
+    const [, userId] = this.#unlocked();
+    if (!this.#cache || !this.#cacheIo) throw new Error("Open the cache first.");
+    return [this.#cache, this.#cacheIo, userId];
   }
 
   /** @returns {[CryptoKey, string]} */

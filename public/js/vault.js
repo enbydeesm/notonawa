@@ -312,6 +312,60 @@ export function copyMedia(args) {
   return call("copyMedia", args);
 }
 
+// Format 2: records and the cache (crypto/vault-core.js). The Worker
+// syncs and saves them itself; the page gets them opened, whole.
+
+/** @typedef {import("./crypto/vault-core.js").Opened} Opened */
+
+/**
+ * Ids worked out rather than random: converted rows', "this is me"'s, the settings record's.
+ * @param {{ converted?: { table: string, oldId: string | number }[], self?: boolean, settings?: boolean }} args
+ * @returns {Promise<{ converted: string[], self: string | null, settings: string | null }>}
+ */
+export function recordIds(args) {
+  return call("recordIds", args);
+}
+
+/** Opens the account's cache on this device. */
+export function openCache() {
+  return call("openCache", {});
+}
+
+/**
+ * Syncs the cache with the server.
+ * @returns {Promise<{ records: Opened[], removed: string[], refused: string[] }>} what changed, opened
+ */
+export function syncCache() {
+  return call("syncCache", {});
+}
+
+/**
+ * Records from the cache, opened: all of them, or those asked for.
+ * @param {string[]} [ids]
+ * @returns {Promise<Opened[]>}
+ */
+export function readCache(ids) {
+  return call("readCache", { ids });
+}
+
+/**
+ * Saves records and deletes others, all or none.
+ * @param {{ writes?: { kind: string, id: string, base_version: number, body: Record<string, unknown> }[],
+ *   deletes?: { kind: string, id: string, base_version: number, files?: string[] }[] }} batch
+ * @returns {Promise<{ saved: { kind: string, id: string, version: number | null }[] } | { stale: string[] }>}
+ */
+export function saveRecords(batch) {
+  return call("saveRecords", batch);
+}
+
+/**
+ * A new identity key pair, kept in the Worker; the seed comes out sealed.
+ * @returns {Promise<{ publicKey: string, sealedSeed: string }>}
+ */
+export function makeIdentity() {
+  return call("makeIdentity", {});
+}
+
 /**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock

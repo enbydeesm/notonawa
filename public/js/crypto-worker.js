@@ -14,6 +14,8 @@
 import { VaultCore } from "./crypto/vault-core.js";
 import { WrongSecret } from "./crypto/keys.js";
 import { TooLong, CantOpen } from "./crypto/fields.js";
+import { openCache } from "./cache/db.js";
+import { webLock } from "./cache/sync.js";
 
 // The ties' search index, fetched here (with the session cookie, as the
 // page's requests are) so the notes in it are only ever opened in here.
@@ -51,7 +53,38 @@ async function loadShareFile(shareId, fileId, part) {
   return res.arrayBuffer();
 }
 
-const vault = new VaultCore(loadIndex, loadPart, loadShareFile);
+// A sealed part of a format v3 file (format 2), fetched here as photos are.
+/**
+ * @param {string} fileId
+ * @param {"thumb" | "full"} part
+ */
+async function loadFile(fileId, part) {
+  const res = await fetch(`/api/files/${encodeURIComponent(fileId)}/${part}`, { credentials: "same-origin" });
+  if (!res.ok) throw new Error("Couldn't load the photo. Reload the page and try again.");
+  return res.arrayBuffer();
+}
+
+// Records (format 2): the cache, and the routes that sync and save them,
+// called from here so the Worker keeps the cache and the server in step.
+// A reply saying the page is out of date (410) asks for a reload.
+/** @type {import("./crypto/vault-core.js").CacheIo} */
+const cacheIo = {
+  open: (userId) => openCache(userId),
+  async fetchSync(since) {
+    const res = await fetch(`/api/sync?since=${since}`, { credentials: "same-origin" });
+    if (!res.ok) throw new Error(res.status === 410 ? "Reload the app to carry on." : "Couldn't sync your journal. Check your connection.");
+    return res.json();
+  },
+  async postRecords(batch) {
+    const res = await fetch("/api/records", {
+      method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(batch),
+    });
+    return { status: res.status, body: await res.json().catch(() => null) };
+  },
+  exclusive: (userId) => webLock(`notonawa-sync-${userId}`),
+};
+
+const vault = new VaultCore(loadIndex, loadPart, loadShareFile, loadFile, cacheIo);
 
 /** @type {Record<string, (args: any) => Promise<unknown>>} */
 const OPERATIONS = {
@@ -74,6 +107,14 @@ const OPERATIONS = {
   openShareThumb: (args) => vault.openShareThumb(args),
   adoptShareFile: (args) => vault.adoptShareFile(args),
   copyMedia: (args) => vault.copyMedia(args),
+  // Format 2.
+  recordIds: (args) => vault.recordIds(args),
+  openCache: () => vault.openCache(),
+  syncCache: () => vault.syncCache(),
+  readCache: (args) => vault.readCache(args),
+  saveRecords: (args) => vault.saveRecords(args),
+  makeIdentity: () => vault.makeIdentity(),
+  openIdentity: (args) => vault.openIdentity(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied

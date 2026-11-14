@@ -30,15 +30,20 @@ const PASSKEY_WRAP_PATH = /^\/api\/keys\/passkeys\/([^/]+)$/;
 export async function handleKeys(request, env, user, url) {
   const db = env.DB;
 
-  // GET /api/keys -> { user_id, has_key, recovery, passkey_id, passkey }:
+  // GET /api/keys -> { user_id, has_key, recovery, passkey_id, passkey,
+  //   format, converting }:
   //   the wraps the browser needs to unlock. recovery is the recovery wrap
   //   (with current: false if the recovery code was replaced without it,
   //   by the operator); passkey is the wrap for the passkey this session
-  //   signed in with, if it has one. Also allowed in a recovery session.
+  //   signed in with, if it has one. format: 1 or 2 (src/format.js), and
+  //   whether it's being converted, so the page knows which store to use.
+  //   Also allowed in a recovery session.
   if (url.pathname === "/api/keys" && request.method === "GET") {
     const passkeyId = user.session.passkey_id;
     const { recovery, passkey } = await getWraps(db, user.id, passkeyId);
-    return json({ user_id: user.id, has_key: recovery !== null, recovery, passkey_id: passkeyId, passkey });
+    return json({
+      user_id: user.id, has_key: recovery !== null, recovery, passkey_id: passkeyId, passkey, format: user.format, converting: user.converting,
+    });
   }
 
   // POST /api/keys/setup  body { recovery_secret, recovery_wrap,

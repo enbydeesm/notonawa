@@ -8,7 +8,7 @@ import {
   newItemKey, openItemKey, sealBody, openBody, pad, itemKeyData, bodyData, TooBig, PAD_BYTES, MAX_BODY_BYTES, RECORD_KINDS,
 } from "../../public/js/crypto/records.js";
 import { CantOpen } from "../../public/js/crypto/fields.js";
-import { idKeyFrom, convertedId, selfId, newId, uuidFrom } from "../../public/js/records/ids.js";
+import { idKeyFrom, convertedId, selfId, settingsId, newId, uuidFrom } from "../../public/js/records/ids.js";
 import { newDataKey, wrapDataKey, unwrapKeyMaterial, keyMaterialOf } from "../../public/js/crypto/keys.js";
 
 /**
@@ -50,6 +50,7 @@ describe("fixed vectors", () => {
     const idKey = await idKeyFrom(await fixedMaterial(), USER);
     expect(await convertedId(idKey, USER, "ties", 42)).toBe("ab29faf3-96d7-85ad-9fb9-f6783d3b68ee");
     expect(await selfId(idKey, USER)).toBe("21a97991-da6c-83f5-92fa-026be58461af");
+    expect(await settingsId(idKey, USER)).toBe("0a33ddc9-cd98-8c2b-9fbb-bca0321a0953");
   });
 
   it("bind to these strings", () => {

@@ -422,7 +422,7 @@ describe("encryption keys", () => {
     const { kind: _p, ...ofPasskey } = passkeyWrap;
     expect(await keys(cookie)).toEqual({
       user_id: expect.any(String), has_key: true, passkey_id: passkey.id,
-      recovery: { ...recovery, kind: "recovery", current: true }, passkey: { ...ofPasskey, kind: "passkey" },
+      recovery: { ...recovery, kind: "recovery", current: true }, passkey: { ...ofPasskey, kind: "passkey" }, format: 1, converting: false,
     });
     expect((await call("/api/account", { cookie })).body.passkeys).toMatchObject([{ unlocks: true }]);
   });
