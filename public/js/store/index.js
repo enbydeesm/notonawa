@@ -8,7 +8,10 @@
 // plain text in, opened rows out. Sealing, opening and searching notes for
 // a keyword happen inside.
 
-export { findTies, getTie, saveTie, deleteTie, recentOnTies } from "./v1/ties.js";
+import * as v1Ties from "./v1/ties.js";
+import * as v2Ties from "./v2/ties.js";
+import * as v1Stats from "./v1/stats.js";
+import * as v2Stats from "./v2/stats.js";
 import * as v1Resources from "./v1/resources.js";
 import * as v2Resources from "./v2/resources.js";
 import { accountFormat } from "./v2/journal.js";
@@ -25,6 +28,12 @@ function byFormat(v1, v2) {
   return /** @type {F} */ ((...args) => (accountFormat() === 2 ? v2 : v1)(...args));
 }
 
+export const findTies = byFormat(v1Ties.findTies, v2Ties.findTies);
+export const getTie = byFormat(v1Ties.getTie, v2Ties.getTie);
+export const saveTie = byFormat(v1Ties.saveTie, v2Ties.saveTie);
+export const deleteTie = byFormat(v1Ties.deleteTie, v2Ties.deleteTie);
+export const recentOnTies = byFormat(v1Ties.recentOnTies, v2Ties.recentOnTies);
+export const statsTies = byFormat(v1Stats.statsTies, v2Stats.statsTies);
 export const listItems = byFormat(v1Resources.listItems, v2Resources.listItems);
 export const saveItem = byFormat(v1Resources.saveItem, v2Resources.saveItem);
 export const archiveItem = byFormat(v1Resources.archiveItem, v2Resources.archiveItem);
@@ -46,7 +55,6 @@ import * as v2Tags from "./v2/tags.js";
 
 export const listTags = byFormat(v1Tags.listTags, v2Tags.listTags);
 export const deleteTag = byFormat(v1Tags.deleteTag, v2Tags.deleteTag);
-export { statsTies } from "./v1/stats.js";
 export { getSettings, saveSettings } from "./v1/settings.js";
 export { exportSealed, importItems, importTies, importWorkshops } from "./v1/data.js";
 export {

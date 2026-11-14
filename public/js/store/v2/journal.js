@@ -116,6 +116,14 @@ export function records(kind) {
 }
 
 /**
+ * Every readable record, by id, for the queries to look links up in.
+ * @returns {Map<string, Entry>}
+ */
+export function byId() {
+  return new Map(state ? [...state.records].filter(([, r]) => r.body) : []);
+}
+
+/**
  * One record, if it's here and readable.
  * @param {string} id
  * @returns {Entry | null}

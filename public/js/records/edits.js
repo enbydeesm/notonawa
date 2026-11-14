@@ -222,13 +222,129 @@ export function planDeleted(plan, others, linkedTies, now) {
       writes.push({ kind: "plan", id: item.id, from: body, body: { ...rest, updated_at: now } });
     }
   }
-  const visuals = Array.isArray(plan.body?.visuals) ? plan.body.visuals : [];
-  return {
-    writes,
-    deletes: [
-      ...visuals.filter((/** @type {any} */ v) => v?.kind === "drawing" || v?.kind === "pose")
-        .map((/** @type {any} */ v) => ({ kind: v.kind, id: v.id })),
-      { kind: "plan", id: plan.id, files: visuals.filter((/** @type {any} */ v) => v?.kind === "file").map((/** @type {any} */ v) => v.id) },
-    ],
-  };
+  return { writes, deletes: itemDeletes(plan) };
+}
+
+/**
+ * The deletes for a tie, plan or workshop going for good: its drawings and
+ * poses (records of their own), then the item, freeing its photos' and
+ * videos' files.
+ * @param {Entry} item
+ * @returns {{ kind: any, id: string, files?: string[] }[]}
+ */
+export function itemDeletes(item) {
+  const visuals = Array.isArray(item.body?.visuals) ? item.body.visuals : [];
+  return [
+    ...visuals.filter((/** @type {any} */ v) => v?.kind === "drawing" || v?.kind === "pose")
+      .map((/** @type {any} */ v) => ({ kind: v.kind, id: v.id })),
+    { kind: item.kind, id: item.id, files: visuals.filter((/** @type {any} */ v) => v?.kind === "file").map((/** @type {any} */ v) => v.id) },
+  ];
+}
+
+/** What a tie without a type is told, as the server's (src/ties/parse.js). */
+export const TYPE_NEEDED = "Choose a tie type: suspension, partial suspension, floor or hashira.";
+const NOT_FOUND = "Linked item not found.";
+
+/**
+ * Links on a tie to people, plans or a location deleted since, which the
+ * edit form shows as "(… deleted)": the ones it keeps, by the link ids its
+ * rows had (store/queries/ties.js: "p<n>" and "l<n>", their place in the
+ * record's lists).
+ * @typedef {{ participants?: string[], plans?: string[], location?: boolean }} KeptDeleted
+ */
+
+/**
+ * A tie's record from the tie form's fields (as format 1's API takes them),
+ * with its tags' ids. Who took part and which plans are checked to be mine;
+ * a person kept in the same role keeps their entry (and any ratings and
+ * notes on it, which only an import sets); a plan kept keeps the version
+ * recorded, an added one gets the plan's; deleted people, plans and
+ * location stay only if the form keeps them. Its visuals and anything the
+ * form hasn't stay as they were.
+ * @param {Record<string, any>} fields
+ * @param {Record<string, any> | null} prev
+ * @param {{ tagIds: string[], has: (kind: string, id: string) => Entry | null, now: string }} where
+ */
+export function tieBody(fields, prev, { tagIds, has, now }) {
+  const tieDate = dateOrNull(fields.tie_date);
+  if (!tieDate) throw new BadEdit("Add a date.");
+  const tieType = choiceOrNull(fields.tie_type, TIE_TYPES);
+  if (!tieType) throw new BadEdit(TYPE_NEEDED);
+  /** @type {KeptDeleted} */
+  const keep = prev && fields.keep_deleted && typeof fields.keep_deleted === "object" ? fields.keep_deleted : {};
+  const locationId = cleanText(fields.location_id);
+  if (locationId && !has("location", locationId)) throw new BadEdit(NOT_FOUND);
+  const workshopId = cleanText(fields.workshop_id);
+  if (workshopId && !has("workshop", workshopId)) throw new BadEdit(NOT_FOUND);
+
+  const prevPeople = Array.isArray(prev?.participants) ? prev.participants : [];
+  const participants = [
+    ...prevPeople.filter((/** @type {any} */ p, /** @type {number} */ i) => !p?.person_id && (keep.participants ?? []).includes(`p${i}`)),
+    ...participantsOf(fields.participants).map(({ person_id, role }) => {
+      if (!has("person", person_id)) throw new BadEdit(NOT_FOUND);
+      return prevPeople.find((/** @type {any} */ p) => p?.person_id === person_id && p?.role === role) ?? { person_id, role };
+    }),
+  ];
+  const prevPlans = Array.isArray(prev?.plans) ? prev.plans : [];
+  const plans = [
+    ...prevPlans.filter((/** @type {any} */ p, /** @type {number} */ i) => !p?.plan_id && (keep.plans ?? []).includes(`l${i}`)),
+    ...planIdsOf(fields.plan_ids).map((planId) => {
+      const plan = has("plan", planId);
+      if (!plan) throw new BadEdit(NOT_FOUND);
+      return prevPlans.find((/** @type {any} */ p) => p?.plan_id === planId) ?? { plan_id: planId, plan_version: plan.body?.version ?? 1 };
+    }),
+  ];
+  const { location_deleted: wasDeleted, ...rest } = prev ?? {};
+  return compact({
+    ...rest,
+    title: cleanText(fields.title),
+    tie_date: tieDate,
+    tie_type: tieType,
+    notes: cleanText(fields.notes),
+    album_url: cleanText(fields.album_url),
+    duration_minutes: intOrNull(fields.duration_minutes, 0, 1440),
+    success_rating: intOrNull(fields.success_rating, 1, 5),
+    location_id: locationId,
+    location_deleted: !locationId && wasDeleted && keep.location === true ? true : null,
+    workshop_id: workshopId,
+    participants: participants.length ? participants : null,
+    plans: plans.length ? plans : null,
+    tags: tagIds.length ? tagIds : null,
+    created_at: prev?.created_at ?? now,
+    updated_at: now,
+  });
+}
+
+/**
+ * A tie's people from the form: each a person and a role, up to 20, the
+ * same person in the same role once. As src/ties/parse.js.
+ * @param {unknown} value
+ * @returns {{ person_id: string, role: string }[]}
+ */
+export function participantsOf(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 20) throw new BadEdit("Participants should be a list of up to 20 people.");
+  const seen = new Set();
+  /** @type {{ person_id: string, role: string }[]} */
+  const result = [];
+  for (const item of value) {
+    const personId = cleanText(item?.person_id);
+    const role = roleOrNull(item?.role);
+    if (!personId || !role) throw new BadEdit("Each participant needs a person and a role.");
+    if (seen.has(`${personId}|${role}`)) continue;
+    seen.add(`${personId}|${role}`);
+    result.push({ person_id: personId, role });
+  }
+  return result;
+}
+
+/**
+ * A tie's plans from the form: up to 20 ids, each once.
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+export function planIdsOf(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 20) throw new BadEdit("Plans should be a list of up to 20 plans.");
+  return [...new Set(value.map(cleanText).filter((id) => id !== null))];
 }

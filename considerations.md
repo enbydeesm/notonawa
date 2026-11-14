@@ -3427,3 +3427,26 @@ Phase 4, slice 3: plans and tags in format 2.
   save (several batches if over 50, the plan's delete last).
 - **A plan's `version`** stays 1, as format 1's never rose either; ties
   keep the version they were logged against.
+
+## Encrypt everything: ties and Analytics as built (November 2026)
+
+Phase 4, slice 4: ties, the Ties search, the recent pickers and Analytics'
+ties in format 2.
+
+- **The search runs in memory** (`store/queries/ties.js`), with format 1's
+  filters (people: all of them; locations: any; tags: any or all; dates
+  inclusive), order (date, then when logged, then id, so pages never
+  shift; oldest first exactly reversed) and paging. The keyword is matched
+  in memory too, over titles, notes and linked plans' titles, the same
+  `search-match.js` the crypto Worker uses for format 1: format 2's notes
+  are already open in the page, so nothing more is exposed.
+- **Rows match format 1's**: `src/ties/db.js` exports `TIE_COLUMNS` so a
+  unit test can check the columns. People and plans with no name (deleted)
+  sort first, as SQLite sorts NULL.
+- **Link ids**: format 1's link rows had ids, which the edit form sends
+  back to keep a deleted person or plan. Format 2's entries have none, so
+  a row's link id is its place in the record's list (`p0`, `l1`), stable
+  for as long as the form is open; a conflicting edit from another device
+  is carried over field by field (the whole list as one field).
+- **A person kept in the same role keeps their entry** (an import's ratings
+  and notes on it), and a plan kept its recorded version, as in format 1.

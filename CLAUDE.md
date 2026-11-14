@@ -452,7 +452,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   rules across records the database kept for format 1: one default
   location, "Me" not archived or deleted, a deleted person or location
   left on ties and workshops as "(… deleted)", a plan's variation and
-  deletion (its ties' choice, its drawings, poses and files); each gives
+  deletion (its ties' choice, its drawings, poses and files), a tie from
+  its form (`tieBody`: links checked to be mine, a person kept in the same
+  role keeping their entry, a plan its version, deleted links kept only
+  as the form says), `itemDeletes` (an item's drawings, poses and files);
+  each gives
   the writes for one batch), `records/tags.js` (pure: tag names read as
   the server does, matched to my tag records ignoring capitals, new ones
   made in the same batch; a deleted tag taken off everything), the cache:
@@ -635,8 +639,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   format 2's, over the journal in memory (`v2/journal.js`), chosen when
   each function is called by the account's format (`byFormat` in
   `index.js`; an area not yet built for v2 is v1's only):
-  `v2/resources.js` (plans, people and locations) and `v2/tags.js`, with
-  the pages' rows made by the pure `queries/` (`queries/resources.js`,
+  `v2/resources.js` (plans, people and locations), `v2/tags.js`,
+  `v2/ties.js` (the keyword searched in memory, `search-match.js` over
+  `queries/ties.js`'s `searchIndex`) and `v2/stats.js`, with the pages'
+  rows made by the pure `queries/` (`queries/ties.js`: the Ties search's
+  filters (`readTieFilters`, the server's messages), order and paging, a
+  tie's row (format 1's `TIE_COLUMNS`, a unit test checks; each person's
+  and plan's entry with a link id, `p<n>`/`l<n>`, its place in the record,
+  for the form's `keep_deleted`), `recentOn` and Analytics' `statsRows`;
+  `queries/resources.js`,
   `queries/plans.js` (tags by name, linked ties newest first, the
   workshop's title, visuals counted) and `queries/tags.js` (most recently
   on a tie first, with counts): format 1's columns, unit tests check, and

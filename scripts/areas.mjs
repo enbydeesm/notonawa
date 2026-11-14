@@ -192,7 +192,7 @@ export const AREAS = [
     name: "ties",
     files: ["src/ties/", "public/js/tie-form.js", "public/js/search-picker.js", "public/js/search-choices.js",
       "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/ties-view.js", "public/js/views/ties.js",
-      "public/js/links.js", "public/js/person-rows.js", "public/js/store/v1/ties.js"],
+      "public/js/links.js", "public/js/person-rows.js", "public/js/store/v1/ties.js", "public/js/store/v2/ties.js", "public/js/store/queries/ties.js"],
     ui: ["ties", "plans", "search", "notes", "deleting", "education"],
   },
   {
@@ -275,7 +275,7 @@ export const AREAS = [
   },
   {
     name: "insights",
-    files: ["src/stats/", "public/js/store/v1/stats.js", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
+    files: ["src/stats/", "public/js/store/v1/stats.js", "public/js/store/v2/stats.js", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
       "public/js/chart-parts.js", "public/js/tie-list-dialog.js", "public/js/views/calendar.js",
       "public/js/views/analytics.js", "public/js/map-geo.js", "public/js/world-map.js", "public/js/world-shapes.js",
       "scripts/world-map.mjs", "scripts/world-map-lib.mjs", "public/js/workshop-stats.js"],
