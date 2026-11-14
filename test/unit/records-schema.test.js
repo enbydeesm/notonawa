@@ -135,3 +135,11 @@ describe("checkRecord", () => {
     expect(recordProblems("tie", [])).toEqual(["a record should be an object"]);
   });
 });
+
+describe("the settings record (found converting)", () => {
+  it("keeps the default body as the poser's four sliders", () => {
+    expect(recordProblems("settings", { top_label: "Rigger", default_shape: [50, 50, 50, 170] })).toEqual([]);
+    expect(recordProblems("settings", { default_shape: { gender: 50 } })).toEqual(["default_shape should be a list"]);
+    expect(recordProblems("settings", { default_shape: [1, 2, 3, 4, 5] })).toEqual(["default_shape has more than 4"]);
+  });
+});

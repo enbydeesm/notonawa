@@ -390,6 +390,16 @@ export function copyFile(args) {
 }
 
 /**
+ * Converting: one of my format 1 photos or videos sealed as a v3 file under
+ * a new key, in the Worker. Throws CantOpen if it won't open.
+ * @param {{ mediaId: string, kind: "photo" | "video", newFileId: string }} args
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function convertMedia(args) {
+  return call("convertMedia", args);
+}
+
+/**
  * One of my v3 files sealed again for a share (format 2): opened in the
  * Worker with its key, sealed with the link's.
  * @param {{ shareId: string, key: string, fileId: string, sourceId: string, sourceKey: string, kind: "photo" | "video" }} args

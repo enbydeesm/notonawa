@@ -3592,3 +3592,29 @@ account, is met: every chunk passes on both formats.
 - **Dev sign-ups are format 2** (`NEW_ACCOUNT_FORMAT` in `env.dev`); dev's
   existing accounts stay format 1, for converting in phase 5. Production
   stays format 1 until the release.
+
+## Encrypt everything: conversion as built (November 2026)
+
+Phase 5, slice 1: converting a format 1 journal on the device
+(`convert/plan.js`, `store/convert.js`, the Worker's `convertMedia`). The
+dialog, the on/off switch and the walkthrough come next.
+
+- **Read through the store**: format 1's `exportJournal` already opens
+  everything (notes, captions), so the conversion plans from what the
+  export would hold, and a unit test checks a converted journal exports
+  exactly as it did before. The export has no ids for saved presets, so
+  their ids come from the presets list (same order).
+- **Ids**: every record's is worked out in the crypto Worker from its
+  format 1 table and old id; tags (listed by name) from their name
+  ignoring capitals; profile notes from their person and place; "Me" and
+  the settings record their fixed ids. A run started again writes the same
+  records.
+- **Files first, then records, then a read-back, then the finish**: every
+  converted file is read back and opened before going on; a file an
+  interrupted run uploaded before its record was saved is made again
+  (its key went with that run). Records already saved are skipped. Only
+  when every planned record reads back does the finish make the account
+  format 2 and delete the old rows.
+- **Found converting**: the schema read the settings record's default body
+  as an object; it's the poser's four sliders, a list. Saving a default
+  body in format 2 would have been refused (fixed, with a test).

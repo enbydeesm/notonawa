@@ -366,6 +366,20 @@ export class VaultCore {
   }
 
   /**
+   * Converting to format 2: one of my format 1 photos or videos, fetched and
+   * opened as format 1 seals them, and sealed as a v3 file under a new key
+   * of its own (for its item's record). What's opened never leaves the
+   * Worker. Throws CantOpen if it won't open.
+   * @param {{ mediaId: string, kind: "photo" | "video", newFileId: string }} args
+   * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+   */
+  async convertMedia({ mediaId, kind, newFileId }) {
+    const thumb = await this.openPhoto({ mediaId, part: "thumb", kind });
+    const full = await this.openPhoto({ mediaId, part: "full", kind });
+    return this.sealFile({ fileId: newFileId, thumb, full });
+  }
+
+  /**
    * Format 2: one of my v3 files, fetched and opened with the key from its
    * record, and sealed again for a share with its link's key, as the object
    * to upload. What's opened never leaves the Worker.

@@ -291,6 +291,13 @@ export const AREAS = [
     ui: ["basics"],
   },
   {
+    // Converting a format 1 journal to format 2 (phase 5). The dialog and
+    // its walkthrough chunk come next; until then, basics.
+    name: "convert",
+    files: ["public/js/convert/", "public/js/store/convert.js"],
+    ui: ["basics"],
+  },
+  {
     // Identity keys, the acceptance, pair-key messages and safety numbers:
     // the crypto Worker loads them too.
     name: "contacts",

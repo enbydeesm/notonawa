@@ -7,10 +7,9 @@ import { roleName, defaultShape, settingsChanged, SHAPE_RANGES } from "../../pub
 import { journalExport, photoFile } from "../../public/js/store/queries/export.js";
 import { exportDocument, photoFile as serverPhotoFile } from "../../src/data/shape.js";
 import { SHAPE_RANGES as SERVER_SHAPES } from "../../src/poses/parse.js";
+import { rows, T1, T2, aliases, shape, pose } from "../journal-rows.js";
 
 const NOW = "2026-11-14T12:00:00Z";
-const T1 = "2026-01-01T00:00:00Z";
-const T2 = "2026-02-01T00:00:00Z";
 
 describe("the settings record", () => {
   it("reads role names and the default body as the server does", () => {
@@ -31,48 +30,8 @@ describe("the settings record", () => {
 });
 
 describe("the export", () => {
-  const aliases = JSON.stringify([{ platform: "fetlife", alias: "sam" }]);
-  const shape = { v: 1, strokes: [{ c: "red", w: 2, p: [1, 1] }] };
-  const pose = { v: 1, joints: {} };
 
-  // Format 1: the rows src/data/db.js reads.
-  const rows = {
-    user: { created_at: T1, accepted_at: T1, terms_version: "1", recovery_email_set: 0, top_label: "Rigger", bottom_label: null,
-      theme: "dark", seen_release: null, hide_welcome: 0, default_shape: "[50,50,50,170]" },
-    passkeys: [],
-    people: [
-      { id: "me", name: "Me", pronouns: null, notes: null, is_self: 1, default_role: "top", is_educator: 0, based_in: null, aliases: null,
-        about: "Hi", about_shared_on: null, connection_id: null, archived_at: null, created_at: T1, updated_at: T1 },
-      { id: "sam", name: "Sam", pronouns: "they", notes: "Notes", is_self: 0, default_role: null, is_educator: 1, based_in: "Leeds",
-        aliases, about: null, about_shared_on: "2026-01-02", connection_id: null, archived_at: T2, created_at: T2, updated_at: T2 },
-    ],
-    profileNotes: [{ person_id: "sam", type: "limit", description: "No neck", noted_on: "2026-01-03", is_current: 1, created_at: T2, updated_at: T2 }],
-    locations: [{ id: "studio", name: "Studio", notes: null, maps_url: "https://maps.google.com/?q=1,2", city: "Leeds", state_province: null,
-      country: "UK", latitude: 1, longitude: 2, is_default: 1, archived_at: null, created_at: T1, updated_at: T1 }],
-    plans: [{ id: "tk", title: "TK", stage: "idea", plan_type: "harness", tie_type: null, description: "D", notes: null, album_url: null,
-      est_difficulty: 3, variation_of: null, version: 1, archived_at: null, created_at: T1, updated_at: T1, workshop_id: "w1" }],
-    planTags: [{ plan_id: "tk", name: "box" }],
-    tags: [{ name: "Ankle" }, { name: "box" }],
-    ties: [{ id: "t1", title: "Session", tie_date: "2026-01-05", tie_type: "floor", duration_minutes: 60, success_rating: 4, notes: "N",
-      album_url: null, location_id: "studio", location_deleted: 0, created_at: T1, updated_at: T1, workshop_id: "w1" }],
-    participants: [
-      { tie_id: "t1", person_id: "sam", role: "bottom", difficulty_rating: 3, experience_rating: null, notes: null },
-      { tie_id: "t1", person_id: null, role: "spotter", difficulty_rating: null, experience_rating: null, notes: null },
-    ],
-    tiePlans: [{ tie_id: "t1", plan_id: "tk", plan_version: 1 }],
-    tieTags: [{ tie_id: "t1", name: "Ankle" }, { tie_id: "t1", name: "box" }],
-    workshops: [{ id: "w1", title: "Intro", start_date: "2026-01-04", end_date: null, location_id: null, location_deleted: 1, attendee_count: 8,
-      rating: 5, difficulty: null, rating_content: null, rating_teaching: null, rating_value: null, cost: "USD 10.00", event_url: null,
-      description: null, notes: null, album_url: null, created_at: T1, updated_at: T1 }],
-    workshopPeople: [{ workshop_id: "w1", person_id: "sam", kind: "educator", role: "top" }],
-    workshopTags: [],
-    media: [{ id: "f1", tie_id: "t1", kind: "photo", mime: "image/webp", caption: "Front", position: 0, created_at: T1 }],
-    drawings: [{ id: "d1", tie_id: "t1", data: JSON.stringify(shape), caption: null, position: 1, created_at: T1, updated_at: T1 }],
-    poses: [{ id: "q1", plan_id: "tk", data: JSON.stringify(pose), caption: "Kneel", position: 0, created_at: T1, updated_at: T1 }],
-    notices: [], feedback: [], shares: [], connections: [],
-    posePresets: [{ kind: "arms", name: "Box", data: JSON.stringify({ joints: {} }), created_at: T1, updated_at: T1 }],
-  };
-
+  // Format 1: the rows src/data/db.js reads (test/journal-rows.js).
   // Format 2: the same journal as records.
   /** @param {string} kind @param {string} id @param {Record<string, any>} body */
   const e = (kind, id, body) => ({ kind, id, body });

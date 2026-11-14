@@ -222,7 +222,8 @@ export const FIELDS = {
   drawing: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption) },
   pose: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption), picture: id },
   pose_preset: { ...STAMPS, kind: required(oneOf(["body", "arms"])), name: text(LIMITS.shortText), data: required(object) },
-  settings: { ...STAMPS, top_label: text(LIMITS.roleName), bottom_label: text(LIMITS.roleName), default_shape: object },
+  // default_shape: the poser's body sliders, [gender, muscle, weight, height] (records/settings.js checks their ranges).
+  settings: { ...STAMPS, top_label: text(LIMITS.roleName), bottom_label: text(LIMITS.roleName), default_shape: list(number(0, 1000), 4) },
   // Its fields come with contacts (phase 6).
   contact: { ...STAMPS, person_id: id },
 };

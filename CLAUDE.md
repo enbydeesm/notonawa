@@ -449,7 +449,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
   `records/schema.js` (pure: each kind's fields and the checks on one
   record), `records/parse.js` (pure: the server's field parsers, with its
-  messages, `BadEdit`; `stamp`, `compact`), `records/import.js` (pure:
+  messages, `BadEdit`; `stamp`, `compact`), converting (phase 5):
+  `convert/plan.js` (pure: a format 1 journal, as `store/v1/data.js`'s
+  `exportJournal` opens it, as format 2 records: `idRequests` (every id to
+  work out: by format 1 table and old id, tags by name, profile notes by
+  person and place), `planConversion` (one record per item, links and the
+  visuals' order folded in, "Me" and the settings at their fixed ids;
+  `keepWithinRules` moves a field that breaks a rule into `unconverted`),
+  `withFileKeys`; a unit test converts a journal and checks its format 2
+  export is format 1's) and `store/convert.js` (`convertJournal`: start,
+  read, plan, identity key, files (the Worker's `convertMedia`: a format 1
+  photo sealed as a v3 file; each read back), records in batches, read
+  back, finish; each step safe to repeat, an interrupted run picking up
+  where it got to; `stopAt` for tests), `records/import.js` (pure:
   format 1's import on the device: the server's parsing and messages,
   matching people, locations and plans by name, new tags, duplicate ties
   and workshops (the same but for their notes) for the page to compare; a
