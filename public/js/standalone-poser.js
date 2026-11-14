@@ -10,7 +10,7 @@ import { openPlanForm } from "./plan-form.js";
 import { openWorkshopForm } from "./workshop-form.js";
 import { savePose } from "./poses-ui.js";
 import { preparePhoto } from "./photo-prep.js";
-import { uploadPhoto } from "./photo-upload.js";
+import { uploadPhoto } from "./store/index.js";
 import { chooseAddTarget, rememberTarget, forgetTarget } from "./add-to-picker.js";
 import { itemOf, kindName } from "./add-to-choices.js";
 import { TIE_SAVED, PLAN_SAVED, WORKSHOP_SAVED } from "./nav.js";

@@ -44,7 +44,7 @@ export default async function () {
     const canvas = new OffscreenCanvas(40, 30);
     const g = canvas.getContext("2d"); g.fillStyle = "#c33"; g.fillRect(0, 0, 40, 30);
     const full = await (await canvas.convertToBlob({ type: "image/jpeg" })).arrayBuffer();
-    const { uploadPhoto } = await import("/js/photo-upload.js");
+    const { uploadPhoto } = await import("/js/store/index.js");
     await uploadPhoto({ item: { tie_id: ${JSON.stringify(tieId)} }, prepared: { thumb: full.slice(0), full, mime: "image/jpeg" }, caption: "Front" });
     // Its cost and event link are sealed, as the form seals them.
     await post("/api/workshops", await sealOne("workshop", { title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",

@@ -14,14 +14,14 @@
 // at a speed chosen there; video-prep.js (and the library it uses) is only
 // loaded once a video is chosen.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
 import { choose } from "./dialog.js";
 import { preparePhoto } from "./photo-prep.js";
 import { ACCEPT } from "./photo-fit.js";
 import { VIDEO_ACCEPT, isVideo } from "./video-fit.js";
-import { openPhoto, sealCaption, openMedia, copyMedia, CantOpen } from "./vault.js";
-import { uploadPhoto, uploadSealed } from "./photo-upload.js";
+import { openPhoto, copyMedia, CantOpen } from "./vault.js";
+import { uploadPhoto, uploadSealed, listMedia, setMediaCaption, deleteMedia } from "./store/index.js";
 import { photoUrl, revoke } from "./photo-urls.js";
 import { viewerParts } from "./visual-viewer.js";
 import { iconButton } from "./dialog-icons.js";
@@ -87,12 +87,9 @@ export function photoKind(ctx) {
    * @returns {Promise<Photo[]>}
    */
   async function load(item) {
-    /** @type {{ id: string, kind: "photo" | "video", mime: string, caption: string | null, position: number, created_at: string }[]} */
-    const listed = await api(`/api/media?${new URLSearchParams(item)}`);
-    const opened = await openMedia(listed);
-    const loaded = opened.map((p, i) => /** @type {Photo} */ ({
+    const loaded = (await listMedia(item)).map((p) => /** @type {Photo} */ ({
       id: p.id, kind: p.kind, mime: p.mime, caption: p.caption, unreadable: !!p.unreadable,
-      position: listed[i].position, created_at: listed[i].created_at,
+      position: p.position, created_at: p.created_at,
     }));
     photos = loaded;
     Promise.all(loaded.map(loadThumb));
@@ -255,7 +252,7 @@ export function photoKind(ctx) {
       nav: ctx.nav(photo), tell,
       save: async (text) => {
         if (!photo.prepared) {
-          await api(`/api/media/${photo.id}`, { method: "PATCH", body: { caption: await sealCaption(photo.id, text ?? "") } });
+          await setMediaCaption(photo.id, text);
         }
         photo.caption = text;
         if (image instanceof HTMLImageElement) image.alt = text ?? "";
@@ -336,7 +333,7 @@ export function photoKind(ctx) {
       });
       if (choice !== "delete") return;
       try {
-        if (!photo.prepared) await api(`/api/media/${photo.id}`, { method: "DELETE" });
+        if (!photo.prepared) await deleteMedia(photo.id);
         photos = photos.filter((p) => p !== photo);
         forget(photo);
         ctx.remove(photo);

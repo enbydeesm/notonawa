@@ -13,10 +13,10 @@
 // is (savePending), as they need its id. A waiting drawing can still be
 // copied elsewhere straight away.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
-import { open, sealOne } from "./vault.js";
+import { listDrawings, addDrawing, updateDrawing, deleteDrawing } from "./store/index.js";
 import { MAX_DRAWINGS } from "./drawing-format.js";
 import { drawingSvg } from "./drawing-svg.js";
 import { editDrawing } from "./drawing-editor.js";
@@ -42,8 +42,7 @@ import { iconButton } from "./dialog-icons.js";
  * @returns {Promise<string>} its id
  */
 export async function saveDrawing(item, { data, caption }) {
-  const { caption: sealed } = await sealOne("drawing", { caption });
-  return (await api("/api/drawings", { method: "POST", body: { ...item, data, caption: sealed } })).id;
+  return addDrawing(item, { data, caption });
 }
 
 /**
@@ -60,9 +59,7 @@ export function drawingKind(ctx) {
    * @returns {Promise<Entry[]>}
    */
   async function load(item) {
-    /** @type {{ id: string, data: Drawing, caption: string | null, position: number, created_at: string }[]} */
-    const listed = await api(`/api/drawings?${new URLSearchParams(item)}`);
-    const opened = await open("drawing", listed);
+    const opened = await listDrawings(item);
     drawings = opened.map((d) => ({
       id: d.id, data: d.data, caption: d.caption, unreadable: !!d.unreadable?.length, position: d.position, created_at: d.created_at,
     }));
@@ -114,8 +111,7 @@ export function drawingKind(ctx) {
       nav: ctx.nav(entry), tell,
       save: async (text) => {
         if (entry.id) {
-          const { caption } = await sealOne("drawing", { caption: text });
-          await api(`/api/drawings/${entry.id}`, { method: "PUT", body: { caption } });
+          await updateDrawing(entry.id, { caption: text });
         }
         entry.caption = text;
         entry.unreadable = false;
@@ -151,7 +147,7 @@ export function drawingKind(ctx) {
       try {
         if (entry.id) {
           tell("Saving…");
-          await api(`/api/drawings/${entry.id}`, { method: "PUT", body: { data } });
+          await updateDrawing(entry.id, { data });
         }
         entry.data = data;
         picture.replaceChildren(drawingSvg(data.strokes));
@@ -195,7 +191,7 @@ export function drawingKind(ctx) {
       });
       if (choice !== "delete") return;
       try {
-        if (entry.id) await api(`/api/drawings/${entry.id}`, { method: "DELETE" });
+        if (entry.id) await deleteDrawing(entry.id);
         drawings = drawings.filter((d) => d !== entry);
         ctx.remove(entry);
         dialog.close();

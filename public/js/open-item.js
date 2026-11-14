@@ -19,7 +19,7 @@ import { h, showMessage, privateField } from "./dom.js";
 import { seal, open, forgetSearch, openShareThumb, adoptShareFile } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readItemShare, isMedia, visualCounts } from "./share-item.js";
-import { uploadSealed } from "./photo-upload.js";
+import { uploadSealed } from "./store/index.js";
 import { photoUrl } from "./photo-urls.js";
 import { suggestPeople, peopleProblem, suggestItem, plansProblem } from "./share-people.js";
 import { shareToImport, addsItems, withKnown, duplicatePlan } from "./share-to-import.js";

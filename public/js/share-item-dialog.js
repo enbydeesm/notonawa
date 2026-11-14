@@ -3,10 +3,9 @@
 // key that's only in its link) and showing its code. It's a copy of the
 // item as last saved. See considerations.md, "Sharing between accounts".
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { readCost, formatMoney } from "./currency.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
-import { open, openMedia } from "./vault.js";
 import {
   FIELDS, ALWAYS_SHARED, SHARE_LEGEND, itemSource, hasField, buildItemShare, shareFiles, visualCounts, mediaSize,
 } from "./share-item.js";
@@ -18,7 +17,7 @@ import { showShareCode } from "./share-code.js";
 import { roleName } from "./roles.js";
 import { capitalise } from "./format.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
-import { listItems } from "./store/index.js";
+import { listItems, listMedia, listDrawings, listPoses } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -139,15 +138,15 @@ export async function openShareItem(kind, item) {
  * @returns {Promise<SharedItem>}
  */
 async function loadSource(kind, item) {
-  const where = new URLSearchParams({ [`${kind}_id`]: item.id });
+  const where = /** @type {import("./store/v1/media.js").Item} */ ({ [`${kind}_id`]: item.id });
   const hasPeople = kind !== "plan" && [...(item.participants ?? []), ...(item.educators ?? [])].length > 0;
   /** @type {[any[], any[], any[], any[], any[]]} */
   const [people, locations, media, drawings, poses] = await Promise.all([
     hasPeople ? listItems("people", false) : [],
     item.location_id ? listItems("locations", "all") : [],
-    api(`/api/media?${where}`).then((list) => openMedia(list)),
-    api(`/api/drawings?${where}`).then((list) => open("drawing", list)),
-    api(`/api/poses?${where}`).then((list) => open("pose", list)),
+    listMedia(where),
+    listDrawings(where),
+    listPoses(where),
   ]);
   const self = people.find((/** @type {any} */ p) => p.is_self) ?? null;
   /** @type {import("./share-item.js").SharedVisual[]} */

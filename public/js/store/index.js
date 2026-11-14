@@ -12,3 +12,11 @@ export {
   listItems, saveItem, archiveItem, restoreItem, deleteItem, deletePlan, mapLinkCoords,
 } from "./v1/resources.js";
 export { listWorkshops, getWorkshop, saveWorkshop, deleteWorkshop, linkToWorkshop } from "./v1/workshops.js";
+export { uploadPhoto, uploadSealed, listMedia, setMediaCaption, deleteMedia } from "./v1/media.js";
+export {
+  listDrawings, addDrawing, updateDrawing, deleteDrawing, listPoses, addPose, updatePose, deletePose,
+} from "./v1/drawings.js";
+export { setVisualOrder } from "./v1/visuals.js";
+export {
+  listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
+} from "./v1/presets.js";

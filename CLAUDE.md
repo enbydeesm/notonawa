@@ -376,7 +376,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   Add to my journal through the import, Add another copy when it looks
   like it's there already; its photos' thumbnails, and each photo sealed
   as mine in the crypto Worker (`adoptShareFile`) and uploaded with
-  `photo-upload.js`'s `uploadSealed`)),
+  the store's `uploadSealed`)),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
@@ -407,9 +407,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   nothing of the original copied, no tags or track names; loaded only once
   a video is chosen), `drag-order.js` (pure: dragging photos into order),
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
-  lock), `photo-upload.js` (sealing and uploading one prepared photo or
-  video and its caption; used by the Visuals section and import),
-  `visuals-ui.js` (a form's Visuals section, on ties, plans and workshops:
+  lock), `visuals-ui.js` (a form's Visuals section, on ties, plans and workshops:
   photos and videos, drawings and poses in one grid and one order, each
   tile outlined in its kind's chart color with a key beside the label;
   + opens "Add a visual from…"; each kind's own part is in `photos-ui.js`,
@@ -525,7 +523,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `saveItem`, `archiveItem`, `restoreItem`, `deleteItem`, `deletePlan`
   with the linked ties' choice, `mapLinkCoords`) and `v1/workshops.js`
   (`listWorkshops`, `getWorkshop`, `saveWorkshop`, `deleteWorkshop`,
-  `linkToWorkshop`); the
+  `linkToWorkshop`), `v1/media.js` (photos and videos: `uploadPhoto`,
+  sealing and uploading one prepared photo or video and its caption,
+  `uploadSealed`, `listMedia`, `setMediaCaption`, `deleteMedia`),
+  `v1/drawings.js` (drawings and poses alike: `listDrawings`,
+  `addDrawing`, `updateDrawing`, `deleteDrawing` and the same for poses),
+  `v1/visuals.js` (`setVisualOrder`) and `v1/presets.js` (poser presets,
+  kept in memory by `pose-presets.js`); the
   encrypted cache's `v2/` comes in beside it, chosen by the account's
   format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's

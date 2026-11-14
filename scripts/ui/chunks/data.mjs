@@ -64,7 +64,7 @@ export default async function () {
     canvas.getContext("2d").fillRect(0, 0, 150, 100);
     const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
     const prepared = await (await import("/js/photo-prep.js")).preparePhoto(new File([blob], "x.jpg", { type: "image/jpeg" }));
-    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
+    await (await import("/js/store/index.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
     // A one-second clip, made here with the app's video library.
     const mb = await import("/js/vendor/mediabunny.js");
     const frames = new OffscreenCanvas(64, 48);
@@ -75,7 +75,7 @@ export default async function () {
     for (let i = 0; i < 10; i++) { frames.getContext("2d").fillRect(i * 4, 0, 8, 8); await source.add(i / 10, 0.1); }
     await output.finalize();
     const clip = await (await import("/js/video-prep.js")).prepareVideo(new File([output.target.buffer], "c.mp4", { type: "video/mp4" }));
-    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared: clip, caption: "Zip clip" });
+    await (await import("/js/store/index.js")).uploadPhoto({ item: { tie_id: id }, prepared: clip, caption: "Zip clip" });
     return id;`);
   const zipDownloads = path.join(workDir, "downloads-zip");
   await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: zipDownloads });

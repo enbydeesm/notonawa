@@ -41,7 +41,7 @@ import { svgFile } from "../drawing-format.js";
 import { drawingColors } from "../drawing-svg.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
-import { uploadPhoto } from "../photo-upload.js";
+import { uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets } from "../store/index.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
@@ -370,7 +370,7 @@ export function mount(_root, { signal }) {
     /** @type {string[]} */
     const problems = [];
     for (const target of targets) {
-      if (target.onlyIfEmpty && (await api(`/api/media?${new URLSearchParams(target.item)}`)).length > 0) {
+      if (target.onlyIfEmpty && (await listMedia(target.item)).length > 0) {
         done += target.entries.length;
         kept += target.entries.length;
         continue;
@@ -483,7 +483,7 @@ export function mount(_root, { signal }) {
       const order = orderBody(mergeVisuals(lists).map(({ kind, item: v }) => ({ kind, id: v.id })));
       if (order.length < 2) continue;
       try {
-        await api("/api/visuals/order", { method: "PUT", body: { ...item, order } });
+        await setVisualOrder(item, order);
       } catch {
         // As it was saved: each kind in the file's order.
       }
@@ -630,7 +630,7 @@ export function mount(_root, { signal }) {
    */
   async function myPresets() {
     /** @type {{ kind: string, name: string | null }[]} */
-    const mine = await open("posePreset", await api("/api/pose-presets"));
+    const mine = await listPosePresets();
     return [mine, MAX_PRESETS - mine.length];
   }
 
@@ -644,10 +644,7 @@ export function mount(_root, { signal }) {
     try {
       const { add, full } = presetsToAdd(list, ...(await myPresets()));
       if (!add.length && !full) return null;
-      const names = await seal("posePreset", add.map((p) => ({ name: p.name })));
-      for (const [i, p] of add.entries()) {
-        await api("/api/pose-presets", { method: "POST", body: { kind: p.kind, name: names[i].name, data: p.data } });
-      }
+      await addPosePresets(add);
       return `Added ${add.length.toLocaleString()} poser ${add.length === 1 ? "preset" : "presets"}.` +
         (full ? ` ${full.toLocaleString()} more didn't fit: you can keep up to ${MAX_PRESETS}.` : "");
     } catch (err) {
