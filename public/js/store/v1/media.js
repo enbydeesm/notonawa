@@ -6,7 +6,7 @@
 // a share's photos, which the Worker has sealed already. See store/index.js.
 
 import { api } from "../../api.js";
-import { sealPhoto, sealVideo, sealCaption, openMedia } from "../../vault.js";
+import { sealPhoto, sealVideo, sealCaption, openMedia, openPhoto, copyMedia } from "../../vault.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("../../photo-prep.js").PreparedPhoto} PreparedPhoto */
@@ -76,4 +76,29 @@ export async function setMediaCaption(id, caption) {
 /** @param {string} id */
 export async function deleteMedia(id) {
   await api(`/api/media/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/**
+ * One part of a saved photo or video, opened (the Worker fetches it).
+ * Throws CantOpen if it won't open.
+ * @param {{ id: string, kind: "photo" | "video" }} photo
+ * @param {"thumb" | "full"} part
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openMediaPart(photo, part) {
+  return openPhoto(photo.id, part, photo.kind);
+}
+
+/**
+ * A copy of a saved photo or video on another item (Copy to…): opened and
+ * sealed again bound to a new id in the crypto Worker, then uploaded.
+ * @param {{ id: string, kind: "photo" | "video", mime: string, caption: string | null }} photo
+ * @param {Item} to
+ * @returns {Promise<string>} the copy's id
+ */
+export async function copyMediaTo(photo, to) {
+  const id = crypto.randomUUID();
+  const sealed = await copyMedia({ mediaId: photo.id, newId: id, kind: photo.kind });
+  await uploadSealed({ item: to, id, kind: photo.kind, mime: photo.mime, caption: photo.caption, ...sealed });
+  return id;
 }

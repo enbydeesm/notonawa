@@ -49,14 +49,34 @@ export const getWorkshop = byFormat(v1Workshops.getWorkshop, v2Workshops.getWork
 export const saveWorkshop = byFormat(v1Workshops.saveWorkshop, v2Workshops.saveWorkshop);
 export const deleteWorkshop = byFormat(v1Workshops.deleteWorkshop, v2Workshops.deleteWorkshop);
 export const linkToWorkshop = byFormat(v1Workshops.linkToWorkshop, v2Workshops.linkToWorkshop);
-export { uploadPhoto, uploadSealed, listMedia, setMediaCaption, deleteMedia } from "./v1/media.js";
-export {
-  listDrawings, addDrawing, updateDrawing, deleteDrawing, listPoses, addPose, updatePose, deletePose,
-} from "./v1/drawings.js";
-export { setVisualOrder } from "./v1/visuals.js";
-export {
-  listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
-} from "./v1/presets.js";
+import * as v1Media from "./v1/media.js";
+import * as v1Drawings from "./v1/drawings.js";
+import * as v1Visuals from "./v1/visuals.js";
+import * as v1Presets from "./v1/presets.js";
+import * as v2Visuals from "./v2/visuals.js";
+import * as v2Presets from "./v2/presets.js";
+
+export const uploadPhoto = byFormat(v1Media.uploadPhoto, v2Visuals.uploadPhoto);
+export const uploadSealed = byFormat(v1Media.uploadSealed, v2Visuals.uploadSealed);
+export const listMedia = byFormat(v1Media.listMedia, v2Visuals.listMedia);
+export const setMediaCaption = byFormat(v1Media.setMediaCaption, v2Visuals.setMediaCaption);
+export const deleteMedia = byFormat(v1Media.deleteMedia, v2Visuals.deleteMedia);
+export const openMediaPart = byFormat(v1Media.openMediaPart, v2Visuals.openMediaPart);
+export const copyMediaTo = byFormat(v1Media.copyMediaTo, v2Visuals.copyMediaTo);
+export const listDrawings = byFormat(v1Drawings.listDrawings, v2Visuals.listDrawings);
+export const addDrawing = byFormat(v1Drawings.addDrawing, v2Visuals.addDrawing);
+export const updateDrawing = byFormat(v1Drawings.updateDrawing, v2Visuals.updateDrawing);
+export const deleteDrawing = byFormat(v1Drawings.deleteDrawing, v2Visuals.deleteDrawing);
+export const listPoses = byFormat(v1Drawings.listPoses, v2Visuals.listPoses);
+export const addPose = byFormat(v1Drawings.addPose, v2Visuals.addPose);
+export const updatePose = byFormat(v1Drawings.updatePose, v2Visuals.updatePose);
+export const deletePose = byFormat(v1Drawings.deletePose, v2Visuals.deletePose);
+export const setVisualOrder = byFormat(v1Visuals.setVisualOrder, v2Visuals.setVisualOrder);
+export const listPosePresets = byFormat(v1Presets.listPosePresets, v2Presets.listPosePresets);
+export const addPosePresets = byFormat(v1Presets.addPosePresets, v2Presets.addPosePresets);
+export const renamePosePreset = byFormat(v1Presets.renamePosePreset, v2Presets.renamePosePreset);
+export const setPosePresetData = byFormat(v1Presets.setPosePresetData, v2Presets.setPosePresetData);
+export const deletePosePreset = byFormat(v1Presets.deletePosePreset, v2Presets.deletePosePreset);
 import * as v1Tags from "./v1/tags.js";
 import * as v2Tags from "./v2/tags.js";
 

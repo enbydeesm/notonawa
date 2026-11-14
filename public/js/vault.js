@@ -359,6 +359,37 @@ export function saveRecords(batch) {
 }
 
 /**
+ * A prepared photo or video sealed as a format v3 file under a new key of
+ * its own, for its item's record. The buffers are handed to the Worker.
+ * @param {string} fileId
+ * @param {ArrayBuffer} thumb
+ * @param {ArrayBuffer} full
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function sealFile(fileId, thumb, full) {
+  return call("sealFile", { fileId, thumb, full }, [thumb, full]);
+}
+
+/**
+ * One part of a format v3 file, fetched and opened in the Worker with the
+ * key from its record. Throws CantOpen if it won't open.
+ * @param {{ fileId: string, key: string, part: "thumb" | "full" }} args
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openFile(args) {
+  return call("openFile", args);
+}
+
+/**
+ * A copy of a file under a new id and key, sealed for upload.
+ * @param {{ fileId: string, key: string, newFileId: string }} args
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function copyFile(args) {
+  return call("copyFile", args);
+}
+
+/**
  * A new identity key pair, kept in the Worker; the seed comes out sealed.
  * @returns {Promise<{ publicKey: string, sealedSeed: string }>}
  */

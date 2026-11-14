@@ -20,8 +20,8 @@ import { choose } from "./dialog.js";
 import { preparePhoto } from "./photo-prep.js";
 import { ACCEPT } from "./photo-fit.js";
 import { VIDEO_ACCEPT, isVideo } from "./video-fit.js";
-import { openPhoto, copyMedia, CantOpen } from "./vault.js";
-import { uploadPhoto, uploadSealed, listMedia, setMediaCaption, deleteMedia } from "./store/index.js";
+import { CantOpen } from "./vault.js";
+import { uploadPhoto, listMedia, setMediaCaption, deleteMedia, openMediaPart, copyMediaTo } from "./store/index.js";
 import { photoUrl, revoke } from "./photo-urls.js";
 import { viewerParts } from "./visual-viewer.js";
 import { iconButton } from "./dialog-icons.js";
@@ -99,7 +99,7 @@ export function photoKind(ctx) {
   /** @param {Photo} photo */
   async function loadThumb(photo) {
     try {
-      const bytes = await openPhoto(photo.id, "thumb", photo.kind);
+      const bytes = await openMediaPart(photo, "thumb");
       if (ctx.closed()) return;
       setThumb(photo, photoUrl(bytes, thumbType(photo)));
     } catch (err) {
@@ -289,7 +289,7 @@ export function photoKind(ctx) {
       // A video shows its thumbnail as its poster until it's loaded.
       if (isVideoShown) tell("Loading the video…");
       try {
-        const url = photoUrl(await openPhoto(photo.id, "full", photo.kind), photo.mime);
+        const url = photoUrl(await openMediaPart(photo, "full"), photo.mime);
         if (!dialog.open) {
           revoke(url);
           return;
@@ -311,13 +311,11 @@ export function photoKind(ctx) {
       if (!target) return;
       try {
         tell("Copying…");
-        const id = crypto.randomUUID();
         if (photo.prepared) {
           const { thumb, full } = photo.prepared;
-          await uploadPhoto({ item: target.item, id, caption: photo.caption, prepared: { ...photo.prepared, thumb: thumb.slice(0), full: full.slice(0) } });
+          await uploadPhoto({ item: target.item, caption: photo.caption, prepared: { ...photo.prepared, thumb: thumb.slice(0), full: full.slice(0) } });
         } else {
-          const sealed = await copyMedia({ mediaId: photo.id, newId: id, kind: photo.kind });
-          await uploadSealed({ item: target.item, id, kind: photo.kind, mime: photo.mime, caption: photo.caption, ...sealed });
+          await copyMediaTo(photo, target.item);
         }
         tell(`Copied to "${target.title}".`);
       } catch (err) {

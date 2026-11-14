@@ -254,14 +254,15 @@ export const AREAS = [
       "public/js/figure-body.js", "public/js/figure-body-data.js", "public/figure/", "scripts/figure/", "public/js/pose-skinning.js", "public/js/joint-limits.js", "public/js/pose-contact.js", "public/js/wake-lock.js",
       "public/js/standalone-poser.js", "public/js/add-to-picker.js", "public/js/add-to-choices.js", "public/js/item-targets.js",
       "public/js/new-entry-start.js", "public/js/pose-hints.js", "public/js/pose-scene-panel.js", "public/js/pose-rope-panel.js",
-      "public/js/store/v1/drawings.js", "public/js/store/v1/presets.js"],
+      "public/js/store/v1/drawings.js", "public/js/store/v1/presets.js",
+      "public/js/store/v2/presets.js"],
     ui: ["poses", "data"],
     generated: ["vendor"],
   },
   {
     name: "visuals",
     files: ["src/visuals/", "public/js/visuals-ui.js", "public/js/visual-viewer.js", "public/js/visual-order.js", "public/js/visual-icons.js",
-      "public/js/store/v1/visuals.js"],
+      "public/js/store/v1/visuals.js", "public/js/store/v2/visuals.js"],
     ui: ["photos", "drawings", "poses", "data"],
   },
   {

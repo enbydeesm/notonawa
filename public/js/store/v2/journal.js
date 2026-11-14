@@ -14,6 +14,7 @@ import * as vault from "../../vault.js";
 import { api, ApiError } from "../../api.js";
 import { openTabs } from "../../cache/tabs.js";
 import { mergeEdit } from "../../cache/sync-rules.js";
+import { orphanFiles } from "../../cache/orphans.js";
 
 /** @typedef {import("../../crypto/records.js").RecordKind} RecordKind */
 /** A record, opened. @typedef {{ kind: string, id: string, version: number, body: Record<string, any> | null, unreadable?: true }} Entry */
@@ -101,6 +102,8 @@ async function open(s) {
   // otherwise show what's here and sync meanwhile.
   const first = s.records.size === 0;
   const synced = syncInto(s).then(() => ensureBasics(s));
+  // Once up to date: files no record lists, deleted (in the background).
+  synced.then(() => deleteOrphans(s)).catch(() => {});
   if (first) await synced;
   else synced.catch(() => {});
 }
@@ -309,4 +312,21 @@ async function ensureIdentity() {
   }
   const { publicKey, sealedSeed } = await vault.makeIdentity();
   await api("/api/identity", { method: "PUT", body: { public_key: publicKey, sealed_seed: sealedSeed } });
+}
+
+/**
+ * Deletes my files that no record lists (cache/orphans.js): left by an
+ * upload whose record never saved, or a delete that stopped half-way. Not
+ * while any record won't open, as its files can't be told from orphans.
+ * @param {State} s
+ */
+async function deleteOrphans(s) {
+  if (state !== s || [...s.records.values()].some((r) => r.unreadable)) return;
+  const files = await api("/api/files");
+  const bodies = [...s.records.values()].map((r) => r.body ?? {});
+  const orphans = orphanFiles(files, bodies, Date.now());
+  for (let i = 0; i < orphans.length; i += 1000) {
+    if (state !== s) return;
+    await api("/api/files/delete", { method: "POST", body: { ids: orphans.slice(i, i + 1000) } });
+  }
 }

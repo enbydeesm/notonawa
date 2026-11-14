@@ -462,13 +462,20 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   each gives
   the writes for one batch), `records/tags.js` (pure: tag names read as
   the server does, matched to my tag records ignoring capitals, new ones
-  made in the same batch; a deleted tag taken off everything), the cache:
+  made in the same batch; a deleted tag taken off everything),
+  `records/visuals.js` (pure: an item's visuals as one ordered list in its
+  record, a file's entry with its key, kind, type and caption; adding,
+  captioning, removing (a cover that goes stops being one), ordering
+  (every one listed once), and format 1's media, drawings and poses rows),
+  the cache:
   `cache/db.js` (IndexedDB `notonawa-<user id>`, opened in the crypto
   Worker: the sealed rows, the highest version seen of each id and the
   ids deleted, and `since`; `wipeCaches`, on signing out and deleting the
   account), `cache/sync-rules.js` (pure: `planPage`, a sync page refusing
   older versions and deleted ids; `mergeEdit`, a stale edit carried onto
   the newer version, mine winning a clash; the `CacheDb` type),
+  `cache/orphans.js` (pure: files no record lists, a day old or more;
+  the journal deletes them after syncing, unless a record won't open),
   `cache/sync.js` (the sync loop, run alone across tabs with Web Locks,
   `webLock`), `cache/tabs.js` (a BroadcastChannel per account: which ids
   changed, and locking together), and `store/v2/journal.js` (the journal
@@ -630,7 +637,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`listWorkshops`, `getWorkshop`, `saveWorkshop`, `deleteWorkshop`,
   `linkToWorkshop`), `v1/media.js` (photos and videos: `uploadPhoto`,
   sealing and uploading one prepared photo or video and its caption,
-  `uploadSealed`, `listMedia`, `setMediaCaption`, `deleteMedia`),
+  `uploadSealed`, `listMedia`, `setMediaCaption`, `deleteMedia`, and,
+  both formats through the store, `openMediaPart` (a part opened in the
+  Worker) and `copyMediaTo` (Copy to…)),
   `v1/drawings.js` (drawings and poses alike: `listDrawings`,
   `addDrawing`, `updateDrawing`, `deleteDrawing` and the same for poses),
   `v1/visuals.js` (`setVisualOrder`) and `v1/presets.js` (poser presets,
@@ -644,8 +653,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `index.js`; an area not yet built for v2 is v1's only):
   `v2/resources.js` (plans, people and locations), `v2/tags.js`,
   `v2/ties.js` (the keyword searched in memory, `search-match.js` over
-  `queries/ties.js`'s `searchIndex`), `v2/stats.js` and
-  `v2/workshops.js`, with the pages' rows made by the pure `queries/`
+  `queries/ties.js`'s `searchIndex`), `v2/stats.js`,
+  `v2/workshops.js`, `v2/visuals.js` (photos and videos as v3 files: sealed
+  by `vault.sealFile`, uploaded with `PUT /api/files/:id`, then listed on
+  their item; removed from the item, then the file deleted; drawings and
+  poses as records listed in their item's visuals, one save each; the
+  order) and `v2/presets.js` (records, 50 at most), with the pages' rows made by the pure `queries/`
   (`queries/workshops.js`: format 1's `WORKSHOP_COLUMNS`, a unit test
   checks, educators and participants with link ids `w<n>`, the linked
   plans A–Z then ties oldest first, newest first; `queries/ties.js`: the Ties search's

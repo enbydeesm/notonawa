@@ -3466,3 +3466,29 @@ Phase 4, slice 5: workshops and the Education view in format 2
   unlinks them in the same save.
 - **Rows match format 1's**: `src/workshops/db.js` exports
   `WORKSHOP_COLUMNS` for the unit test.
+
+## Encrypt everything: visuals as built (November 2026)
+
+Phase 4, slice 6: photos and videos, drawings, poses, their order and poser
+presets in format 2.
+
+- **One list on the item**: a tie's, plan's or workshop's record lists its
+  visuals in order. A photo's or video's entry holds its file's key, kind,
+  type and caption (the file itself, `<owner>/files/<id>` in R2, says
+  nothing of its item); a drawing or pose is a record of its own, listed
+  there. Ordering is rewriting the list, refused unless every visual is in
+  it once, as format 1's route refused.
+- **Files before records, records before deletes**: a photo is uploaded,
+  then its item saved listing it; removing one saves the item, then deletes
+  the file. A step that fails leaves a file nothing lists, never a record
+  listing a missing file; the journal finds those after syncing
+  (`cache/orphans.js`) and deletes them, once a day old (an upload may still
+  be on its way from another device), and never while a record won't open
+  (its files can't be told from orphans).
+- **File keys are in page memory** with the rest of the opened records (the
+  agreed design: the page holds the journal), and the page gives a file's
+  key to the Worker to open or copy it. The Worker still does all the
+  opening and sealing, and keys go to the server only sealed in records.
+- **Pages ask the store, not the vault**, to open a part or copy a photo
+  (`openMediaPart`, `copyMediaTo`), so photos-ui.js works for both formats.
+  Adding a share's photos (`uploadSealed`) comes with shares, next.

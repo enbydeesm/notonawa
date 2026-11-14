@@ -113,6 +113,9 @@ const OPERATIONS = {
   syncCache: () => vault.syncCache(),
   readCache: (args) => vault.readCache(args),
   saveRecords: (args) => vault.saveRecords(args),
+  sealFile: (args) => vault.sealFile(args),
+  openFile: (args) => vault.openFile(args),
+  copyFile: (args) => vault.copyFile(args),
   makeIdentity: () => vault.makeIdentity(),
   openIdentity: (args) => vault.openIdentity(args),
 };

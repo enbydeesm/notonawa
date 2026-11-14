@@ -218,8 +218,8 @@ export const FIELDS = {
     cover: id,
   },
   tag: { ...STAMPS, name: required(text(LIMITS.tagName)) },
-  drawing: { ...STAMPS, data: required(format1) },
-  pose: { ...STAMPS, data: required(format1), picture: id },
+  drawing: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption) },
+  pose: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption), picture: id },
   pose_preset: { ...STAMPS, kind: required(oneOf(["body", "arms"])), name: text(LIMITS.shortText), data: required(object) },
   settings: { ...STAMPS, top_label: text(LIMITS.roleName), bottom_label: text(LIMITS.roleName), default_shape: object },
   // Its fields come with contacts (phase 6).
