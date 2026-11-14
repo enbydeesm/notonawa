@@ -119,7 +119,7 @@ export const AREAS = [
   },
   {
     name: "settings",
-    files: ["src/account/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
+    files: ["src/account/settings.js", "public/js/store/v1/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
       "public/js/theme-init.js", "public/js/roles.js"],
     ui: ["settings", "people", "ties", "insights"],
   },
@@ -181,7 +181,7 @@ export const AREAS = [
   },
   {
     name: "tags",
-    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js"],
+    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js", "public/js/store/v1/tags.js"],
     ui: ["plans", "ties", "search", "education"],
   },
   {
@@ -224,7 +224,7 @@ export const AREAS = [
     // Shares: profile invites, their codes, Shared by me, opening one, and
     // the connections between accounts they can make.
     name: "shares",
-    files: ["src/shares/", "src/connections/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
+    files: ["src/shares/", "src/connections/", "public/js/store/v1/connections.js", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
       "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
       "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js",
       "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js",
@@ -262,7 +262,7 @@ export const AREAS = [
   },
   {
     name: "data",
-    files: ["src/data/", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
+    files: ["src/data/", "public/js/store/v1/data.js", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
       "public/js/import-steps.js", "public/js/import-dedupe.js", "public/js/import-photos.js",
       "public/js/journal-fields.js", "public/js/zip.js", "public/js/download.js", "public/import-template.csv",
       "public/js/import-presets.js"],
@@ -271,7 +271,7 @@ export const AREAS = [
   },
   {
     name: "insights",
-    files: ["src/stats/", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
+    files: ["src/stats/", "public/js/store/v1/stats.js", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
       "public/js/chart-parts.js", "public/js/tie-list-dialog.js", "public/js/views/calendar.js",
       "public/js/views/analytics.js", "public/js/map-geo.js", "public/js/world-map.js", "public/js/world-shapes.js",
       "scripts/world-map.mjs", "scripts/world-map-lib.mjs", "public/js/workshop-stats.js"],

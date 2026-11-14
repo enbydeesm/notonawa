@@ -20,3 +20,10 @@ export { setVisualOrder } from "./v1/visuals.js";
 export {
   listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
 } from "./v1/presets.js";
+export { listTags, deleteTag } from "./v1/tags.js";
+export { statsTies } from "./v1/stats.js";
+export { getSettings, saveSettings } from "./v1/settings.js";
+export { exportSealed, importItems, importTies, importWorkshops } from "./v1/data.js";
+export {
+  listConnections, acceptConnection, setConnectionPerson, markConnectionAnswered, deleteConnection,
+} from "./v1/connections.js";

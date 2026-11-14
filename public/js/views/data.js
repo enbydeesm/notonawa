@@ -19,7 +19,7 @@
 // account part, names opened; importing adds the ones not already there by
 // name (import-presets.js).
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
 import { saveFile } from "../download.js";
 import { parseCsv } from "../csv.js";
@@ -41,7 +41,10 @@ import { svgFile } from "../drawing-format.js";
 import { drawingColors } from "../drawing-svg.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
-import { uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets } from "../store/index.js";
+import {
+  uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets, listDrawings, listPoses,
+  exportSealed, importItems, importTies, importWorkshops,
+} from "../store/index.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
 import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
@@ -99,7 +102,7 @@ import { linksDroppedText } from "../connection-text.js";
  * @returns {Promise<{ skip: number[], matches: Map<number, string>, newTags: string[] }>}
  */
 async function findDuplicates(sealedBatch, plainBatch) {
-  const result = await api("/api/data/import/ties", { method: "POST", body: { preview: true, ties: sealedBatch } });
+  const result = await importTies({ preview: true, ties: sealedBatch });
   const candidates = /** @type {{ i: number, id: string, notes: string | null }[]} */ (await open("tie", result.candidates));
   const matches = duplicateMatches(plainBatch, candidates);
   return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
@@ -113,7 +116,7 @@ async function findDuplicates(sealedBatch, plainBatch) {
  * @returns {Promise<{ skip: number[], matches: Map<number, string>, newTags: string[] }>}
  */
 async function findWorkshopDuplicates(sealedBatch, plainBatch) {
-  const result = await api("/api/data/import/workshops", { method: "POST", body: { preview: true, workshops: sealedBatch } });
+  const result = await importWorkshops({ preview: true, workshops: sealedBatch });
   const candidates = /** @type {any[]} */ (await open("workshop", result.candidates));
   const matches = duplicateMatches(plainBatch, candidates, ["description", "notes"]);
   return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
@@ -126,7 +129,7 @@ async function findWorkshopDuplicates(sealedBatch, plainBatch) {
  * @returns {Promise<{ name: string, content: string | Blob, type: string, unreadable: number, missing: number }>}
  */
 async function buildExport(progress) {
-  const sealed = await api("/api/data/export");
+  const sealed = await exportSealed();
   // Opened here, on the device: the file has the notes in plain text.
   const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
   const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
@@ -256,7 +259,7 @@ export function mount(_root, { signal }) {
     let workshopsSkipped = 0;
     try {
       showMessage(importMessage, "Importing…");
-      const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) });
+      const items = await importItems(itemsBody(sealed, false));
       /** @type {PhotoTarget[]} */
       const targets = [];
       /** @type {DrawingTarget[]} */
@@ -280,7 +283,7 @@ export function mount(_root, { signal }) {
         // Duplicates are checked again for each batch, just before it's
         // saved, so importing again after a failure finishes the job.
         const { skip, matches } = await findDuplicates(batch, plainBatches[n]);
-        const result = await api("/api/data/import/ties", { method: "POST", body: { ties: batch, skip } });
+        const result = await importTies({ ties: batch, skip });
         added += result.added;
         skipped += result.skipped;
         batch.forEach((_, i) => {
@@ -298,7 +301,7 @@ export function mount(_root, { signal }) {
       for (const [n, batch] of batches(remapWorkshops(sealed.workshops, items, tieIds)).entries()) {
         showMessage(importMessage, `Importing workshops… ${(workshopsAdded + workshopsSkipped).toLocaleString()} of ${workshops(plain.workshops.length)}`);
         const { skip, matches } = await findWorkshopDuplicates(batch, plainWorkshops[n]);
-        const result = await api("/api/data/import/workshops", { method: "POST", body: { workshops: batch, skip } });
+        const result = await importWorkshops({ workshops: batch, skip });
         workshopsAdded += result.added;
         workshopsSkipped += result.skipped;
         batch.forEach((_, i) => {
@@ -315,9 +318,9 @@ export function mount(_root, { signal }) {
       /** @type {Map<string, Placed>} */
       const placed = new Map();
       const drawingResult = drawingTargets.length
-        ? await importSaved(drawingTargets, { path: "/api/drawings", save: saveDrawing, one: "drawing", many: "drawings", kind: "drawing" }, placed) : null;
+        ? await importSaved(drawingTargets, { list: listDrawings, save: saveDrawing, one: "drawing", many: "drawings", kind: "drawing" }, placed) : null;
       const poseResult = poseTargets.length
-        ? await importSaved(poseTargets, { path: "/api/poses", save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
+        ? await importSaved(poseTargets, { list: listPoses, save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
       const photoResult = files && targets.length ? await importPhotos(targets, files, placed) : null;
       await putBackOrder(placed);
       const presetResult = filePresets.length ? await importPresets(filePresets) : null;
@@ -417,13 +420,13 @@ export function mount(_root, { signal }) {
    * @template E
    * @param {DrawingTarget<E>[]} targets
    * @param {{
-   *   path: string, save: (item: PhotoTarget["item"], entry: E) => Promise<string>, one: string, many: string,
+   *   list: (item: PhotoTarget["item"]) => Promise<unknown[]>, save: (item: PhotoTarget["item"], entry: E) => Promise<string>, one: string, many: string,
    *   kind: "drawing" | "pose",
    * }} kind where they're listed, how one is saved, and what they're called
    * @param {Map<string, Placed>} placed where each one added is noted
    * @returns {Promise<string>} what happened, in words
    */
-  async function importSaved(targets, { path, save, one, many, kind }, placed) {
+  async function importSaved(targets, { list, save, one, many, kind }, placed) {
     const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
     let done = 0;
     let added = 0;
@@ -431,7 +434,7 @@ export function mount(_root, { signal }) {
     /** @type {string[]} */
     const problems = [];
     for (const target of targets) {
-      if (target.onlyIfEmpty && (await api(`${path}?${new URLSearchParams(target.item)}`)).length > 0) {
+      if (target.onlyIfEmpty && (await list(target.item)).length > 0) {
         done += target.entries.length;
         kept += target.entries.length;
         continue;
@@ -546,7 +549,7 @@ export function mount(_root, { signal }) {
    */
   async function showPreview(file) {
     const { plain, sealed, photos, drawings, poses, files } = file;
-    const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, true) });
+    const items = await importItems(itemsBody(sealed, true));
     let duplicates = 0;
     const newTags = new Set(items.new_tags);
     const plainBatches = batches(plain.ties);

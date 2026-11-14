@@ -2,7 +2,7 @@
 // the "Add a Tie" card's + or the nav's (tie-form.js); tapping a tie's title opens it in the same form
 // to edit or delete.
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
@@ -13,7 +13,7 @@ import { showingText } from "../ties-view.js";
 import { tieCard, fitPeople, editTie } from "../tie-card.js";
 import { openTieForm } from "../tie-form.js";
 import { readSearch, pageQuery, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
-import { findTies, listItems } from "../store/index.js";
+import { findTies, listItems, listTags } from "../store/index.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -198,7 +198,7 @@ export function mount(_root, { signal }) {
 
   async function loadTags() {
     try {
-      allTags = await api("/api/tags");
+      allTags = await listTags();
     } catch (err) {
       count.textContent = "Couldn't load tags: " + errorMessage(err);
       return;

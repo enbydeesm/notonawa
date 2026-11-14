@@ -3,7 +3,7 @@
 // there's more than one). Tapping a day opens its tie, or lists its ties.
 // The ties come from POST /api/stats/ties; stats.js does the counting.
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { hankIcon } from "../rope-rating.js";
@@ -12,6 +12,7 @@ import { roleName } from "../roles.js";
 import { openTieList, openOneTie } from "../tie-list-dialog.js";
 import { summarize, tiesByDay, percent, tieListHeading } from "../stats.js";
 import { initialPeriod, stepPeriod, monthGrid, monthRange, monthTitle } from "../stats-period.js";
+import { statsTies } from "../store/index.js";
 
 /** @typedef {import("../stats.js").StatsTie} StatsTie */
 
@@ -41,7 +42,7 @@ export function mount(_root, _context) {
     /** @type {StatsTie[]} */
     let ties;
     try {
-      ties = (await api("/api/stats/ties", { method: "POST", body: monthRange(month) })).ties;
+      ties = await statsTies(monthRange(month));
     } catch (err) {
       if (id === latestRequest) message.textContent = "Couldn't load this month: " + errorMessage(err);
       return;

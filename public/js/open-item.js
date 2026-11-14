@@ -14,12 +14,11 @@
 // sealed there again as mine (adoptShareFile): only their thumbnails come
 // out, for the preview.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
 import { seal, open, forgetSearch, openShareThumb, adoptShareFile } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readItemShare, isMedia, visualCounts } from "./share-item.js";
-import { uploadSealed } from "./store/index.js";
 import { photoUrl } from "./photo-urls.js";
 import { suggestPeople, peopleProblem, suggestItem, plansProblem } from "./share-people.js";
 import { shareToImport, addsItems, withKnown, duplicatePlan } from "./share-to-import.js";
@@ -37,7 +36,7 @@ import { capitalise, formatDate } from "./format.js";
 import { placeText } from "./list-order.js";
 import { dateRangeText } from "./workshops-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
-import { listItems } from "./store/index.js";
+import { listItems, uploadSealed, importItems, importTies, importWorkshops } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -237,12 +236,10 @@ async function alreadyThere(kind, item, doc, sealed, known) {
   if (addsItems(doc)) return false;
   const items = withKnown({ people: [], locations: [], plans: [] }, known);
   if (kind === "tie") {
-    const result = await api("/api/data/import/ties", { method: "POST", body: { preview: true, ties: remapTies(sealed.ties, items) } });
+    const result = await importTies({ preview: true, ties: remapTies(sealed.ties, items) });
     return duplicateMatches(doc.ties, await open("tie", result.candidates)).size > 0;
   }
-  const result = await api("/api/data/import/workshops", {
-    method: "POST", body: { preview: true, workshops: remapWorkshops(sealed.workshops, items) },
-  });
+  const result = await importWorkshops({ preview: true, workshops: remapWorkshops(sealed.workshops, items) });
   return duplicateMatches(doc.workshops, await open("workshop", result.candidates), ["description", "notes"]).size > 0;
 }
 
@@ -257,17 +254,15 @@ async function alreadyThere(kind, item, doc, sealed, known) {
  */
 async function save(kind, doc, sealed, known) {
   const added = addsItems(doc)
-    ? await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) })
+    ? await importItems(itemsBody(sealed, false))
     : { people: [], locations: [], plans: [] };
   if (kind === "plan") return { plan_id: added.plans[0].id };
   const items = withKnown(added, known);
   if (kind === "tie") {
-    const result = await api("/api/data/import/ties", { method: "POST", body: { ties: remapTies(sealed.ties, items), skip: [] } });
+    const result = await importTies({ ties: remapTies(sealed.ties, items), skip: [] });
     return { tie_id: result.ids[0] };
   }
-  const result = await api("/api/data/import/workshops", {
-    method: "POST", body: { workshops: remapWorkshops(sealed.workshops, items), skip: [] },
-  });
+  const result = await importWorkshops({ workshops: remapWorkshops(sealed.workshops, items), skip: [] });
   return { workshop_id: result.ids[0] };
 }
 

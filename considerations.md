@@ -3194,3 +3194,37 @@ in Claude Docs; this file records each part as it's built.
   ended the transaction there (`TransactionInactiveError`), as the spec
   says; Chrome let it pass. The cache seals and hashes everything first,
   then opens the transaction and puts without awaiting.
+
+## Encrypt everything: the store (November 2026)
+
+Phase 1 of the migration: every read and write of journal data goes
+through one facade, `public/js/store/index.js`, so the encrypted version
+can be put underneath it without touching the pages. It changes nothing
+anyone sees.
+
+- **Plain text in, opened rows out.** The store seals before sending,
+  opens what it returns, and searches a keyword on the device itself
+  (`findTies({ q })`); pages no longer call `seal`, `sealOne` or `open`
+  for journal rows. The encrypted version does all three differently
+  (whole records from the cache), so this is the line it slots in behind.
+- **One file per feature under `v1/`**, today's API calls moved as they
+  were, each in its feature's area so `check:changed` runs only the
+  chunks that matter; `index.js` is shared. Some functions take a kind
+  where the routes do (`listItems("people", "all")`); drawings and poses
+  share one set.
+- **Export and import pass today's sealed shapes through** for now
+  (`exportSealed`, `importTies` and so on): they mix sealed and plain data
+  throughout `views/data.js`, `open-item.js` and `journal-fields.js`, and
+  are rebuilt over the cache in phase 4 rather than reshaped twice.
+- **Types**: rows are `any` as `api()` gave them; per-kind types come with
+  the record schema (phase 2).
+- **The guard is an ESLint rule**, not a unit test: unit tests here can't
+  read source files (no Node types), and lint catches it sooner. It refuses
+  `api()` with a journal path, or `/api/` followed by a variable, outside
+  `public/js/store/`. Left outside on purpose: sign-in, keys, the account
+  (but its settings), consent, notices, feedback, shares, the version,
+  and `seal-leftovers.js` (retired with the migration). The crypto
+  Worker's own fetches (the search index, photos) are rewritten in phase 4.
+- **Small changes on the way**: lists that came sealed to a few views
+  (Analytics, the share dialogs, the workshop picker) now come opened; a
+  delete choice is `{ delete: true }` rather than an empty URL fragment.

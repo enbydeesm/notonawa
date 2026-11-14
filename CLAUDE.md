@@ -515,7 +515,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   is bundled there from only the parts in `scripts/vendor/three-entry.mjs`,
   with our own types, `scripts/vendor/three.d.ts`), `lock-rules.js` (pure) and `lock.js`
   (locking by itself), `api.js`, `store/` (every journal read and write
-  goes through `store/index.js`, never `api()` directly: plain text in,
+  goes through `store/index.js`, never `api()` directly (an ESLint rule
+  refuses a journal route, or `/api/` and a variable, outside it): plain text in,
   opened rows out, sealing, opening and the keyword search done inside;
   `v1/` is today's API, one file per feature, e.g. `v1/ties.js`
   (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`) and
@@ -529,7 +530,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `v1/drawings.js` (drawings and poses alike: `listDrawings`,
   `addDrawing`, `updateDrawing`, `deleteDrawing` and the same for poses),
   `v1/visuals.js` (`setVisualOrder`) and `v1/presets.js` (poser presets,
-  kept in memory by `pose-presets.js`); the
+  kept in memory by `pose-presets.js`), `v1/tags.js`, `v1/stats.js`
+  (`statsTies`), `v1/settings.js` (`getSettings`, `saveSettings`; kept in
+  memory by `settings.js`), `v1/data.js` (export and import, passing
+  today's sealed shapes through: `exportSealed`, `importItems`,
+  `importTies`, `importWorkshops`) and `v1/connections.js`; the
   encrypted cache's `v2/` comes in beside it, chosen by the account's
   format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's

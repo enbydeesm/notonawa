@@ -7,9 +7,8 @@
 // card I choose is linked. What was shared comes from another account, so
 // it's read strictly (profile-share.js) and shown as text.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
-import { sealOne } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readProfile } from "./profile-share.js";
 import { fieldChoices, newAliases, mergedPerson, newPerson } from "./contact-merge.js";
@@ -18,7 +17,7 @@ import { roleName } from "./roles.js";
 import { capitalise, today } from "./format.js";
 import { linkablePeople, linkConnection, connectionsChanged } from "./connections.js";
 import { ACCEPT_DISCLOSURE } from "./connection-text.js";
-import { saveItem } from "./store/index.js";
+import { saveItem, acceptConnection } from "./store/index.js";
 
 /** @typedef {import("./profile-share.js").SharedProfile} SharedProfile */
 /** @typedef {import("./pending-share.js").OpenedShare} OpenedShare */
@@ -249,8 +248,7 @@ async function connectTo(adding, personId) {
       return "linked";
     }
     if (!opened.offer || !adding.connect) return "not linked";
-    const { label } = await sealOne("connection", { label: profile.name });
-    await api("/api/connections", { method: "POST", body: { offer: opened.offer, person_id: personId, label } });
+    await acceptConnection({ offer: opened.offer, personId, name: profile.name });
     connectionsChanged();
     return "linked";
   } catch (err) {

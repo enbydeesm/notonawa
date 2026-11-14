@@ -9,7 +9,7 @@
 // scroll into view, so they cost nothing to anyone who doesn't scroll down.
 
 import { roleName, roleOptions } from "../roles.js";
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $, infoTip } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
@@ -28,7 +28,7 @@ import {
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
 } from "../stats-period.js";
-import { listItems, listWorkshops } from "../store/index.js";
+import { listItems, listWorkshops, listTags, statsTies } from "../store/index.js";
 
 /**
  * @typedef {import("../stats.js").StatsTie} StatsTie
@@ -57,7 +57,7 @@ const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [] };
  * @returns {Promise<StatsTie[]>}
  */
 async function fetchTies(body) {
-  return (await api("/api/stats/ties", { method: "POST", body })).ties;
+  return statsTies(body);
 }
 
 /**
@@ -434,7 +434,7 @@ function openMoreFilters(current, preview) {
     (async () => {
       try {
         const [peopleList, locationList, tagList] = await Promise.all([
-          listItems("people", "all"), listItems("locations", "all"), api("/api/tags"),
+          listItems("people", "all"), listItems("locations", "all"), listTags(),
         ]);
         /** @param {Record<string, any>} item */
         const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });

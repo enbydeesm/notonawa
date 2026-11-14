@@ -4,13 +4,13 @@
 // inviter's banner and People. See considerations.md, "Sharing between
 // accounts": "Connecting accounts".
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { open } from "./vault.js";
 import { choose } from "./dialog.js";
-import { convertConnections } from "./journal-fields.js";
 import { REMOVE_ABOUT_NOTE } from "./connection-text.js";
-import { listItems, saveItem } from "./store/index.js";
+import {
+  listItems, saveItem, listConnections, setConnectionPerson, markConnectionAnswered, deleteConnection,
+} from "./store/index.js";
 
 /** @typedef {import("./connection-text.js").Connection} Connection */
 
@@ -25,8 +25,7 @@ const SVG = "http://www.w3.org/2000/svg";
  * @returns {Promise<Connection[]>}
  */
 export async function loadConnections() {
-  const list = await api("/api/connections");
-  return convertConnections(list, (kind, records) => open(kind, records));
+  return listConnections();
 }
 
 /** Tells the page a connection changed. */
@@ -40,7 +39,7 @@ export function connectionsChanged() {
  * @param {string} personId
  */
 export async function linkConnection(id, personId) {
-  await api(`/api/connections/${id}/person`, { method: "PUT", body: { person_id: personId } });
+  await setConnectionPerson(id, personId);
   connectionsChanged();
 }
 
@@ -49,7 +48,7 @@ export async function linkConnection(id, personId) {
  * @param {string} id
  */
 export async function answerLater(id) {
-  await api(`/api/connections/${id}/answered`, { method: "POST", body: {} });
+  await markConnectionAnswered(id);
 }
 
 /**
@@ -71,7 +70,7 @@ export async function removeConnection(id, name) {
     choices: [{ label: "Remove connection", value: "remove", style: "solid-danger" }],
   });
   if (choice !== "remove") return false;
-  await api(`/api/connections/${id}?about=${about.checked ? "remove" : "keep"}`, { method: "DELETE" });
+  await deleteConnection(id, about.checked ? "remove" : "keep");
   connectionsChanged();
   return true;
 }
