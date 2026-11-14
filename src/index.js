@@ -31,6 +31,7 @@ import { handleStats } from "./stats/routes.js";
 import { handleFeedback } from "./feedback/routes.js";
 import { handleShares } from "./shares/routes.js";
 import { handleConnections } from "./connections/routes.js";
+import { handleRecords } from "./records/routes.js";
 import { cleanUpShares } from "./shares/cleanup.js";
 import { sweepOrphans } from "./media/storage.js";
 import { cleanUp } from "./cleanup.js";
@@ -150,6 +151,7 @@ async function respond(request, env) {
     (await handleFeedback(request, env, user, url)) ??
     (await handleShares(request, env, user, url)) ??
     (await handleConnections(request, env, user, url)) ??
+    (await handleRecords(request, env, user, url)) ??
     notFound()
   );
 }

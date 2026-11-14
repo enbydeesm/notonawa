@@ -281,7 +281,7 @@ export const AREAS = [
     // Format 2 records, ids and v3 files: nothing on the page uses them
     // yet, but the crypto Worker loads them, so a change runs basics.
     name: "records",
-    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js"],
+    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/"],
     ui: ["basics"],
   },
   {

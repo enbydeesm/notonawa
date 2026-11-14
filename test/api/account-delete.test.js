@@ -35,6 +35,12 @@ const OWNED_ROWS = {
   shares: "SELECT count(*) AS n FROM shares WHERE owner_id = ?",
   connections: "SELECT count(*) AS n FROM connections WHERE owner_id = ?1 OR peer_id = ?1",
   connection_offers: "SELECT count(*) AS n FROM connection_offers WHERE owner_id = ?",
+  records: "SELECT count(*) AS n FROM records WHERE owner_id = ?",
+  record_deletions: "SELECT count(*) AS n FROM record_deletions WHERE owner_id = ?",
+  files: "SELECT count(*) AS n FROM files WHERE owner_id = ?",
+  identity_keys: "SELECT count(*) AS n FROM identity_keys WHERE user_id = ?",
+  mailboxes: "SELECT count(*) AS n FROM mailboxes WHERE owner_id = ?",
+  mailbox_messages: "SELECT count(*) AS n FROM mailbox_messages m JOIN mailboxes b ON b.id = m.mailbox_id WHERE b.owner_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -46,6 +52,7 @@ const ORPHANS = [
   "SELECT count(*) AS n FROM tie_tags WHERE tie_id NOT IN (SELECT id FROM ties) OR tag_id NOT IN (SELECT id FROM tags)",
   "SELECT count(*) AS n FROM workshop_people WHERE workshop_id NOT IN (SELECT id FROM workshops)",
   "SELECT count(*) AS n FROM workshop_tags WHERE workshop_id NOT IN (SELECT id FROM workshops) OR tag_id NOT IN (SELECT id FROM tags)",
+  "SELECT count(*) AS n FROM mailbox_messages WHERE mailbox_id NOT IN (SELECT id FROM mailboxes)",
   "SELECT count(*) AS n FROM media WHERE workshop_id NOT IN (SELECT id FROM workshops)",
   "SELECT count(*) AS n FROM media WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)",
   `SELECT count(*) AS n FROM drawings WHERE tie_id NOT IN (SELECT id FROM ties) OR plan_id NOT IN (SELECT id FROM plans)
@@ -122,6 +129,19 @@ async function userWithEverything() {
     connection, id, peer, crypto.randomUUID(), peer, id).run();
   await sql("UPDATE people SET connection_id = ? WHERE id = ?", connection, sam).run();
   await sql("INSERT INTO connection_offers (token_hash, owner_id, expires_at) VALUES (?, ?, '2999-01-01T00:00:00Z')", `offer-${id}`, id).run();
+  // Format 2's tables (migration 0032), filled directly: a record and a
+  // deleted one, a file, an identity key, and a mailbox with a message.
+  const mailbox = `mb-${id}`;
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO records (id, owner_id, kind, version, seq, key, body, bytes) VALUES (?, ?, 'tie', 1, 1, 'k', 'b', 2)")
+      .bind(`rec-${id}`, id),
+    env.DB.prepare("INSERT INTO record_deletions (id, owner_id, kind, seq) VALUES (?, ?, 'tie', 2)").bind(`gone-${id}`, id),
+    env.DB.prepare("INSERT INTO files (id, owner_id, kind, thumb_bytes, bytes) VALUES (?, ?, 'photo', 1, 2)").bind(`file-${id}`, id),
+    env.DB.prepare("INSERT INTO identity_keys (user_id, public_key, sealed_seed) VALUES (?, 'pk', 'i1.x.y')").bind(id),
+    env.DB.prepare("INSERT INTO mailboxes (id, owner_id, token_hash, kind) VALUES (?, ?, 'h', 'contact')").bind(mailbox, id),
+    env.DB.prepare("INSERT INTO mailbox_messages (id, mailbox_id, body, bytes, expires_at) VALUES (?, ?, 'm1.1.a.b', 8, '2999-01-01T00:00:00Z')")
+      .bind(`msg-${id}`, mailbox),
+  ]);
   return { id, cookie };
 }
 

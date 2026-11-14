@@ -167,7 +167,8 @@ export async function newSessionStatements(db, userId, { kind, passkeyId }) {
  */
 export function findSession(db, tokenHash) {
   return db.prepare(
-    `SELECT s.id, s.user_id, s.kind, s.passkey_id, s.created_at, s.last_used_at, s.expires_at, u.terms_version
+    `SELECT s.id, s.user_id, s.kind, s.passkey_id, s.created_at, s.last_used_at, s.expires_at, u.terms_version,
+            u.format, u.converting_since
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`
   ).bind(tokenHash).first();
 }

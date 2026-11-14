@@ -181,6 +181,20 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   /api/visuals/order` with `{ tie_id | plan_id | workshop_id, order: [{
   kind: "media" | "drawing" | "pose", id }] }`: every visual, or it's
   refused). The kinds have no order routes of their own.
+- `src/records/`: sealed records, format 2 (migration 0032; built, no
+  account uses it yet). `parse.js` (pure: `KINDS`, the same as the page's
+  `RECORD_KINDS`; a batch's shape, `k2.`/`e2.` sealed, up to 50 and 1.5 MB
+  a body; `pageCut`), `db.js` (`syncPage`; `writeRecords`, one D1 batch:
+  `users.sync_seq` raised by the batch's size and each op given the next
+  seq, every op starting with an INSERT into `version_checks` that fails
+  the batch unless the record is at the version it was based on, and an
+  INSERT into `quota_checks` that does the same over 1 GB; a stale batch is
+  409 with the stale ids), `routes.js` (`GET /api/sync?since=&limit=`,
+  `POST /api/records`; both refuse a format 1 account unless it's
+  converting). A record's `version` rises by one per write and a deleted
+  id can't come back (triggers); deletion markers are kept for good.
+- `src/files/`: format v3 photos and videos in R2, `<owner>/files/<id>`
+  (`storage.js`).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the share clean-up, the photo sweep
   (which checks share files too) and the backup, each carrying on if one
@@ -788,7 +802,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Data rules
 
 - **Scope every query to the signed-in user** with `owner_id = ?` bound to
-  `user.id`. Users are keyed by `users.id`. `users.email` is a leftover that
+  `user.id`. `getUser` also gives the account's `format` (1 or 2) and
+  whether it's `converting` (migration 0032). Users are keyed by `users.id`. `users.email` is a leftover that
   just holds the id (see migration 0003); never read it or put anything in it.
 - **Ownership is also enforced in the database**: triggers reject linking rows
   that belong to different users, and `owner_id` can't change. Errors start
