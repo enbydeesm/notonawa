@@ -28,7 +28,7 @@ import {
   readExport, exportRoleNames, exportDefaultShape, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
 } from "../import-steps.js";
 import { adoptRoleNames, adoptDefaultShape } from "../settings.js";
-import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
+import { convertJournal } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
 import { takeDrawings } from "../import-drawings.js";
@@ -43,11 +43,11 @@ import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
 import {
   uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets, listDrawings, listPoses,
-  exportSealed, importItems, importTies, importWorkshops,
+  exportJournal, openMediaPart, importItems, importTies, importWorkshops,
 } from "../store/index.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
-import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
+import { seal, open, forgetSearch } from "../vault.js";
 import { showSharedByMe, showConnections } from "../shared-by-me.js";
 import { linksDroppedText } from "../connection-text.js";
 
@@ -129,46 +129,25 @@ async function findWorkshopDuplicates(sealedBatch, plainBatch) {
  * @returns {Promise<{ name: string, content: string | Blob, type: string, unreadable: number, missing: number }>}
  */
 async function buildExport(progress) {
-  const sealed = await exportSealed();
-  // Opened here, on the device: the file has the notes in plain text.
-  const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
+  // Opened on the device: the file has the notes and captions in plain text.
+  const { doc, unreadable } = await exportJournal();
   const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
   const items = [...doc.ties, ...doc.plans, ...doc.workshops];
   /** @type {any[]} */
   const entries = items.flatMap((x) => x.photos ?? []);
   /** @type {any[]} */
   const drawings = items.flatMap((x) => x.drawings ?? []);
-  /** @type {any[]} */
-  const poses = items.flatMap((x) => x.poses ?? []);
-
-  let unreadableCaptions = 0;
-  // Drawings' and poses' captions are sealed like notes; a caption that won't open is left out.
-  for (const [kind, list] of /** @type {const} */ ([["drawing", drawings], ["pose", poses]])) {
-    const opened = await open(kind, list.map((d) => ({ caption: d.caption })));
-    opened.forEach((c, i) => {
-      list[i].caption = c.caption;
-      if (c.unreadable?.length) unreadableCaptions++;
-    });
-  }
   if (entries.length === 0 && drawings.length === 0) {
-    return {
-      name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json",
-      unreadable: unreadable + unreadableCaptions, missing: 0,
-    };
+    return { name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json", unreadable, missing: 0 };
   }
 
-  const captions = await openMedia(entries.map((e) => ({ id: e.id, caption: e.caption })));
-  captions.forEach((c, i) => {
-    entries[i].caption = c.caption;
-    if (c.unreadable) unreadableCaptions++;
-  });
   /** @type {{ name: string, data: Uint8Array<ArrayBuffer> }[]} */
   const files = [];
   let missing = 0;
   for (const [i, entry] of entries.entries()) {
     progress(`Decrypting photos and videos… ${i + 1} of ${entries.length}`);
     try {
-      files.push({ name: entry.file, data: new Uint8Array(await openPhoto(entry.id, "full", entry.kind === "video" ? "video" : "photo")) });
+      files.push({ name: entry.file, data: new Uint8Array(await openMediaPart({ id: entry.id, kind: entry.kind === "video" ? "video" : "photo" }, "full")) });
     } catch {
       // Can't be decrypted (or fetched): listed without a file.
       entry.file = null;
@@ -181,7 +160,7 @@ async function buildExport(progress) {
   }
   const json = /** @type {Uint8Array<ArrayBuffer>} */ (new TextEncoder().encode(JSON.stringify(doc, null, 2)));
   const zip = new Blob(makeZip([{ name: "notonawa.json", data: json }, ...files], new Date(doc.exported_at)), { type: "application/zip" });
-  return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable: unreadable + unreadableCaptions, missing };
+  return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable, missing };
 }
 
 /**

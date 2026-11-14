@@ -3492,3 +3492,27 @@ presets in format 2.
 - **Pages ask the store, not the vault**, to open a part or copy a photo
   (`openMediaPart`, `copyMediaTo`), so photos-ui.js works for both formats.
   Adding a share's photos (`uploadSealed`) comes with shares, next.
+
+## Encrypt everything: settings and export as built (November 2026)
+
+Phase 4, slice 7a. (Slice 7 is split: 7a settings and export, 7b import,
+7c shares, 7d the walkthrough on format 2 accounts and dev's sign-ups.)
+
+- **Settings, split**: a format 2 account's role names and the poser's
+  default body are in its sealed settings record; light or dark mode, the
+  release notes and welcome seen stay on the server, as the page needs them
+  before the journal is open. `GET /api/account/settings` gives a format 2
+  account nulls for the record's three, and a `PUT` with any of them is
+  refused (`src/account/settings.js`, `settingsFor`, `checkFormat`); the
+  store gives the two halves as one, so the pages don't change.
+- **The export, both formats through the store**: `exportJournal` gives the
+  whole journal opened (captions too) with how many things wouldn't open;
+  the Your data view no longer opens anything itself. For format 2,
+  `GET /api/data/export` is now open to it (the gate's `BOTH`): with no
+  rows of the format 1 journal, it gives the account part (passkeys,
+  notices, feedback, shares), and the journal is added from the records
+  in format 1's shape. A unit test builds one journal as format 1's rows
+  and format 2's records and checks the two exports are the same, so a
+  file from either imports into either.
+- **Presets saved together** (an import's) share a time; each has its place
+  in the save (`order`), as the cache gives records back in id order.

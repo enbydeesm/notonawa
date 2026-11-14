@@ -105,3 +105,31 @@ function roleName(value, role) {
 function shown(role, label) {
   return label ?? role;
 }
+
+/**
+ * The settings a format 2 account keeps in its sealed settings record
+ * instead (public/js/records/settings.js): never stored here for it.
+ */
+export const RECORD_SETTINGS = /** @type {const} */ (["top_label", "bottom_label", "default_shape"]);
+
+/**
+ * What GET /api/account/settings gives an account: a format 2 one gets
+ * none of RECORD_SETTINGS (its page reads them from its records).
+ * @param {Settings} settings
+ * @param {1 | 2} format
+ * @returns {Settings}
+ */
+export function settingsFor(settings, format) {
+  return format === 2 ? { ...settings, top_label: null, bottom_label: null, default_shape: null } : settings;
+}
+
+/**
+ * A format 2 account's change can't hold RECORD_SETTINGS.
+ * @param {Record<string, unknown>} body
+ * @param {1 | 2} format
+ */
+export function checkFormat(body, format) {
+  if (format === 2 && RECORD_SETTINGS.some((name) => body[name] !== undefined)) {
+    throw new BadInput("Reload the app to save this.");
+  }
+}

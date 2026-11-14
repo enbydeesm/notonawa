@@ -157,6 +157,12 @@ describe("the v2 presets store", () => {
   it("adds, lists oldest first, renames, saves over and deletes, up to 50", async () => {
     const [a, b] = await presets.addPosePresets([{ kind: "arms", name: "Boxtie", data: { joints: {} } }, { kind: "body", name: " Kneel ", data: {} }]);
     expect((await presets.listPosePresets()).map((/** @type {any} */ p) => [p.kind, p.name])).toEqual([["arms", "Boxtie"], ["body", "Kneel"]]);
+    // Saved together, they keep their order whatever order the journal holds them in.
+    const [first, second] = [journal.get(a), journal.get(b)];
+    journal.delete(a);
+    journal.set(a, first);
+    expect((await presets.listPosePresets()).map((/** @type {any} */ p) => p.id)).toEqual([a, b]);
+    expect(second.body.order).toBe(1);
     await presets.renamePosePreset(a, "Box tie");
     await presets.setPosePresetData(b, { joints: { l_knee: [90] } });
     expect(journal.get(a).body.name).toBe("Box tie");

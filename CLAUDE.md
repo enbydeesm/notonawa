@@ -447,7 +447,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
   `records/schema.js` (pure: each kind's fields and the checks on one
   record), `records/parse.js` (pure: the server's field parsers, with its
-  messages, `BadEdit`; `stamp`, `compact`) and `records/edits.js` (pure:
+  messages, `BadEdit`; `stamp`, `compact`), `records/settings.js` (pure:
+  the settings record's role names and default body, with the server's
+  checks) and `records/edits.js` (pure:
   a form's fields as a record, keeping fields the form hasn't, and the
   rules across records the database kept for format 1: one default
   location, "Me" not archived or deleted, a deleted person or location
@@ -647,7 +649,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`statsTies`), `v1/settings.js` (`getSettings`, `saveSettings`; kept in
   memory by `settings.js`), `v1/data.js` (export and import, passing
   today's sealed shapes through: `exportSealed`, `importItems`,
-  `importTies`, `importWorkshops`) and `v1/connections.js`; `v2/` is
+  `importTies`, `importWorkshops`; `exportJournal`, both formats: the
+  whole journal opened, captions too, with the count left out) and `v1/connections.js`; `v2/` is
   format 2's, over the journal in memory (`v2/journal.js`), chosen when
   each function is called by the account's format (`byFormat` in
   `index.js`; an area not yet built for v2 is v1's only):
@@ -658,7 +661,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   by `vault.sealFile`, uploaded with `PUT /api/files/:id`, then listed on
   their item; removed from the item, then the file deleted; drawings and
   poses as records listed in their item's visuals, one save each; the
-  order) and `v2/presets.js` (records, 50 at most), with the pages' rows made by the pure `queries/`
+  order), `v2/presets.js` (records, 50 at most; ones saved together
+  keep their `order`), `v2/settings.js` (role names and the poser's
+  default body in the settings record, the rest on the server, given as
+  one) and `v2/data.js` (`exportJournal`: the server's export for the
+  account part, the journal from the records; import next), with the
+  pages' rows made by the pure `queries/`
   (`queries/workshops.js`: format 1's `WORKSHOP_COLUMNS`, a unit test
   checks, educators and participants with link ids `w<n>`, the linked
   plans A–Z then ties oldest first, newest first; `queries/ties.js`: the Ties search's
@@ -668,7 +676,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   for the form's `keep_deleted`), `recentOn` and Analytics' `statsRows`;
   `queries/resources.js`,
   `queries/plans.js` (tags by name, linked ties newest first, the
-  workshop's title, visuals counted) and `queries/tags.js` (most recently
+  workshop's title, visuals counted), `queries/export.js` (the export's
+  journal in format 1's shape, a unit test comparing the two from the same
+  journal) and `queries/tags.js` (most recently
   on a tie first, with counts): format 1's columns, unit tests check, and
   order); and `maps.js`, both formats'
   `mapLinkCoords`: a full Google Maps link read on the device

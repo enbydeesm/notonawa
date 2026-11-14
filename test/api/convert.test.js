@@ -105,8 +105,10 @@ describe("finishing", () => {
     expect(await account(user.id)).toMatchObject({ format: 2, converting_since: null, converted_at: expect.stringMatching(/T/) });
     expect(await env.PHOTOS.head(objectKey(user.id, photo))).toBeNull();
     expect(await sql("SELECT COUNT(*) AS n FROM people WHERE owner_id = ?", other.id).first("n")).toBe(1);
-    // The gate follows: the format 1 journal is gone for good, format 2's open.
-    expect((await call("/api/data/export", { cookie: user.cookie })).status).toBe(410);
+    // The gate follows: the format 1 journal is gone for good, format 2's
+    // open; the export gives only the account part.
+    expect((await call("/api/ties/search", { method: "POST", body: {}, cookie: user.cookie })).status).toBe(410);
+    expect((await call("/api/data/export", { cookie: user.cookie })).body).toMatchObject({ people: [], ties: [], plans: [], workshops: [] });
     expect((await call("/api/sync", { cookie: user.cookie })).status).toBe(200);
     expect((await finish(user.cookie)).status).toBe(409);
   });

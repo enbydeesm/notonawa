@@ -121,7 +121,7 @@ export const AREAS = [
   },
   {
     name: "settings",
-    files: ["src/account/settings.js", "public/js/store/v1/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
+    files: ["src/account/settings.js", "public/js/store/v1/settings.js", "public/js/store/v2/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
       "public/js/theme-init.js", "public/js/roles.js"],
     ui: ["settings", "people", "ties", "insights"],
   },
@@ -267,7 +267,7 @@ export const AREAS = [
   },
   {
     name: "data",
-    files: ["src/data/", "public/js/store/v1/data.js", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
+    files: ["src/data/", "public/js/store/v1/data.js", "public/js/store/v2/data.js", "public/js/store/queries/export.js", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
       "public/js/import-steps.js", "public/js/import-dedupe.js", "public/js/import-photos.js",
       "public/js/journal-fields.js", "public/js/zip.js", "public/js/download.js", "public/import-template.csv",
       "public/js/import-presets.js"],

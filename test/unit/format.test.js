@@ -10,7 +10,7 @@ describe("routeFormat", () => {
   it("knows the format 1 journal, format 2's routes, and the rest", () => {
     for (const path of [
       "/api/ties/search", "/api/ties/abc", "/api/ties/recent/people", "/api/workshops", "/api/plans", "/api/people/abc/restore",
-      "/api/locations", "/api/tags", "/api/stats/ties", "/api/data/export", "/api/data/import/ties", "/api/media/abc/thumb",
+      "/api/locations", "/api/tags", "/api/stats/ties", "/api/data/import/ties", "/api/media/abc/thumb",
       "/api/drawings", "/api/poses/abc", "/api/pose-presets", "/api/visuals/order", "/api/encryption/seal", "/api/connections/abc/person",
     ]) expect(routeFormat(path), path).toBe("v1");
     for (const path of ["/api/sync", "/api/records", "/api/files/abc/full", "/api/identity"]) expect(routeFormat(path), path).toBe("v2");
@@ -32,7 +32,9 @@ describe("formatRefusal", () => {
   it("lets format 2 use its routes, and none of the format 1 journal", () => {
     expect(formatRefusal(V2, "POST", "/api/records")).toBeNull();
     expect(formatRefusal(V2, "GET", "/api/mailboxes/messages")).toBeNull();
-    expect(formatRefusal(V2, "GET", "/api/data/export")).toMatchObject({ status: 410 });
+    expect(formatRefusal(V2, "GET", "/api/data/import/items")).toMatchObject({ status: 410 });
+    // The export is either's: a format 2 account's gives its account part.
+    expect(formatRefusal(V2, "GET", "/api/data/export")).toBeNull();
     expect(formatRefusal(V2, "GET", "/api/ties/abc")).toMatchObject({ status: 410 });
   });
 

@@ -11,9 +11,11 @@
 /** @typedef {{ status: 409 | 410, error: string, reload: true }} Refusal */
 
 // The format 1 journal: everything under these. /api/locations/coords
-// (reading a map link's coordinates) is allowed to both.
+// (reading a map link's coordinates) is allowed to both, and so is the
+// export: a format 2 account's has its account part only (passkeys,
+// notices, feedback, shares), its journal added on the device.
 const V1 = /^\/api\/(ties|workshops|plans|people|locations|tags|stats|data|media|drawings|poses|pose-presets|visuals|encryption|connections)(\/|$)/;
-const BOTH = new Set(["/api/locations/coords"]);
+const BOTH = new Set(["/api/locations/coords", "/api/data/export"]);
 // Format 1 POSTs that only read, so a converting account may still use them.
 const V1_READS = new Set(["/api/ties/search", "/api/stats/ties"]);
 

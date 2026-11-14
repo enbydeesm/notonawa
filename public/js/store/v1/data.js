@@ -4,6 +4,8 @@
 // does the import on the device instead. See store/index.js.
 
 import { api } from "../../api.js";
+import { open, openMedia } from "../../vault.js";
+import { convertJournal, withoutUnreadableMarks } from "../../journal-fields.js";
 
 /**
  * The whole journal as GET /api/data/export gives it, notes still sealed.
@@ -39,4 +41,35 @@ export function importTies(body) {
  */
 export function importWorkshops(body) {
   return api("/api/data/import/workshops", { method: "POST", body });
+}
+
+/**
+ * The whole journal for the export file, opened on the device: notes,
+ * drawings', poses' and photos' captions in plain text. What won't open is
+ * left out, and counted.
+ * @returns {Promise<{ doc: any, unreadable: number }>}
+ */
+export async function exportJournal() {
+  const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(await exportSealed(), open));
+  const items = [...doc.ties, ...doc.plans, ...doc.workshops];
+  let unreadableCaptions = 0;
+  // Drawings' and poses' captions are sealed like notes.
+  for (const kind of /** @type {const} */ (["drawing", "pose"])) {
+    /** @type {any[]} */
+    const list = items.flatMap((x) => x[`${kind}s`] ?? []);
+    const opened = await open(kind, list.map((d) => ({ caption: d.caption })));
+    opened.forEach((c, i) => {
+      list[i].caption = c.caption;
+      if (c.unreadable?.length) unreadableCaptions++;
+    });
+  }
+  // Photos' captions are sealed bound to the photo.
+  /** @type {any[]} */
+  const entries = items.flatMap((x) => x.photos ?? []);
+  const captions = await openMedia(entries.map((e) => ({ id: e.id, caption: e.caption })));
+  captions.forEach((c, i) => {
+    entries[i].caption = c.caption;
+    if (c.unreadable) unreadableCaptions++;
+  });
+  return { doc, unreadable: unreadable + unreadableCaptions };
 }

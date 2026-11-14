@@ -82,8 +82,19 @@ import * as v2Tags from "./v2/tags.js";
 
 export const listTags = byFormat(v1Tags.listTags, v2Tags.listTags);
 export const deleteTag = byFormat(v1Tags.deleteTag, v2Tags.deleteTag);
-export { getSettings, saveSettings } from "./v1/settings.js";
-export { exportSealed, importItems, importTies, importWorkshops } from "./v1/data.js";
+import * as v1Settings from "./v1/settings.js";
+import * as v2Settings from "./v2/settings.js";
+
+export const getSettings = byFormat(v1Settings.getSettings, v2Settings.getSettings);
+export const saveSettings = byFormat(v1Settings.saveSettings, v2Settings.saveSettings);
+import * as v1Data from "./v1/data.js";
+import * as v2Data from "./v2/data.js";
+
+export const exportJournal = byFormat(v1Data.exportJournal, v2Data.exportJournal);
+export const exportSealed = byFormat(v1Data.exportSealed, v2Data.exportSealed);
+export const importItems = byFormat(v1Data.importItems, v2Data.importItems);
+export const importTies = byFormat(v1Data.importTies, v2Data.importTies);
+export const importWorkshops = byFormat(v1Data.importWorkshops, v2Data.importWorkshops);
 export {
   listConnections, acceptConnection, setConnectionPerson, markConnectionAnswered, deleteConnection,
 } from "./v1/connections.js";
