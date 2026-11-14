@@ -206,8 +206,10 @@ export const AREAS = [
   },
   {
     name: "encryption",
-    files: ["src/encryption/", "public/js/seal-leftovers.js"],
+    files: ["src/encryption/", "public/js/seal-leftovers.js", "public/js/vendor/hpke.js", "public/js/vendor/hpke.d.ts",
+      "scripts/vendor/hpke-entry.mjs", "scripts/vendor/hpke.d.ts", "scripts/vendor.mjs"],
     ui: ["notes"],
+    generated: ["vendor"],
   },
   {
     name: "photos",

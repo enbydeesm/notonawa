@@ -3141,3 +3141,56 @@ time. Mocked up first, then built (`pose-editor.js`, with
 - **A workshop card's dates float as one block** in the top right,
   spanning the title's and the teachers' rows, rather than a line in
   each: a title wrapping to two lines pushed the year away from its days.
+
+## Encrypt everything: the post-quantum library (November 2026)
+
+The first step of the encrypt-everything migration (one sealed record per
+item, item keys, a sealed cache on the device, contacts on post-quantum
+identity keys). The plan, the brief and the architecture's decisions are
+in Claude Docs; this file records each part as it's built.
+
+- **hpke 1.1.8 and @panva/hpke-noble 1.1.8** (both MIT, by Filip Skokan),
+  pinned dev dependencies vendored like three.js: `scripts/vendor.mjs`
+  bundles only what `scripts/vendor/hpke-entry.mjs` names into
+  `public/js/vendor/hpke.js`, typed by our own `scripts/vendor/hpke.d.ts`.
+  They bring `@noble/hashes`, `@noble/ciphers`, `@noble/curves` (2.4.0) and
+  `@noble/post-quantum` (0.7.1), all MIT, by Paul Miller. hpke follows
+  draft-ietf-hpke-hpke-06 and draft-ietf-hpke-pq-05, has no dependencies
+  of its own, and lets the KEM, KDF and AEAD be swapped one at a time.
+- **The suite**: MLKEM768-X25519 (X-Wing, KEM id 0x647a) from
+  @panva/hpke-noble, pure JavaScript, in every browser; HKDF-SHA256 and
+  AES-256-GCM from hpke, on Web Crypto. Chrome 154+ has X-Wing natively
+  (hpke has a Web Crypto version too), but one path everywhere is simpler
+  to trust and test; we switch once every major browser ships it, behind
+  one module, so no format changes. Not independently audited, and
+  noble's code doesn't claim constant time: pending the security
+  reviewer's sign-off (decapsulation only runs on the user's own device).
+- **Size**: 61 KB minified, 22 KB gzipped, loaded only by what needs it
+  (the crypto Worker, from the contacts work on).
+- **Licences in the bundle**: hpke's and two of the @noble libraries'
+  files carry no notice of their own, so `vendor.mjs` starts the bundle
+  with one naming them all and their versions (noble-curves and
+  noble-post-quantum keep their own too).
+- **Tested** (`test/unit/hpke.test.js`): the pinned packages derive the
+  published key pair and open the published message of draft-ietf-hpke-pq-05's
+  X-Wing vector (`hpke-xwing-vector.js`; its only HKDF-SHA256 vector uses
+  ChaCha20Poly1305, so it checks the KEM rather than our exact suite), and
+  our suite, through the vendored bundle, round trips, rebuilds a key pair
+  from its 32-byte seed, and refuses the wrong key, a changed ciphertext or
+  either half of the encapsulated secret, and other additional data or info.
+- **IndexedDB in the crypto Worker works everywhere** (a spike, not kept,
+  Nov 13 on macOS: Safari 27.2, Chrome 157, Firefox 160). From a module
+  Worker each opened IndexedDB, stored a non-extractable `CryptoKey` that
+  still opened what it sealed after a reload, wrote 2,000 sealed records
+  in one transaction (47–66 ms; all read back in 5–11 ms) and 25 MB of
+  files as Blobs (19–29 ms) or ArrayBuffers (25–69 ms), all read back
+  intact after a reload; `storage.estimate()` and `BroadcastChannel` work
+  there, `persist()` is the page's only (granted on localhost by Firefox
+  alone, so the cache must cope with being cleared). X-Wing from the
+  vendored bundle: a key pair from its seed in 7–11 ms, sealing and
+  opening 4 KB in 2–5 ms.
+- **Never await anything but a transaction's own requests inside it.**
+  The spike's first version hashed a file between puts: Safari and Firefox
+  ended the transaction there (`TransactionInactiveError`), as the spec
+  says; Chrome let it pass. The cache seals and hashes everything first,
+  then opens the transaction and puts without awaiting.
