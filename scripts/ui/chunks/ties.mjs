@@ -81,7 +81,7 @@ export default async function () {
   check("'Add & archive' adds the typed name, archived, and picks it", await run(`
     const box = $("#tie-location"); box.focus(); box.value = "Garage"; box.dispatchEvent(new Event("input"));
     [...document.querySelectorAll("#tie-location-list button")].find((b) => b.textContent === "Add & archive").click(); await calm(800);
-    const saved = (await (await fetch("/api/locations?archived=true")).json()).map((l) => l.name);
+    const saved = (await store.listItems("locations", "true")).map((l) => l.name);
     return [box.value, $("[name=location_id]").value !== "", $("#tie-location-list").hidden, saved.includes("Garage"), !!$("dialog[open] #tie-form")];`),
     ["Garage", true, true, true, true]);
   check("'Add to list' adds an active location, which the list then offers", await run(`
@@ -124,8 +124,8 @@ export default async function () {
     [false, "Floor session", [true, "Floor tie at Studio", 4, "With: Me (top), Sam (bottom)", ["Floor", "Futomomo"]]]);
   check("the card links to its album, which the server only has sealed", await run(`
     const link = document.querySelector(".tie-card .tie-album a");
-    const stored = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ties[0];
-    return [link?.textContent, link?.href, link?.target, link?.rel, stored.album_url.startsWith("e1.")];`),
+    const stored = (await store.findTies({})).ties[0];
+    return [link?.textContent, link?.href, link?.target, link?.rel, !(await plainOnServer("photos.app.goo.gl/floor"))];`),
     ["Open album", "https://photos.app.goo.gl/floor", "_blank", "noopener noreferrer", true]);
   check("the card's date has no commas, and the album link follows what's attached, at the left", await run(`
     const c = document.querySelector(".tie-card"), album = c.querySelector(".tie-album").getBoundingClientRect();

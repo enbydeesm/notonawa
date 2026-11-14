@@ -3564,3 +3564,31 @@ Phase 4, slice 7c: shares made from and opened into a format 2 journal.
 - **No connections yet for format 2**: they become contact records in
   phase 6. Until then a format 2 account lists none, Share my profile
   doesn't offer Connect our accounts, and an invite's offer isn't shown.
+
+## Encrypt everything: phase 4 finished (November 2026)
+
+Slice 7d: the walkthrough on format 2 accounts, and dev's new sign-ups
+format 2. Phase 4's gate, the whole walkthrough passing on a format 2
+account, is met: every chunk passes on both formats.
+
+- **The walkthrough goes through the store**: its checks and seeds used
+  format 1's routes directly; they now use the app's own store module in
+  the page, so each runs on either format. The few that check what the
+  server keeps (notes and captions only sealed) ask whether the text is
+  anywhere the server keeps the journal in plain text (`plainOnServer`:
+  format 1's export, format 2's records), and format 1's own checks (older
+  plain text sealed at unlock, the search index) run on format 1 only.
+  Connections are checked on format 1 only, until contacts.
+- **Both formats in every check**: `check:changed -- --ui` runs the changed
+  chunks on format 1, then format 2; `npm run test:ui -- --format 2` runs
+  them all on format 2. Until phase 8 both are live.
+- **What it found**, beyond the walkthrough's own assumptions: an import
+  preview checked links to people and places that only exist once the
+  items are saved (format 1's never did), and its list of new tags was
+  read before the batch's tags were; a pose saved with only some joints
+  wasn't filled in as format 1's server filled it (`records/pose-data.js`);
+  the Unlock view could log an error when signing out raced it; and a
+  pose check that read before the save it waited for had finished.
+- **Dev sign-ups are format 2** (`NEW_ACCOUNT_FORMAT` in `env.dev`); dev's
+  existing accounts stay format 1, for converting in phase 5. Production
+  stays format 1 until the release.

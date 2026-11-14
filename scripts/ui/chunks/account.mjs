@@ -5,7 +5,7 @@ import { account, check, freshAccount, go, replaceAuthenticator, run, sleep, sql
 export default async function () {
   const recoveryCode = await freshAccount();
   // A tie, to see the journal again after signing back in.
-  await run(`await post("/api/ties", { title: "Before signing out", tie_type: "floor", tie_date: "2026-01-01" });`);
+  await run(`await store.saveTie(null, { title: "Before signing out", tie_type: "floor", tie_date: "2026-01-01" });`);
   console.log("Account");
   await go("/account");
   check("the account page lists the passkey and this session", await run(`
@@ -129,14 +129,14 @@ export default async function () {
   await go("/");
   check("a changed policy must be agreed to; nothing is saved till then, but export still opens", await run(`
     const first = [document.title, $("#consent-go").disabled, $("nav").hidden, $("#notices").hidden];
-    const save = (await fetch("/api/people", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Nope" }) })).status;
+    const save = await store.saveItem("people", null, { name: "Nope" }).then(() => "saved", () => "refused");
     $("#view a[href='/data']").click(); await calm(1000); const data = document.title;
     history.back(); await calm(1000); const back = document.title;
     $("#consent-agree").click(); const enabled = !$("#consent-go").disabled;
     $("#consent-go").click(); await calm(1500);
     const after = [document.title, $("#tie-count") !== null, (await (await fetch("/api/consent")).json()).needed];
     return [first, save, data, back, enabled, after];`),
-    [["Privacy policy update · NotoNawa", true, true, true], 403, "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
+    [["Privacy policy update · NotoNawa", true, true, true], "refused", "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
       ["NotoNawa", true, false]]);
 
   console.log("Deleting the account");

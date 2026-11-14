@@ -48,7 +48,7 @@ export default async function () {
     $("#tie-participants .kept-deleted button").click(); $("#tie-location-deleted button").click();
     $("#tie-save").click(); await calm(600); await settle();
     return card(0);`), [true, "Floor tie", 4, "With: Me (top)", ["Futomomo"]]);
-  await run(`await post("/api/ties", { title: "Throwaway", tie_type: "floor", tie_date: "2030-01-01" });`);
+  await run(`await store.saveTie(null, { title: "Throwaway", tie_type: "floor", tie_date: "2030-01-01" });`);
   await go("/");
   check("Delete tie asks first; Cancel keeps it, Delete tie deletes it", await run(`
     const confirmDialog = () => { const all = document.querySelectorAll("dialog"); return all[all.length - 1]; };

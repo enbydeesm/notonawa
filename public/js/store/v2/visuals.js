@@ -15,6 +15,7 @@ import { sealFile, openFile, copyFile, reshareFile, adoptShareAsFile } from "../
 import { records, record, save } from "./journal.js";
 import { newId } from "../../records/ids.js";
 import { stamp, BadEdit } from "../../records/parse.js";
+import { poseData } from "../../records/pose-data.js";
 import {
   itemRef, captionOf, visualAdded, visualRemoved, fileCaptioned, visualsOrdered, mediaRows, drawnRows, findVisual,
 } from "../../records/visuals.js";
@@ -191,7 +192,8 @@ function drawn(kind) {
      * @param {{ data: any, caption: string | null }} entry
      * @returns {Promise<string>}
      */
-    add: async (item, { data, caption }) => {
+    add: async (item, { data: given, caption }) => {
+      const data = kind === "pose" ? poseData(given) : given;
       const id = newId();
       const now = stamp();
       const text = captionOf(caption);
@@ -209,7 +211,7 @@ function drawn(kind) {
     update: async (id, change) => {
       const entry = own(id);
       const body = /** @type {Record<string, any>} */ ({ ...entry.body, updated_at: stamp() });
-      if ("data" in change) body.data = change.data;
+      if ("data" in change) body.data = kind === "pose" ? poseData(change.data) : change.data;
       if ("caption" in change) {
         const text = captionOf(change.caption);
         if (text) body.caption = text;

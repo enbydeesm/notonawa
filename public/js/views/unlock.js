@@ -4,7 +4,7 @@
 // encryption; and, if the recovery code was replaced by the operator, offers
 // an older code or a new key.
 
-import { api, errorMessage } from "../api.js";
+import { api, ApiError, errorMessage } from "../api.js";
 import { $, showMessage } from "../dom.js";
 import { choose } from "../dialog.js";
 import { navigate } from "../navigate.js";
@@ -132,7 +132,13 @@ export async function mount(_root, { unlocked, signal }) {
 
   // Signed out, or only part-way through signing in with a recovery code?
   // Then it's the sign-in view's job. (api() goes there itself on a 401.)
-  const account = await api("/api/account");
+  // Signed out meanwhile (signing out locks, which draws this view, then
+  // goes to sign-in), or left: it's no longer this view's to answer.
+  const account = await api("/api/account").catch((err) => {
+    if (signal.aborted || (err instanceof ApiError && err.status === 401)) return null;
+    throw err;
+  });
+  if (!account) return;
   if (account.session_kind === "recovery") {
     navigate("/signin", { replace: true });
     return;

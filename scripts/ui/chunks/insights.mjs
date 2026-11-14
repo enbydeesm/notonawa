@@ -13,8 +13,8 @@ function seedMapTies() {
     const d = new Date();
     const today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     for (const [name, latitude, longitude] of [["Soho dungeon", 51.5136, -0.1365], ["Watford loft", 51.6565, -0.3903], ["Sydney studio", -33.8688, 151.2093]]) {
-      const location_id = await post("/api/locations", { name, latitude, longitude });
-      if (!location_id || !await post("/api/ties", { tie_type: "floor", tie_date: today, location_id })) throw new Error("Seeding " + name + " failed");
+      const location_id = await store.saveItem("locations", null, { name, latitude, longitude });
+      if (!location_id || !await store.saveTie(null, { tie_type: "floor", tie_date: today, location_id })) throw new Error("Seeding " + name + " failed");
     }`);
 }
 
@@ -123,13 +123,12 @@ export default async function () {
   await run(`
     const d = new Date();
     const today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const sydney = (await (await fetch("/api/locations?archived=false")).json()).find((l) => l.name === "Sydney studio").id;
-    const { sealOne } = await import("/js/vault.js");
-    const body = await sealOne("workshop", { title: "Rope intensive", start_date: today, location_id: sydney, cost: "USD 120.00" });
-    const workshop = await post("/api/workshops", body);
-    const plan = await post("/api/plans", { title: "Intensive harness", workshop_id: workshop });
-    await post("/api/ties", { tie_type: "floor", tie_date: today, plan_ids: [plan] });
-    await post("/api/ties", { tie_type: "floor", tie_date: today, workshop_id: workshop });`);
+    const sydney = (await store.listItems("locations", "false")).find((l) => l.name === "Sydney studio").id;
+    const body = { title: "Rope intensive", start_date: today, location_id: sydney, cost: "USD 120.00" };
+    const workshop = await store.saveWorkshop(null, body);
+    const plan = await store.saveItem("plans", null, { title: "Intensive harness", workshop_id: workshop });
+    await store.saveTie(null, { tie_type: "floor", tie_date: today, plan_ids: [plan] });
+    await store.saveTie(null, { tie_type: "floor", tie_date: today, workshop_id: workshop });`);
   await go("/analytics");
   check("the Workshops card: attended and taught, days, spend in its currency, earned, and the follow-up ties' share", await run(`
     await calm(1500);

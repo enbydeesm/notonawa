@@ -1,6 +1,6 @@
 // The walkthrough's lock chunk. Locking and unlocking: the passkey, the recovery code, setting up a key, and after the operator's reset.
 
-import { HELP_LINE, account, check, freshAccount, go, run, script, send, sleep, sql } from "../harness.mjs";
+import { FORMAT, HELP_LINE, account, check, freshAccount, go, run, script, send, sleep, sql } from "../harness.mjs";
 
 export default async function () {
   const recoveryCode = await freshAccount();
@@ -43,15 +43,18 @@ export default async function () {
     $("#unlock-code-input").value = ${JSON.stringify(account.currentCode)}; $("#unlock-code-form button[type=submit]").click(); await calm(1500);
     return [wrong, $("#tie-count") !== null, leakyFields()];`),
     ["That recovery code doesn't unlock your journal.", true, []]);
-  check("nothing is kept in the browser's storage but the theme", await run(`
-    return [Object.keys(localStorage).filter((k) => k !== "theme"), sessionStorage.length, (await indexedDB.databases()).length];`),
-    [[], 0, 0]);
+  check(FORMAT === 2 ? "nothing is kept in the browser's storage but the theme and the sealed cache" : "nothing is kept in the browser's storage but the theme",
+    await run(`return [Object.keys(localStorage).filter((k) => k !== "theme"), sessionStorage.length,
+      (await indexedDB.databases()).map((d) => d.name.replace(/notonawa-.*/, "notonawa-<user>"))];`),
+    [[], 0, FORMAT === 2 ? ["notonawa-<user>"] : []]);
 
   // An account from before encryption: no key yet.
   const userId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
   // Format 2's cache: IndexedDB in the crypto Worker, in a real browser (the
   // unit tests use one in memory). While converting, the records routes are
-  // open to this format 1 account.
+  // open to this format 1 account. (A format 2 run uses the cache
+  // throughout.)
+  if (FORMAT === 1) {
   sql(`UPDATE users SET converting_since = '2026-11-14T00:00:00Z' WHERE id = '${userId}'`);
   check("format 2: the Worker saves records sealed into its own IndexedDB cache, reads and syncs them; locking and wiping delete it",
     await run(`
@@ -77,6 +80,7 @@ export default async function () {
     [{ saved: [{ kind: "tie", id: "ui-cache-1", version: 1 }] }, "Cached", [`notonawa-${userId}`], true, ["Cached"], 0]);
   sql(`UPDATE users SET converting_since = NULL WHERE id = '${userId}'`);
   sql(`DELETE FROM records WHERE owner_id = '${userId}'`);
+  }
   sql(`DELETE FROM key_wraps WHERE user_id = '${userId}'`);
   await go("/", { unlock: false });
   check("an account without a key is asked to set one up after the passkey", await run(`

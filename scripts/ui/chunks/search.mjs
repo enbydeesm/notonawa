@@ -9,9 +9,9 @@ export default async function () {
   await seedTie(ids);
   console.log("Ties: searching and paging");
   await run(`
-    await post("/api/ties", { title: "Hotel night", tie_type: "suspension", tie_date: "2025-06-01", location_id: ${JSON.stringify(ids.hotel)},
+    await store.saveTie(null, { title: "Hotel night", tie_type: "suspension", tie_date: "2025-06-01", location_id: ${JSON.stringify(ids.hotel)},
       participants: [{ person_id: ${JSON.stringify(ids.alex)}, role: "bottom" }], tags: ["Futomomo", "Inversion"] });
-    for (let day = 1; day <= 21; day++) await post("/api/ties", { title: "Practice " + day, tie_type: "floor", tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
+    for (let day = 1; day <= 21; day++) await store.saveTie(null, { title: "Practice " + day, tie_type: "floor", tie_date: "2026-01-" + String(day).padStart(2, "0"), tags: day === 1 ? ["Inversion"] : [] });`);
   await go("/");
   check("20 per page, newest tie date first, with a page control", await run(`
     return [$("#tie-count").textContent, titles().length, titles().slice(0, 3), pagerButtons()];`),

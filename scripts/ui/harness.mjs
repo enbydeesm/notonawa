@@ -15,6 +15,8 @@ const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Conte
 // with its own database, app and Chrome: UI_SLOT (0, 1, 2…) gives each its
 // own ports.
 const SLOT = Number(process.env.UI_SLOT ?? 0);
+/** The format this run's accounts are in: UI_FORMAT, set by ui-smoke.mjs's --format. */
+export const FORMAT = process.env.UI_FORMAT === "2" ? 2 : 1;
 const PORT = 8799 + SLOT;
 const DEBUG_PORT = 9333 + SLOT;
 const INSPECTOR_PORT = 9430 + SLOT;
@@ -170,6 +172,10 @@ for (const binding of [...config.d1_databases, ...config.r2_buckets]) delete bin
 // wrangler dev rewrites each request's Origin to dev.host (see wrangler.jsonc),
 // so it must be this walkthrough's own address.
 config.dev = { ...config.dev, host: `localhost:${PORT}` };
+// The format new accounts start in (npm run test:ui -- --format 2):
+// every chunk signs up its own account, so this runs the whole walkthrough
+// on format 1 or format 2 journals.
+config.vars = { ...config.vars, NEW_ACCOUNT_FORMAT: FORMAT === 2 ? "2" : "1" };
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -260,6 +266,23 @@ export async function replaceAuthenticator(options) {
 // Helpers available inside the page for each step.
 const PAGE_HELPERS = `
   const $ = (s) => document.querySelector(s);
+  // The journal, read and changed as the app does it (public/js/store/):
+  // through format 1's API or format 2's records, whichever the account is,
+  // so a check works on both. The same module the app has loaded.
+  const store = await import("/js/store/index.js");
+  // Whether some text is anywhere the server keeps the journal, in plain
+  // text: format 1's rows (its export, fields still sealed) or format 2's
+  // records. Notes, captions and the like never should be.
+  const plainOnServer = async (text) => {
+    const { format } = await (await fetch("/api/keys")).json();
+    return JSON.stringify(await (await fetch(format === 2 ? "/api/sync?since=0" : "/api/data/export")).json()).includes(text);
+  };
+  // A saved photo's or video's part as the server keeps it, sealed: format
+  // 1's media or format 2's files.
+  const rawPart = async (id, part) => {
+    const { format } = await (await fetch("/api/keys")).json();
+    return fetch((format === 2 ? "/api/files/" : "/api/media/") + id + "/" + part);
+  };
   ${WAIT_HELPERS}
   // Bubbling, as typing's are: an edit form watches for changes (form-changes.js).
   const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change", { bubbles: true })); };
@@ -325,7 +348,7 @@ const PAGE_HELPERS = `
   const tagBubbles = () => [...document.querySelectorAll("#tags-list .tag")].map((t) =>
     t.querySelector(".tag-toggle").textContent + (t.classList.contains("selected") ? "*" : "") + (t.querySelector(".tag-x") ? " ×" : ""));
   const tagChips = (sel) => [...document.querySelectorAll(sel + " .tag")].map((t) => t.firstChild.textContent);
-  const tagsJson = async () => (await (await fetch("/api/tags")).json()).map((t) => t.name + ":" + t.tie_count);
+  const tagsJson = async () => (await store.listTags()).map((t) => t.name + ":" + t.tie_count);
   // Fields that could leak what's typed into form history or spellcheck.
   const leakyFields = () => [...document.querySelectorAll("input:not([type=checkbox]), textarea")]
     .filter((f) => f.getAttribute("autocomplete") !== "off" || f.getAttribute("spellcheck") !== "false")

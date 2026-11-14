@@ -15,7 +15,8 @@ building live in [roadmap.md](roadmap.md).
   tested on its own.
 - **Lint, type check and test with every change**: run `npm run
   check:changed` after each change (add `-- --ui` when pages change), and
-  the full `npm run check` plus `npm run test:ui` before a release. Report
+  the full `npm run check` plus `npm run test:ui` and `npm run test:ui --
+  --format 2` before a release. Report
   the results faithfully, failures included. New behavior gets new tests; a
   bug fix gets a test that would have caught it. A new file goes in an area
   in `scripts/areas.mjs` (a unit test fails until it is).
@@ -52,8 +53,9 @@ building live in [roadmap.md](roadmap.md).
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
   account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
-  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"1"` in both
-  until the format 2 store exists): the format new sign-ups start in.
+  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"1"` in
+  production until the release (phase 7), `"2"` in dev): the format new
+  sign-ups start in.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -837,9 +839,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/ui/chunks/` (`UI_CHUNKS` in `scripts/areas.mjs`), each from a new
   account of its own (`freshAccount()`), seeded where it needs one with
   `scripts/ui/seed.mjs` (what the People, Locations, Plans and Ties chunks
-  make, through the API), so any chunk runs alone. `scripts/ui/harness.mjs`
+  make, through the store), so any chunk runs alone. `scripts/ui/harness.mjs`
   starts wrangler and Chrome and has the helpers (`run`, `go`, `check`,
-  `sql`). A check that relies on another chunk's data seeds it instead.
+  `sql`; in the page, `store`: the app's own store module, so a check reads
+  and changes the journal the same way on either format, never through
+  format 1's routes; `plainOnServer(text)`: whether text is anywhere the
+  server keeps the journal in plain text; `rawPart(id, part)`: a photo's
+  part as stored; `FORMAT` for the few checks that differ). Every chunk
+  runs on format 1 or format 2 accounts (`--format`, `NEW_ACCOUNT_FORMAT`
+  in the generated config). A check that relies on another chunk's data seeds it instead.
   Chunks run 3 at a time by default (`--jobs`): each batch (`batches()` in
   `scripts/areas.mjs`, sharing them out by `UI_SECONDS`) in its own copy of
   the script, with its own database, app and Chrome on its own ports
@@ -864,7 +872,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 - `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint, type
   check and every Vitest test (about 1½ minutes), then (with `--ui`) only
   the walkthrough chunks of the areas changed since the last commit, or of
-  the areas named. A shared file, or one in no area, runs every chunk. `--list` shows what it would
+  the areas named, on format 1 then format 2 accounts. A shared file, or one in no area, runs every chunk. `--list` shows what it would
   run. Run after every change.
 - `npm run deploy:prod` / `npm run deploy:dev`: deploy (`scripts/deploy.mjs`), always
   this way rather than `npx wrangler deploy`. Every deploy gets a new
@@ -923,8 +931,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   computer, in `backups/`; deletes ones older than 30 days when it runs.
   `node scripts/restore-backup.mjs <file>` decrypts one, or one of the
   daily backups (`.json.gz.enc`, with the backup private key).
-- `npm run test:ui [-- --only people,plans] [-- --jobs N] [-- --list]`: UI
-  walkthrough in headless Chrome on throwaway databases (with a generated
+- `npm run test:ui [-- --only people,plans] [-- --jobs N] [-- --format 2] [-- --list]`: UI
+  walkthrough in headless Chrome on throwaway databases, its accounts
+  format 1 (or format 2 with `--format 2`) (with a generated
   copy of `wrangler.jsonc` whose sign-in rate limit is higher, as every
   page load there locks and unlocks): every chunk, or the ones named, 3 at
   a time (`--jobs 1`: one at a time, with output as it happens; use it to

@@ -93,12 +93,12 @@ export default async function () {
     $("#workshop-add-tags").click(); await calm(400);
     $("#tags-search").value = "floor"; $("#tags-add").click(); $("#tags-ok").click(); await calm(200);
     $("#workshop-save").click(); await calm(1500);
-    const stored = (await (await fetch("/api/workshops")).json())[0];
+    const stored = (await store.listWorkshops())[0];
     const c = $(".workshop-card");
     return [$("dialog[open]") === null, c.querySelector(".tie-title").textContent, c.querySelector(".tie-date").textContent,
       c.querySelector(".tie-year").textContent, c.querySelectorAll(".hank").length, [...c.querySelectorAll(".tie-with")].map((l) => l.innerText),
       tagChips(".workshop-card"), $("#workshop-count").textContent,
-      [/^e1\\./.test(stored.description), /^e1\\./.test(stored.notes), /^e1\\./.test(stored.cost), /^e1\\./.test(stored.event_url),
+      [...await Promise.all(["Gote basics", "Practise the stem", "EUR 180", "example.com/intro"].map(async (t) => !(await plainOnServer(t)))),
         stored.attendee_count, stored.rating, stored.difficulty, stored.rating_content, stored.rating_value],
       order, beside, c.querySelector(".tie-place").textContent,
       [...c.querySelectorAll(".tie-visuals-start a")].map((a) => [a.textContent, a.getAttribute("href"), a.target]),
@@ -117,9 +117,8 @@ export default async function () {
 
   // Me marked Educator, as the People form would.
   await run(`
-    const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self);
-    await fetch("/api/people/" + me.id, { method: "PUT", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: me.name, is_educator: true }) });`);
+    const me = (await store.listItems("people", "false")).find((p) => p.is_self);
+    await store.saveItem("people", me.id, { name: me.name, is_educator: true });`);
   await go("/education");
   check("once Me is an educator, a workshop with me teaching is under Taught, not Attended", await run(`
     $("#add-workshop").click(); await calm(800);
@@ -157,7 +156,7 @@ export default async function () {
       ["Learned most from: Sam (1)", "Top tags: floor (1)", "First: Intro to floor, Mar 1, 2026"]],
       "Attended | No workshops match the search.", "Workshops 1"]);
   check("a taught workshop's card says who taught it at the location (linking to the event), the attendees bottom right", await run(`
-    await fetch("/api/locations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Dojo" }) });
+    await store.saveItem("locations", null, { name: "Dojo" });
     $("#search-clear").click(); $("#tab-taught").click(); await wait(100);
     const wcard = () => $(".workshop-card");
     const before = [wcard().querySelector(".tie-place").innerText, wcard().querySelector(".tie-year").innerText,
@@ -204,8 +203,8 @@ export default async function () {
     const usual = document.querySelectorAll("#workshop-participants .role")[1].value;
     set("#workshop-title", "Audit day"); set("#workshop-start_date", "2026-06-01");
     $("#workshop-save").click(); await wait(1500);
-    const stored = (await (await fetch("/api/workshops")).json()).find((w) => w.title === "Audit day");
-    const full = await (await fetch("/api/workshops/" + stored.id)).json();
+    const stored = (await store.listWorkshops()).find((w) => w.title === "Audit day");
+    const full = await store.getWorkshop(stored.id);
     // The educator row it started with, left empty, saved no one.
     return [roles, kept, usual, full.participants.map((p) => [p.person_name, p.role]), full.educators];`),
     [["Choose Role", "Top", "Bottom", "Self tie", "Spotter", "Photographer", "Audit"], "audit", "bottom", [["Me", "audit"], ["Sam", "bottom"]], []]);

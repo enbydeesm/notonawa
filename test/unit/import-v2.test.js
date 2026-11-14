@@ -184,3 +184,19 @@ describe("the ties request", () => {
     expect(writes[1].body).toMatchObject({ plans: [{ plan_id: "tk", plan_version: 2 }], tags: ["box", writes[0].id] });
   });
 });
+
+describe("previews (found by the walkthrough on format 2)", () => {
+  it("check a batch's links only when saving, as format 1's preview did: a preview links to people the items' preview made up", () => {
+    const j = journal();
+    const ties = [{ tie_date: "2026-03-01", tie_type: "floor", location_id: "not-saved-yet", participants: [{ person_id: "nor-this", role: "top" }] }];
+    expect(() => importTies({ preview: true, ties }, j.mine(), j.newId, NOW)).not.toThrow();
+    expect(() => importTies({ ties }, j.mine(), j.newId, NOW)).toThrow(/Linked item not found/);
+  });
+
+  it("say which of a batch's tags are new", () => {
+    const j = seeded();
+    const { result } = importTies({ preview: true, ties: [{ tie_date: "2026-03-01", tie_type: "floor", tags: ["BOX", "imported"] }] },
+      j.mine(), j.newId, NOW);
+    expect(result.new_tags).toEqual(["imported"]);
+  });
+});

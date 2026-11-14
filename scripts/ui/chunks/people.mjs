@@ -33,10 +33,12 @@ export default async function () {
     const onMe = [$("#person-self-badge").hidden, !$("[name=is_self]"), Math.abs(mid(badge) - mid(heading)) < 4,
       badge.left - heading.right >= 0 && badge.left - heading.right < 24, personButtons()];
     $("[data-cancel-edit]").click(); await calm(200);
-    const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
-    const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
+    const me = (await store.listItems("people", false)).find((p) => p.is_self);
+    const refusal = (promise) => promise.then(() => "saved", (err) => err.message);
+    const refused = [await refusal(store.deleteItem("people", me.id)), await refusal(store.archiveItem("people", me.id))];
     return [onAdd, onSam, onMe, $("#person-dialog").open, refused];`),
-    [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false, [400, 400]]);
+    [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false,
+      Array(2).fill("Your own profile can't be deleted or archived. You can rename it.")]);
   check("the + comes first on its card; Educator sits on the Name row, at the right", await run(`
     const add = $("#add-person"), label = $("#add-person-label"), addCard = add.closest(".card");
     const plusFirst = [addCard.firstElementChild === add, add.getBoundingClientRect().left - addCard.getBoundingClientRect().left < 40,
@@ -65,8 +67,8 @@ export default async function () {
     fill(rows[0], "fetlife", "knotsam"); fill(rows[1], "instagram", "@sam");
     const fields = leakyFields();
     await submit();
-    const sam = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.name === "Sam");
-    const stored = [/^e1\\./.test(sam.based_in), /^e1\\./.test(sam.aliases), sam.is_educator];
+    const sam = (await store.listItems("people", "false")).find((p) => p.name === "Sam");
+    const stored = [!(await plainOnServer("Seattle")), !(await plainOnServer("knotsam")), sam.is_educator];
     const samCard = personCard("Sam"); const notesShown = document.querySelector("#list").innerText.includes("Prefers floor work");
     await openPerson("Sam");
     const refilled = [[...document.querySelectorAll(".alias-row")].map((r) => r.querySelector("select").value + ":" + r.querySelector("input").value),
@@ -84,11 +86,11 @@ export default async function () {
       $("#person-about").readOnly, $("label[for=person-notes]").textContent, $("#person-notes-hint").textContent,
       beside($("#person-about-label"), $("#person-about-hint")), beside($("label[for=person-notes]"), $("#person-notes-hint"))];
     set("#person-about", "Rigger, mostly floor"); await submit();
-    const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self);
+    const me = (await store.listItems("people", "false")).find((p) => p.is_self);
     await openPerson("Me"); const refilled = $("#person-about").value; $("[data-cancel-edit]").click(); await calm(200);
     await openPerson("Sam"); const onSam = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await calm(200);
     $("#add-person").click(); await calm(300); const onAdd = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await calm(200);
-    return [shown, /^e1\\./.test(me.about), refilled, onSam, onAdd, leakyFields()];`),
+    return [shown, !(await plainOnServer("mostly floor")), refilled, onSam, onAdd, leakyFields()];`),
     [[false, "About me", "What a profile invite may optionally share.", false, "Private notes", "These are never shared.", true, true],
       true, "Rigger, mostly floor", true, true, []]);
   check("people: a search card (by name or alias) and sorts by name or date added (newest first to start), with me always on top", await run(`
@@ -120,9 +122,7 @@ export default async function () {
   // Until profile invites are built, only an import puts About on someone
   // else's card: this adds one through the API, as an import would.
   await run(`
-    const { sealOne } = await import("/js/vault.js");
-    const body = await sealOne("person", { name: "Robin", about: "Teaches on weekends" });
-    await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });`);
+    await store.saveItem("people", null, { name: "Robin", about: "Teaches on weekends" });`);
   await go("/people");
   check("someone else's About shows as theirs, read-only", await run(`
     await openPerson("Robin");

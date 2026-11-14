@@ -25,7 +25,7 @@ import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
-import { startJournal } from "./store/v2/journal.js";
+import { startJournal, accountFormat } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
 import { showWelcome } from "./welcome.js";
 import { takeShareLink } from "./pending-share.js";
@@ -119,8 +119,9 @@ async function show({ fresh, scroll, focus }) {
 
   // The first time the journal is shown after unlocking (with a full
   // session, which signing up or recovering only has once they're done):
-  // encrypt any notes left in plain text from before encryption.
-  if (route.needsKey && !leftoversChecked) {
+  // encrypt any notes left in plain text from before encryption (format 1
+  // only: format 2's records are sealed whole).
+  if (route.needsKey && !leftoversChecked && accountFormat() === 1) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
   }

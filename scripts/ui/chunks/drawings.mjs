@@ -48,9 +48,9 @@ export default async function () {
   };
   const paths = `[...document.querySelectorAll("#drawing-pad .lines path")].map((p) => p.getAttribute("class"))`;
   const tieDrawings = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Drawing test");
-    return (await fetch("/api/drawings?tie_id=" + tie.id)).json();
+    return store.listDrawings({ tie_id: tie.id });
   })()`;
   const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Drawing test").click(); await calm(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
@@ -119,8 +119,8 @@ export default async function () {
     ${openTie} $("#tie-visuals .visual-drawing .photo-thumb").click(); await calm(500);
     set("#tie-drawing-caption", " Front view "); $("#tie-drawing-save-caption").click(); await calm(800);
     const [d] = await ${tieDrawings};
-    return [$("#tie-visuals .visual-drawing figcaption")?.textContent, /^e1\\./.test(d.caption), d.caption.includes("Front"), leakyFields()];`),
-  ["Front view", true, false, []]);
+    return [$("#tie-visuals .visual-drawing figcaption")?.textContent, !(await plainOnServer("Front view")), d.caption, leakyFields()];`),
+  ["Front view", true, "Front view", []]);
   check("Duplicate adds a copy last, with the same lines and caption", await run(`
     $("#tie-drawing-duplicate").click(); await calm(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
@@ -153,7 +153,7 @@ export default async function () {
     return [asked, !!$("dialog.drawing-editor"), a.data.strokes.length];`),
   ["Discard your changes?", false, 2]);
 
-  await run(`await post("/api/plans", { title: "Harness plan" }); await post("/api/ties", { title: "Other tie", tie_type: "floor", tie_date: "2026-10-01" });`);
+  await run(`await store.saveItem("plans", null, { title: "Harness plan" }); await store.saveTie(null, { title: "Other tie", tie_type: "floor", tie_date: "2026-10-01" });`);
   check("Copy to… lists ties (not this one), plans and workshops", await run(`
     $("#tie-drawing-copy").click(); await calm(1000);
     const ties = [...document.querySelectorAll("#drawing-copy-list .item-title")].map((t) => t.textContent);
@@ -167,8 +167,8 @@ export default async function () {
   check("…and copies it there, caption and all", await run(`
     $("#drawing-copy-list .copy-target").click(); await calm(1000);
     const message = $("#tie-drawing-viewer-message").textContent;
-    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Harness plan");
-    const [copy] = await (await fetch("/api/drawings?plan_id=" + plan.id)).json();
+    const plan = (await store.listItems("plans", "false")).find((p) => p.title === "Harness plan");
+    const [copy] = await store.listDrawings({ plan_id: plan.id });
     const [opened] = await (await import("/js/vault.js")).open("drawing", [copy]);
     const [original] = await ${tieDrawings};
     ${topDialog}.querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);

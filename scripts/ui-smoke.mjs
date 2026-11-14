@@ -3,6 +3,7 @@
 //
 //   npm run test:ui                          every chunk, 3 at a time
 //   npm run test:ui -- --only people,plans   just those chunks
+//   npm run test:ui -- --format 2            on format 2 accounts (new sign-ups)
 //   npm run test:ui -- --jobs 1              one at a time, output as it happens
 //   npm run test:ui -- --list                the chunks
 //
@@ -51,6 +52,12 @@ if (!Number.isInteger(jobs) || jobs < 1) {
   console.error("--jobs takes a whole number, 1 or more.");
   process.exit(1);
 }
+const format = valueOf("--format") ?? process.env.UI_FORMAT ?? "1";
+if (format !== "1" && format !== "2") {
+  console.error("--format takes 1 or 2: the format the walkthrough's new accounts start in.");
+  process.exit(1);
+}
+process.env.UI_FORMAT = format;
 const chunks = only ? UI_CHUNKS.filter((name) => only.includes(name)) : UI_CHUNKS;
 const report = args.includes("--report");
 const started = Date.now();
@@ -62,7 +69,7 @@ let skipped = 0;
 const failures = runs.length > 1 ? await runInParallel(runs) : await runHere(chunks);
 const skippedNote = skipped ? ` (${skipped} group(s) of checks skipped on this machine, marked ↷)` : "";
 console.log(failures ? `\n${failures} failure(s): failed checks, or runs that stopped (${elapsed()})${skippedNote}`
-  : `\nAll UI checks passed: ${chunks.join(", ")} (${elapsed()})${skippedNote}`);
+  : `\nAll UI checks passed${format === "2" ? " on format 2" : ""}: ${chunks.join(", ")} (${elapsed()})${skippedNote}`);
 process.exit(failures ? 1 : 0);
 
 /**

@@ -57,9 +57,9 @@ export default async function () {
   // A slider moved as a finger would: input while dragging, change when let go.
   const slide = (id, value) => `{ const el = $("#${id}"); el.value = "${value}"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await calm(200); }`;
   const tiePoses = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Pose test");
-    return (await fetch("/api/poses?tie_id=" + tie.id)).json();
+    return store.listPoses({ tie_id: tie.id });
   })()`;
   const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Pose test").click(); await calm(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
@@ -190,8 +190,9 @@ export default async function () {
   // Saved presets. The body as it starts is the Standing preset, so it's
   // changed first (the head tipped), for there to be something to save.
   const myPresets = `(async () => {
-    const list = await (await fetch("/api/pose-presets")).json();
-    return list.map((p) => [p.kind, p.name.startsWith("e1."), p.name.includes("tall")]);
+    const list = await store.listPosePresets();
+    const hidden = !(await plainOnServer("Standing tall"));
+    return list.map((p) => [p.kind, hidden, p.name.includes("tall")]);
   })()`;
   await tap(0.5, 0.2);
   check("the body can be saved as a preset, named, its name sealed; it's listed under My presets, tinted, and Save greys out", await run(`
@@ -207,7 +208,7 @@ export default async function () {
     return [enabled, asked, $("#pose-body-presets-message").textContent, ${pickerRows("#pose-body-presets")},
       $("#pose-body-presets-save").disabled, await ${myPresets}];`),
   [true, ["Save this body as a preset", "pose-preset-name", " Save arms as a preset too?", false, []], "Saved, for any pose.",
-    [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, false]]]);
+    [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, true]]]);
   check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left; saving with the arms too adds an arms preset", await run(`
     $("#pose-body-presets-b2").click(); await calm(300);
     ${slide("pose-head-0", -10)}
@@ -216,7 +217,7 @@ export default async function () {
     set("#pose-preset-name", "Kneel, head down"); $("#pose-preset-also").checked = true; $("#pose-preset-save").click();
     for (let i = 0; i < 50 && document.querySelector("#pose-preset-name"); i++) await wait(100);
     await calm(200);
-    const kinds = (await (await fetch("/api/pose-presets")).json()).map((p) => p.kind);
+    const kinds = (await store.listPosePresets()).map((p) => p.kind);
     const said = $("#pose-body-presets-message").textContent;
     const row = [...document.querySelectorAll("#pose-body-presets .preset-row")].pop();
     const icons = [...row.querySelectorAll(".preset-icons button")].map((b) => [b.getAttribute("aria-label"), b.classList.contains("danger")]);
@@ -465,9 +466,9 @@ export default async function () {
   check("…and is saved with the tie: the figure, the ring and the rope, plain, and the picture sealed like any photo", await run(`
     $("#tie-save").click(); await calm(3000); await settle();
     const [p] = await ${tiePoses};
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Pose test");
-    const media = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const media = await store.listMedia({ tie_id: tie.id });
     return [!!document.querySelector("dialog[open]"), p.data.body, p.data.joints.l_elbow, p.data.ring, p.data.ropes.length,
       p.data.ropes[0].p.length, p.caption, media.map((m) => [m.kind, m.position]), p.position];`),
   [false, [0, 20, 0], [105, 0], [0, 195, 0], 1, 2, null, [["photo", 0]], 1]);
@@ -476,8 +477,8 @@ export default async function () {
     ${openTie} $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800);
     set("#tie-pose-caption", " Lift "); $("#tie-pose-save-caption").click(); await calm(800);
     const [p] = await ${tiePoses};
-    return [$("#tie-visuals .visual-pose figcaption")?.textContent, /^e1\\./.test(p.caption), p.caption.includes("Lift"), leakyFields()];`),
-  ["Lift", true, false, []]);
+    return [$("#tie-visuals .visual-pose figcaption")?.textContent, !(await plainOnServer("Lift")), p.caption, leakyFields()];`),
+  ["Lift", true, "Lift", []]);
   check("its details: the caption, then one row of icons: the moves, Edit pose (in the accent), Duplicate, Copy to… and Delete; no Add as photo", await run(`
     const d = ${topDialog};
     const tools = [...d.querySelector(".viewer-tools").children].map((el) => el.id || el.className);
@@ -564,14 +565,14 @@ export default async function () {
  * The poser opened on its own (the nav's button): Save pose and Add to
  * visuals ask where ("Add pose to…"), on a tie there already or a new one,
  * and the one chosen last comes first next time. Uses "Collision test",
- * made through the API by collisions().
+ * made through the store by collisions().
  * @param {{ topDialog: string }} helpers
  */
 async function standalone({ topDialog }) {
   const onTie = (/** @type {string} */ title, /** @type {string} */ what) => `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "${title}");
-    return tie ? (await fetch("/api/${what}?tie_id=" + tie.id)).json() : null;
+    return tie ? store["${what === "media" ? "listMedia" : "listPoses"}"]({ tie_id: tie.id }) : null;
   })()`;
   const waitFor = (/** @type {string} */ expr) => `for (let i = 0; i < 100 && !(${expr}); i++) await wait(100);`;
   const rows = `[...document.querySelectorAll("#add-to-list .add-to-row")]`;
@@ -697,8 +698,8 @@ async function standalone({ topDialog }) {
     $("#plan-save").click();
     ${waitFor(`!document.querySelector("#plan-dialog") && $("#pose-message").textContent`)}
     const said = $("#pose-message").textContent;
-    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Ladder plan");
-    const media = plan ? await (await fetch("/api/media?plan_id=" + plan.id)).json() : null;
+    const plan = (await store.listItems("plans", "false")).find((p) => p.title === "Ladder plan");
+    const media = plan ? await store.listMedia({ plan_id: plan.id }) : null;
     const open = !!document.querySelector("dialog.pose-editor[open]");
     $("#pose-cancel").click(); await calm(500);
     return [said, media?.length, open, !!document.querySelector("dialog.pose-editor[open]")];`),
@@ -726,14 +727,13 @@ async function ropes({ tap, slide, topDialog }) {
     ],
   };
   const tiePose = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Rope test");
-    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+    return (await store.listPoses({ tie_id: tie.id }))[0];
   })()`;
   await run(`
-    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-    const tie = await postJson("/api/ties", { tie_type: "suspension", tie_date: "2026-10-02", title: "Rope test" });
-    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+    const tie = await store.saveTie(null, { tie_type: "suspension", tie_date: "2026-10-02", title: "Rope test" });
+    await store.addPose({ tie_id: tie }, { data: ${JSON.stringify(seeded)}, caption: null });`);
   // As stored, every joint listed.
   const stored = await run(`return (await ${tiePose}).data;`);
   await go("/");
@@ -768,7 +768,10 @@ async function ropes({ tap, slide, topDialog }) {
   const editPose = `$("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await wait(500);`;
+  // The viewer may still say "Pose saved." from the last save: wait for
+  // this one's "Saving…" first, then for it to finish.
   const savePose = `$("#pose-save").click();
+    for (let i = 0; i < 50 && !/Saving/.test(${topDialog}.textContent); i++) await wait(50);
     for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);`;
 
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Rope test").click(); await wait(1500);
@@ -920,9 +923,8 @@ async function collisions({ tap, slide, topDialog }) {
     ring: null, bamboo: null, hashira: null, ropes: [],
   };
   await run(`
-    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-03", title: "Collision test" });
-    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+    const tie = await store.saveTie(null, { tie_type: "floor", tie_date: "2026-10-03", title: "Collision test" });
+    await store.addPose({ tie_id: tie }, { data: ${JSON.stringify(seeded)}, caption: null });`);
   await go("/");
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Collision test").click(); await calm(1500);
     $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();

@@ -33,10 +33,10 @@ export default async function () {
     const c = [...document.querySelectorAll(".tie-card")].find((x) => x.querySelector(".tie-title").innerText === "Photo test");
     return [!!document.querySelector("dialog"), c?.querySelector(".tie-photos")?.innerText ?? null];`), [false, "1 visual"]);
   check("the server only has it encrypted", await run(`
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    const sealed = new Uint8Array(await (await fetch("/api/media/" + photo.id + "/full")).arrayBuffer());
+    const [photo] = await store.listMedia({ tie_id: tie.id });
+    const sealed = new Uint8Array(await (await rawPart(photo.id, "full")).arrayBuffer());
     const text = new TextDecoder("latin1").decode(sealed);
     return [photo.mime, sealed[0] === 0xff && sealed[1] === 0xd8, text.includes("SECRET-GPS"), text.includes("Exif"), text.includes("WEBP")];`),
     ["image/webp", false, false, false, false]);
@@ -55,10 +55,10 @@ export default async function () {
     const img = $("dialog[open] .photo-full");
     // The bytes shown, read through the app (the CSP's connect-src keeps
     // fetch off blob: URLs).
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    const bytes = new Uint8Array(await (await import("/js/vault.js")).openPhoto(photo.id, "full"));
+    const [photo] = await store.listMedia({ tie_id: tie.id });
+    const bytes = new Uint8Array(await store.openMediaPart(photo, "full"));
     const text = new TextDecoder("latin1").decode(bytes);
     return [img.src.startsWith("blob:"), img.naturalWidth, img.naturalHeight, text.startsWith("RIFF") && text.slice(8, 12) === "WEBP",
       text.includes("SECRET-GPS"), text.includes("Exif"), bytes.length < 500 * 1024, $("#tie-photo-earlier").disabled, leakyFields()];`),
@@ -95,13 +95,13 @@ export default async function () {
     set("#tie-photo-caption", "  Front view  "); $("#tie-photo-save-caption").click(); await calm(1000);
     const shown = $("#tie-visuals figcaption")?.textContent;
     [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    return [shown, /^e1\\./.test(photo.caption), photo.caption.includes("Front")];`), ["Front view", true, false]);
+    const [photo] = await store.listMedia({ tie_id: tie.id });
+    return [shown, !(await plainOnServer("Front view")), photo.caption];`), ["Front view", true, "Front view"]);
   check("on a saved tie, a photo uploads straight away",
     (await pickPhoto("tie", 400, 600, "second.jpg")).slice(1), [2, ""]);
-  await run(`await fetch("/api/plans", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Copy plan" }) });`);
+  await run(`await store.saveItem("plans", null, { title: "Copy plan" });`);
   check("Copy to… copies a photo to a plan as a new file, its caption too, leaving the original", await run(`
     $("#tie-visuals .photo-thumb").click(); await calm(1200);
     $("#tie-photo-copy").click(); await calm(1000);
@@ -109,15 +109,13 @@ export default async function () {
     [...document.querySelectorAll("#drawing-copy-list .copy-target")].find((b) => b.textContent.includes("Copy plan")).click(); await calm(2500);
     const message = $("#tie-viewer-message").textContent;
     [...document.querySelectorAll("dialog[open]")].pop().querySelector("[aria-label=Close]").click(); await calm(300);
-    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Copy plan");
-    const [copy] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const plan = (await store.listItems("plans", "false")).find((p) => p.title === "Copy plan");
+    const [copy] = await store.listMedia({ plan_id: plan.id });
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const originals = await (await fetch("/api/media?tie_id=" + tie.id)).json();
-    const vault = await import("/js/vault.js");
-    const [opened] = await vault.openMedia(copy ? [copy] : []);
-    const same = copy && new Uint8Array(await vault.openPhoto(copy.id, "thumb")).length === new Uint8Array(await vault.openPhoto(originals[0].id, "thumb")).length;
-    return [message, !!copy && !originals.some((o) => o.id === copy.id), opened?.caption, same, originals.length];`),
+    const originals = await store.listMedia({ tie_id: tie.id });
+    const same = copy && new Uint8Array(await store.openMediaPart(copy, "thumb")).length === new Uint8Array(await store.openMediaPart(originals[0], "thumb")).length;
+    return [message, !!copy && !originals.some((o) => o.id === copy.id), copy?.caption, same, originals.length];`),
   ['Copied to "Copy plan".', true, "Front view", true, 2]);
   check("swiping on the viewer goes to the next one and back", await run(`
     $("#tie-visuals .photo-thumb").click(); await calm(1200);
@@ -141,9 +139,9 @@ export default async function () {
     $("#tie-photo-earlier").click(); await calm(800);
     const shown = [...document.querySelectorAll("#tie-visuals .photo-tile")].map((t) => t.querySelector("figcaption")?.textContent ?? "");
     [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const listed = await store.listMedia({ tie_id: tie.id });
     return [shown, listed.map((p) => p.caption === null)];`), [["", "Front view"], [true, false]]);
   // A drag from one tile to another, as pointer events: by mouse, or by
   // finger after holding (holdMs) or not (a swipe, which should scroll).
@@ -159,9 +157,9 @@ export default async function () {
     const marked = tiles()[1].classList.contains("drop-target");
     document.dispatchEvent(new PointerEvent("pointerup", at(b)));
     await calm(800);
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const listed = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const listed = await store.listMedia({ tie_id: tie.id });
     return [marked, tiles().map((t) => t.querySelector("figcaption")?.textContent ?? ""), listed.map((p) => p.caption === null),
       document.querySelectorAll("#tie-visuals .dragging, #tie-visuals .drop-target").length];`);
   check("dragging a photo with the mouse moves it, and the order is saved",
@@ -183,12 +181,12 @@ export default async function () {
     [...[...document.querySelectorAll("dialog")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete photo").click(); await calm(1000);
     return [asked, document.querySelectorAll("#tie-visuals .photo-tile").length];`), ["Delete this photo?", 1]);
   check("…and deleting the tie deletes the rest", await run(`
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Photo test");
-    const [photo] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const [photo] = await store.listMedia({ tie_id: tie.id });
     $("#tie-delete").click(); await calm(300);
     [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
-    return [(await fetch("/api/media/" + photo.id + "/thumb")).status, $("#tie-count").textContent];`), [404, "Showing 0 of 0"]);
+    return [(await rawPart(photo.id, "thumb")).status, $("#tie-count").textContent];`), [404, "Showing 0 of 0"]);
 
   await go("/plans");
   await run(`$("#add-plan").click(); await calm(300); set("#plan-title", "Photo plan");`);
@@ -200,11 +198,11 @@ export default async function () {
   check("editing the plan shows its photo", await run(`
     await clickIn("Photo plan", "Edit"); await calm(1500);
     const shown = document.querySelectorAll("#plan-visuals .photo-tile img").length;
-    const plan = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Photo plan");
-    const [photo] = await (await fetch("/api/media?plan_id=" + plan.id)).json();
-    const res = await fetch("/api/plans/" + plan.id + "?linked_ties=keep", { method: "DELETE" });
+    const plan = (await store.listItems("plans", "false")).find((p) => p.title === "Photo plan");
+    const [photo] = await store.listMedia({ plan_id: plan.id });
+    const res = await store.deletePlan(plan.id, "keep").then(() => 204, () => 500);
     $("[data-cancel-edit]").click(); await calm(200);
-    return [shown, photo.mime, res.status, (await fetch("/api/media/" + photo.id + "/thumb")).status];`),
+    return [shown, photo.mime, res, (await rawPart(photo.id, "thumb")).status];`),
     [1, "image/webp", 204, 404]);
 
   // Videos need Chrome to encode AAC sound, which Chrome on Claude's cloud
@@ -255,9 +253,9 @@ export default async function () {
   const openVideoTie = `
     [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Video test").click(); await calm(1500);`;
   const listedVideo = `
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Video test");
-    const [video] = await (await fetch("/api/media?tie_id=" + tie.id)).json();`;
+    const [video] = await store.listMedia({ tie_id: tie.id });`;
 
   await go("/");
   check("a camera-like clip holds its secrets before it's added",
@@ -267,10 +265,10 @@ export default async function () {
   check("the + takes videos, and one added to a saved tie is prepared and uploaded, marked ▶",
     await pickClip(), [1, ""]);
   check("the server only has it encrypted, as an MP4 video", await run(`${listedVideo}
-    const sealed = new TextDecoder("latin1").decode(await (await fetch("/api/media/" + video.id + "/full")).arrayBuffer());
+    const sealed = new TextDecoder("latin1").decode(await (await rawPart(video.id, "full")).arrayBuffer());
     return [video.kind, video.mime, sealed.includes("ftyp"), sealed.includes("SECRET")];`), ["video", "video/mp4", false, false]);
   check("opened on the device: 480p with its sound, and none of the clip's metadata", await run(`${listedVideo}
-    const bytes = await (await import("/js/vault.js")).openPhoto(video.id, "full", "video");
+    const bytes = await store.openMediaPart(video, "full");
     const text = new TextDecoder("latin1").decode(bytes);
     const mb = await import("/js/vendor/mediabunny.js");
     const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) });
@@ -295,11 +293,11 @@ export default async function () {
     [...document.querySelectorAll("dialog[open]")].pop().querySelector(".dialog-cancel, [aria-label=Close]").click(); await calm(300);
     return true;`) && await makeClip({ seconds: 1, width: 1280, height: 720, fps: 30, sound: false, rotation: 90 }) && await pickClip()
     && await run(`
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Video test");
-    const [, video] = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const [, video] = await store.listMedia({ tie_id: tie.id });
     const mb = await import("/js/vendor/mediabunny.js");
-    const bytes = await (await import("/js/vault.js")).openPhoto(video.id, "full", "video");
+    const bytes = await store.openMediaPart(video, "full");
     const track = await new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) }).getPrimaryVideoTrack();
     return [await track.getDisplayWidth(), await track.getDisplayHeight(), await track.getRotation()];`), [480, 854, 0]);
   // A browser that can't encode the sound (as if AudioEncoder refused AAC;
@@ -325,11 +323,11 @@ export default async function () {
     [["This browser can't encode the sound in clip.mp4, so it can only be uploaded silent. To keep its sound, add it from the latest Chrome or Safari instead.",
       ["Upload without sound", "Cancel"]], 0, "clip.mp4: Not added, as this browser could only upload it without its sound."]);
   check("…and \"Upload without sound\" uploads it silent", await pickSilent("Upload without sound") && await run(`
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Video test");
-    const videos = await (await fetch("/api/media?tie_id=" + tie.id)).json();
+    const videos = await store.listMedia({ tie_id: tie.id });
     const mb = await import("/js/vendor/mediabunny.js");
-    const bytes = await (await import("/js/vault.js")).openPhoto(videos[videos.length - 1].id, "full", "video");
+    const bytes = await store.openMediaPart(videos[videos.length - 1], "full");
     const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BufferSource(bytes) });
     return [videos.length, !!(await input.getPrimaryVideoTrack()), await input.getPrimaryAudioTrack()];`), [3, true, null]);
   check("locking empties the video too", await run(`
@@ -343,5 +341,5 @@ export default async function () {
   check("deleting the tie deletes its video", await run(`${listedVideo}
     $("#tie-delete").click(); await calm(300);
     [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
-    return (await fetch("/api/media/" + video.id + "/thumb")).status;`), 404);
+    return (await rawPart(video.id, "thumb")).status;`), 404);
 }

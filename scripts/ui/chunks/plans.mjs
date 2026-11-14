@@ -62,11 +62,11 @@ export default async function () {
     await submit();
     const item = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness");
     const link = item.querySelector(".tie-album a");
-    const stored = (await (await fetch("/api/plans?archived=false")).json()).find((p) => p.title === "Hip harness");
+    const stored = (await store.listItems("plans", "false")).find((p) => p.title === "Hip harness");
     // Tapping the album link opens it, not the plan.
     link.addEventListener("click", (e) => e.preventDefault(), { once: true }); link.click(); await calm(300);
     return [types, refused, chips, item.querySelector(".tie-place").innerText, tagChips(".plan-card .tie-tags"),
-      [link?.textContent, link?.href, link?.target], stored.album_url.startsWith("e1."), stored.tags, !!document.querySelector("#plan-dialog[open]")];`),
+      [link?.textContent, link?.href, link?.target], !(await plainOnServer("photos.app.goo.gl/hip")), stored.tags, !!document.querySelector("#plan-dialog[open]")];`),
     [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor harness",
       ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"], false]);
   check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
@@ -82,8 +82,8 @@ export default async function () {
     await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await calm(400);
     $(".tag-search .tag-x").click(); $("#tags-ok").click(); await calm(200);
     set("#plan-tie_type", ""); set("#plan-album_url", ""); await submit();
-    const tag = (await (await fetch("/api/tags")).json()).find((t) => t.name === "plan-tag");
-    if (tag) await fetch("/api/tags/" + tag.id, { method: "DELETE" });`);
+    const tag = (await store.listTags()).find((t) => t.name === "plan-tag");
+    if (tag) await store.deleteTag(tag.id);`);
   check("the visuals note says what they're for, and when a new plan's are saved", await run(`
     ${addPlan} const fresh = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await calm(200);
     await clickIn("Hip harness", "Edit"); const editing = $("[data-photos] .hint").textContent; $("[data-cancel-edit]").click(); await calm(200);
@@ -96,9 +96,9 @@ export default async function () {
   console.log("Plans: linked ties and search");
   // A plan of its own, on two ties.
   await run(`
-    const plan = await post("/api/plans", { title: "Linked plan", plan_type: "sequence", tie_type: "suspension", tags: ["search-tag"] });
-    await post("/api/ties", { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] });
-    await post("/api/ties", { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] });`);
+    const plan = await store.saveItem("plans", null, { title: "Linked plan", plan_type: "sequence", tie_type: "suspension", tags: ["search-tag"] });
+    await store.saveTie(null, { title: "Linked try", tie_date: "2026-02-01", tie_type: "floor", success_rating: 4, plan_ids: [plan] });
+    await store.saveTie(null, { title: "Linked again", tie_date: "2026-03-01", tie_type: "floor", success_rating: 3, plan_ids: [plan] });`);
   await go("/plans");
   check("a plan's card says its tie type and plan type on its second line (nothing in the corner), counts its ties bottom left, tags at the bottom; the list says My plans and how many show", await run(`
     ${planCard}

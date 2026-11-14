@@ -164,7 +164,7 @@ describe("the v2 visuals store", () => {
     await store.updateDrawing(id, { caption: "" });
     await store.updateDrawing(id, { data: { v: 1, strokes: [{ c: "red", w: 2, p: [1, 1] }] } });
     expect(await store.listDrawings({ workshop_id: "w1" })).toMatchObject([{ id, caption: null, position: 0, data: { strokes: [{ c: "red" }] } }]);
-    const pose = await store.addPose({ workshop_id: "w1" }, { data: { v: 1 }, caption: null });
+    const pose = await store.addPose({ workshop_id: "w1" }, { data: { v: 1, joints: {} }, caption: null });
     await store.setVisualOrder({ workshop_id: "w1" }, [{ kind: "pose", id: pose }, { kind: "drawing", id }]);
     expect(journal.get("w1").body.visuals.map((/** @type {any} */ v) => v.id)).toEqual([pose, id]);
     await store.deleteDrawing(id);

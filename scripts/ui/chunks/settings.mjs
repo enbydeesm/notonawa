@@ -145,7 +145,7 @@ export default async function () {
     ["Couldn't save: Give the two roles different names.", true]);
   check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
     $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await calm(1200);
-    const saved = [$(".settings-dialog") === null, await (await fetch("/api/account/settings")).json()];
+    const saved = [$(".settings-dialog") === null, await store.getSettings()];
     // Saving redraws the view, which closes any dialog: wait for it to finish
     // before opening the tie form, then for the form's first role box.
     await calm(1500);
@@ -164,7 +164,7 @@ export default async function () {
     [["All roles", "As rigger", "As Rope bunny", "As self tie", "As spotter", "As photographer"], ["As rigger", "As Rope bunny"]]);
   check("blank names go back to top and bottom", await run(`
     ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await calm(1200);
-    return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
+    return [await store.getSettings(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
     [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }, ["As top", "As bottom"]]);
   // Back to dark, the default.
   await run(`${openSettings} $("#settings-dark").click(); await calm(800); $(".settings-dialog .dialog-cancel").click(); await calm(300);`);

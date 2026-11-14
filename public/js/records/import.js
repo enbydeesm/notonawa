@@ -156,7 +156,8 @@ function tagsFor(tags, names, newId, now) {
     return id;
   };
   for (const name of names) resolve(name);
-  return { writes, resolve, newNames: writes.map((w) => /** @type {string} */ (w.body.name)) };
+  // Read when asked: a batch's ties and workshops resolve their tags after this.
+  return { writes, resolve, newNames: () => writes.map((w) => /** @type {string} */ (w.body.name)) };
 }
 
 /**
@@ -281,7 +282,7 @@ export function importItems(body, mine, newId, now) {
   /** @param {ItemResult[]} results */
   const shown = (results) => results.map((r) => ({ ...r, id: preview && !r.matched ? null : r.id }));
   return {
-    result: { people: shown(peopleResults), locations: shown(locationResults), plans: shown(planResults), new_tags: tags.newNames,
+    result: { people: shown(peopleResults), locations: shown(locationResults), plans: shown(planResults), new_tags: tags.newNames(),
       links_dropped: linksDropped },
     writes: preview ? [] : writes,
   };
@@ -349,6 +350,9 @@ export function importTies(body, mine, newId, now) {
   if (!Array.isArray(body.ties) || body.ties.length > MAX_BATCH) throw new BadEdit(`Send ties as a list of up to ${MAX_BATCH}.`);
   const input = body.ties;
   const preview = flag(body.preview);
+  // A preview's links can be to people and places the items' preview made
+  // up (not saved yet), as format 1's preview allowed: only saving checks them.
+  const must = (/** @type {string | null} */ id, /** @type {string} */ kind) => { if (!preview) mustBe(byId, id, kind); };
   const tags = tagsFor(mine.tag ?? [], [], preview ? () => "" : newId, now);
   const ties = input.map((item, i) => withContext(`Tie ${i + 1}`, item?.title, () => {
     const t = asObject(item);
@@ -357,7 +361,7 @@ export function importTies(body, mine, newId, now) {
     const tieType = choiceOrNull(t.tie_type, TIE_TYPES);
     if (!tieType) throw new BadEdit("Choose a tie type: suspension, partial suspension, floor or hashira.");
     const locationId = idOf(t.location_id, true);
-    mustBe(byId, locationId, "location");
+    must(locationId, "location");
     const seenPeople = new Set();
     const participants = list(t.participants, "Participants").flatMap((x) => {
       const p = asObject(x);
@@ -367,7 +371,7 @@ export function importTies(body, mine, newId, now) {
       if (personId !== null) {
         if (seenPeople.has(`${personId}|${role}`)) return [];
         seenPeople.add(`${personId}|${role}`);
-        mustBe(byId, personId, "person");
+        must(personId, "person");
       }
       return [compact({ person_id: personId, role, difficulty_rating: intOrNull(p.difficulty_rating, 1, 5),
         experience_rating: intOrNull(p.experience_rating, 1, 5), notes: cleanText(p.notes) })];
@@ -379,7 +383,7 @@ export function importTies(body, mine, newId, now) {
       if (planId !== null) {
         if (seenPlans.has(planId)) return [];
         seenPlans.add(planId);
-        mustBe(byId, planId, "plan");
+        must(planId, "plan");
       }
       const version = intOrNull(p.plan_version, 1, 1_000_000) ?? (planId ? byId.get(planId)?.body?.version ?? 1 : 1);
       return [{ plan_id: planId, plan_version: version }];
@@ -397,7 +401,7 @@ export function importTies(body, mine, newId, now) {
   if (preview) {
     const mineTies = mine.tie ?? [];
     const candidates = ties.flatMap((t, i) => mineTies.filter((x) => sameTie(x.body ?? {}, t)).map((x) => ({ i, id: x.id, notes: x.body?.notes ?? null })));
-    return { result: { candidates, new_tags: tags.newNames }, writes: [] };
+    return { result: { candidates, new_tags: tags.newNames() }, writes: [] };
   }
   const skip = skipOf(body.skip, ties.length);
   /** @type {(string | null)[]} */
@@ -440,6 +444,7 @@ export function importWorkshops(body, mine, newId, now) {
   const byId = new Map(Object.values(mine).flat().map((e) => [e.id, e]));
   if (!Array.isArray(body.workshops) || body.workshops.length > MAX_BATCH) throw new BadEdit(`Send workshops as a list of up to ${MAX_BATCH}.`);
   const preview = flag(body.preview);
+  const must = (/** @type {string | null} */ id, /** @type {string} */ kind) => { if (!preview) mustBe(byId, id, kind); };
   const tags = tagsFor(mine.tag ?? [], [], preview ? () => "" : newId, now);
   const workshops = body.workshops.map((item, i) => withContext(`Workshop ${i + 1}`, item?.title, () => {
     const w = asObject(item);
@@ -451,7 +456,7 @@ export function importWorkshops(body, mine, newId, now) {
     if (end !== null && end < start) throw new BadEdit("The end date is before the start date.");
     if (end === start) end = null;
     const locationId = idOf(w.location_id, true);
-    mustBe(byId, locationId, "location");
+    must(locationId, "location");
     /** @type {{ person_id: string | null, kind: string, role: string }[]} */
     const people = [];
     const seen = new Set();
@@ -464,7 +469,7 @@ export function importWorkshops(body, mine, newId, now) {
         if (personId !== null) {
           if (seen.has(personId)) continue;
           seen.add(personId);
-          mustBe(byId, personId, "person");
+          must(personId, "person");
         }
         people.push({ person_id: personId, kind, role });
       }
@@ -473,7 +478,7 @@ export function importWorkshops(body, mine, newId, now) {
     /** @param {unknown} value @param {string} what @param {string} kind */
     const linked = (value, what, kind) => [...new Set(list(value, `Its ${what}`, MAX_LINKED).map((x) => {
       const id = /** @type {string} */ (idOf(x));
-      mustBe(byId, id, kind);
+      must(id, kind);
       return id;
     }))];
     const tagIds = tagNames(w.tags).map(tags.resolve);
@@ -496,7 +501,7 @@ export function importWorkshops(body, mine, newId, now) {
     const mineWorkshops = mine.workshop ?? [];
     const candidates = workshops.flatMap((w, i) => mineWorkshops.filter((x) => sameWorkshop(x.body ?? {}, w.body))
       .map((x) => ({ i, id: x.id, description: x.body?.description ?? null, notes: x.body?.notes ?? null })));
-    return { result: { candidates, new_tags: tags.newNames }, writes: [] };
+    return { result: { candidates, new_tags: tags.newNames() }, writes: [] };
   }
   const skip = skipOf(body.skip, workshops.length);
   /** @type {(string | null)[]} */

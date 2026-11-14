@@ -148,8 +148,9 @@
 			"vars": {
 				"RP_ID": "dev.notonawa.app",
 				"ORIGIN": "https://dev.notonawa.app",
-				// 2 once the format 2 store is built (phase 4).
-				"NEW_ACCOUNT_FORMAT": "1",
+				// New dev sign-ups are format 2 (the sealed records and cache);
+				// existing dev accounts stay format 1 until they convert (phase 5).
+				"NEW_ACCOUNT_FORMAT": "2",
 				"BACKUP_PUBLIC_KEY": ""
 			},
 			"ratelimits": [
