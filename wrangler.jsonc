@@ -32,6 +32,9 @@
 		// The format new sign-ups start in (src/format.js): 1 until phase 7 of
 		// the encrypt-everything migration.
 		"NEW_ACCOUNT_FORMAT": "1",
+		// Whether a format 1 account converts to format 2 at unlock: off until
+		// the release (phase 7).
+		"CONVERT_ON_UNLOCK": "0",
 		"BACKUP_PUBLIC_KEY": "{\"kty\":\"RSA\",\"n\":\"qGsQ_D7k1QLxoQga1_y1UmYrUmxBgmNNnwsZOOU_cmRKbJnVAfLDnG18FrJmLcDZLxYJfKAMMvFQak-jtLeuFhUNivF0afwbtqVNWGrvkjSp9V_vuG0LY128ve7Tiv0zbiHWrBKKO0X8dN9w3kVd2tc_BFnLFZnOnHa2fOceRru5XSeaXmMKY0hhQHhP-IT9jIv1ynrdDruj3rWmFcM7RGi7O6vYg7GstcLRmgvihoupwfjsnz_jeDNRvYNA0lZwVeGyBEnfqvmjCA_KHWblk-gHxH0_N75ekcB8x4uRBBJST7vz2ycP1Xy8z68Cha43z4BjinlcwwuANIbkUSNvZKXD47wzKE1cJYVNi1NwqCbTstMuM8xRbG2Oe5RdN1MM9CJR2YOpgbgPUfxRzqRxwx3QaOgSdv7aJANBt6fSB7myMLc4EPP8Hn22txN7gNWQwB2nQUv570TzhQ3CVyFgkwnyrqr0Oq2qe1E3rI4mq8-APT6eiMTw5tKUqyvkf6nhoK5__4-G6rpN_oQpSdYw_W7ylFpQTAm_s6FbHUn2rTVOUaDazVU7881ddT1dKY15Cpyo76ark_3IRU6fIezw6hiFQbVEo0WRXC75-1Zs0iiFhtNMk_dSeBh8Bq8Zwn3bPGtLqY_0toqWbGYb4NWDIk2RN4gcbIccjzpddvA6L98\",\"e\":\"AQAB\",\"alg\":\"RSA-OAEP-256\",\"ext\":true,\"key_ops\":[\"encrypt\"]}"
 	},
 	// Sign-in attempts per IP address per minute, shares opened per account
@@ -151,6 +154,7 @@
 				// New dev sign-ups are format 2 (the sealed records and cache);
 				// existing dev accounts stay format 1 until they convert (phase 5).
 				"NEW_ACCOUNT_FORMAT": "2",
+				"CONVERT_ON_UNLOCK": "1",
 				"BACKUP_PUBLIC_KEY": ""
 			},
 			"ratelimits": [

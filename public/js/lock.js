@@ -10,6 +10,17 @@ import { lockReason } from "./lock-rules.js";
 import { isUnlocked, lock } from "./vault.js";
 
 const CHECK_EVERY_MS = 30 * 1000;
+
+/** Counts as using the app (watchForLock sets it). */
+let markActive = () => {};
+
+/**
+ * Work the app is doing for me counts as using it: a long conversion
+ * mustn't lock part-way for want of a tap.
+ */
+export function noteActivity() {
+  markActive();
+}
 const ACTIVITY = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"];
 
 /** Starts watching. Call once, from app.js. */
@@ -23,6 +34,7 @@ export function watchForLock() {
   }
 
   const active = () => { lastActivity = Date.now(); };
+  markActive = active;
   for (const type of ACTIVITY) document.addEventListener(type, active, { capture: true, passive: true });
 
   document.addEventListener("visibilitychange", () => {

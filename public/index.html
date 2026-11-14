@@ -749,6 +749,30 @@
     </section>
   </template>
 
+  <template id="view-convert">
+    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+
+    <section class="card">
+      <h2>Updating your journal's encryption</h2>
+      <p>NotoNawa now keeps each tie, plan, person and the rest as one sealed entry, so even what used to be
+        readable to our server (titles, dates, who was there, tags) is now only readable on your devices.</p>
+      <p>This happens once, on this device, and takes a minute or so (longer with many photos and videos).
+        Keep this page open until it's done. Your journal is just as it was afterwards.</p>
+      <p class="hint" id="convert-started" hidden>It was started before, here or on another device. If it isn't still
+        going there, carry on here: nothing is done twice, and nothing is lost.</p>
+      <button type="button" class="primary" id="convert-go">Update now</button>
+      <p class="message" id="convert-message" role="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>First, if you like</h2>
+      <ul class="consent-ways">
+        <li><a href="/data">Export your data</a></li>
+        <li><a href="/account">Your account</a></li>
+      </ul>
+    </section>
+  </template>
+
   <template id="view-not-found">
     <h1>Page not found</h1>
     <section class="card">

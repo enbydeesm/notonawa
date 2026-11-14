@@ -3618,3 +3618,30 @@ dialog, the on/off switch and the walkthrough come next.
 - **Found converting**: the schema read the settings record's default body
   as an object; it's the poser's four sliders, a list. Saving a default
   body in format 2 would have been refused (fixed, with a test).
+
+## Encrypt everything: converting at unlock as built (November 2026)
+
+Phase 5, slice 2: the Convert view and the switch.
+
+- **A switch, not a deploy**: `CONVERT_ON_UNLOCK` decides whether a format 1
+  account converts at its next unlock: on in dev, off in production until
+  the release, so phase 5 can ship without anyone converting before the
+  reviewer has signed off. An account that has started converting carries
+  on whatever the switch says: its format 1 journal no longer takes changes.
+- **A view in place of the journal, as Consent is**, not a dialog over it:
+  the views that need the journal wait, but Your data and Account still
+  open, so someone can export first. "Continue on this device" is offered
+  at once for one already started, rather than after the plan's 10 minutes
+  of no progress: the usual case is this same device after a tab closed,
+  and a second device carrying on is safe (the same ids, every save
+  checked).
+- **Not locking part-way**: each step of progress counts as using the app
+  (`lock.js`'s `noteActivity`), so a long conversion isn't locked for want
+  of a tap; a lock would only stop it, to carry on at the next unlock.
+- **The walkthrough's convert chunk** does it for real on a format 1
+  account with something of every kind and a photo and a video: stopped
+  after its files, half-way through its entries and just before the
+  finish, each time still format 1 with nothing old touched, then finished
+  from the view. Its export afterwards matches the one before (order aside
+  among items made in the same second, listed by their new ids), its photo
+  and video are the same bytes, and the format 1 rows are gone.

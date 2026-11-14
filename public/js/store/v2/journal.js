@@ -15,6 +15,7 @@ import { api, ApiError } from "../../api.js";
 import { openTabs } from "../../cache/tabs.js";
 import { mergeEdit } from "../../cache/sync-rules.js";
 import { orphanFiles } from "../../cache/orphans.js";
+import { conversionWanted } from "../../convert/offer.js";
 
 /** @typedef {import("../../crypto/records.js").RecordKind} RecordKind */
 /** A record, opened. @typedef {{ kind: string, id: string, version: number, body: Record<string, any> | null, unreadable?: true }} Entry */
@@ -32,6 +33,7 @@ import { orphanFiles } from "../../cache/orphans.js";
  *   userId: string,
  *   format: 1 | 2,
  *   records: Map<string, Entry>,
+ *   keys: Record<string, any>,
  *   ready: Promise<void>,
  *   tabs: import("../../cache/tabs.js").Tabs | null,
  *   stop: AbortController,
@@ -65,7 +67,7 @@ export async function startJournal() {
     const keys = await api("/api/keys");
     /** @type {State} */
     const next = {
-      userId: keys.user_id, format: keys.format === 2 ? 2 : 1, records: new Map(), ready: Promise.resolve(), tabs: null,
+      userId: keys.user_id, format: keys.format === 2 ? 2 : 1, keys, records: new Map(), ready: Promise.resolve(), tabs: null,
       stop: new AbortController(),
     };
     state = next;
@@ -80,6 +82,27 @@ export async function startJournal() {
     starting = null;
     throw err;
   }
+}
+
+/**
+ * Whether this format 1 account is to convert now (convert/offer.js),
+ * once startJournal has run.
+ */
+export function conversionWantedNow() {
+  return !!state && conversionWanted(state.keys);
+}
+
+/**
+ * Starts the journal again, reading the account's format afresh: after a
+ * conversion has made it format 2.
+ * @returns {Promise<1 | 2>}
+ */
+export async function restartJournal() {
+  state?.tabs?.close();
+  state?.stop.abort();
+  state = null;
+  starting = null;
+  return startJournal();
 }
 
 /** The account's format, once startJournal has run (1 before). */

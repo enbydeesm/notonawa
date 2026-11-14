@@ -20,8 +20,7 @@ import { idRequests, idKey, planConversion, withFileKeys } from "../convert/plan
 import { stamp } from "../records/parse.js";
 
 /**
- * @typedef {"reading" | "photos" | "entries" | "checking" | "finishing"} Stage
- * @typedef {{ stage: Stage, done: number, total: number }} Progress
+ * @typedef {import("../convert/offer.js").Progress} Progress
  * @typedef {"files" | "half-records" | "finish"} StopAt where a test stops a run (as if the tab closed)
  */
 

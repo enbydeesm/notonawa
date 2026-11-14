@@ -15,7 +15,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
-  "share-items",
+  "share-items", "convert",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -25,7 +25,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65, "share-items": 45,
+  shares: 65, "share-items": 45, convert: 40,
 };
 
 /**
@@ -286,16 +286,14 @@ export const AREAS = [
     // Format 2 records, ids and v3 files: nothing on the page uses them
     // yet, but the crypto Worker loads them, so a change runs basics.
     name: "records",
-    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/",
-      "src/convert/"],
+    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/"],
     ui: ["basics"],
   },
   {
-    // Converting a format 1 journal to format 2 (phase 5). The dialog and
-    // its walkthrough chunk come next; until then, basics.
+    // Converting a format 1 journal to format 2 (phase 5).
     name: "convert",
-    files: ["public/js/convert/", "public/js/store/convert.js"],
-    ui: ["basics"],
+    files: ["public/js/convert/", "public/js/store/convert.js", "public/js/views/convert.js", "src/convert/"],
+    ui: ["convert"],
   },
   {
     // Identity keys, the acceptance, pair-key messages and safety numbers:

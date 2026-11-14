@@ -3,7 +3,7 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent" | "open"} ViewName
+ * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent" | "convert" | "open"} ViewName
  * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean, beforeConsent?: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
  *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
@@ -37,6 +37,12 @@ export const UNLOCK = { path: null, view: "unlock", title: "Unlock · NotoNawa",
 
 /** Shown in place of the journal until I agree to a changed privacy policy. @type {Route} */
 export const CONSENT = { path: null, view: "consent", title: "Privacy policy update · NotoNawa", nav: false, needsKey: false };
+
+/**
+ * Shown in place of the journal while a format 1 account converts to format
+ * 2 (as Consent is: Your data and Account still open). @type {Route}
+ */
+export const CONVERT = { path: null, view: "convert", title: "Updating your journal · NotoNawa", nav: false, needsKey: false };
 
 /**
  * The route for a path, ignoring a trailing slash ("/plans/" is Plans).

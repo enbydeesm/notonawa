@@ -55,7 +55,10 @@ building live in [roadmap.md](roadmap.md).
   account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
   `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"1"` in
   production until the release (phase 7), `"2"` in dev): the format new
-  sign-ups start in.
+  sign-ups start in. `CONVERT_ON_UNLOCK` (`"0"` in production until the
+  release, `"1"` in dev): whether a format 1 account converts to format 2
+  at its next unlock (`GET /api/keys`'s `convert`; one that has started
+  converting carries on whatever it says).
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -461,7 +464,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   read, plan, identity key, files (the Worker's `convertMedia`: a format 1
   photo sealed as a v3 file; each read back), records in batches, read
   back, finish; each step safe to repeat, an interrupted run picking up
-  where it got to; `stopAt` for tests), `records/import.js` (pure:
+  where it got to; `stopAt` for tests), `convert/offer.js` (pure: when to
+  convert, `conversionWanted`; the progress's words) and `views/convert.js`
+  (the Convert view, `CONVERT` in `router.js`: shown by `app.js` in place
+  of the journal while converting, as Consent is, Your data and Account
+  still open; Update now, or "Continue on this device" for one already
+  started; `lock.js`'s `noteActivity` keeps it from locking part-way; then
+  `restartJournal()` opens it as format 2), `records/import.js` (pure:
   format 1's import on the device: the server's parsing and messages,
   matching people, locations and plans by name, new tags, duplicate ties
   and workshops (the same but for their notes) for the page to compare; a

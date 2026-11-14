@@ -12,7 +12,7 @@
 // journal is locked, and are drawn again when it locks (lock.js), so nothing
 // decrypted stays on the page.
 
-import { ROUTES, matchRoute, inAppTarget, UNLOCK, CONSENT } from "./router.js";
+import { ROUTES, matchRoute, inAppTarget, UNLOCK, CONSENT, CONVERT } from "./router.js";
 import { setNavigator } from "./navigate.js";
 import { renderNav, showNav, setCurrent, preloadMenuLogo } from "./nav.js";
 import { $ } from "./dom.js";
@@ -25,7 +25,7 @@ import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
-import { startJournal, accountFormat } from "./store/v2/journal.js";
+import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
 import { showWelcome } from "./welcome.js";
 import { takeShareLink } from "./pending-share.js";
@@ -48,6 +48,7 @@ const VIEWS = {
   "not-found": () => import("./views/not-found.js"),
   unlock: () => import("./views/unlock.js"),
   consent: () => import("./views/consent.js"),
+  convert: () => import("./views/convert.js"),
   open: () => import("./views/open.js"),
 };
 
@@ -120,8 +121,9 @@ async function show({ fresh, scroll, focus }) {
   // The first time the journal is shown after unlocking (with a full
   // session, which signing up or recovering only has once they're done):
   // encrypt any notes left in plain text from before encryption (format 1
-  // only: format 2's records are sealed whole).
-  if (route.needsKey && !leftoversChecked && accountFormat() === 1) {
+  // only: format 2's records are sealed whole; and not while converting,
+  // when the format 1 journal takes no changes).
+  if (route.needsKey && !leftoversChecked && accountFormat() === 1 && !conversionWantedNow()) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
   }
@@ -201,7 +203,10 @@ async function routeFor(addressed) {
       // refusal for want of agreement brings the agreement up.
     }
   }
-  return consentState()?.needed && !addressed.beforeConsent ? CONSENT : addressed;
+  if (consentState()?.needed && !addressed.beforeConsent) return CONSENT;
+  // A format 1 journal converting to format 2 (store/convert.js): nothing
+  // else until it's done, but Your data and Account, as for Consent.
+  return conversionWantedNow() && !addressed.beforeConsent ? CONVERT : addressed;
 }
 
 /**
