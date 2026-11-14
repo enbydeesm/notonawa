@@ -18,7 +18,6 @@ import { barChart, partnerBars, pieChart, rankBars, roleKey, stat, TYPE_COLORS }
 import { tiesWord } from "../chart-parts.js";
 import { openTieList } from "../tie-list-dialog.js";
 import { mapPlaces } from "../map-geo.js";
-import { open } from "../vault.js";
 import { formatMoney } from "../currency.js";
 import { dateRangeText } from "../workshops-view.js";
 import { workshopsIn, followUps, workshopNumbers, practisedMost, workshopsByBar, workshopPlaces } from "../workshop-stats.js";
@@ -29,7 +28,7 @@ import {
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
 } from "../stats-period.js";
-import { listItems } from "../store/index.js";
+import { listItems, listWorkshops } from "../store/index.js";
 
 /**
  * @typedef {import("../stats.js").StatsTie} StatsTie
@@ -106,7 +105,7 @@ export function mount(_root, { signal }) {
   let learning = null;
   // Workshops are extras here: if they can't load, the ties still show.
   const loadLearning = () => Promise.all([
-    api("/api/workshops").then((rows) => open("workshop", rows)),
+    listWorkshops(),
     listItems("plans", "all"),
     listItems("locations", "all"),
     listItems("people", false),

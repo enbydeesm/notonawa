@@ -5,7 +5,8 @@
 // × unlinks it. The hidden input, workshop_id, is what the form sends. The
 // same link is made from the workshop's "Ties and plans" (workshop-form.js).
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
+import { listWorkshops } from "./store/index.js";
 import { h, privateField, removeX } from "./dom.js";
 import { tabIcon } from "./nav.js";
 import { formatDate } from "./format.js";
@@ -59,7 +60,7 @@ export function workshopLink({ idPrefix, onError }) {
     pickRow.hidden = false;
     select.replaceChildren(h("option", { value: "" }, "Loading…"));
     try {
-      const workshops = await api("/api/workshops");
+      const workshops = await listWorkshops();
       select.replaceChildren(
         h("option", { value: "" }, workshops.length ? "Choose a workshop" : "No workshops yet"),
         ...workshops.map((/** @type {any} */ w) => h("option", { value: w.id, "data-title": w.title }, `${w.title}, ${formatDate(w.start_date)}`)));

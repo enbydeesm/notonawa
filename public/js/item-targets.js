@@ -5,9 +5,8 @@
 // first; plans (not archived) and workshops are all loaded at once, and
 // searched by title on the page (add-to-choices.js).
 
-import { api } from "./api.js";
 import { formatDate } from "./format.js";
-import { findTies, listItems } from "./store/index.js";
+import { findTies, listItems, listWorkshops } from "./store/index.js";
 import { SHOWN } from "./add-to-choices.js";
 
 /** @typedef {import("./add-to-choices.js").Target} Target */
@@ -44,7 +43,7 @@ export async function loadPlans() {
  * @returns {Promise<Target[]>}
  */
 export async function loadWorkshops() {
-  return (await api("/api/workshops")).map((/** @type {any} */ w) => ({
+  return (await listWorkshops()).map((/** @type {any} */ w) => ({
     kind: /** @type {const} */ ("workshop"), id: w.id, title: w.title, meta: formatDate(w.start_date), recent: w.updated_at ?? "",
   }));
 }

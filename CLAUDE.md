@@ -523,7 +523,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`) and
   `v1/resources.js` (plans, people and locations by kind: `listItems`,
   `saveItem`, `archiveItem`, `restoreItem`, `deleteItem`, `deletePlan`
-  with the linked ties' choice, `mapLinkCoords`); the
+  with the linked ties' choice, `mapLinkCoords`) and `v1/workshops.js`
+  (`listWorkshops`, `getWorkshop`, `saveWorkshop`, `deleteWorkshop`,
+  `linkToWorkshop`); the
   encrypted cache's `v2/` comes in beside it, chosen by the account's
   format), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's
