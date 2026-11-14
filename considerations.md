@@ -3218,8 +3218,9 @@ anyone sees.
   are rebuilt over the cache in phase 4 rather than reshaped twice.
 - **Types**: rows are `any` as `api()` gave them; per-kind types come with
   the record schema (phase 2).
-- **The guard is an ESLint rule**, not a unit test: unit tests here can't
-  read source files (no Node types), and lint catches it sooner. It refuses
+- **The guard is an ESLint rule**, not a unit test: lint catches it as
+  the code is written, before any test runs. (A unit test could read the
+  files through Vite's `import.meta.glob`, as `areas.test.js` does.) It refuses
   `api()` with a journal path, or `/api/` followed by a variable, outside
   `public/js/store/`. Left outside on purpose: sign-in, keys, the account
   (but its settings), consent, notices, feedback, shares, the version,
@@ -3228,3 +3229,69 @@ anyone sees.
 - **Small changes on the way**: lists that came sealed to a few views
   (Analytics, the share dialogs, the workshop picker) now come opened; a
   delete choice is `{ delete: true }` rather than an empty URL fragment.
+
+## Encrypt everything: the formats (November 2026)
+
+Phase 2: the formats records, files and contacts use, and the crypto
+Worker's operations on them. Built and tested, not used yet (the pages
+reach them from phase 4); the Worker loads them, and the 61 KB HPKE
+bundle with them, at unlock. Everything is AES-256-GCM with a random
+12-byte IV unless it says otherwise, bound by its additional data.
+
+- **Records** (`crypto/records.js`): a random 32-byte item key per record,
+  sealed under the data key as `k2.<iv>.<ct>` (bound to
+  `notonawa|itemkey|v2|<user>|<kind>|<id>`), opened straight into a
+  non-extractable key. The body is `{ v: 2, … }` as JSON, padded with
+  spaces to a multiple of 256 bytes (JSON ignores them, so nothing comes
+  off; the reviewer may prefer ISO 7816-4, a one-line change), sealed as
+  `e2.<iv>.<ct>` and bound to `notonawa|record|v2|<user>|<kind>|<id>|<version>`.
+  The page gives the version being written (1 more than it read); the
+  server only checks it. A body over 1 MiB padded is refused (`TooBig`):
+  sealed and in base64url that's about 1.4 MB, under the server's cap.
+- **Ids** (`records/ids.js`): conversion and "this is me" ids are
+  HMAC-SHA256 under an id key, as version 8 UUIDs. The id key is HKDF-SHA256
+  (salt 32 zero bytes, info `notonawa ids v1|<user>`) of the data key's
+  bytes: the Worker unwraps the same wrap a second time as an HKDF key
+  (`unwrapKeyMaterial`), since the data key itself never exists as bytes
+  in JavaScript. Weighed: a separate random id key, sealed and stored, is
+  cleaner (no key used both as AES and as HKDF input) but needs storage
+  and a rule for two devices making one at once; a fixed-IV encryption of
+  a label works but is a misuse pattern. Chosen: the HKDF unwrap, pending
+  the reviewer. The vectors were worked out again with Python's `hmac`
+  and `hashlib`.
+- **Files** (`crypto/files.js`, v3): a random 32-byte key per file, kept in
+  its item's record. Thumbnail, full size and a reserved cover part, every
+  part of photos and videos alike in 1 MB pieces bound to
+  `notonawa|file|v3|<user>|<file>|<part>|<n>|last|more`, so the server
+  can't reorder, swap or cut short a part.
+- **Identity keys** (`crypto/identity.js`): X-Wing through hpke and
+  @panva/hpke-noble; HPKE base mode, info `notonawa msg v1`; a sealed
+  message is the 1,120-byte encapsulated secret then the ciphertext. The
+  32-byte seed is sealed under the data key as `i1.<iv>.<ct>`, bound to
+  the user and the SHA-256 of its public key, so the server can't pair the
+  seed with a public key of its own.
+- **The acceptance and messages** (`crypto/pair.js`): the acceptance is
+  HPKE-sealed to the inviter (bound to `notonawa|accept|v1|<share>`) and
+  carries an HMAC-SHA256 under a key from the link's key (HKDF, info
+  `notonawa accept v1 <share>`), so the server, which has the inviter's
+  public key but not the link, can't forge one. Later messages are
+  `m1.<counter>.<iv>.<ct>` under the pair key, bound to
+  `notonawa|msg|v1|<mailbox>|<counter>`; a counter must be above the last
+  taken (`acceptCounter`).
+- **Safety numbers** (`crypto/safety-number.js`): Signal's numeric
+  fingerprint exactly (libsignal's `fingerprint.rs`): it reproduces their
+  published vector, and Python's `hashlib` gives the same on X-Wing-sized
+  keys.
+- **Schema** (`records/schema.js`): each kind's fields and the checks on
+  one record, the server's and the database's rules today (kept in step
+  with `src/` by a unit test). Fields a record has that its kind doesn't
+  list are kept, so a device on an older version doesn't drop them. Rules
+  across records (one "this is me", one default location, deleted links)
+  wait for the cache (phase 4), where the whole journal is to hand; so do
+  a drawing's and pose's own checks, which today are only the server's.
+- **The Worker** (`vault-core.js`): `recordIds`, `sealRecords` (checked
+  first), `openRecords` (one that won't open comes back unreadable, not
+  failing the rest), `sealFile`, `openFile`, `copyFile`, `makeIdentity`,
+  `openIdentity`, `sealAcceptance`, `openAcceptance`, `sealMessage`,
+  `openMessage`. Item keys leave only sealed; file and pair keys only
+  inside records; the seed only sealed, and it's forgotten on lock.

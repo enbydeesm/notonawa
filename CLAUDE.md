@@ -377,6 +377,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   like it's there already; its photos' thumbnails, and each photo sealed
   as mine in the crypto Worker (`adoptShareFile`) and uploaded with
   the store's `uploadSealed`)),
+  format 2, built but not used yet (considerations.md, "Encrypt
+  everything: the formats"): `crypto/records.js` (pure: item keys
+  `k2.`, sealed bodies `e2.` padded to 256 bytes, bound to user, kind, id
+  and version; `RECORD_KINDS`), `crypto/files.js` (pure: v3 files, a key
+  each, every part in pieces), `crypto/identity.js` (pure: X-Wing key
+  pairs through `vendor/hpke.js`, the seed sealed `i1.`; the only file
+  that touches the library), `crypto/pair.js` (pure: the acceptance,
+  pair-key messages `m1.`, `acceptCounter`), `crypto/safety-number.js`
+  (pure: Signal's numeric fingerprint), `records/ids.js` (pure: random
+  ids, and conversion and "this is me" ids by HMAC under the id key, from
+  the data key through `keys.js`'s `unwrapKeyMaterial`) and
+  `records/schema.js` (pure: each kind's fields and the checks on one
+  record; rules across records come with the cache),
   `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
   (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
   `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
