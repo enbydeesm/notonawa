@@ -41,7 +41,14 @@ export const restoreItem = byFormat(v1Resources.restoreItem, v2Resources.restore
 export const deleteItem = byFormat(v1Resources.deleteItem, v2Resources.deleteItem);
 export const deletePlan = byFormat(v1Resources.deletePlan, v2Resources.deletePlan);
 export { mapLinkCoords } from "./maps.js";
-export { listWorkshops, getWorkshop, saveWorkshop, deleteWorkshop, linkToWorkshop } from "./v1/workshops.js";
+import * as v1Workshops from "./v1/workshops.js";
+import * as v2Workshops from "./v2/workshops.js";
+
+export const listWorkshops = byFormat(v1Workshops.listWorkshops, v2Workshops.listWorkshops);
+export const getWorkshop = byFormat(v1Workshops.getWorkshop, v2Workshops.getWorkshop);
+export const saveWorkshop = byFormat(v1Workshops.saveWorkshop, v2Workshops.saveWorkshop);
+export const deleteWorkshop = byFormat(v1Workshops.deleteWorkshop, v2Workshops.deleteWorkshop);
+export const linkToWorkshop = byFormat(v1Workshops.linkToWorkshop, v2Workshops.linkToWorkshop);
 export { uploadPhoto, uploadSealed, listMedia, setMediaCaption, deleteMedia } from "./v1/media.js";
 export {
   listDrawings, addDrawing, updateDrawing, deleteDrawing, listPoses, addPose, updatePose, deletePose,

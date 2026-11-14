@@ -3450,3 +3450,19 @@ ties in format 2.
   is carried over field by field (the whole list as one field).
 - **A person kept in the same role keeps their entry** (an import's ratings
   and notes on it), and a plan kept its recorded version, as in format 1.
+
+## Encrypt everything: workshops as built (November 2026)
+
+Phase 4, slice 5: workshops and the Education view in format 2
+(`store/v2/workshops.js`).
+
+- **A workshop's record** holds its educators and participants as one
+  list, each with its kind and role, a person once, as format 1's
+  `workshop_people`; deleted people and a deleted location are kept on an
+  edit only as the form says (link ids `w<n>`, as ties' `p<n>`).
+- **Links stay on the tie or plan** (`workshop_id`), as format 1 has them:
+  a tie or plan has one workshop, and the workshop's linked list is worked
+  out from them (plans A–Z, then ties oldest first). Deleting a workshop
+  unlinks them in the same save.
+- **Rows match format 1's**: `src/workshops/db.js` exports
+  `WORKSHOP_COLUMNS` for the unit test.

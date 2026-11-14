@@ -8,7 +8,7 @@
 import {
   cleanText, requiredText, flag, numberOrNull, intOrNull, urlOrNull, dateOrNull, roleOrNull, choiceOrNull, compact, BadEdit,
 } from "./parse.js";
-import { PLAN_STAGES, PLAN_TYPES, TIE_TYPES } from "./schema.js";
+import { PLAN_STAGES, PLAN_TYPES, TIE_TYPES, WORKSHOP_ROLES } from "./schema.js";
 import { readAliases } from "../aliases.js";
 
 /**
@@ -347,4 +347,128 @@ export function planIdsOf(value) {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || value.length > 20) throw new BadEdit("Plans should be a list of up to 20 plans.");
   return [...new Set(value.map(cleanText).filter((id) => id !== null))];
+}
+
+/**
+ * A workshop's record from its form's fields (as format 1's API takes
+ * them), with its tags' ids. Educators and participants are one list, each
+ * person once; deleted people and a deleted location stay only if the form
+ * keeps them (by the link ids its rows had: "w<n>", their place in the
+ * record's list). Its visuals and anything the form hasn't stay as they
+ * were.
+ * @param {Record<string, any>} fields
+ * @param {Record<string, any> | null} prev
+ * @param {{ tagIds: string[], has: (kind: string, id: string) => Entry | null, now: string }} where
+ */
+export function workshopBody(fields, prev, { tagIds, has, now }) {
+  const title = cleanText(fields.title);
+  if (!title) throw new BadEdit("Add a title.");
+  if (title.length > 200) throw new BadEdit("Keep the title to 200 characters.");
+  const start = dateOrNull(fields.start_date);
+  if (!start) throw new BadEdit("Add a start date.");
+  let end = dateOrNull(fields.end_date);
+  if (end !== null && end < start) throw new BadEdit("The end date is before the start date.");
+  if (end === start) end = null; // one day: no end date
+  let attendees;
+  try {
+    attendees = intOrNull(fields.attendee_count, 0, 100_000);
+  } catch {
+    throw new BadEdit("The attendee count should be a whole number, 0 or more.");
+  }
+  const locationId = cleanText(fields.location_id);
+  if (locationId && !has("location", locationId)) throw new BadEdit(NOT_FOUND);
+  /** @type {{ people?: string[], location?: boolean }} */
+  const keep = prev && fields.keep_deleted && typeof fields.keep_deleted === "object" ? fields.keep_deleted : {};
+  const prevPeople = Array.isArray(prev?.people) ? prev.people : [];
+  const people = [
+    ...prevPeople.filter((/** @type {any} */ p, /** @type {number} */ i) => !p?.person_id && (keep.people ?? []).includes(`w${i}`)),
+    ...workshopPeopleOf(fields.educators, fields.participants).map((p) => {
+      if (!has("person", p.person_id)) throw new BadEdit(NOT_FOUND);
+      return p;
+    }),
+  ];
+  const { location_deleted: wasDeleted, ...rest } = prev ?? {};
+  return compact({
+    ...rest,
+    title,
+    start_date: start,
+    end_date: end,
+    location_id: locationId,
+    location_deleted: !locationId && wasDeleted && keep.location === true ? true : null,
+    attendee_count: attendees,
+    rating: intOrNull(fields.rating, 1, 5),
+    difficulty: intOrNull(fields.difficulty, 1, 5),
+    rating_content: intOrNull(fields.rating_content, 1, 5),
+    rating_teaching: intOrNull(fields.rating_teaching, 1, 5),
+    rating_value: intOrNull(fields.rating_value, 1, 5),
+    cost: cleanText(fields.cost),
+    event_url: cleanText(fields.event_url),
+    description: cleanText(fields.description),
+    notes: cleanText(fields.notes),
+    album_url: cleanText(fields.album_url),
+    people: people.length ? people : null,
+    tags: tagIds.length ? tagIds : null,
+    created_at: prev?.created_at ?? now,
+    updated_at: now,
+  });
+}
+
+/**
+ * A workshop's educators and participants as one list, each with its kind:
+ * up to 40, a person once (an educator or a participant, not both). As
+ * src/workshops/parse.js.
+ * @param {unknown} educators
+ * @param {unknown} participants
+ * @returns {{ person_id: string, kind: string, role: string }[]}
+ */
+export function workshopPeopleOf(educators, participants) {
+  /** @param {unknown} value @param {string} kind */
+  const list = (value, kind) => {
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value)) throw new BadEdit(`The ${kind}s should be a list.`);
+    return value.map((item) => {
+      const personId = cleanText(item?.person_id);
+      const role = roleOrNull(item?.role, WORKSHOP_ROLES);
+      if (!personId || !role) throw new BadEdit(`Each ${kind} needs a person and a role.`);
+      return { person_id: personId, kind, role };
+    });
+  };
+  const rows = [...list(educators, "educator"), ...list(participants, "participant")];
+  if (rows.length > 40) throw new BadEdit("A workshop can have up to 40 people.");
+  const seen = new Set();
+  for (const row of rows) {
+    if (seen.has(row.person_id)) throw new BadEdit("Someone is on the workshop twice. Each person can be an educator or a participant, not both.");
+    seen.add(row.person_id);
+  }
+  return rows;
+}
+
+/**
+ * Deleting a workshop: its ties and plans are unlinked, and its drawings,
+ * poses and files go with it.
+ * @param {Entry} workshop
+ * @param {Entry[]} items every tie and plan
+ * @param {string} now
+ */
+export function workshopDeleted(workshop, items, now) {
+  /** @type {Write[]} */
+  const writes = items.flatMap((item) => {
+    if (!item.body || item.body.workshop_id !== workshop.id) return [];
+    const { workshop_id: _gone, ...rest } = item.body;
+    return [{ kind: /** @type {any} */ (item.kind), id: item.id, from: item.body, body: { ...rest, updated_at: now } }];
+  });
+  return { writes, deletes: itemDeletes(workshop) };
+}
+
+/**
+ * Linking a tie or plan to a workshop: it has one at most, so this moves it
+ * from any other.
+ * @param {Entry} item
+ * @param {string} workshopId
+ * @param {string} now
+ * @returns {Write}
+ */
+export function linkedToWorkshop(item, workshopId, now) {
+  const body = /** @type {Record<string, any>} */ (item.body);
+  return { kind: /** @type {any} */ (item.kind), id: item.id, from: body, body: { ...body, workshop_id: workshopId, updated_at: now } };
 }

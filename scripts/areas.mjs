@@ -200,7 +200,7 @@ export const AREAS = [
     name: "education",
     files: ["src/workshops/", "public/js/views/education.js", "public/js/workshop-form.js", "public/js/workshop-card.js",
       "public/js/workshops-view.js", "public/js/person-rows.js", "public/js/currency.js",
-      "public/js/workshop-link.js", "public/js/store/v1/workshops.js"],
+      "public/js/workshop-link.js", "public/js/store/v1/workshops.js", "public/js/store/v2/workshops.js", "public/js/store/queries/workshops.js"],
     ui: ["education"],
   },
   {

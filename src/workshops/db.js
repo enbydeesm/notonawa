@@ -11,7 +11,8 @@ import { mediaOfStatement } from "../media/db.js";
 const ORDER = "ORDER BY w.start_date DESC, w.created_at DESC, w.id DESC";
 
 // A workshop's own fields, its location's name and how many photos it has, for `workshops w`.
-const WORKSHOP_COLUMNS = `
+// Exported for the test that keeps format 2's rows (store/queries/workshops.js) the same.
+export const WORKSHOP_COLUMNS = `
   SELECT w.id, w.title, w.start_date, w.end_date, w.attendee_count, w.rating,
          w.difficulty, w.rating_content, w.rating_teaching, w.rating_value, w.cost, w.event_url,
          w.description, w.notes, w.album_url, w.created_at, w.updated_at,
