@@ -874,14 +874,17 @@ async function ropes({ tap, slide, topDialog }) {
   [["Added rope: 1 point. Keep tapping, then Finish.", false], ["Added rope: 2 points. Keep tapping, then Finish.", true]]);
   // The right upline above its two bends (the cinches), toward the ring.
   await tapRope(bridged, 2, 2, 0.5);
-  // Body to ring, two points: it has a Length, and 30 cm more is 30 cm of slack.
-  check("…its Length raised, as slack, saved with the pose", await run(`
+  // An upline has a Length: 30 cm more lowers the arm it's tied to as far
+  // as it goes, and the rest is slack.
+  check("…an upline's Length raised lowers the arm on it, the rest slack, saved with the pose", await run(`
     if (!$("#pose-length") || $("#pose-slack")) return ["no length slider", $("#pose-rope-hint").textContent];
+    const before = JSON.stringify((await ${tiePose}).data.joints);
     { const el = $("#pose-length"); el.value = String(Number(el.value) + 30); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); await calm(200); }
     ${savePose}
     const saved = (await ${tiePose}).data;
-    return [saved.ropes.length, saved.ropes[5].p[0].slice(0, 2), saved.ropes[5].p.length, saved.ropes[2].k];`),
-  [6, ["rope", 2], 2, 30]);
+    const slack = saved.ropes[2].k ?? 0;
+    return [saved.ropes.length, saved.ropes[5].p[0].slice(0, 2), saved.ropes[5].p.length, slack > 0 && slack < 30, JSON.stringify(saved.joints) !== before];`),
+  [6, ["rope", 2], 2, true, true]);
 
   // On a bamboo in place of the ring (the uplines move to its middle).
   const onBamboo = setHardpoint(readPose(await run(`return (await ${tiePose}).data;`)), "bamboo");

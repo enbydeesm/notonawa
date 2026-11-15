@@ -267,6 +267,38 @@ export function dampedSolve(columns, error) {
 }
 
 /**
+ * dampedSolve for any number of errors at once (several ropes' lengths):
+ * the change in each angle that best brings every error to 0, damped the
+ * same way.
+ * @param {number[][]} columns each angle's effect on each error, per degree
+ * @param {number[]} error what's wanted of each
+ * @returns {number[]} degrees
+ */
+export function dampedSolveMany(columns, error) {
+  const n = error.length;
+  // J Jᵀ + λ² I with the error beside it, solved by elimination (the
+  // damping keeps it from being singular).
+  const m = error.map((e, r) => [...error.map((_, c) =>
+    columns.reduce((sum, col) => sum + col[r] * col[c], 0) + (r === c ? DAMPING * DAMPING : 0)), e]);
+  for (let c = 0; c < n; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(m[r][c]) > Math.abs(m[pivot][c])) pivot = r;
+    [m[c], m[pivot]] = [m[pivot], m[c]];
+    for (let r = c + 1; r < n; r++) {
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k <= n; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  const y = new Array(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) {
+    let sum = m[r][n];
+    for (let k = r + 1; k < n; k++) sum -= m[r][k] * y[k];
+    y[r] = sum / m[r][r];
+  }
+  return columns.map((col) => col.reduce((sum, v, r) => sum + v * y[r], 0));
+}
+
+/**
  * Solves m · y = b for a 3 × 3 m (Cramer's rule; the damping keeps it from
  * being singular).
  * @param {number[][]} m

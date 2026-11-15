@@ -18,7 +18,7 @@
 // as it can when it can't.
 
 import { jointNamed, clampJoint, LIFT_RANGE } from "./figure-rig.js";
-import { DRAG_CHAINS, dampedSolve, snapshot, keepReachable } from "./pose-ik.js";
+import { DRAG_CHAINS, dampedSolve, dampedSolveMany, snapshot, keepReachable } from "./pose-ik.js";
 import { makeSkeleton, posed } from "./pose-skeleton.js";
 import { ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength, pullsUplines, setSlack } from "./pose-format.js";
 import { bends, segmentLength, cinchPoints } from "./pose-cinch.js";
@@ -67,13 +67,14 @@ let spare = null;
 
 /**
  * The pose with the angles nudged until every number `errors` gives is
- * as near 0 as they can make it (at most 3 numbers).
+ * as near 0 as they can make it (any number of them: three or fewer are
+ * solved as a drag is, more by elimination).
  * @param {Pose} pose
  * @param {readonly Angle[]} angles
  * @param {(skeleton: Skeleton, trial: Pose) => number[]} errors
  * @returns {Pose}
  */
-function settle(pose, angles, errors) {
+export function settle(pose, angles, errors) {
   /** @type {Pose} */
   const trial = { ...pose, joints: Object.fromEntries(Object.entries(pose.joints).map(([n, a]) => [n, [...a]])), body: [...pose.body] };
   const limits = angles.map((a) => {
@@ -99,7 +100,8 @@ function settle(pose, angles, errors) {
   const skeleton = spare ??= makeSkeleton();
   const measure = () => {
     posed(skeleton, trial);
-    return [...errors(skeleton, trial), 0, 0, 0].slice(0, 3);
+    const all = errors(skeleton, trial);
+    return all.length > 3 ? all : [...all, 0, 0, 0].slice(0, 3);
   };
 
   for (let round = 0; round < ROUNDS; round++) {
@@ -116,7 +118,7 @@ function settle(pose, angles, errors) {
       return moved.map((m, r) => (m - now[r]) / step);
     });
     const before = snapshot(trial.joints, moved);
-    dampedSolve(columns, wanted).forEach((d, k) => set(k, get(k) + d));
+    (wanted.length > 3 ? dampedSolveMany(columns, wanted) : dampedSolve(columns, wanted)).forEach((d, k) => set(k, get(k) + d));
     keepReachable(trial.joints, before);
   }
 
@@ -130,14 +132,14 @@ function settle(pose, angles, errors) {
 }
 
 /** Whether a point is on a hardpoint. @param {RopePoint} p */
-const onHardpoint = (p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA;
+export const onHardpoint = (p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA;
 
 /**
  * The part of the body a hanging stretch starts from, if it's on the body.
  * @param {Pose} pose @param {number} rope @param {number} segment
  * @returns {string | null}
  */
-function bodyEnd(pose, rope, segment) {
+export function bodyEnd(pose, rope, segment) {
   const { p } = pose.ropes[rope];
   const end = onHardpoint(p[segment]) ? p[segment + 1] : p[segment];
   return end[0] === ROPE || onHardpoint(end) ? null : end[0];
@@ -180,7 +182,7 @@ export function cinchBody(pose, index, length) {
 }
 
 /** The whole body's tilt and height: what brings the trunk to a hardpoint. @type {readonly Angle[]} */
-const WHOLE_BODY = TRUNK.pelvis;
+export const WHOLE_BODY = TRUNK.pelvis;
 
 /**
  * The parts of the body a cinch is tied to: those its points are on, and

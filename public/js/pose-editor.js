@@ -69,6 +69,7 @@ import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clas
 import { cinchPoints, spotOn } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
 import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
+import { uplineStretch, uplineLength, setUplineLength } from "./pose-uplines.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
@@ -829,6 +830,18 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           id: "pose-along-bamboo", label: "Position (cm)", min: -half, max: half,
           value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
         });
+      } else if (uplineStretch(pose, index, chosen.segment) >= 0) {
+        // An upline's hanging stretch has a Length, raising and lowering
+        // what it's tied to: shorter lifts it (the other uplines keeping
+        // theirs), longer lowers it to the floor, the rest slack.
+        const stretch = uplineStretch(pose, index, chosen.segment);
+        posed(measuring, pose);
+        const now = Math.round(uplineLength(measuring, pose, index, stretch));
+        if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2, 2 * now) };
+        settings = slider({
+          id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
+          apply: (p, v) => setUplineLength(p, index, stretch, v),
+        });
       } else if (hasLength(rope)) {
         // A rope of two points has a Length: from none to twice as long as
         // it was when chosen, starting in the middle. Shorter moves the
@@ -841,7 +854,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           apply: (p, v) => setRopeLength(p, index, v),
         });
       } else if (isUpline(rope)) {
-        // An upline can be given slack: its hanging stretches sag (drawn only).
+        // A see-saw, or an upline tied only to other ropes, can be given
+        // slack: its hanging stretches sag (drawn only).
         settings = slider({
           id: "pose-slack", label: "Slack (cm)", min: SLACK_RANGE[0], max: SLACK_RANGE[1], value: rope.k ?? 0,
           apply: (p, v) => setSlack(p, index, v),

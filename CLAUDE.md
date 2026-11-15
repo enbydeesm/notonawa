@@ -674,7 +674,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (moving the body to keep uplines' lengths: a cinch's "Move the body",
   see-saw ropes; a cinch round the body drawing the parts it's tied to
   together; a two-point rope's Length, `setRopeLength`, shorter moving the
-  body, longer as slack; the drag solver's method, tested), `pose-marks.js` (pure:
+  body, longer as slack; the drag solver's method, tested), `pose-uplines.js`
+  (an upline's Length, `setUplineLength`: shorter raises the limb or the
+  whole body, longer lowers it to the floor, the rest slack; the other
+  taut uplines keep their lengths; tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
   (their layer over the view, and drawing them onto a picture),
   `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging

@@ -3852,3 +3852,36 @@ Slice 3: verifying.
 - **Not built yet**: deep hip bends rolling the pelvis back and wide
   spreads hiking it (roadmap.md).
 
+## Poser: raising and lowering uplines (November 2026)
+
+**Status:** built (2026-11-14)
+
+- **Every upline's hanging stretch has a Length** (`pose-uplines.js`,
+  `setUplineLength`), in place of Slack (a see-saw, which keeps its own
+  length over the hardpoint, still has Slack). Before, only a two-point
+  rope had one, shortening moved the body with nothing else held, and
+  lengthening was only ever slack.
+- **Shorter raises**: a limb turns to it, as a drag would, and the whole
+  body (its tip, roll and height) follows once the limb can't reach, or
+  at once on the trunk. **Longer lowers**: down to the floor (the skin's
+  lowest point, from the body's capsules), the rest slack; a body already
+  on the floor only gets slack.
+- **The other uplines hold on**: each taut one keeps its length, the limb
+  it's tied to turning to allow it, so the solver takes any number of
+  lengths at once (`dampedSolveMany`). One with slack takes it up or lets
+  it out first. Whole degrees shared over several lines leave each within
+  a couple of centimetres.
+- **No stored length**: a taut upline's length is still just the distance
+  between its ends, so the pose format and the server are unchanged. We
+  weighed storing each line's length (so a line could go slack by itself
+  when the body's moved another way); not needed for this.
+- **Two rules stand in for gravity**, as nothing weighs anything: a line
+  let out lowers what hangs from it, and a limb's line carries the whole
+  body only when the body is off the floor with no taut line on its
+  trunk. Nothing swings to hang under its line, and the figure never
+  moves sideways. Real physics (weights, a centre of mass) was the other
+  way: much more to build, and slow to solve on a phone.
+- **A limb stuck at a joint's limit starts again** swung forward, then
+  out (`limbTo`): from hanging straight down, the steepest way up for an
+  arm is backward, into the shoulder's limit.
+
