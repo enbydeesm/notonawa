@@ -10,7 +10,7 @@ import { saveShare } from "./share-save.js";
 import { canConnect, profileInvite } from "./store/index.js";
 import { showShareCode } from "./share-code.js";
 import { profileChoices } from "./profile-choices.js";
-import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
+import { CONNECT_DISCLOSURE } from "./connection-text.js";
 
 /**
  * Opens the dialog for my own profile (as saved, opened). Resolves when
@@ -28,11 +28,8 @@ export function openShareProfile(me) {
     const uses = h("select", { id: "share-profile-uses" }, USE_CHOICES.map((c) => h("option", { value: c.value }, c.label)));
     // Connect our accounts: unticked, with what it means shown once it's ticked.
     const connect = h("input", { type: "checkbox", id: "share-profile-connect" });
-    // The first sentence of what it means, the rest behind a "?".
-    const more = infoTip("share-profile-connect-more", "More about connecting accounts", CONNECT_DISCLOSURE_MORE);
     const disclosure = h("div", { id: "share-profile-connect-note", hidden: true },
-      h("p", { className: "hint connect-disclosure" }, CONNECT_DISCLOSURE_SHORT, " ", more.button),
-      more.text);
+      h("p", { className: "hint connect-disclosure" }, CONNECT_DISCLOSURE));
     const tagInfo = infoTip("share-profile-label-info", "About the invite tag",
       "Provides context for you in Your data (Shared by me and Connections). e.g. the person's name and where you met them.");
     const warning = h("p", { className: "warning-note", id: "share-profile-warning", hidden: true });

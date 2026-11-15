@@ -6,7 +6,9 @@
 // verified; a changed key warns. Alex changes their profile and Jude
 // reviews the update. Alex removes the connection, clearing their About
 // from Jude's card, and Jude's side ends quietly. Before that, Jude shares
-// more of their profile from Alex's card, which reaches Alex as an update. Format 1 accounts connect
+// more of their profile from Alex's card, which reaches Alex as an update,
+// and Alex sends Jude a tie through the connection, which Jude opens from
+// a banner and adds. Format 1 accounts connect
 // through the server (the shares chunk's).
 
 import { FORMAT, check, freshAccount, go, loadPage, run, useTab } from "../harness.mjs";
@@ -180,6 +182,45 @@ export default async function () {
     $("#update-save").click(); for (let i = 0; i < 50 && $(".profile-update"); i++) await wait(100); await calm(500);
     await openPerson("Jude"); const basedIn = $("#person-based_in").value; $("[data-cancel-edit]").click(); await calm(200);
     return [badge, asked, basedIn];`), [false, ["Based in"], "York"]);
+  // Alex sends Jude a tie, through their connection.
+  await run(`await store.saveTie(null, { title: "Rope jam", tie_date: "2026-11-01", tie_type: "floor", notes: "Lots of fun" });`);
+  await go("/");
+  check("Alex sends a tie to Jude: Send to connection searches only their connected people", await run(`
+    for (let i = 0; i < 50 && !$(".tie-card"); i++) await wait(100);
+    $(".tie-card .tie-date").click(); for (let i = 0; i < 50 && !$("#tie-share"); i++) await wait(100);
+    $("#tie-share").click(); for (let i = 0; i < 50 && !$("#share-item-to-connection"); i++) await wait(100);
+    $("#share-item-to-connection").click();
+    for (let i = 0; i < 50 && !$("#share-item-person"); i++) await wait(100);
+    const listed = [...document.querySelectorAll(".connection-choice")].map((b) => b.textContent);
+    searchIn($("#share-item-person"), "zz"); const none = $("#share-item-person-list").innerText;
+    searchIn($("#share-item-person"), "ju"); $(".connection-choice").click();
+    const button = $("#share-item-send").textContent; $("#share-item-send").click();
+    for (let i = 0; i < 100 && !$("#share-item-sent") && !$("#share-item-status").classList.contains("error"); i++) await wait(100);
+    const sent = [$("#share-item-sent")?.textContent ?? $("#share-item-status").textContent, $("#share-item-link-part").hidden, leakyFields()];
+    $("#share-item-cancel").click(); await calm(200); [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click();
+    await calm(200);
+    return [listed, none, button, sent, await plainOnServer("Lots of fun")];`),
+  [["Jude"], "No connection matches.", "Send to Jude", ["Sent to Jude. It waits in their NotoNawa for 30 days.", true, []], false]);
+  await useTab("jude");
+  await go("/people");
+  check("Jude's device gets it: a banner says Alex sent a tie, and Open shows it to add", await run(`
+    ${CHECK_MAIL}
+    for (let i = 0; i < 50 && !$(".sent-notice"); i++) await wait(100);
+    const banner = [...document.querySelectorAll(".sent-notice")].map((n) => [n.querySelector("p").textContent,
+      [...n.querySelectorAll("button")].map((b) => b.textContent)]);
+    $(".sent-open").click();
+    for (let i = 0; i < 80 && !$("#open-item") && !$("#open-said"); i++) await wait(100);
+    const shown = [location.pathname, $("#open-title")?.textContent ?? $("#open-said")?.textContent];
+    $("#open-add").click();
+    for (let i = 0; i < 80 && !$("#open-done") && !$("#open-message.error"); i++) await wait(100);
+    return [banner, shown, $("#open-done")?.textContent ?? $("#open-message")?.textContent, document.querySelectorAll(".sent-notice").length];`),
+  [[["Alex sent you a tie.", ["Open", "Not now"]]], ["/open", "Rope jam"], "The tie is in your journal.", 0]);
+  await go("/");
+  check("…it's in Jude's ties, and the banner doesn't come back", await run(`
+    ${CHECK_MAIL} return [titles().includes("Rope jam"), document.querySelectorAll(".sent-notice").length];`), [true, 0]);
+  await useTab("main");
+  await go("/people");
+
   check("Alex removes the connection, asking to clear their About from Jude's card", await run(`
     await openPerson("Jude"); $("#person-unlink").click(); await calm(300);
     set("#connection-remove-about", true); await clickDialog("Remove connection");

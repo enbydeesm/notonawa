@@ -119,6 +119,9 @@ export const contactSafetyNumber = byFormat(v1Connections.contactSafetyNumber, v
 export const markVerified = byFormat(v1Connections.markVerified, v2Connections.markVerified);
 export const verifyScanned = byFormat(v1Connections.verifyScanned, v2Connections.verifyScanned);
 export const shareProfileWith = byFormat(v1Connections.shareProfileWith, v2Connections.shareProfileWith);
+export const sendToConnection = byFormat(v1Connections.sendToConnection, v2Connections.sendToConnection);
+export const receivedShares = byFormat(v1Connections.receivedShares, v2Connections.receivedShares);
+export const receivedShareDone = byFormat(v1Connections.receivedShareDone, v2Connections.receivedShareDone);
 
 /**
  * Whether connected accounts can share profiles through their connection

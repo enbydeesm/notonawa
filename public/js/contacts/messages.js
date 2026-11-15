@@ -27,8 +27,15 @@ const PUBLIC_KEY = /^[A-Za-z0-9_-]{1622}$/;
  *   profile: import("../profile-share.js").SharedProfile | null }} Acceptance
  * @typedef {{ type: "accepted", public_key: string, user_id: string, mailbox: MailboxAddress }
  *   | { type: "profile", public_key: string, profile: import("../profile-share.js").SharedProfile }
- *   | { type: "removed", clear_about: boolean }} ContactMessage
+ *   | { type: "removed", clear_about: boolean }
+ *   | { type: "share", kind: SentKind, share_id: string, link_key: string }} ContactMessage
+ *   share: a tie, plan or workshop sent to them: the share's id and its link's key (the share holds the
+ *   copy and its photos, as a link's does; this is the link, sent through our connection)
+ * @typedef {"tie" | "plan" | "workshop"} SentKind
  */
+
+/** What can be sent to a connection (a profile goes as "profile"). */
+export const SENT_KINDS = /** @type {const} */ (["tie", "plan", "workshop"]);
 
 /** @param {unknown} v @returns {MailboxAddress | null} */
 function mailboxOf(v) {
@@ -97,6 +104,11 @@ export function readMessage(value) {
     return publicKey && profile ? { type: "profile", public_key: publicKey, profile } : null;
   }
   if (m.type === "removed") return { type: "removed", clear_about: m.clear_about === true };
+  if (m.type === "share") {
+    const ok = SENT_KINDS.includes(m.kind) && typeof m.share_id === "string" && ID.test(m.share_id)
+      && typeof m.link_key === "string" && TOKEN.test(m.link_key);
+    return ok ? { type: "share", kind: m.kind, share_id: m.share_id, link_key: m.link_key } : null;
+  }
   return null;
 }
 

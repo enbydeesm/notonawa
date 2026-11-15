@@ -21,6 +21,10 @@
 //   card of them until I do.
 // - Removing one tells them ("removed"), quietly: their device ends the
 //   contact without saying so.
+// - A tie, plan or workshop sent to a contact is a share, as a link's is
+//   (sealed, its photos and videos with it, one use, 30 days), whose id
+//   and key go to them in a "share" message, not in a link; it waits on
+//   their contact record for them to open (receivedShares).
 // - The safety number (crypto/safety-number.js) over both keys and account
 //   ids, the same on both phones: compared in person, or one scans the
 //   other's QR code (/verify#<number>), it marks the contact verified. A key
@@ -36,7 +40,7 @@ import { toBase64url, fromBase64url } from "../../crypto/keys.js";
 import { acceptanceBody, readAcceptance, messageBody, readMessage, offerBody } from "../../contacts/messages.js";
 import {
   invitedContact, acceptingContact, contactFromAcceptance, applyMessage, reserveCounter, isNewCounter, isActive, asConnection,
-  updateChoices, needsProfile, verified,
+  updateChoices, needsProfile, verified, waitingShares,
 } from "../../contacts/rules.js";
 import { buildProfile } from "../../profile-share.js";
 import { safetyNumber } from "../../crypto/safety-number.js";
@@ -423,6 +427,63 @@ export async function shareProfileWith(personId, share) {
   if (!c?.body) throw new Error("Not found");
   await save({ writes: [{ kind: "contact", id: c.id, from: c.body, body: { ...c.body, fields: share.fields, updated_at: stamp() } }] });
   await sendProfileUpdates();
+}
+
+/**
+ * Sends a tie, plan or workshop to the contact on this person: a share for
+ * one use, lasting 30 days, made by saveShare (passed in: it uses the
+ * store), then its id and key sent to them through our connection. If it
+ * can't be sent, the share is revoked.
+ * @param {string} personId
+ * @param {{ kind: import("../../contacts/messages.js").SentKind, data: any, label: string, files?: any[],
+ *   progress?: (done: number, total: number) => void, saveShare: (share: any) => Promise<{ id: string, key: string }> }} item
+ */
+export async function sendToConnection(personId, { saveShare, ...item }) {
+  const c = records("contact").find((r) => isActive(r.body) && r.body?.person_id === personId);
+  if (!c?.body) throw new Error("You're not connected to them any more.");
+  if (!c.body.their_mailbox) throw new Error("Their account hasn't answered your connection yet. Try again later.");
+  const share = await saveShare({ ...item, expires: "30d", uses: "one" });
+  try {
+    const { body, counter } = await reserve(c.id);
+    const sealed = await vault.sealMessage({ pairKey: body.pair_key, mailboxId: body.their_mailbox.id, counter,
+      payload: messageBody({ type: "share", kind: item.kind, share_id: share.id, link_key: share.key }) });
+    await send(body.their_mailbox, sealed);
+  } catch (err) {
+    await api(`/api/shares/${encodeURIComponent(share.id)}`, { method: "DELETE" }).catch(() => {});
+    if (err instanceof Gone) {
+      const now = record(c.id)?.body;
+      if (now) await save({ writes: [{ kind: "contact", id: c.id, from: now, body: { ...now, state: "removed", updated_at: stamp() } }] });
+      throw new Error("You're not connected to them any more.", { cause: err });
+    }
+    throw err;
+  }
+}
+
+/**
+ * The ties, plans and workshops my contacts sent me, still to open, oldest first.
+ * @returns {{ contactId: string, from: string | null, kind: string, share_id: string, link_key: string, received_at: string }[]}
+ */
+export function receivedShares() {
+  const now = new Date();
+  return records("contact").filter((c) => isActive(c.body)).flatMap((c) => {
+    const body = /** @type {Record<string, any>} */ (c.body);
+    const from = (body.person_id && record(body.person_id)?.body?.name) || body.name || null;
+    return waitingShares(body, now).map((s) => ({ contactId: c.id, from, ...s }));
+  }).sort((a, b) => (a.received_at < b.received_at ? -1 : a.received_at > b.received_at ? 1 : 0));
+}
+
+/**
+ * One sent to me, opened (or gone): it stops waiting.
+ * @param {string} contactId
+ * @param {string} shareId
+ */
+export async function receivedShareDone(contactId, shareId) {
+  const c = contactOf(contactId);
+  const body = /** @type {Record<string, any>} */ (c.body);
+  const inbox = (Array.isArray(body.inbox) ? body.inbox : []).filter((/** @type {any} */ s) => s.share_id !== shareId);
+  const { inbox: _old, ...rest } = body;
+  await save({ writes: [{ kind: "contact", id: contactId, from: body, body: { ...rest, ...(inbox.length ? { inbox } : {}), updated_at: stamp() } }] });
+  window.dispatchEvent(new Event(CHANGED));
 }
 
 /**

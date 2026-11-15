@@ -6,9 +6,9 @@ import { EXPIRY } from "../../src/shares/parse.js";
 import { readShareFragment } from "../../public/js/crypto/share.js";
 
 describe("the share's choices", () => {
-  it("offers exactly the expiries the server takes, a day by default", () => {
+  it("offers exactly the expiries the server takes, a week by default", () => {
     expect(EXPIRY_CHOICES.map((c) => c.value)).toEqual(Object.keys(EXPIRY));
-    expect(DEFAULT_EXPIRY).toBe("1d");
+    expect(DEFAULT_EXPIRY).toBe("7d");
     // A profile invite lasts a week unless chosen otherwise, its intro mailbox as long.
     expect(DEFAULT_INVITE_EXPIRY).toBe("7d");
     expect(EXPIRY_CHOICES.map((c) => c.value)).toContain(DEFAULT_INVITE_EXPIRY);

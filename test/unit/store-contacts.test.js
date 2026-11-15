@@ -47,9 +47,13 @@ const server = {
   /** The next GET of my messages fails, as offline. */ offline: false,
   /** Sending fails, as offline. */ down: false,
 };
+/** @type {[string, string][]} every call to the server's API, its path and method */
+const apiLog = [];
 vi.mock("../../public/js/api.js", () => ({
   api: async (/** @type {string} */ path, /** @type {any} */ options = {}) => {
     const method = options.method ?? "GET";
+    apiLog.push([path, method]);
+    if (path.startsWith("/api/shares/") && method === "DELETE") return { ok: true };
     if (path === "/api/identity") return { public_key: "P".repeat(1622), sealed_seed: "i1.seed" };
     if (path === "/api/keys") return { user_id: "user-me" };
     if (path === "/api/mailboxes" && method === "POST") {
@@ -425,6 +429,57 @@ describe("sharing my profile from their card", () => {
       { v: 1, name: "Jude", pronouns: "she/her", based_in: "York" }]);
     expect(journal.get("contact-0000000001").body.fields).toEqual(fields);
     await expect(connections.shareProfileWith("someone-else-0001", { profile: { v: 1, name: "Jude" }, fields })).rejects.toThrow();
+  });
+});
+
+describe("sending a tie, plan or workshop to a connection", () => {
+  function connected() {
+    put("person", "person-0000000001", { name: "Jude", created_at: NOW, updated_at: NOW });
+    put("contact", "contact-0000000001", { state: "active", person_id: "person-0000000001", their_key: THEIR_KEY, their_mailbox: THEIR_BOX,
+      my_mailbox: "mymailbox0000000000000", pair_key: PAIR, sent: 2, received: 0, created_at: NOW, updated_at: NOW });
+  }
+  /** @type {any[]} */
+  const made = [];
+  const saveShare = async (/** @type {any} */ share) => { made.push(share); return { id: "share-0000000000000042", key: "L".repeat(43) }; };
+
+  it("makes a share for one use, lasting 30 days, and sends only its id and key, with the next counter", async () => {
+    connected();
+    made.length = 0;
+    await connections.sendToConnection("person-0000000001", { kind: "tie", data: { title: "Jam" }, label: "Sent to Jude", files: [], saveShare });
+    expect(made).toEqual([{ kind: "tie", data: { title: "Jam" }, label: "Sent to Jude", files: [], expires: "30d", uses: "one" }]);
+    const sealed = dec(server.sent[0].body);
+    expect([server.sent[0].id, server.sent[0].credentials, sealed.counter, sealed.payload]).toEqual([THEIR_BOX.id, "omit", 3,
+      { v: 1, type: "share", kind: "tie", share_id: "share-0000000000000042", link_key: "L".repeat(43) }]);
+  });
+
+  it("can't send to someone not connected, or whose account hasn't answered yet", async () => {
+    await expect(connections.sendToConnection("person-0000000001", { kind: "tie", data: {}, label: "", saveShare })).rejects.toThrow(/not connected/);
+    connected();
+    put("contact", "contact-0000000001", { ...journal.get("contact-0000000001").body, their_mailbox: undefined });
+    await expect(connections.sendToConnection("person-0000000001", { kind: "tie", data: {}, label: "", saveShare })).rejects.toThrow(/hasn't answered/);
+  });
+
+  it("revokes the share if it can't be sent, and ends a connection whose mailbox is gone", async () => {
+    connected();
+    /** @type {string[]} */
+    const deleted = [];
+    server.gone.add(THEIR_BOX.id);
+    const revoking = async (/** @type {any} */ share) => { deleted.push("made"); return saveShare(share); };
+    await expect(connections.sendToConnection("person-0000000001", { kind: "plan", data: {}, label: "", saveShare: revoking }))
+      .rejects.toThrow(/not connected/);
+    expect([deleted, apiLog.at(-1), journal.get("contact-0000000001").body.state]).toEqual([["made"],
+      ["/api/shares/share-0000000000000042", "DELETE"], "removed"]);
+  });
+
+  it("arrives as one waiting on their contact, from my card's name for them, until opened", async () => {
+    connected();
+    const contact = journal.get("contact-0000000001");
+    fromThem(contact, 1, { type: "share", kind: "workshop", share_id: "share-0000000000000042", link_key: "L".repeat(43) });
+    expect(await contacts.checkMailboxes()).toBe(1);
+    expect(connections.receivedShares()).toEqual([{ contactId: contact.id, from: "Jude", kind: "workshop", share_id: "share-0000000000000042",
+      link_key: "L".repeat(43), received_at: expect.any(String) }]);
+    await connections.receivedShareDone(contact.id, "share-0000000000000042");
+    expect([connections.receivedShares(), journal.get(contact.id).body.inbox]).toEqual([[], undefined]);
   });
 });
 

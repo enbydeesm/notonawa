@@ -6,23 +6,17 @@
 import { formatDate } from "./format.js";
 
 /**
- * Shown when "Connect our accounts" is ticked on a profile invite: the first
- * sentence, and the rest behind a "?".
+ * Shown when "Connect our accounts" is ticked on a profile invite. "Keeps no
+ * record", not "can't see": while it's happening the server sees one
+ * account open the invite and a message arrive soon after, but nothing it
+ * stores links the two (format 2's contacts are in each journal, sealed).
  */
-export const CONNECT_DISCLOSURE_SHORT =
-  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other.";
-export const CONNECT_DISCLOSURE_MORE =
-  "It still can't read anything in either journal. You can remove the connection at any time from Your data > " +
-  "Connections, and it's deleted if either of you deletes your account. Without it, some features won't be possible " +
-  "with this person: sending them ties, plans and workshops inside the app (sharing by link or QR code still works), " +
-  "shared plans with messages, offering them a copy of ties you log with them automatically, their profile card " +
-  "updating when they change it, and other similar future capabilities.";
-export const CONNECT_DISCLOSURE = `${CONNECT_DISCLOSURE_SHORT} ${CONNECT_DISCLOSURE_MORE}`;
+export const CONNECT_DISCLOSURE =
+  "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected.";
 
 /** Shown to whoever opens an invite that offers to connect. */
 export const ACCEPT_DISCLOSURE =
-  "Connecting lets NotoNawa's server see that your account and theirs know each other, never what's in either " +
-  "journal. Either of you can remove it at any time. If you don't connect, they're still added to your People.";
+  `${CONNECT_DISCLOSURE} Either of you can remove it at any time. If you don't connect, they're still added to your People.`;
 
 /** In the Remove dialog, under "Remove my About from their card". */
 export const REMOVE_ABOUT_NOTE =
@@ -68,8 +62,17 @@ export function bannerText(label, sharedName = null) {
       + "profile. Add them to your People, or to someone you have?";
   }
   const invite = label ? `your invite "${label}"` : "your profile invite";
-  return `Someone accepted ${invite}, and your accounts are now connected. NotoNawa's server can see that you know each ` +
-    "other, never what's in either journal. Which of your People is it?";
+  return `Someone accepted ${invite}, and your accounts are now connected. Which of your People is it?`;
+}
+
+/**
+ * A banner for a tie, plan or workshop a connection sent me.
+ * @param {string | null} from who it's from: my card's name for them, or the name they shared
+ * @param {string} kind tie, plan or workshop
+ */
+export function sentText(from, kind) {
+  const a = kind === "tie" ? "a tie" : kind === "plan" ? "a plan" : "a workshop";
+  return `${from ?? "One of your connections"} sent you ${a}.`;
 }
 
 /**

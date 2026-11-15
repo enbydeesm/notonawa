@@ -74,13 +74,13 @@ export default async function () {
       getComputedStyle(box.closest("label").querySelector("strong")).fontWeight >= 600];
     set("#share-profile-connect", true);
     const note = $("#share-profile-connect-note");
-    const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
+    const after = [note.hidden, note.textContent === "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected."];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = $("#share-profile-warning").textContent.includes("connect to your account");
     $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
     return [before, after, warned];`), [[false, true, true, true], [false, true], true]);
 
-  check("the invite tag is required; it, the profile name and connecting each have a ? that shows more, and hides it again", await run(`
+  check("the invite tag is required; it and the profile name each have a ? that shows more, and hides it again; connecting says it in one line", await run(`
     await openPerson("Me"); $("#person-share").click(); await calm(300);
     const required = $("#share-profile-label").required;
     const labels = [...document.querySelectorAll(".share-profile .label-row label")].map((l) => l.textContent);
@@ -97,8 +97,8 @@ export default async function () {
   [true, ["Profile name", "Invite tag"], [
     ["?", true, [false, "The suggested name for your pr"], true],
     ["?", true, [false, "Provides context for you in Yo"], true],
-    ["?", true, [false, "It still can't read anything i"], true]],
-  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other. ?"]);
+  ],
+  "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected."]);
   const [once, onceShown] = await run(MAKE_INVITE({ "#share-profile-label": "First" }));
   check("making an invite shows its QR code and link, with the key after #", [onceShown, /^\/open#[\w-]{22}\.[\w-]{43}$/.test(once)],
     [[true, true, []], true]);
@@ -185,7 +185,7 @@ export default async function () {
   await openLink(connecting);
   check("an invite offering to connect asks, unticked, saying what connecting means", await run(`
     for (let i = 0; i < 50 && !$("#open-connect"); i++) await wait(100);
-    return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Connecting lets NotoNawa's server see")];`),
+    return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Profile connections are private.")];`),
   [false, true]);
   check("ticked, adding them links their card to their account (format 2 asks about sharing back first: not here)", await run(`
     set("#open-connect", true); $("#open-add-new").click();

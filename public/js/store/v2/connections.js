@@ -6,7 +6,7 @@
 export {
   listConnections, acceptConnection, setConnectionPerson, markConnectionAnswered, deleteConnection, inviteRevoked, connectingShares,
   pendingProfile, peopleWithUpdates, profileUpdateDone, contactStatus, peopleWithChangedKeys, contactSafetyNumber, markVerified,
-  verifyScanned, shareProfileWith,
+  verifyScanned, shareProfileWith, sendToConnection, receivedShares, receivedShareDone,
 } from "./contacts.js";
 import { connectingInvite } from "./contacts.js";
 

@@ -8,6 +8,7 @@
 // forgotten when the journal locks, and once it's been added.
 
 import { readShareFragment } from "./crypto/share.js";
+import { fromBase64url } from "./crypto/keys.js";
 import { onLock } from "./vault.js";
 
 /**
@@ -42,6 +43,16 @@ export function takeShareLink() {
   link = found;
   damaged = !found;
   return true;
+}
+
+/**
+ * A share a connection sent me (format 2's "share" message), to open as a
+ * link would be: /open, next.
+ * @param {{ id: string, key: string }} sent its id and key (base64url)
+ */
+export function openSentShare({ id, key }) {
+  forget();
+  link = { id, key: /** @type {Uint8Array<ArrayBuffer>} */ (fromBase64url(key)) };
 }
 
 /** The share waiting to be opened, if any. */

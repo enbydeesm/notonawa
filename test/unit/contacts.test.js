@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { acceptanceBody, readAcceptance, messageBody, readMessage } from "../../public/js/contacts/messages.js";
 import {
   invitedContact, acceptingContact, contactFromAcceptance, applyMessage, withTheirKey, reserveCounter, isNewCounter, verified,
-  isActive, asConnection, keptChoices, updateChoices, needsProfile,
+  isActive, asConnection, keptChoices, updateChoices, needsProfile, waitingShares, MAX_INBOX,
 } from "../../public/js/contacts/rules.js";
 import { recordProblems } from "../../public/js/records/schema.js";
 import { VaultCore } from "../../public/js/crypto/vault-core.js";
@@ -48,6 +48,11 @@ describe("messages", () => {
     expect(readMessage(messageBody({ type: "removed", clear_about: true }))).toEqual({ type: "removed", clear_about: true });
     expect(readMessage({ v: 1, type: "removed", clear_about: "yes" })).toEqual({ type: "removed", clear_about: false });
     expect(readMessage({ v: 1, type: "share", item: {} })).toBeNull();
+    // A tie, plan or workshop sent through the connection: the share's id and its link's key, nothing else.
+    const share = { type: /** @type {const} */ ("share"), kind: /** @type {const} */ ("tie"), share_id: chars(22, "s"), link_key: chars(43, "k") };
+    expect(readMessage(messageBody(share))).toEqual(share);
+    expect(readMessage({ ...messageBody(share), kind: "profile" })).toBeNull();
+    expect(readMessage({ ...messageBody(share), link_key: "short" })).toBeNull();
     expect(readMessage({ v: 1, type: "profile", public_key: KEY_B, profile: { name: "No version" } })).toBeNull();
   });
 });
@@ -94,6 +99,19 @@ describe("the contact record", () => {
     const second = reserveCounter(first.body);
     expect([first.counter, second.counter, second.body.sent]).toEqual([1, 2, 2]);
     expect([isNewCounter({ received: 3 }, 4), isNewCounter({ received: 3 }, 3), isNewCounter({}, 1)]).toEqual([true, false, true]);
+  });
+
+  it("keeps ties, plans and workshops sent to me until opened, for 30 days, one entry each", () => {
+    const share = { type: /** @type {const} */ ("share"), kind: /** @type {const} */ ("plan"), share_id: chars(22, "s"), link_key: chars(43, "k") };
+    const once = applyMessage(mine, share, NOW).body;
+    const twice = applyMessage(once, share, NOW).body;
+    expect(twice.inbox).toEqual([{ kind: "plan", share_id: share.share_id, link_key: share.link_key, received_at: NOW }]);
+    expect(recordProblems("contact", twice)).toEqual([]);
+    expect(waitingShares(twice, new Date("2026-12-14T11:00:00Z")).length).toBe(1);
+    expect(waitingShares(twice, new Date("2026-12-15T13:00:00Z"))).toEqual([]);
+    let full = mine;
+    for (let i = 0; i < MAX_INBOX + 5; i++) full = applyMessage(full, { ...share, share_id: `share-${String(i).padStart(16, "0")}` }, NOW).body;
+    expect([full.inbox.length, full.inbox[0].share_id]).toEqual([MAX_INBOX, `share-${"5".padStart(16, "0")}`]);
   });
 
   it("keeps what an invite shared, aliases as themselves, and sends an update only when it differs", () => {

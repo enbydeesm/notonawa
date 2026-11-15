@@ -255,6 +255,9 @@ export const FIELDS = {
     key_changed: bool,
     pending_profile: object,
     sent_profile: object,
+    // Ties, plans and workshops they sent me, to open (contacts/rules.js).
+    inbox: list(shape({ kind: required(oneOf(["tie", "plan", "workshop"])), share_id: required(id), link_key: required(key),
+      received_at: required(text(LIMITS.shortText)) }), 50),
   },
 };
 

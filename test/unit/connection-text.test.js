@@ -24,10 +24,9 @@ describe("a connection in Shared by me", () => {
 });
 
 describe("the inviter's banner", () => {
-  it("says someone, not who (anyone with the code might have), and what connecting means", () => {
-    expect(bannerText("Class QR")).toMatch(/^Someone accepted your invite "Class QR"/);
+  it("says someone, not who (anyone with the code might have), unless they shared their profile back", () => {
+    expect(bannerText("Class QR")).toBe('Someone accepted your invite "Class QR", and your accounts are now connected. Which of your People is it?');
     expect(bannerText(null)).toMatch(/^Someone accepted your profile invite/);
-    expect(bannerText(null)).toMatch("never what's in either journal");
     // Format 2, shared back on accepting: their profile's name, from another account, as text.
     expect(bannerText("Munch", "Jude")).toBe('Your "Munch" share was accepted and Jude has connected and shared their profile. '
       + "Add them to your People, or to someone you have?");
@@ -42,12 +41,10 @@ describe("the inviter's banner", () => {
 });
 
 describe("the disclosures", () => {
-  it("say the server sees the connection, not the journals, and that it can be removed", () => {
-    for (const text of [CONNECT_DISCLOSURE, ACCEPT_DISCLOSURE]) {
-      expect(text).toMatch("server");
-      expect(text).toMatch(/can't read|never what's in/);
-      expect(text).toMatch(/remove/);
-    }
+  it("say the server keeps no record of the connection, and accepting says it can be removed", () => {
+    expect(CONNECT_DISCLOSURE).toBe("Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected.");
+    expect(ACCEPT_DISCLOSURE.startsWith(CONNECT_DISCLOSURE)).toBe(true);
+    expect(ACCEPT_DISCLOSURE).toMatch(/remove it at any time/);
   });
 });
 

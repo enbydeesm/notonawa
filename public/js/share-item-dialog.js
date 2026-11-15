@@ -1,7 +1,9 @@
 // "Share" on a tie, plan or workshop: choosing what of it to put in a share,
-// for how long and for whom, then making it (sealed on this device with a
-// key that's only in its link) and showing its code. It's a copy of the
-// item as last saved. See considerations.md, "Sharing between accounts".
+// then either sending it to one of my connections (through our connection:
+// no link to pass on) or making a link, for how long and for whom, and
+// showing its code. Either way it's sealed on this device with a key only
+// the link (or the connection's message) has, a copy of the item as last
+// saved. See considerations.md, "Sharing between accounts".
 
 import { errorMessage } from "./api.js";
 import { readCost, formatMoney } from "./currency.js";
@@ -17,7 +19,8 @@ import { showShareCode } from "./share-code.js";
 import { roleName } from "./roles.js";
 import { capitalise } from "./format.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
-import { listItems, listMedia, listDrawings, listPoses } from "./store/index.js";
+import { listItems, listMedia, listDrawings, listPoses, sendToConnection } from "./store/index.js";
+import { connectionPicker } from "./connection-picker.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -68,6 +71,87 @@ export async function openShareItem(kind, item) {
     const message = h("p", { className: "message", id: "share-item-status" });
     const submit = h("button", { type: "submit", className: "primary", id: "share-item-make" }, "Make share link");
 
+    // Two ways to share it, chosen after what to share: the link's choices,
+    // or a search over my connected people.
+    const linkPart = h("div", { id: "share-item-link-part", hidden: true },
+      h("div", { className: "row" },
+        h("div", {}, h("label", { htmlFor: "share-item-expires" }, "Share link lasts"), expires),
+        h("div", {}, h("label", { htmlFor: "share-item-uses" }, "Who can use it"), uses)),
+      warning,
+      h("div", { className: "label-row" }, h("label", { htmlFor: "share-item-label" }, "Share tag"), tagInfo.button),
+      tagInfo.text,
+      label,
+      submit);
+    const connectionPart = h("div", { id: "share-item-connection-part", hidden: true });
+    const toConnection = h("button", { type: "button", id: "share-item-to-connection", onclick: () => choose("connection") },
+      "Send to connection");
+    const toLink = h("button", { type: "button", id: "share-item-to-link", onclick: () => choose("link") }, "Share with link");
+    /** @param {"link" | "connection"} how */
+    function choose(how) {
+      linkPart.hidden = how !== "link";
+      connectionPart.hidden = how !== "connection";
+      toLink.classList.toggle("chosen", how === "link");
+      toConnection.classList.toggle("chosen", how === "connection");
+      toLink.setAttribute("aria-pressed", String(how === "link"));
+      toConnection.setAttribute("aria-pressed", String(how === "connection"));
+      // The tag is needed only for a link.
+      /** @type {HTMLInputElement} */ (label).required = how === "link";
+      if (how === "connection" && !connectionPart.hasChildNodes()) showConnections();
+    }
+
+    /** The search over my connected people, then Send to the one chosen. */
+    async function showConnections() {
+      connectionPart.replaceChildren(h("p", { className: "hint" }, "Loading your connections…"));
+      let people;
+      try {
+        people = (await listItems("people", false)).filter((p) => p.connection_id && !p.is_self);
+      } catch (err) {
+        connectionPart.replaceChildren();
+        return showMessage(message, "Couldn't load your connections: " + errorMessage(err), true);
+      }
+      if (!people.length) {
+        connectionPart.replaceChildren(h("p", { className: "hint", id: "share-item-no-connections" },
+          "You aren't connected to anyone yet. To connect, share your profile from your own card in People with Connect our accounts ticked."));
+        return;
+      }
+      const chosen = h("div", { id: "share-item-chosen" });
+      const pick = (/** @type {any} */ person) => {
+        chosen.replaceChildren(h("button", { type: "button", className: "primary", id: "share-item-send", onclick: () => send(person) },
+          `Send to ${person.name}`));
+      };
+      connectionPart.replaceChildren(h("label", { htmlFor: "share-item-person" }, "Send to"),
+        connectionPicker({ id: "share-item-person", people, onPick: pick }), chosen);
+    }
+
+    /** What's ticked, as the share's contents. */
+    function shareData() {
+      const ticked = offered.filter((f) => /** @type {HTMLInputElement} */ (dialog.querySelector(`#share-item-${f.key}`)).checked)
+        .map((f) => f.key);
+      const named = myName ? {
+        ...source, people: source.people.map((p) => (p.sender ? { ...p, name: myName.value.trim() } : p)),
+      } : source;
+      return buildItemShare(kind, named, ticked);
+    }
+
+    /** @param {any} person */
+    async function send(person) {
+      const button = /** @type {HTMLButtonElement | null} */ (dialog.querySelector("#share-item-send"));
+      if (button) button.disabled = true;
+      showMessage(message, `Sending to ${person.name}…`);
+      try {
+        const data = shareData();
+        await sendToConnection(person.id, {
+          kind, data, label: `Sent to ${person.name}`, files: shareFiles(source, data), saveShare,
+          progress: (done, total) => showMessage(message, `Sealing photos and videos… ${done + 1} of ${total}`),
+        });
+        connectionPart.replaceChildren(h("p", { id: "share-item-sent" }, `Sent to ${person.name}. It waits in their NotoNawa for 30 days.`));
+        showMessage(message, "");
+      } catch (err) {
+        showMessage(message, "Couldn't send it: " + errorMessage(err), true);
+        if (button) button.disabled = false;
+      }
+    }
+
     const form = h("form", { onsubmit: make },
       aboutInfo.text,
       myName ? h("div", { className: "label-row" },
@@ -80,14 +164,9 @@ export async function openShareItem(kind, item) {
         : h("p", { className: "hint", id: "share-item-always" }, ALWAYS_SHARED[kind]),
       hasField(source, "media") ? h("p", { className: "hint", id: "share-item-media-size" },
         `Photos and videos are copied into the share, taking ${mediaSize(source.visuals)} of your 1 GB until it ends.`) : null,
-      h("div", { className: "row" },
-        h("div", {}, h("label", { htmlFor: "share-item-expires" }, "Share link lasts"), expires),
-        h("div", {}, h("label", { htmlFor: "share-item-uses" }, "Who can use it"), uses)),
-      warning,
-      h("div", { className: "label-row" }, h("label", { htmlFor: "share-item-label" }, "Share tag"), tagInfo.button),
-      tagInfo.text,
-      label,
-      submit,
+      h("div", { className: "button-row share-ways" }, toConnection, toLink),
+      connectionPart,
+      linkPart,
       h("button", { type: "button", className: "dialog-cancel", id: "share-item-cancel", onclick: () => dialog.close() }, "Cancel"),
       message);
 
@@ -102,15 +181,12 @@ export async function openShareItem(kind, item) {
     /** @param {SubmitEvent} event */
     async function make(event) {
       event.preventDefault();
+      // Enter before choosing how to share it does nothing.
+      if (linkPart.hidden) return;
       submit.disabled = true;
       showMessage(message, "Making the share link…");
       try {
-        const ticked = offered.filter((f) => /** @type {HTMLInputElement} */ (dialog.querySelector(`#share-item-${f.key}`)).checked)
-          .map((f) => f.key);
-        const named = myName ? {
-          ...source, people: source.people.map((p) => (p.sender ? { ...p, name: myName.value.trim() } : p)),
-        } : source;
-        const data = buildItemShare(kind, named, ticked);
+        const data = shareData();
         const { id, key } = await saveShare({
           kind, data, label: label.value, expires: expires.value, uses: uses.value, files: shareFiles(source, data),
           progress: (done, total) => showMessage(message, `Sealing photos and videos… ${done + 1} of ${total}`),

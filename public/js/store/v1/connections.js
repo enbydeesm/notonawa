@@ -161,3 +161,27 @@ export async function verifyScanned(_number) {
 export async function shareProfileWith(_personId, _share) {
   throw new Error("Share your profile with an invite link.");
 }
+
+/**
+ * Sending to a connection: format 1's carry no messages (accounts convert
+ * to format 2 before they can).
+ * @param {string} _personId
+ * @param {any} _item
+ */
+export async function sendToConnection(_personId, _item) {
+  throw new Error("Sending to a connection comes with the update to your journal. Share it with a link for now.");
+}
+
+/**
+ * @returns {{ contactId: string, from: string | null, kind: string, share_id: string, link_key: string, received_at: string }[]}
+ *   none on format 1
+ */
+export function receivedShares() {
+  return [];
+}
+
+/**
+ * @param {string} _contactId
+ * @param {string} _shareId
+ */
+export async function receivedShareDone(_contactId, _shareId) {}

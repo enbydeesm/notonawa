@@ -11,7 +11,7 @@ export const EXPIRY_CHOICES = /** @type {const} */ ([
   { value: "30d", label: "30 days" },
   { value: "never", label: "Until I revoke it" },
 ]);
-export const DEFAULT_EXPIRY = "1d";
+export const DEFAULT_EXPIRY = "7d";
 /** A profile invite's: long enough to pass on and be accepted (its intro mailbox lasts as long). */
 export const DEFAULT_INVITE_EXPIRY = "7d";
 

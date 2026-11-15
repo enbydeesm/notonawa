@@ -116,6 +116,22 @@ export function contactFromAcceptance({ invite, acceptance, myMailbox, now }) {
   });
 }
 
+/** The most ties, plans and workshops waiting from one contact. */
+export const MAX_INBOX = 50;
+/** How long one sent to me can be opened: its share's expiry, 30 days. */
+export const SENT_DAYS = 30;
+
+/**
+ * What a contact sent me that I haven't opened yet, still openable.
+ * @param {Body} body
+ * @param {Date} now
+ * @returns {{ kind: string, share_id: string, link_key: string, received_at: string }[]}
+ */
+export function waitingShares(body, now) {
+  const cutoff = now.getTime() - SENT_DAYS * 24 * 60 * 60 * 1000;
+  return (Array.isArray(body.inbox) ? body.inbox : []).filter((s) => Date.parse(s.received_at) > cutoff);
+}
+
 /**
  * Pins their key: one that differs from the one I have clears the
  * verified mark and marks the change, until they're verified again.
@@ -139,6 +155,12 @@ export function withTheirKey(body, key) {
 export function applyMessage(body, message, now) {
   if (message.type === "removed") {
     return { body: { ...body, state: "removed", updated_at: now }, clearAbout: message.clear_about };
+  }
+  if (message.type === "share") {
+    // Waiting for me to open it (the banner), the oldest dropped past the most kept.
+    const sent = { kind: message.kind, share_id: message.share_id, link_key: message.link_key, received_at: now };
+    const inbox = [...(Array.isArray(body.inbox) ? body.inbox : []).filter((s) => s.share_id !== sent.share_id), sent].slice(-MAX_INBOX);
+    return { body: { ...body, inbox, updated_at: now }, clearAbout: false };
   }
   const keyed = withTheirKey(body, message.public_key);
   if (message.type === "accepted") {

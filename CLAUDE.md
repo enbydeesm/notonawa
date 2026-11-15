@@ -427,7 +427,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   link too); people as names and roles, the
   sender marked; Drawings and poses and Photos and videos ticked
   separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
-  workshop's dialog), `share-people.js` (pure: Who is this? suggestions for
+  workshop's dialog: what to share, then Send to connection (a search
+  over my connected people, `connection-picker.js`, then Send to …) or
+  Share with link (how long, who, the tag, Make share link; 7 days by
+  default)), `share-people.js` (pure: Who is this? suggestions for
   each person, and the location's and plans' choices; a person is on an
   item once), `share-to-import.js` (pure: a shared item and the choices as
   an import, new items with `match: false`, mine filled in by id),
@@ -557,7 +560,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   shared with Share my profile), the inviter's banner with a profile
   shared back ("Your "Munch" share was accepted and Jude has connected
   and shared their profile": New Person makes the card from it, Add to a
-  Person merges it in, `reviewProfileUpdate` with its own words),
+  Person merges it in, `reviewProfileUpdate` with its own words); sending
+  to a connection: `sendToConnection` (a share for one use, 30 days, its
+  id and key sent in a "share" message; revoked if it can't be sent),
+  `receivedShares`, `receivedShareDone` (the contact's `inbox`,
+  `waitingShares` in `contacts/rules.js`), the banner "Alex sent you a
+  tie" with Open (`pending-share.js`'s `openSentShare`, then `/open` as a
+  link would) and Not now (until lock),
   `contact-verify.js` (a linked person's Safety Number, a shield icon at
   the left of the dialog's flags, "Account linked" and Unlink at the right;
   "Updates available" is a badge by the heading: the 12 blocks, a

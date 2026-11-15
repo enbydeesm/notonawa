@@ -18,6 +18,7 @@ async function openLink(/** @type {string} */ link) {
 // path from /open on) in \`link\`.
 const MAKE = (/** @type {Record<string, string | boolean>} */ choices) => `
   for (let i = 0; i < 50 && !$("#share-item-make"); i++) await wait(100);
+  if ($("#share-item-link-part").hidden) $("#share-item-to-link").click();
   ${Object.entries(choices).map(([sel, v]) => `set(${JSON.stringify(sel)}, ${JSON.stringify(v)});`).join(" ")}
   $("#share-item-make").click();
   for (let i = 0; i < 50 && !$("#share-code-link"); i++) await wait(100);
@@ -62,14 +63,22 @@ export default async function () {
     const nameTip = $("#share-item-my-name-info").hidden ? null : $("#share-item-my-name-info").textContent;
     return [fields, $("#share-item-my-name").value, $("label[for=share-item-my-name]").textContent, $("#share-item-always").textContent,
       tips, nameTip, document.querySelectorAll(".share-item p.hint").length, $("#share-item-media-size")?.textContent,
-      $("#share-item-expires").value, $("#share-item-uses").value, leakyFields()];`),
+      $("#share-item-expires").value, $("#share-item-uses").value, leakyFields(), ways()];
+    function ways() {
+      // How to share it, below what to share: the link's choices only once Share with link is chosen.
+      const before = [[...document.querySelectorAll(".share-ways button")].map((b) => b.textContent), $("#share-item-link-part").hidden,
+        $("#share-item-connection-part").hidden];
+      $("#share-item-to-link").click();
+      return [...before, $("#share-item-link-part").hidden, $("#share-item-to-link").getAttribute("aria-pressed")];
+    }`),
   [[["Title: Floor session", true], ["Mins: 45", true], ["Location: Studio", true], ["Plans: Hip harness", true],
     ["People and their roles: you (top), Sam (bottom)", true], ["How did it go?: 4/5", true], ["Notes", true],
     ["Album link", true], ["Drawings and poses: 1 drawing", true], ["Photos and videos: 1 photo", true], ["Tags: Futomomo", true]],
   "", "Your profile name", "Share date and type and…",
   [["share-item-intro", true], ["share-item-my-name-info", true], ["share-item-label-info", true]],
   "The name shared for the 'Me' rows on this tie.", 1,
-  "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "1d", "one", []]);
+  "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "7d", "one", [],
+  [["Send to connection", "Share with link"], true, true, false, "true"]]);
   check("it needs a name for me while people are shared", await run(`
     set("#share-item-label", "For Sam"); $("#share-item-make").click(); await calm(500);
     return $("#share-item-status").textContent;`), "Couldn't share it: Type the name to show for you.");

@@ -3773,6 +3773,24 @@ Slice 3: verifying.
   fields chosen are kept, so later changes to my profile go to them too.
   Format 1's connections carry no messages, so it isn't offered there.
   The privacy policy's rewrite for format 2 (phase 7) needs to say this.
+- **Sending a tie, plan or workshop to a connection is a share** whose
+  link goes through the connection instead of being passed on: one use,
+  30 days (they may not be online), its photos and videos in it as a
+  link's are, as a mailbox message (200,000 characters) couldn't hold
+  them. The "share" message has only the share's id and key, sealed with
+  the pair key; nothing on the server says who it was for. It waits on
+  their contact record (at most 50 a contact) until opened from the
+  banner, which then opens it as a link would; Not now hides it until the
+  journal locks. If it can't be sent, the share is revoked.
+- **One set of words for both formats.** The disclosure says "Profile
+  connections are private. NōtoNawa's server keeps no record that the two
+  accounts are connected." ("keeps no record", not "can't see": it sees
+  an invite opened and a message arriving soon after, and stores
+  neither). That's format 2's truth; format 1 accounts convert before
+  they share anything, so no format 1 wording is kept (a format 1 account
+  accepting an invite before then sees it too). Send to connection on
+  format 1 says it comes with the update. Item shares now last 7 days by
+  default, as profile invites do.
 - **The walkthrough runs two accounts at once** as two browser contexts of
   one Chrome (`useTab`), each with its own passkey device, rather than
   signing out and in: a chunk can't sign back in to an account whose
