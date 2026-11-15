@@ -14,7 +14,9 @@
   we can't read.
 - **Keep a second passkey and your recovery code.** If you lose them all, your
   journal can't be recovered, by you or by us.
-- **No ads, no analytics, no tracking, and we never sell or share your data.**
+- **No ads, no tracking, no third-party analytics, and we never sell or share
+  your data.** We only count basic totals, such as how many accounts are
+  active (see [Usage statistics](#usage-statistics)).
 - **You can share things with other people**, by link or through a
   connection between your accounts. What you share is encrypted too, and
   **our server keeps no record of who is connected to whom.**
@@ -76,6 +78,17 @@ Our hosting provider, Cloudflare, briefly handles standard connection
 information such as your IP address to deliver the app, and counts requests
 per IP address for a minute at a time to stop abuse. We don't store it and we
 keep no request logs.
+
+## Usage statistics
+
+To understand how NōtoNawa is used and which features matter, we count a few
+things from what we already store: how many accounts there are, how many have
+been used recently (from when their passkeys and sessions were last used),
+how many entries of each kind accounts have (for example ties, plans or
+poses), and how much storage they use. We look at these as totals and spreads
+across accounts, not at what any one person is doing, and we never combine
+them with information from outside NōtoNawa. We can't see what's in any
+entry, only its kind and size.
 
 ## How encryption works
 
@@ -215,7 +228,9 @@ to complain to your data protection authority.
 order to provide the service. Information about your or other people's sex
 lives is special-category data, which we process only with your explicit
 consent, given when you create your account. You can withdraw it at any time
-by deleting your data or your account.
+by deleting your data or your account. We count usage statistics because we
+have a legitimate interest in improving the service; they're totals, worked
+out from data we already hold for running your account.
 
 ## Our own access
 
@@ -247,7 +262,9 @@ can, and notify regulators where the law requires.
 
 - sell, rent or share your data
 - show ads or use your data for advertising
-- use analytics, tracking pixels or third-party scripts
+- track how you use the app: no analytics or session-recording tools,
+  tracking pixels, third-party scripts or request logs (beyond the totals in
+  [Usage statistics](#usage-statistics))
 - train AI models on your data or send it to AI services
 - let anyone else see your journal, except what you choose to share
 
