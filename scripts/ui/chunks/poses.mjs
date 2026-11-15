@@ -559,7 +559,51 @@ export default async function () {
   await ropes({ tap, slide, topDialog });
   await bodyCinch({ tap, topDialog });
   await collisions({ tap, slide, topDialog });
+  await hanging({ topDialog });
   await standalone({ topDialog });
+}
+
+/**
+ * Let it hang: a body in the air, on a line to a ring off to its side,
+ * comes to rest under the ring; a body standing on the floor has no button.
+ * @param {{ topDialog: string }} helpers
+ */
+async function hanging({ topDialog }) {
+  const seeded = {
+    v: 1, joints: {}, body: [0, 0, 0], lift: 130, shift: [0, 0], shape: [50, 50, 25, 184], camera: [0, 8, 380, 110, 0, 0],
+    ring: [40, 250, 0], bamboo: null, hashira: null, ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["ring", 0, 0, 0]] }],
+  };
+  const tiePose = `(async () => {
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Hang test");
+    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+  })()`;
+  await run(`
+    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+    const tie = await postJson("/api/ties", { tie_type: "suspension", tie_date: "2026-10-05", title: "Hang test" });
+    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+  await go("/");
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Hang test").click(); await calm(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await calm(500); $("#pose-mode-rope").click(); await calm(300);`);
+  check("a body in the air has Let it hang in the Rope tab; at rest, tapping it again says so; Undo puts the body back", await run(`
+    const shown = [!$("#pose-hang").hidden, $("#pose-hang").textContent];
+    $("#pose-hang").click(); await calm(500);
+    $("#pose-hang").click(); await calm(400);
+    const said = $("#pose-rope-note").textContent;
+    $("#pose-undo").click(); await calm(400);
+    const undone = $("#pose-undo").disabled;
+    $("#pose-redo").click(); await calm(400);
+    return [shown, said, undone];`),
+  [[true, "Let it hang"], "It's hanging as low as its lines allow.", true]);
+  check("it swings the body under the ring, as one piece, saved with the pose", await run(`
+    $("#pose-save").click();
+    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
+    const saved = (await ${tiePose}).data;
+    // The ring is 40 cm to its left: the body went most of the way across, and came down a little.
+    return [saved.shift[0] > 25, saved.lift < 130, saved.joints.l_hip];`),
+  [true, true, [0, 0, 0]]);
 }
 
 /**

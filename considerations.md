@@ -3885,3 +3885,38 @@ Slice 3: verifying.
   out (`limbTo`): from hanging straight down, the steepest way up for an
   arm is backward, into the shoulder's limit.
 
+## Poser: a body hanging under its lines (November 2026)
+
+**Status:** built (2026-11-14)
+
+The first of three levels of physics we weighed. This one: the body, as
+one rigid piece, comes to rest where its weight is lowest (`pose-hang.js`,
+`hang`). Not built: limbs drooping under their own weight (each joint
+needs a stiffness, and a "held" or "relaxed" state so they don't fight
+posing), and a full simulation over time (rope tension, swinging, friction:
+a new engine, and slow on a phone).
+
+- **Weight from the capsules**: each of the body's capsules' volume at
+  its middle (`weightMiddle`), so it follows the body shape sliders. One
+  density throughout.
+- **The body moves as one piece**: its tip, turn, roll, height and where
+  it stands (`shift`, which the pose already had), so the format and the
+  server are unchanged. The solver's angles gained the figure's place.
+- **Lowest weight, lines at their lengths**: the weight's middle is
+  lowered a few centimetres at a time, in fractions (`settle`'s `exact`),
+  each taut upline held, and rounded to whole degrees once at the end. A
+  line's give doesn't count as a gain, so hanging twice changes nothing
+  the second time. Height changes little near rest (10 cm off plumb on an
+  80 cm line is under a centimetre), so it ends within a few centimetres
+  of plumb, not exactly on it.
+- **A slack line is free until drawn tight**, then holds; its whole
+  length is kept. See-saws hold nothing (they run free).
+- **The floor**: a body touching it is left alone, as the floor carries
+  some of it and we don't work out how much (so partial suspensions don't
+  settle), and settling stops at the floor.
+- **When it settles** (the user's choice of three): on an upline's
+  Length changing (let go, not while sliding), and on "Let it hang" in
+  the Rope tab, shown for a body in the air on an upline. Posing never
+  moves it. The others: settling on every joint change (most lifelike,
+  but the body shifts under each adjustment), or the button only.
+

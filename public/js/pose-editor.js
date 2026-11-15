@@ -57,7 +57,7 @@ import {
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
-  isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
+  samePose, isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
@@ -70,6 +70,7 @@ import { cinchPoints, spotOn } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
 import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
 import { uplineStretch, uplineLength, setUplineLength } from "./pose-uplines.js";
+import { hang, canHang } from "./pose-hang.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
@@ -382,8 +383,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     const sayRope = (text, isError = false) => showMessage(ropeNote, text, isError);
     // The rope chosen (pose-rope-panel.js), in place of the tools.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
+    // Let it hang: a body in the air comes to rest under its uplines, as one
+    // piece (pose-hang.js). Changing an upline's Length does it too; this is
+    // for after posing, which never moves the body by itself.
+    const hangButton = h("button", { type: "button", className: "tool pose-hang", id: "pose-hang", hidden: true, title: "The body comes to rest under its uplines", onclick: () => {
+      const hung = hang(history.pose);
+      if (samePose(hung, history.pose)) {
+        sayRope("It's hanging as low as its lines allow.");
+        return;
+      }
+      commit(hung, true);
+      sayRope("");
+    } }, "Let it hang");
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
-      ropeTools, ropeOptions, ropeHintLine, ropeNote);
+      ropeTools, ropeOptions, hangButton, ropeHintLine, ropeNote);
 
     // --- the Pencil panel ------------------------------------------------------------
 
@@ -749,6 +762,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       // A rope chosen: its own panel in place of the tools.
       ropeTools.hidden = !!rope;
       if (draft) return;
+      hangButton.hidden = !!laying || !canHang(pose);
       drawRopeOptions(pose);
     }
 
@@ -841,6 +855,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         settings = slider({
           id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
           apply: (p, v) => setUplineLength(p, index, stretch, v),
+          // Let go, a body in the air comes to rest under its lines (pose-hang.js).
+          settle: (_before, after) => hang(after),
         });
       } else if (hasLength(rope)) {
         // A rope of two points has a Length: from none to twice as long as

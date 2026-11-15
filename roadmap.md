@@ -88,8 +88,10 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
 - **Hips that follow the legs**: a hip bent past about 100° rolling the
   pelvis back, and a leg spread wide hiking it, as on a real body (the
   Hips sliders already pivot the pelvis under a steady trunk).
-- **Uplines under gravity**: a body swinging to hang under its lines, and
-  moving sideways (raising and lowering them is built: considerations.md).
+- **Limbs with weight**: unsupported limbs and the head drooping, perhaps
+  as part of "Let it hang" (the body hanging as one piece is built:
+  considerations.md), and partial suspensions, where the floor carries
+  part of the body.
 - **Rope presets** (a chest harness, hip harness, futomomo, cuffs, and my
   own saved), a Wrap tool, and moving a placed point.
 - **Nerves on the body** (6–10, for rope safety: radial, ulnar, median,

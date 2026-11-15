@@ -435,6 +435,8 @@ dialog.preset-picker.searchable[open] {
    ropes or Done for the pencil, in the same place so nothing moves. */
 .pose-tools-row { display: flex; align-items: center; gap: 6px; }
 .pose-tools-row > :last-child { margin-left: auto; flex: none; }
+.pose-hang { align-self: flex-start; min-height: 36px; }
+.pose-hang[hidden] { display: none; }
 .pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 10px; text-transform: none; }
 .pose-hardpoint-chip.empty { padding: 0 12px; border-style: dashed; border-color: var(--accent); color: var(--accent-ink); }
 .pose-draw-done { display: inline-flex; align-items: center; gap: 6px; min-height: 40px;

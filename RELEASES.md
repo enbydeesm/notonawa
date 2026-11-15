@@ -16,6 +16,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - A rope with just two points (body to body, body to the ring or bamboo, or body to a spot on another rope) has a Length in place of Slack. It starts in the middle: lower it to pull the body in, raise it for slack. Body-to-body ropes can sag now too.
 - Slack goes up to 300 cm.
 - Raise and lower uplines: tap an upline and its Length (with ▲▼) lifts or lowers what it's tied to. Shorter turns an arm or leg up to it, and past its reach, or on the chest or hips, raises the whole body; longer lowers it to the floor, and the rest is slack. The other uplines keep their lengths while one changes, so raising a chest line tips the body up about its hip line. It isn't physics: nothing swings to hang under its line.
+- A body in the air hangs under its lines: after an upline's Length changes, the whole body swings, tips and turns until its weight sits as low as its taut uplines allow (plumb under one line, balanced between several). Its weight follows the body shape. Posing never moves it: tap Let it hang in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone.
 - The Hips sliders now pivot just the pelvis: the lower back bends to meet it, so the chest and head stay where they were, as the legs do. Once the waist has no more bend to give, the trunk follows. Dragging a leg far enough to turn the pelvis keeps the trunk upright the same way.
 
 ## 2026.11.09.0624
