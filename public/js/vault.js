@@ -420,6 +420,55 @@ export function adoptShareAsFile(args) {
 }
 
 /**
+ * Opens my identity key's seed in the Worker, kept there (for opening
+ * acceptances of my invites). Throws CantOpen if it isn't mine.
+ * @param {{ publicKey: string, sealedSeed: string }} args
+ */
+export function openIdentity(args) {
+  return call("openIdentity", args);
+}
+
+/**
+ * Accepting an invite: the acceptance sealed to the inviter's key, bound to
+ * the invite's share and its link's key (crypto/pair.js).
+ * @param {{ inviterPublicKey: string, shareId: string, linkKey: string, payload: unknown }} args
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function sealAcceptance(args) {
+  return call("sealAcceptance", args);
+}
+
+/**
+ * An acceptance of my invite, opened with my identity key (openIdentity
+ * first). Throws CantOpen unless it's for that share, from someone with
+ * its link.
+ * @param {{ shareId: string, linkKey: string, sealed: ArrayBuffer }} args
+ * @returns {Promise<unknown>}
+ */
+export function openAcceptance(args) {
+  return call("openAcceptance", args, [args.sealed]);
+}
+
+/**
+ * A message to a contact's mailbox, sealed with our pair key.
+ * @param {{ pairKey: string, mailboxId: string, counter: number, payload: unknown }} args
+ * @returns {Promise<string>}
+ */
+export function sealMessage(args) {
+  return call("sealMessage", args);
+}
+
+/**
+ * A message from my mailbox, opened with our pair key. Throws CantOpen if
+ * it isn't from that contact.
+ * @param {{ pairKey: string, mailboxId: string, sealed: string }} args
+ * @returns {Promise<{ counter: number, payload: unknown }>}
+ */
+export function openMessage(args) {
+  return call("openMessage", args);
+}
+
+/**
  * A new identity key pair, kept in the Worker; the seed comes out sealed.
  * @returns {Promise<{ publicKey: string, sealedSeed: string }>}
  */

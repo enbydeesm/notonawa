@@ -67,6 +67,10 @@ const timestamp = (v, p) => v == null || (typeof v === "string" && TIMESTAMP.tes
 const id = (v, p) => v == null || (typeof v === "string" && ID.test(v)) ? null : `${p} should be an id`;
 /** @type {Check} */
 const key = (v, p) => v == null || (typeof v === "string" && KEY.test(v)) ? null : `${p} should be a key`;
+/** A mailbox's id, made by the device (src/mailboxes/parse.js's). @type {Check} */
+const mailboxId = (v, p) => v == null || (typeof v === "string" && /^[A-Za-z0-9_-]{16,64}$/.test(v)) ? null : `${p} should be a mailbox`;
+/** An X-Wing public key in base64url (1,216 bytes). @type {Check} */
+const publicKey = (v, p) => v == null || (typeof v === "string" && /^[A-Za-z0-9_-]{1622}$/.test(v)) ? null : `${p} should be a public key`;
 /** @type {Check} */
 const link = (v, p) => v == null ? null
   : typeof v !== "string" || v.length > 2000 || !/^https?:\/\/\S+$/i.test(v) ? `${p} should be a web link` : null;
@@ -224,8 +228,30 @@ export const FIELDS = {
   pose_preset: { ...STAMPS, kind: required(oneOf(["body", "arms"])), name: text(LIMITS.shortText), data: required(object) },
   // default_shape: the poser's body sliders, [gender, muscle, weight, height] (records/settings.js checks their ranges).
   settings: { ...STAMPS, top_label: text(LIMITS.roleName), bottom_label: text(LIMITS.roleName), default_shape: list(number(0, 1000), 4) },
-  // Its fields come with contacts (phase 6).
-  contact: { ...STAMPS, person_id: id },
+  // Another account I'm connected to (contacts/rules.js): its pinned key and
+  // account id, our mailboxes and pair key, the counters, and the person
+  // it's on; or an invite of mine waiting.
+  contact: {
+    ...STAMPS,
+    state: required(oneOf(["invited", "active", "removed"])),
+    person_id: id,
+    name: text(LIMITS.shortText),
+    invited: bool,
+    answered: bool,
+    share_id: id,
+    intro_mailbox: mailboxId,
+    their_key: publicKey,
+    their_user: id,
+    their_mailbox: (v, p) => (v == null ? null : shape({ id: required(mailboxId), token: required(key) })(v, p)),
+    my_mailbox: mailboxId,
+    pair_key: key,
+    sent: int(0, Number.MAX_SAFE_INTEGER),
+    received: int(0, Number.MAX_SAFE_INTEGER),
+    fields: object,
+    verified: bool,
+    key_changed: bool,
+    pending_profile: object,
+  },
 };
 
 /**

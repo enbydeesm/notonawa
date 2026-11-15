@@ -301,7 +301,7 @@ export const AREAS = [
     // the crypto Worker loads them too.
     name: "contacts",
     files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
-      "src/mailboxes/"],
+      "src/mailboxes/", "public/js/contacts/"],
     ui: ["basics"],
   },
   {

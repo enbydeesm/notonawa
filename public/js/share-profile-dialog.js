@@ -7,7 +7,7 @@ import { errorMessage } from "./api.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
 import { readAliases, PLATFORMS } from "./aliases.js";
 import { buildProfile, suggestedName } from "./profile-share.js";
-import { EXPIRY_CHOICES, DEFAULT_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
+import { EXPIRY_CHOICES, DEFAULT_INVITE_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
 import { saveShare } from "./share-save.js";
 import { canConnect } from "./store/index.js";
 import { showShareCode } from "./share-code.js";
@@ -50,7 +50,7 @@ export function openShareProfile(me) {
       me.about ? tick("about", "About me:", "Your shareable notes about yourself. Your private notes are never shared.") : null,
     ].filter(Boolean);
     const expires = h("select", { id: "share-profile-expires" },
-      EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_EXPIRY }, c.label)));
+      EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_INVITE_EXPIRY }, c.label)));
     const uses = h("select", { id: "share-profile-uses" }, USE_CHOICES.map((c) => h("option", { value: c.value }, c.label)));
     // Connect our accounts: unticked, with what it means shown once it's ticked.
     const connect = h("input", { type: "checkbox", id: "share-profile-connect" });

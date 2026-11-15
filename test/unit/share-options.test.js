@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  EXPIRY_CHOICES, DEFAULT_EXPIRY, maxUsesFor, shareWarning, endsText, usesText, shareLink,
+  EXPIRY_CHOICES, DEFAULT_EXPIRY, DEFAULT_INVITE_EXPIRY, maxUsesFor, shareWarning, endsText, usesText, shareLink,
 } from "../../public/js/share-options.js";
 import { EXPIRY } from "../../src/shares/parse.js";
 import { readShareFragment } from "../../public/js/crypto/share.js";
@@ -9,6 +9,9 @@ describe("the share's choices", () => {
   it("offers exactly the expiries the server takes, a day by default", () => {
     expect(EXPIRY_CHOICES.map((c) => c.value)).toEqual(Object.keys(EXPIRY));
     expect(DEFAULT_EXPIRY).toBe("1d");
+    // A profile invite lasts a week unless chosen otherwise, its intro mailbox as long.
+    expect(DEFAULT_INVITE_EXPIRY).toBe("7d");
+    expect(EXPIRY_CHOICES.map((c) => c.value)).toContain(DEFAULT_INVITE_EXPIRY);
   });
 
   it("is one use for one person, any number for anyone", () => {

@@ -3670,3 +3670,34 @@ format 2 straight away, so they never see the conversion.
   What's left before release (phase 7): contacts (phase 6), then the
   privacy policy, reviewer sign-off and turning `NEW_ACCOUNT_FORMAT` and
   `CONVERT_ON_UNLOCK` on in production.
+
+## Encrypt everything: contacts as built (November 2026)
+
+Phase 6, slice 1: the pure parts (`contacts/messages.js`,
+`contacts/rules.js`, the contact record's fields in `records/schema.js`)
+and the crypto Worker's acceptance and message operations reachable from
+the page.
+
+- **A contact is a record** in my own sealed journal: "invited" (an invite
+  of mine offering to connect: its share and intro mailbox, and what my
+  profile shares), "active" (their pinned key and account id, our two
+  mailboxes, the pair key, a counter each way, the person it's on) or
+  "removed" (kept, so a late message isn't taken for a new contact).
+- **An invite offers to connect for as long as it lasts**: its intro
+  mailbox takes the invite's own expiry (the same choices: 10 minutes to
+  30 days, or until revoked), and profile invites now default to 7 days
+  (item shares keep 1 day). "Until I revoke it" keeps the intro until the
+  invite is revoked (the device deletes it then), stored as a far-off end
+  (`NEVER`, 9999), as migration 0032's CHECK has every intro end and that
+  migration is applied: no new migration needed.
+- **Being removed is silent**: a "removed" message ends the contact and,
+  if they asked, takes their About off my card of them; no banner or
+  notice says so, the link icon just goes.
+- **Profile updates go out by themselves** when I save my "Me", the same
+  fields I shared with each contact; on their side nothing changes until
+  they choose "Updated info available".
+- **Counters are reserved before sending** (the contact record saved with
+  the next one), so two of my devices never send the same one, which the
+  other side would refuse as a replay.
+- **Only the same format connects**: a format 1 account opening a format 2
+  invite (or the other way round) sees the profile, without Connect.

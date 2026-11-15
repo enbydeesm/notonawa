@@ -5,8 +5,20 @@
 
 import { BadInput } from "../http.js";
 
-/** An invite's intro mailbox lasts as long as an offer to connect did: a day. */
-export const INTRO_MS = 24 * 60 * 60 * 1000;
+/**
+ * How long an invite's intro mailbox lasts: as long as the invite, as its
+ * maker chose it (the share's own choices, src/shares/parse.js's EXPIRY;
+ * a test keeps them in step), so someone who opened it can accept for as
+ * long as it's offered. "never": until its maker deletes it (revoking the
+ * invite), kept as NEVER (migration 0032's CHECK has every intro end).
+ */
+export const INTRO_EXPIRY = /** @type {const} */ ({
+  "10m": 10 * 60_000, "1h": 60 * 60_000, "1d": 24 * 60 * 60_000, "7d": 7 * 24 * 60 * 60_000, "30d": 30 * 24 * 60 * 60_000,
+  never: null,
+});
+
+/** An intro that lasts until it's deleted: an end no one reaches. */
+export const NEVER = "9999-12-31T23:59:59Z";
 /** Messages not fetched (and acknowledged) by then are deleted. */
 export const MESSAGE_DAYS = 90;
 /** Mailboxes an account can have: one per contact, and open invites. */
@@ -48,10 +60,14 @@ function parseToken(value) {
 export function parseNewMailbox(body, now) {
   const kind = body?.kind;
   if (kind !== "intro" && kind !== "contact") throw new BadInput("A mailbox is an invite's intro or a contact's.");
-  return {
-    id: parseMailboxId(body?.id), token: parseToken(body?.token), kind,
-    expiresAt: kind === "intro" ? new Date(now + INTRO_MS).toISOString().replace(/\.\d+Z$/, "Z") : null,
-  };
+  /** @type {string | null} */
+  let expiresAt = null;
+  if (kind === "intro") {
+    if (!Object.hasOwn(INTRO_EXPIRY, body?.expires)) throw new BadInput("Choose how long the invite lasts.");
+    const ms = INTRO_EXPIRY[/** @type {keyof typeof INTRO_EXPIRY} */ (body.expires)];
+    expiresAt = ms === null ? NEVER : new Date(now + ms).toISOString().replace(/\.\d+Z$/, "Z");
+  }
+  return { id: parseMailboxId(body?.id), token: parseToken(body?.token), kind, expiresAt };
 }
 
 /**

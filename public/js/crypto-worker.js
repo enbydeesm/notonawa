@@ -121,6 +121,10 @@ const OPERATIONS = {
   adoptShareAsFile: (args) => vault.adoptShareAsFile(args),
   makeIdentity: () => vault.makeIdentity(),
   openIdentity: (args) => vault.openIdentity(args),
+  sealAcceptance: (args) => vault.sealAcceptance(args),
+  openAcceptance: (args) => vault.openAcceptance(args),
+  sealMessage: (args) => vault.sealMessage(args),
+  openMessage: (args) => vault.openMessage(args),
 };
 
 // Results whose buffers are handed over to the page rather than copied

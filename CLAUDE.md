@@ -216,7 +216,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   keys travel inside invites.
 - `src/mailboxes/`: where connected accounts' devices leave each other
   sealed messages, format 2. `parse.js` (pure: ids and 32-byte tokens made
-  by the device; an intro lasts a day; 100 waiting a mailbox, 1,000
+  by the device; an intro (an invite's) lasts as long as the invite,
+  its choice sent as `expires`, "never" kept as `NEVER`; 100 waiting a mailbox, 1,000
   mailboxes an account, 200,000 characters a message, 90 days unfetched),
   `db.js` (only the token's hash kept; a `profile` message replaces one
   waiting), `cleanup.js` (the daily job), `routes.js` (`POST
@@ -515,7 +516,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   key if missing; `records`, `record`, `save` (one retry after a stale
   write), `sync` (also on coming back to the tab), `onJournalChange`;
   dropped on lock),
-  `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  contacts (format 2, phase 6): `contacts/messages.js` (pure: the
+  acceptance and the messages "accepted", "profile" and "removed", read
+  strictly as they come from another account) and `contacts/rules.js`
+  (pure: the contact record at each step, "invited", "active", "removed";
+  pinning their key, a change clearing the verified mark; counters
+  reserved before sending; `asConnection`, a contact in the shape the
+  connection screens use), `crypto/vault-core.js` (what the crypto Worker does; format 2's
   `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
   /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
   reaches the cache and the routes), `crypto-worker.js` (the Worker

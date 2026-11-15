@@ -52,9 +52,11 @@ export async function handleMailboxes(request, env, user, url) {
   if (!url.pathname.startsWith("/api/mailboxes")) return null;
   const { method } = request;
 
-  // POST /api/mailboxes  body { id, token, kind: "intro" | "contact" } -> 201:
-  //   a mailbox of mine. The device makes the id and token; only the token's
-  //   hash is kept. An intro lasts a day.
+  // POST /api/mailboxes  body { id, token, kind: "intro" | "contact", expires }
+  //   -> 201: a mailbox of mine. The device makes the id and token; only the
+  //   token's hash is kept. An intro (an invite's) lasts as long as the
+  //   invite, expires being its choice (10m, 1h, 1d, 7d, 30d or never: until
+  //   deleted).
   if (url.pathname === "/api/mailboxes" && method === "POST") {
     const { token, ...mailbox } = parseNewMailbox(await readJson(request), Date.now());
     if (!(await addMailbox(env.DB, user.id, { ...mailbox, tokenHash: await sha256Hex(token) }))) {

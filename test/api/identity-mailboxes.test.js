@@ -5,7 +5,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { SELF, env } from "cloudflare:test";
 import { ORIGIN, call, createOtherUser, sessionCookieFor, signedInUser, sql } from "../helpers.js";
 import { isoAt } from "../../src/auth/session.js";
-import { MAX_WAITING } from "../../src/mailboxes/parse.js";
+import { MAX_WAITING, INTRO_EXPIRY, NEVER } from "../../src/mailboxes/parse.js";
+import { EXPIRY } from "../../src/shares/parse.js";
 import { cleanUpMailboxes } from "../../src/mailboxes/cleanup.js";
 
 const chars = (/** @type {number} */ n) => [...crypto.getRandomValues(new Uint8Array(n))]
@@ -38,9 +39,10 @@ async function send(mailbox, body, { cookie, origin = ORIGIN } = {}) {
 /**
  * @param {string} cookie
  * @param {"intro" | "contact"} [kind]
+ * @param {string} [expires] an intro's, as the invite's
  */
-async function newMailbox(cookie, kind = "contact") {
-  const box = { id: chars(22), token: token(), kind };
+async function newMailbox(cookie, kind = "contact", expires = "7d") {
+  const box = { id: chars(22), token: token(), kind, ...(kind === "intro" ? { expires } : {}) };
   const res = await call("/api/mailboxes", { method: "POST", body: box, cookie });
   expect(res.status).toBe(201);
   return { ...box, expires_at: res.body.expires_at };
@@ -155,10 +157,22 @@ describe("mailboxes", () => {
     expect(await send(box.id, { token: box.token, body: "m1.2.a.b" })).toBe(404);
   });
 
-  it("an invite's intro lasts a day; then it's closed, and the daily job deletes it", async () => {
+  it("offer the same choices for an intro as for the invite", () => {
+    expect(Object.keys(INTRO_EXPIRY)).toEqual(Object.keys(EXPIRY));
+  });
+
+  it("an invite's intro lasts as long as the invite; then it's closed, and the daily job deletes it", async () => {
     const me = await v2User();
+    const lasts = async (/** @type {string} */ expires) => {
+      const box = await newMailbox(me.cookie, "intro", expires);
+      return box.expires_at === NEVER ? "never" : Math.round((Date.parse(box.expires_at) - Date.now()) / 60_000);
+    };
+    expect([await lasts("10m"), await lasts("1d"), await lasts("7d"), await lasts("never")]).toEqual([10, 24 * 60, 7 * 24 * 60, "never"]);
+    for (const expires of [undefined, "2w"]) {
+      expect((await call("/api/mailboxes", { method: "POST", body: { id: chars(22), token: token(), kind: "intro", expires }, cookie: me.cookie })).status)
+        .toBe(400);
+    }
     const intro = await newMailbox(me.cookie, "intro");
-    expect(Date.parse(intro.expires_at) - Date.now()).toBeGreaterThan(23 * 3600_000);
     await sql("UPDATE mailboxes SET expires_at = '2000-01-01T00:00:00Z' WHERE id = ?", intro.id).run();
     expect(await send(intro.id, { token: intro.token, body: "abc" })).toBe(404);
     expect(await cleanUpMailboxes(env.DB)).toEqual({ mailboxes: 1, messages: 0 });

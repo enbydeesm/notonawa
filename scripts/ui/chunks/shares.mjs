@@ -50,7 +50,7 @@ export default async function () {
     const row = $(".alias-row"); row.querySelector("select").value = "instagram"; row.querySelector("input").value = "@jude";
     await submit();
     return [onRobin, onMe, placed];`), [true, false, [true, true]]);
-  check("the dialog asks for the name to share (empty while mine is Me), ticks what's on my profile, and lasts a day for one person", await run(`
+  check("the dialog asks for the name to share (empty while mine is Me), ticks what's on my profile, and lasts 7 days for one person", await run(`
     await openPerson("Me"); $("#person-share").click(); await calm(300);
     const fields = [...document.querySelectorAll(".share-field")].map((l) => [l.innerText, l.querySelector("input").checked]);
     const state = [$("#share-profile-name").value, $("#share-profile-name").required, fields, $("#share-profile-expires").value,
@@ -62,7 +62,7 @@ export default async function () {
     return [state, warned];`),
   [["", true, [["Pronouns: they/them", true], ["Usual role: Top", true], ["Instagram: @jude", true], ["Based in: Seattle, WA", true],
     ["Educator: No", true], ["About me: Your shareable notes about yourself. Your private notes are never shared.", true]],
-  "1d", "one", true, false, [], true, true], [false, true]]);
+  "7d", "one", true, false, [], true, true], [false, true]]);
 
   // Format 2 accounts connect through contacts, which come later (phase 6).
   if (FORMAT === 2) {
@@ -120,8 +120,8 @@ export default async function () {
     for (let i = 0; i < 30 && !$("#share-code-link"); i++) await wait(100);
     const again = $("#share-code-link").value; $("#share-code-done").click(); await calm(200);
     return [list, again.slice(again.indexOf("/open"))];`),
-  [[["Oops", "Profile · ends in 24 hours · not opened yet"], ["Class", "Profile · until you revoke it · not opened yet"],
-    ["First", "Profile · ends in 24 hours · not opened yet"]], forAnyone]);
+  [[["Oops", "Profile · ends in 7 days · not opened yet"], ["Class", "Profile · until you revoke it · not opened yet"],
+    ["First", "Profile · ends in 7 days · not opened yet"]], forAnyone]);
   check("revoking asks first, then takes it off the list", await run(`
     [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Oops")).querySelector(".share-revoke").click();
     await calm(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
