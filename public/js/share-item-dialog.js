@@ -9,7 +9,7 @@ import { errorMessage } from "./api.js";
 import { readCost, formatMoney } from "./currency.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
 import {
-  FIELDS, ALWAYS_SHARED, SHARE_LEGEND, itemSource, hasField, buildItemShare, shareFiles, visualCounts, mediaSize,
+  FIELDS, ALWAYS_SHARED, SHARE_LEGEND, itemSource, hasField, buildItemShare, shareFiles, visualCounts,
 } from "./share-item.js";
 import { suggestedName } from "./profile-share.js";
 import { mergeVisuals } from "./visual-order.js";
@@ -20,7 +20,9 @@ import { roleName } from "./roles.js";
 import { capitalise } from "./format.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
 import { listItems, listMedia, listDrawings, listPoses, sendToConnection } from "./store/index.js";
-import { connectionPicker } from "./connection-picker.js";
+import { searchPicker } from "./search-picker.js";
+import { pickerSource } from "./search-choices.js";
+import { tell } from "./dialog.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -99,7 +101,10 @@ export async function openShareItem(kind, item) {
       if (how === "connection" && !connectionPart.hasChildNodes()) showConnections();
     }
 
-    /** The search over my connected people, then Send to the one chosen. */
+    /**
+     * The search over my connected people (as the tie form's People picker,
+     * but only connections and nothing to add), then Send to the one chosen.
+     */
     async function showConnections() {
       connectionPart.replaceChildren(h("p", { className: "hint" }, "Loading your connections…"));
       let people;
@@ -115,12 +120,19 @@ export async function openShareItem(kind, item) {
         return;
       }
       const chosen = h("div", { id: "share-item-chosen" });
-      const pick = (/** @type {any} */ person) => {
-        chosen.replaceChildren(h("button", { type: "button", className: "primary", id: "share-item-send", onclick: () => send(person) },
-          `Send to ${person.name}`));
-      };
-      connectionPart.replaceChildren(h("label", { htmlFor: "share-item-person" }, "Send to"),
-        connectionPicker({ id: "share-item-person", people, onPick: pick }), chosen);
+      const picker = searchPicker({
+        kind: "people", id: "share-item-person", label: { labelledBy: "share-item-person-label" },
+        source: pickerSource(people, []), input: { className: "share-item-person-id" }, canAdd: false,
+        onPick: (item) => {
+          const person = people.find((p) => p.id === item.id);
+          chosen.replaceChildren(person
+            ? h("button", { type: "button", className: "primary", id: "share-item-send", onclick: () => send(person) }, `Send to ${person.name}`)
+            : "");
+        },
+        onError: (text) => showMessage(message, text, true),
+      });
+      connectionPart.replaceChildren(h("label", { id: "share-item-person-label", htmlFor: "share-item-person" }, "Send to"), picker.element,
+        chosen);
     }
 
     /** What's ticked, as the share's contents. */
@@ -144,8 +156,10 @@ export async function openShareItem(kind, item) {
           kind, data, label: `Sent to ${person.name}`, files: shareFiles(source, data), saveShare,
           progress: (done, total) => showMessage(message, `Sealing photos and videos… ${done + 1} of ${total}`),
         });
-        connectionPart.replaceChildren(h("p", { id: "share-item-sent" }, `Sent to ${person.name}. It waits in their NotoNawa for 30 days.`));
         showMessage(message, "");
+        // Said in a small dialog of its own; its OK closes this one too, back to the item.
+        await tell({ title: `Sent to ${person.name}`, id: "share-item-sent" });
+        dialog.close();
       } catch (err) {
         showMessage(message, "Couldn't send it: " + errorMessage(err), true);
         if (button) button.disabled = false;
@@ -162,8 +176,6 @@ export async function openShareItem(kind, item) {
       offered.length
         ? h("fieldset", { className: "share-fields" }, h("legend", { id: "share-item-always" }, SHARE_LEGEND[kind]), fields)
         : h("p", { className: "hint", id: "share-item-always" }, ALWAYS_SHARED[kind]),
-      hasField(source, "media") ? h("p", { className: "hint", id: "share-item-media-size" },
-        `Photos and videos are copied into the share, taking ${mediaSize(source.visuals)} of your 1 GB until it ends.`) : null,
       h("div", { className: "button-row share-ways" }, toConnection, toLink),
       connectionPart,
       linkPart,

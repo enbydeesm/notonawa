@@ -51,7 +51,7 @@ export default async function () {
       educators: [{ person_id: ${JSON.stringify(ids.sam)}, role: "top" }], participants: [{ person_id: ${JSON.stringify(ids.me)}, role: "bottom" }] }));`);
 
   await go("/");
-  check("a saved tie has Share; its dialog ticks everything it has, photos too with what they take of my 1 GB, asks the name to show for me, and explains behind ?s", await run(`
+  check("a saved tie has Share; its dialog ticks everything it has, photos too (saying nothing of my 1 GB), asks the name to show for me, and explains behind ?s", await run(`
     for (let i = 0; i < 50 && !$(".tie-card"); i++) await wait(100);
     $(".tie-card .tie-date").click();
     for (let i = 0; i < 50 && !$("#tie-share"); i++) await wait(100);
@@ -62,7 +62,7 @@ export default async function () {
     $("[aria-controls=share-item-my-name-info]").click();
     const nameTip = $("#share-item-my-name-info").hidden ? null : $("#share-item-my-name-info").textContent;
     return [fields, $("#share-item-my-name").value, $("label[for=share-item-my-name]").textContent, $("#share-item-always").textContent,
-      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, $("#share-item-media-size")?.textContent,
+      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, document.querySelector(".share-item").innerText.includes("1 GB"),
       $("#share-item-expires").value, $("#share-item-uses").value, leakyFields(), ways()];
     function ways() {
       // How to share it, below what to share: the link's choices only once Share with link is chosen.
@@ -76,8 +76,8 @@ export default async function () {
     ["Album link", true], ["Drawings and poses: 1 drawing", true], ["Photos and videos: 1 photo", true], ["Tags: Futomomo", true]],
   "", "Your profile name", "Share date and type and…",
   [["share-item-intro", true], ["share-item-my-name-info", true], ["share-item-label-info", true]],
-  "The name shared for the 'Me' rows on this tie.", 1,
-  "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "7d", "one", [],
+  "The name shared for the 'Me' rows on this tie.", 0,
+  false, "7d", "one", [],
   [["Send to connection", "Share with link"], true, true, false, "true"]]);
   check("it needs a name for me while people are shared", await run(`
     set("#share-item-label", "For Sam"); $("#share-item-make").click(); await calm(500);

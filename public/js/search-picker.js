@@ -37,6 +37,8 @@ const KINDS = {
  *   newFields?: Record<string, unknown>,
  *   onAdd?: (item: PickerItem, archived: boolean) => void,
  *   elsewhereNote?: (name: string) => string,
+ *   canAdd?: boolean,
+ *   emptyText?: string,
  * }} config
  *   id: the text box's id (list and option ids start with it); label: a
  *   visible label's id, or words for screen readers when there's none;
@@ -47,9 +49,13 @@ const KINDS = {
  *   message; newFields: also saved on one added here (e.g. is_educator);
  *   onAdd: runs once one is added, e.g. to offer it in other pickers;
  *   elsewhereNote: what to say when the name typed is one of the source's
- *   `elsewhere`.
+ *   `elsewhere`; canAdd: false for choosing only from the source (no "Add
+ *   to list"; e.g. my connections, to send something to); emptyText: what
+ *   the list says when the source has none.
  */
-export function searchPicker({ kind, id, label, source, input, exclude, onPick, onError, newFields, onAdd, elsewhereNote }) {
+export function searchPicker({
+  kind, id, label, source, input, exclude, onPick, onError, newFields, onAdd, elsewhereNote, canAdd = true, emptyText,
+}) {
   const words = KINDS[kind];
   /** @type {PickerItem | null} */
   let chosen = null;
@@ -63,7 +69,7 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
   const named = "labelledBy" in label ? { "aria-labelledby": label.labelledBy } : { "aria-label": label.text };
   const hidden = privateField(h("input", { type: "hidden", value: "", ...input }));
   const box = privateField(h("input", {
-    id, type: "text", placeholder: "Search or add", role: "combobox", ...named,
+    id, type: "text", placeholder: canAdd ? "Search or add" : "Search", role: "combobox", ...named,
     "aria-autocomplete": "list", "aria-expanded": "false", "aria-controls": listId,
     onfocus: () => { box.select(); open(""); },
     onclick: () => { if (box.getAttribute("aria-expanded") === "false") open(""); },
@@ -76,7 +82,7 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
   function open(query) {
     const skip = exclude?.() ?? new Set();
     const shown = searchChoices(source.active.filter((item) => !skip.has(item.id)), source.recent, query);
-    const offer = addOffer(source.active, source.archived, query, source.elsewhere);
+    const offer = canAdd ? addOffer(source.active, source.archived, query, source.elsewhere) : null;
     /** @param {PickerItem} item */
     const pickItem = (item) => () => { pick(item); close(); };
 
@@ -90,7 +96,9 @@ export function searchPicker({ kind, id, label, source, input, exclude, onPick, 
     const rows = items.map((item) => item.el);
 
     if (!shown.length && query.trim()) rows.push(note("No matches."));
-    if (!shown.length && !query.trim()) rows.push(note(`No ${words.plural} yet. Type ${words.what} to add one.`));
+    if (!shown.length && !query.trim()) {
+      rows.push(note(emptyText ?? (canAdd ? `No ${words.plural} yet. Type ${words.what} to add one.` : `No ${words.plural} yet.`)));
+    }
     if (offer && "archived" in offer) {
       rows.push(note(`"${offer.archived}" is archived. Restore it from the ${words.page} page to use it again.`));
     }

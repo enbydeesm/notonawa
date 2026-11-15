@@ -267,19 +267,6 @@ export function visualCounts(visuals, kinds) {
 }
 
 /**
- * What sharing the photos and videos would take of my 1 GB, in words
- * ("4.2 MB"), from their sizes in my journal; "" if they have none.
- * @param {SharedVisual[]} visuals
- * @returns {string}
- */
-export function mediaSize(visuals) {
-  const bytes = visuals.filter(isMedia).reduce((sum, v) => sum + (v.bytes ?? 0), 0);
-  if (!bytes) return "";
-  const mb = bytes / (1024 * 1024);
-  return mb < 0.1 ? "under 0.1 MB" : `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
-}
-
-/**
  * The photos and videos a snapshot has, to seal and upload beside it: each
  * file's id in the share, and which of mine it is.
  * @param {SharedItem} source as given to buildItemShare

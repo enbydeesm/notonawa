@@ -1277,7 +1277,8 @@ button.update-flag { border: 0; cursor: pointer; background: var(--accent); colo
 .linked-flag { flex-wrap: wrap; justify-content: flex-end; font-size: 0.9rem; }
 .linked-flag .link-icon { width: 18px; height: 18px; }
 .linked-flag button.link { font-size: 0.85rem; }
-.notice.connection-notice { flex-wrap: wrap; }
+/* Any banner with a row of actions wraps, the actions under its words. */
+.notice:has(> .notice-actions) { flex-wrap: wrap; }
 .connection-title { display: flex; align-items: center; gap: 8px; }
 .share-connect, .open-connect { margin: 12px 0 4px; }
 .open-connect .hint, .connect-disclosure { margin-top: 4px; }

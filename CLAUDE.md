@@ -428,7 +428,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   sender marked; Drawings and poses and Photos and videos ticked
   separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
   workshop's dialog: what to share, then Send to connection (a search
-  over my connected people, `connection-picker.js`, then Send to …) or
+  over my connected people, `search-picker.js` with `canAdd: false`, then Send to …, and a "Sent to …" `tell()` whose OK closes the Share dialog) or
   Share with link (how long, who, the tag, Make share link; 7 days by
   default)), `share-people.js` (pure: Who is this? suggestions for
   each person, and the location's and plans' choices; a person is on an

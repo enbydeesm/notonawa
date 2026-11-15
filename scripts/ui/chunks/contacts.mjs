@@ -185,36 +185,47 @@ export default async function () {
   // Alex sends Jude a tie, through their connection.
   await run(`await store.saveTie(null, { title: "Rope jam", tie_date: "2026-11-01", tie_type: "floor", notes: "Lots of fun" });`);
   await go("/");
-  check("Alex sends a tie to Jude: Send to connection searches only their connected people", await run(`
+  check("Alex sends a tie to Jude: Send to connection's box drops down only their connected people, narrowed by typing", await run(`
     for (let i = 0; i < 50 && !$(".tie-card"); i++) await wait(100);
     $(".tie-card .tie-date").click(); for (let i = 0; i < 50 && !$("#tie-share"); i++) await wait(100);
     $("#tie-share").click(); for (let i = 0; i < 50 && !$("#share-item-to-connection"); i++) await wait(100);
     $("#share-item-to-connection").click();
     for (let i = 0; i < 50 && !$("#share-item-person"); i++) await wait(100);
-    const listed = [...document.querySelectorAll(".connection-choice")].map((b) => b.textContent);
-    searchIn($("#share-item-person"), "zz"); const none = $("#share-item-person-list").innerText;
-    searchIn($("#share-item-person"), "ju"); $(".connection-choice").click();
-    const button = $("#share-item-send").textContent; $("#share-item-send").click();
+    const box = $("#share-item-person"), list = $("#share-item-person-list");
+    const before = [list.hidden, box.placeholder];
+    box.focus(); await wait(50);
+    const listed = [list.hidden, [...list.querySelectorAll(".combo-option")].map((o) => o.textContent), !!list.querySelector(".combo-actions")];
+    searchIn(box, "zz"); const none = [list.innerText, !!list.querySelector(".combo-actions")];
+    searchIn(box, "ju"); list.querySelector(".combo-option").click(); await wait(50);
+    return [before, listed, none, $("#share-item-send").textContent, leakyFields()];`),
+  [[true, "Search"], [false, ["Jude"], false], ["No matches.", false], "Send to Jude", []]);
+  check("…Send says so in a small dialog; its OK closes it and the Share dialog, back to the tie", await run(`
+    $("#share-item-send").click();
     for (let i = 0; i < 100 && !$("#share-item-sent") && !$("#share-item-status").classList.contains("error"); i++) await wait(100);
-    const sent = [$("#share-item-sent")?.textContent ?? $("#share-item-status").textContent, $("#share-item-link-part").hidden, leakyFields()];
-    $("#share-item-cancel").click(); await calm(200); [...document.querySelectorAll("dialog[open] .dialog-cancel")].pop()?.click();
-    await calm(200);
-    return [listed, none, button, sent, await plainOnServer("Lots of fun")];`),
-  [["Jude"], "No connection matches.", "Send to Jude", ["Sent to Jude. It waits in their NotoNawa for 30 days.", true, []], false]);
+    const said = [$("#share-item-sent h2")?.textContent ?? $("#share-item-status").textContent,
+      [...document.querySelectorAll("#share-item-sent button")].map((b) => b.textContent)];
+    $("#share-item-sent button").click(); await calm(300);
+    const after = [!!$(".share-item"), [...document.querySelectorAll("dialog[open]")].length];
+    [...document.querySelectorAll("dialog[open] [data-cancel-edit], dialog[open] .dialog-cancel")].pop()?.click(); await calm(200);
+    return [said, after, await plainOnServer("Lots of fun")];`),
+  [["Sent to Jude", ["OK"]], [false, 1], false]);
   await useTab("jude");
   await go("/people");
   check("Jude's device gets it: a banner says Alex sent a tie, and Open shows it to add", await run(`
     ${CHECK_MAIL}
     for (let i = 0; i < 50 && !$(".sent-notice"); i++) await wait(100);
+    // Its words get the banner's width, its buttons under them (not one letter a line).
     const banner = [...document.querySelectorAll(".sent-notice")].map((n) => [n.querySelector("p").textContent,
-      [...n.querySelectorAll("button")].map((b) => b.textContent)]);
+      [...n.querySelectorAll("button")].map((b) => b.textContent),
+      n.querySelector("p").getBoundingClientRect().width > n.getBoundingClientRect().width / 2,
+      n.querySelector("p").getBoundingClientRect().height < 60]);
     $(".sent-open").click();
     for (let i = 0; i < 80 && !$("#open-item") && !$("#open-said"); i++) await wait(100);
     const shown = [location.pathname, $("#open-title")?.textContent ?? $("#open-said")?.textContent];
     $("#open-add").click();
     for (let i = 0; i < 80 && !$("#open-done") && !$("#open-message.error"); i++) await wait(100);
     return [banner, shown, $("#open-done")?.textContent ?? $("#open-message")?.textContent, document.querySelectorAll(".sent-notice").length];`),
-  [[["Alex sent you a tie.", ["Open", "Not now"]]], ["/open", "Rope jam"], "The tie is in your journal.", 0]);
+  [[["Alex sent you a tie.", ["Open", "Not now"], true, true]], ["/open", "Rope jam"], "The tie is in your journal.", 0]);
   await go("/");
   check("…it's in Jude's ties, and the banner doesn't come back", await run(`
     ${CHECK_MAIL} return [titles().includes("Rope jam"), document.querySelectorAll(".sent-notice").length];`), [true, 0]);

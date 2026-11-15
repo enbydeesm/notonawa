@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  itemSource, buildItemShare, readItemShare, hasField, shareFiles, visualCounts, mediaSize, FIELDS, LIMITS, SHARE_LEGEND,
+  itemSource, buildItemShare, readItemShare, hasField, shareFiles, visualCounts, FIELDS, LIMITS, SHARE_LEGEND,
 } from "../../public/js/share-item.js";
 
 // A tie as its form has it (GET /api/ties/:id, opened).
@@ -191,12 +191,9 @@ describe("photos and videos", () => {
     expect(shareFiles(s, buildItemShare("plan", s, ["visuals"]))).toEqual([]);
   });
 
-  it("are counted, and sized, in words", () => {
+  it("are counted in words", () => {
     expect(visualCounts(MIXED, ["photo", "video", "drawing", "pose"])).toBe("1 photo, 1 video, 1 drawing");
     expect(visualCounts([...MIXED, MIXED[0]], ["photo"])).toBe("2 photos");
-    expect(mediaSize(MIXED)).toBe("4.0 MB");
-    expect(mediaSize([MIXED[1]])).toBe("");
-    expect(mediaSize([{ kind: "photo", file: F1, mime: "image/jpeg", caption: null, bytes: 2000 }])).toBe("under 0.1 MB");
   });
 
   it("are read strictly: a file id made here, a type they're stored as, each once, up to an item's worth", () => {
