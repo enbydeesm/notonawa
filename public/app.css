@@ -28,7 +28,7 @@
      as the paper is, so a pose's picture looks the same whichever is on.
      Ropes use the inks above. */
   --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-clash: #e0605a; --pose-warn: #f0962e; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
-  --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
+  --pose-handle: #ffffff; --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
    (data-theme is set by theme-init.js before the page draws, then by
@@ -435,6 +435,13 @@ dialog.preset-picker.searchable[open] {
    ropes or Done for the pencil, in the same place so nothing moves. */
 .pose-tools-row { display: flex; align-items: center; gap: 6px; }
 .pose-tools-row > :last-child { margin-left: auto; flex: none; }
+/* Wrap, over the view under undo and redo: its switch, and − 1 turn +. */
+.pose-view-tools.pose-wrap-row { top: 62px; }
+.pose-wrap-row[hidden] { display: none; }
+.pose-wrap-row .pose-wrap { width: auto; padding: 0 10px; font-size: 0.85rem; font-weight: 600; }
+.pose-wrap-row .pose-wrap-step { width: 32px; font-size: 1.1rem; }
+.pose-wrap-row .pose-wrap-step:disabled { opacity: 0.35; }
+.pose-wrap-count { min-width: 3.6em; text-align: center; font-size: 0.75rem; color: var(--ink-grey); }
 .pose-hang { align-self: flex-start; min-height: 36px; }
 .pose-hang[hidden] { display: none; }
 .pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 10px; text-transform: none; }

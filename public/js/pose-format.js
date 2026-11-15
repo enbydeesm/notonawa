@@ -621,6 +621,39 @@ export function finishRope(pose, rope) {
 export const removeRope = (pose, index) => ({ ...pose, ropes: relink(pose.ropes, pose.ropes.map((r, i) => (i === index ? null : r))) });
 
 /**
+ * Whether a rope's point can be moved or taken out by its dot: on the
+ * body (not a hardpoint or a spot on another rope), and not a cinch's.
+ * @param {Rope} rope @param {number} k
+ */
+export const onBody = (rope, k) => !isCinch(rope) && !!rope.p[k] && rope.p[k][0] !== ROPE && !HARDPOINTS.includes(/** @type {Hardpoint} */ (rope.p[k][0]));
+
+/**
+ * A rope's point moved to another place on the body.
+ * @param {Pose} pose @param {number} index the rope's @param {number} k the point's
+ * @param {RopePoint} point where it goes (bonePoint)
+ * @returns {Pose}
+ */
+export function movePoint(pose, index, k, point) {
+  const rope = pose.ropes[index];
+  if (!rope || !onBody(rope, k)) return pose;
+  return { ...pose, ropes: pose.ropes.map((r, i) => (i === index ? { ...r, p: r.p.map((p, n) => (n === k ? point : p)) } : r)) };
+}
+
+/**
+ * A rope's point taken out. Cinches and ropes added on that rope go with
+ * it (their places along it are counted in its points: relink); a rope
+ * left with one point goes altogether.
+ * @param {Pose} pose @param {number} index the rope's @param {number} k the point's
+ * @returns {Pose}
+ */
+export function removePoint(pose, index, k) {
+  const rope = pose.ropes[index];
+  if (!rope || !onBody(rope, k)) return pose;
+  if (rope.p.length <= 2) return removeRope(pose, index);
+  return { ...pose, ropes: relink(pose.ropes, pose.ropes.map((r, i) => (i === index ? { ...r, p: r.p.filter((_, n) => n !== k) } : r))) };
+}
+
+/**
  * The cinches on a rope.
  * @param {Pose} pose
  * @param {number} index the rope's

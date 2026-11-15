@@ -560,6 +560,7 @@ export default async function () {
   await bodyCinch({ tap, topDialog });
   await collisions({ tap, slide, topDialog });
   await hanging({ topDialog });
+  await wrapping({ tap, drag, topDialog });
   await standalone({ topDialog });
 }
 
@@ -604,6 +605,73 @@ async function hanging({ topDialog }) {
     // The ring is 40 cm to its left: the body went most of the way across, and came down a little.
     return [saved.shift[0] > 25, saved.lift < 130, saved.joints.l_hip];`),
   [true, true, [0, 0, 0]]);
+}
+
+/**
+ * Wrap lays a turn of rope round the part tapped, undone as one; a chosen
+ * rope's white dots move a point when dragged and take it out when tapped.
+ * @param {{ tap: (fx: number, fy: number) => Promise<void>, drag: (fx0: number, fx1: number, fy0: number, fy1?: number) => Promise<void>, topDialog: string }} helpers
+ */
+async function wrapping({ tap, drag, topDialog }) {
+  const tiePose = `(async () => {
+    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+      .ties.find((t) => t.title === "Wrap test");
+    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+  })()`;
+  const seeded = {
+    v: 1, joints: {}, body: [0, 0, 0], lift: 99, shift: [0, 0], shape: [50, 50, 25, 184], camera: [0, 8, 380, 110, 0, 0],
+    ring: null, bamboo: null, hashira: null, ropes: [],
+  };
+  await run(`$("#tie-close")?.click(); await calm(500);
+    [...${topDialog}?.querySelectorAll("button") ?? []].find((b) => b.textContent === "Discard changes")?.click(); await calm(300);
+    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-06", title: "Wrap test" });
+    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+  await go("/");
+  await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Wrap test").click(); await calm(1500);
+    $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
+    for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
+    await calm(500); $("#pose-mode-rope").click(); await calm(300);`);
+  check("the Rope tab has Wrap, off, its turns greyed out; on, + makes it two turns and the help says what a tap does", await run(`
+    const off = [$("#pose-wrap").getAttribute("aria-pressed"), $("#pose-wrap-fewer").disabled, $("#pose-wrap-more").disabled, $("#pose-wrap-count").textContent];
+    $("#pose-wrap").click(); await calm(200);
+    $("#pose-wrap-more").click(); await calm(200);
+    return [off, $("#pose-wrap").getAttribute("aria-pressed"), $("#pose-wrap-count").textContent, $("#pose-rope-hint").textContent];`),
+  [["false", true, true, "1 turn"], "true", "2 turns", "Wrap: tap an arm, a leg or the body to lay a turn of rope round it there."]);
+  await tap(0.5, 0.42);
+  check("a tap on the chest lays two turns round it, twenty-five points; Undo takes the whole wrap back", await run(`
+    const laid = $("#pose-laying-count").textContent;
+    $("#pose-undo").click(); await calm(300);
+    return [laid, $("#pose-laying-count").textContent];`),
+  ["Laying rope · 25 points", "Laying rope · 0 points"]);
+  await run(`$("#pose-wrap-fewer").click(); await calm(200);`);
+  await tap(0.5, 0.42);
+  check("one turn is thirteen points, back to where it began, all round the chest; finished, it's a rope", await run(`
+    const laid = $("#pose-laying-count").textContent;
+    $("#pose-finish-rope").click(); await calm(300);
+    $("#pose-wrap").click(); await calm(200);
+    return [laid, $("#pose-laying-bar").hidden, $("#pose-wrap").getAttribute("aria-pressed")];`),
+  ["Laying rope · 13 points", true, "false"]);
+  // Tapping it where it began chooses it; its dots show, and the help says what they do.
+  await tap(0.5, 0.42);
+  check("chosen, the help tells its white dots from the black one, and Wrap is put away", await run(`
+    return [$("#pose-rope-hint").textContent, $("#pose-wrap").closest(".pose-wrap-row").hidden];`),
+  ["Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", true]);
+  // Its first point's dot is under the same spot: tapped, the point goes.
+  await tap(0.5, 0.42);
+  check("a white dot tapped takes its point out, and says so; the rope stays chosen", await run(`
+    return [$("#pose-rope-note").textContent, !$("#pose-rope-options").hidden && !!$("#pose-rope-options").children.length];`),
+  ["Point taken out.", true]);
+  // Its last point is still there: dragged down the body, it moves.
+  await drag(0.5, 0.5, 0.42, 0.52);
+  check("a white dot dragged moves its point over the skin, as one change, saved with the pose", await run(`
+    $("#pose-save").click();
+    for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
+    const [rope] = (await ${tiePose}).data.ropes;
+    const [first, last] = [rope.p[0], rope.p[rope.p.length - 1]];
+    // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start).
+    return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30];`),
+  [12, true, true]);
 }
 
 /**
@@ -835,7 +903,7 @@ async function ropes({ tap, slide, topDialog }) {
       $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"), leakyFields()];`),
   ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-letgo"], true, true, "Runs free",
     "Runs free over the ring: pulling one end moves the other", "Cinch", "Add rope", false, true, true,
-    "Cinch and Add rope start from the dot.", "Tap anywhere else to let it go", true, []]);
+    "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", true, []]);
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`
     const three = await import("/js/vendor/three.js");

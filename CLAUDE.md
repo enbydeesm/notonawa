@@ -680,7 +680,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   taut uplines keep their lengths; tested), `pose-hang.js` (`hang`: a body
   in the air, as one piece, settled where its weight (`weightMiddle`, from
   its capsules) is lowest with every taut upline at its length; after an
-  upline's Length changes, and the Rope tab's Let it hang; tested), `pose-marks.js` (pure:
+  upline's Length changes, and the Rope tab's Let it hang; tested), `pose-surface.js`
+  (rope on the skin: `alongSkin`, the way round a part between two of a
+  rope's points, on the body's capsules, as `ropeRuns` draws it; `wrapRound`,
+  a Wrap's points, on the real skin when the view measures it,
+  `skinMeasure`; tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
   (their layer over the view, and drawing them onto a picture),
   `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging
@@ -689,7 +693,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and the pencil (a switch over any tab) on the view, and ▲▼
   beside each slider; `pose-scene-panel.js` (the Scene tab: Hardpoint |
   Body shape, Save as my model, Load default, Reset), `pose-rope-panel.js`
-  (the chosen rope's panel: Cinch, Slide, Add rope and one setting's box)
+  (the chosen rope's panel: Cinch, Slide, Add rope and one setting's box;
+  on the view, the chosen rope's white dots move a point when dragged and
+  take it out when tapped, and Wrap, under undo and redo, lays turns)
   and `pose-hints.js` (pure: the view's hint and the Rope tab's help); "Add to visuals" puts a picture of the pose, with
   any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer),

@@ -21,6 +21,7 @@
 import { Vector3 } from "./vendor/three.js";
 import { ROPE, isCinch, isAdded, hangs, sags, pullsUplines } from "./pose-format.js";
 import { ropePoint } from "./pose-skeleton.js";
+import { alongSkin, skinOf } from "./pose-surface.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -28,6 +29,7 @@ import { ropePoint } from "./pose-skeleton.js";
 /** @typedef {import("./pose-skeleton.js").Skeleton} Skeleton */
 /** @typedef {{ segment: number, along: number, at: Vector3 }} Bend where a cinch pulls a rope: its segment, how far along (thousandths) and the point */
 /** @typedef {Map<number, Bend[]>} Bends by rope, each rope's in order along it */
+/** @typedef {import("./pose-surface.js").Skin} Skin */
 
 /**
  * Which of a cinch's points move: its spots on uplines' hanging
@@ -215,6 +217,20 @@ export function sagging(a, b, extra) {
 }
 
 /**
+ * The points between two of a rope's on the body, to lie on the skin; none
+ * when either end isn't on the body.
+ * @param {Skeleton} skeleton @param {Rope} rope @param {number} segment
+ * @param {Vector3} a @param {Vector3} b its ends as drawn
+ * @param {Skin} skin
+ * @returns {Vector3[]}
+ */
+function onSkin(skeleton, rope, segment, a, b, skin) {
+  const [from, to] = [rope.p[segment], rope.p[segment + 1]];
+  if (!skeleton.bones.has(from[0]) || !skeleton.bones.has(to[0])) return [];
+  return alongSkin(skin, from[0], a, to[0], b);
+}
+
+/**
  * A rope's line in the room as the runs it's drawn in: its stretches
  * hanging from the ring or bamboo, or a rope of two points, each straight
  * on their own (pulled taut, a cinch's bends making more), sagging with the
@@ -223,11 +239,15 @@ export function sagging(a, b, extra) {
  * @param {Pose} pose
  * @param {number} index
  * @param {Bends} [bent]
+ * @param {Skin} [given] the body's capsules, if already worked out (skinOf)
  * @returns {Vector3[][]}
  */
-export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose)) {
+export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose), given) {
   const rope = pose.ropes[index];
   if (isCinch(rope)) return [cinchPoints(skeleton, pose, index).to];
+  /** The body's capsules, worked out once, when a stretch round the body needs them. @type {Skin | undefined} */
+  let made = given;
+  const skin = () => (made ??= skinOf(skeleton));
   const points = rope.p.map((_, k) => pointAt(skeleton, pose, index, k, bent));
   /** @type {Vector3[][]} */
   const runs = [];
@@ -241,7 +261,10 @@ export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose)) {
       // Round the body: curving through its points, and any bends a cinch
       // pulls in it.
       if (!curve.length) curve.push(a);
-      curve.push(...bendsOn(bent, index, segment), b);
+      const pulled = bendsOn(bent, index, segment);
+      // Lying on the skin between its points (pose-surface.js), unless a
+      // cinch has pulled it off.
+      curve.push(...(pulled.length ? pulled : onSkin(skeleton, rope, segment, a, b, skin())), b);
       continue;
     }
     if (curve.length) runs.push(curve);

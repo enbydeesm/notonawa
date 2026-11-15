@@ -93,7 +93,11 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
   considerations.md), and partial suspensions, where the floor carries
   part of the body.
 - **Rope presets** (a chest harness, hip harness, futomomo, cuffs, and my
-  own saved), a Wrap tool, and moving a placed point.
+  own saved). After the encryption branch merges: it changes how presets
+  are stored. (The Wrap tool and moving a placed point are built.)
+- **Rope on the real skin everywhere**: hand-tapped points far apart on
+  the chest can still dip under it, as the drawing follows the body's
+  capsules; a wrap that takes the arms in.
 - **Nerves on the body** (6–10, for rope safety: radial, ulnar, median,
   axillary, brachial plexus, common fibular, lateral femoral cutaneous,
   femoral, sciatic, saphenous), taken from Z-Anatomy (CC BY-SA 4.0,

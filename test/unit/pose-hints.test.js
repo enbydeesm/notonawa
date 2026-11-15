@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { viewHint, ropeHint, hardpointLostNote } from "../../public/js/pose-hints.js";
+import { viewHint, ropeHint, hardpointLostNote, pointGoneNote } from "../../public/js/pose-hints.js";
 
 /** @param {Partial<Parameters<typeof ropeHint>[0]>} over */
 const rope = (over) => ropeHint({ erasing: false, layingKind: "rope", points: 0, chosen: "none", sliding: false, hardpoint: null, ...over });
@@ -32,7 +32,7 @@ describe("ropeHint", () => {
     expect(rope({ erasing: true, points: 2 })).toBe("Tap a rope to take it out.");
   });
   it("a chosen rope: its actions, sliding, or a cinch", () => {
-    expect(rope({ chosen: "rope" })).toBe("Cinch and Add rope start from the dot.");
+    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.");
     expect(rope({ chosen: "rope", sliding: true })).toBe("Tap Slide again when it's in place.");
     expect(rope({ chosen: "cinch" })).toMatch(/Tap Cinch again when you're done\.$/);
     expect(rope({ chosen: "cinch" })).toMatch(/upline/);
@@ -52,5 +52,28 @@ describe("hardpointLostNote", () => {
   it("counts what went and says Undo brings it back", () => {
     expect(hardpointLostNote("bamboo", 1)).toBe("1 rope point on the bamboo went with it. Undo brings it back.");
     expect(hardpointLostNote("ring", 4)).toBe("4 rope points on the ring went with it. Undo brings them back.");
+  });
+});
+
+describe("Wrap and a chosen rope's dots", () => {
+  it("says what a tap does with Wrap on, before and while laying", () => {
+    expect(rope({ wrapping: true })).toBe("Wrap: tap an arm, a leg or the body to lay a turn of rope round it there.");
+    expect(rope({ wrapping: true, points: 7 })).toBe("Rope: 7 points. Tap a part to wrap it, then Finish.");
+    expect(rope({ wrapping: true, points: 8, layingKind: "added" })).toBe("Added rope: 8 points. Tap a part to wrap it, then Finish.");
+    // Not for a cinch or the eraser, which Wrap has no part in.
+    expect(rope({ wrapping: true, erasing: true })).toBe("Tap a rope to take it out.");
+    expect(rope({ wrapping: true, layingKind: "cinch", points: 1 })).toMatch(/^Cinch: 1 point\./);
+  });
+
+  it("tells a chosen rope's white dots from the black one", () => {
+    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.");
+  });
+
+  it("says what went with a point taken out", () => {
+    expect(pointGoneNote(0, false)).toBe("Point taken out.");
+    expect(pointGoneNote(1, false)).toBe("Point taken out. 1 rope tied on it went too. Undo brings it back.");
+    expect(pointGoneNote(2, false)).toBe("Point taken out. 2 ropes tied on it went too. Undo brings them back.");
+    expect(pointGoneNote(0, true)).toBe("That left it one point, so the rope went. Undo brings it back.");
+    expect(pointGoneNote(1, true)).toBe("That left it one point, so the rope went. 1 rope tied on it went too. Undo brings them back.");
   });
 });

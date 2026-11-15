@@ -21,12 +21,13 @@ import {
   Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
 import { BONES, BODY_FILE, TURNS, readBody, bodyPositions, bindHeads, sameShape } from "./figure-body.js";
-import { ROPE, ROPE_RADIUS, HASHIRA_SIZE } from "./pose-format.js";
+import { ROPE, ROPE_RADIUS, HASHIRA_SIZE, isCinch, onBody } from "./pose-format.js";
 import { withDualQuatSkinning, toDualQuat, blendDualQuats, dqTransform } from "./pose-skinning.js";
 import {
   makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
 } from "./pose-skeleton.js";
 import { bends, ropeRuns, spotPoint } from "./pose-cinch.js";
+import { skinOf, stretchOf } from "./pose-surface.js";
 import { segmentDistance } from "./drawing-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -48,6 +49,10 @@ import { segmentDistance } from "./drawing-format.js";
 const ROPE_REACH = 18;
 /** How far behind what's under a tap (cm) a rope can be and still be chosen (one lying on the body, not behind it). */
 const ROPE_DEPTH = 3;
+/** How near a chosen rope's dot a finger must be to hold it (CSS px). */
+const HANDLE_REACH = 16;
+/** The furthest from a part's middle line its skin is looked for (cm). */
+const SKIN_FAR = 60;
 
 /** How long the lines a ring or bamboo hangs from are (up out of sight), cm. */
 const HANG_LENGTH = 900;
@@ -292,11 +297,16 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   // The rope chosen (to change a cinch or a see-saw) shows in the
   // selected part's color.
   const chosenInk = new MeshStandardMaterial({ color: cssColor("pose-selected"), roughness: 0.6 });
+  // The chosen rope's points, to drag or take out: white, apart from the
+  // black dot where a cinch or an added rope would start.
+  const handleInk = new MeshStandardMaterial({ color: cssColor("pose-handle"), roughness: 0.5 });
 
   /** The pose drawn last, so the view can be drawn again at a new size. @type {Pose | null} */
   let shown = null;
   /** Each rope's line in the room, as many points along it, for choosing one with a tap. @type {{ index: number, points: Vector3[] }[]} */
   let ropeLines = [];
+  /** The chosen rope's points on the body, where their dots are. @type {{ k: number, point: Vector3 }[]} */
+  let handles = [];
 
   /** Takes the old ropes off, freeing what they held. */
   function clearRopes() {
@@ -313,7 +323,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
    * @param {number} index its place in pose.ropes, or -1 for the one being laid
    * @param {boolean} chosen
    */
-  function addRope(rope, runs, index, chosen) {
+  function addRope(rope, runs, index, chosen, dots = [], dotInk = marker) {
     const radius = ROPE_RADIUS[rope.w];
     const material = chosen ? chosenInk : ink(rope.c);
     for (const [i, points] of runs.entries()) {
@@ -332,14 +342,13 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
         ropes.add(knot);
       }
     }
-    // The rope being laid shows where each tap landed.
-    if (index === -1) {
-      for (const point of runs.flat()) {
-        const dot = new Mesh(sphere, marker);
-        dot.position.copy(point);
-        dot.scale.setScalar(radius * 1.8);
-        ropes.add(dot);
-      }
+    // The rope being laid shows where each tap landed; the rope chosen,
+    // its points on the body, to drag or take out.
+    for (const point of dots) {
+      const dot = new Mesh(sphere, dotInk);
+      dot.position.copy(point);
+      dot.scale.setScalar(radius * (dotInk === marker ? 1.8 : 2.1));
+      ropes.add(dot);
     }
   }
 
@@ -387,10 +396,21 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
     clearRopes();
     const bent = bends(skeleton, pose);
-    pose.ropes.forEach((r, i) => addRope(r, ropeRuns(skeleton, pose, i, bent), i, i === rope));
+    // The body's capsules, once for every rope lying on it (pose-surface.js).
+    const skin = skinOf(skeleton);
     // A spot on a rope (a cinch's, or where an added rope starts) is where that rope's drawn.
     const placed = (/** @type {RopePoint} */ p) => (p[0] === ROPE && pose.ropes[p[1]] ? spotPoint(skeleton, pose, p, bent) : ropePoint(skeleton, p, pose));
-    if (laying) addRope(laying, [laying.p.map(placed)], -1, false);
+    handles = [];
+    pose.ropes.forEach((r, i) => {
+      if (i === rope) handles = r.p.flatMap((p, k) => (onBody(r, k) ? [{ k, point: placed(p) }] : []));
+      addRope(r, ropeRuns(skeleton, pose, i, bent, skin), i, i === rope, i === rope ? handles.map((h) => h.point) : [], handleInk);
+    });
+    // The rope being laid, drawn as it will be once finished.
+    if (laying?.p.length) {
+      const all = { ...pose, ropes: [...pose.ropes, laying] };
+      const runs = laying.p.length > 1 && !isCinch(laying) ? ropeRuns(skeleton, all, pose.ropes.length, bent, skin) : [laying.p.map(placed)];
+      addRope(laying, runs, -1, false, laying.p.map(placed));
+    }
     if (spot && pose.ropes[spot[1]]) {
       const dot = new Mesh(sphere, marker);
       dot.position.copy(placed(spot));
@@ -477,6 +497,83 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   }
 
   /**
+   * The chosen rope's point whose dot is under a point on the canvas (CSS
+   * px), within a finger's reach and not behind the body.
+   * @param {number} x @param {number} y
+   * @returns {number} the point's place in the rope, or -1
+   */
+  function handleAt(x, y) {
+    if (!handles.length) return -1;
+    const box = canvas.getBoundingClientRect();
+    aim(x, y);
+    figure.computeBoundingSphere();
+    const [hit] = raycaster.intersectObjects([figure], false);
+    let best = -1, nearest = HANDLE_REACH;
+    for (const { k, point } of handles) {
+      const p = point.clone().project(camera);
+      if (p.z > 1) continue;
+      const away = Math.hypot((p.x + 1) / 2 * box.width - x, (1 - p.y) / 2 * box.height - y);
+      if (away >= nearest || (hit && point.distanceTo(camera.position) > hit.distance + ROPE_DEPTH)) continue;
+      [best, nearest] = [k, away];
+    }
+    return best;
+  }
+
+  /**
+   * How far out the skin of a part is from a point on its middle line, a
+   * given way: for laying a wrap on the skin itself (pose-surface.js).
+   * The skin is worked out once, as it's drawn (the same skinning, on the
+   * CPU), and only the part's own: the whole trunk's for a part of it, so
+   * a wrap goes under an arm hanging beside it, not round it.
+   * @param {string} part the part being wrapped
+   * @returns {(from: Vector3, outward: Vector3) => number | null} cm to the
+   *   outermost skin that way, or null if there's none
+   */
+  function skinMeasure(part) {
+    const trunk = stretchOf(part) === "trunk";
+    const mine = parts.names.map((name) => (trunk ? stretchOf(name) === "trunk" : name === part));
+    const at = /** @type {Float32Array} */ (place.array);
+    /** Each of the part's vertices where it's drawn. @type {Map<number, Vector3>} */
+    const drawn = new Map();
+    const where = (/** @type {number} */ i) => {
+      let v = drawn.get(i);
+      if (!v) {
+        v = figure.applyBoneTransform(i, new Vector3(at[i * 3], at[i * 3 + 1], at[i * 3 + 2]));
+        drawn.set(i, v);
+      }
+      return v;
+    };
+    /** @type {[Vector3, Vector3, Vector3][]} */
+    const faces = [];
+    for (let f = 0; f < body.faces.length; f += 3) {
+      const [a, b, c] = [body.faces[f], body.faces[f + 1], body.faces[f + 2]];
+      if (mine[parts.of[a]] && mine[parts.of[b]] && mine[parts.of[c]]) faces.push([where(a), where(b), where(c)]);
+    }
+    return (from, outward) => {
+      // Every triangle the line out meets (either side of it): the furthest
+      // is the skin a rope lies on. (Möller and Trumbore's test, in plain
+      // numbers: there are thousands of triangles.)
+      const [ox, oy, oz, dx, dy, dz] = [from.x, from.y, from.z, outward.x, outward.y, outward.z];
+      let far = 0;
+      for (const [a, b, c] of faces) {
+        const [e1x, e1y, e1z, e2x, e2y, e2z] = [b.x - a.x, b.y - a.y, b.z - a.z, c.x - a.x, c.y - a.y, c.z - a.z];
+        const [hx, hy, hz] = [dy * e2z - dz * e2y, dz * e2x - dx * e2z, dx * e2y - dy * e2x];
+        const det = e1x * hx + e1y * hy + e1z * hz;
+        if (Math.abs(det) < 1e-9) continue;
+        const [sx, sy, sz] = [ox - a.x, oy - a.y, oz - a.z];
+        const u = (sx * hx + sy * hy + sz * hz) / det;
+        if (u < 0 || u > 1) continue;
+        const [qx, qy, qz] = [sy * e1z - sz * e1y, sz * e1x - sx * e1z, sx * e1y - sy * e1x];
+        const v = (dx * qx + dy * qy + dz * qz) / det;
+        if (v < 0 || u + v > 1) continue;
+        const t = (e2x * qx + e2y * qy + e2z * qz) / det;
+        if (t > far && t < SKIN_FAR) far = t;
+      }
+      return far > 0 ? far : null;
+    };
+  }
+
+  /**
    * What's under a point on the canvas (in CSS pixels from its corner).
    * @param {number} x
    * @param {number} y
@@ -529,7 +626,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     renderer.forceContextLoss();
   }
 
-  return { canvas, show, draw, setSize, pick, ray, dispose };
+  return { canvas, show, draw, setSize, pick, handleAt, skinMeasure, ray, dispose };
 }
 
 /** @typedef {ReturnType<typeof poseView>} PoseView */

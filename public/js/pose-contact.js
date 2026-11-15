@@ -190,7 +190,7 @@ const pushedIn = (after, before) => [...after.keys()].filter((k) => after[k] > b
 const excess = (after, before) => after.reduce((sum, d, k) => sum + Math.max(0, d - before[k] - SLACK), 0);
 
 /** Each body part's segment (figure-rig.js's parts: "pelvis" and the joints). */
-const SEGMENT_OF = Object.freeze({
+export const SEGMENT_OF = Object.freeze({
   pelvis: "hips", spine: "waist", chest: "chest", head: "head",
   ...Object.fromEntries(["l", "r"].flatMap((s) => [
     [`${s}_shoulder`, `${s}_upperarm`], [`${s}_elbow`, `${s}_forearm`], [`${s}_wrist`, `${s}_hand`],

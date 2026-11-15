@@ -3920,3 +3920,42 @@ a new engine, and slow on a phone).
   moves it. The others: settling on every joint change (most lifelike,
   but the body shifts under each adjustment), or the button only.
 
+## Poser: rope on the skin, wraps, and moving points (November 2026)
+
+**Status:** built (2026-11-15)
+
+- **Between two points, a rope goes round the part** (`pose-surface.js`,
+  `alongSkin`, used by `ropeRuns`): both on one part, or both on the
+  trunk, it turns round the part's middle line the short way, as far out
+  as its two points are, and never inside the body's capsules. Before, it
+  curved straight through an arm from front to back. Between different
+  limbs it runs straight, lifted out of any capsule in the way. Nothing
+  is stored: the points are where they were tapped, and only the drawing
+  changed, so saved poses simply look better. The rope being laid is drawn
+  the same way.
+- **Capsules for drawing, the real skin for wraps.** Drawing runs on every
+  frame, so it uses the capsules: quick, pure and tested, but rounder than
+  a chest, so a rope between two far-apart taps can still dip under the
+  skin there. A wrap is laid once, so it measures the real skin
+  (`skinMeasure` in `pose-scene.js`: the part's vertices skinned on the
+  CPU once, then a ray out from the middle line for each point), twelve
+  points a turn, close enough together that the drawing between them
+  stays on the skin. We tried six points a turn on the capsules alone
+  first: on the chest the rope sank out of sight between them.
+- **A wrap round the trunk goes under the arms**: only the trunk's own
+  skin counts, so an arm hanging beside the chest isn't wrapped in. Tying
+  the arms in is laid by hand, point by point, for now.
+- **Wrap floats over the view**, under undo and redo, not in the Rope
+  tab's rows: the pencil's rows take their exact places, which another
+  row there would have moved.
+- **Undo takes back a tap's worth** while laying: one point, or the whole
+  wrap a tap laid.
+- **A chosen rope's points are white dots**: dragged, a point moves over
+  the skin (its place along the rope is the same, so cinches stay);
+  tapped, it's taken out. With a point gone the rope's stretches are
+  counted differently, so cinches and ropes added on it go too, as they do
+  whenever a rope's points change in number (`relink`); it says how many
+  went, and Undo brings them back. Weighed: moving their places along the
+  rope to match. Left for when it's missed. Hardpoint points and spots on
+  other ropes have no dot: Slide and the cinch's own settings move those.
+
