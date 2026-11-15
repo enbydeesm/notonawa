@@ -2,6 +2,7 @@
 // recovery email, and signing out.
 
 import { api, errorMessage } from "../api.js";
+import { dataGrid } from "../data-grid.js";
 import { h, $, showMessage, privateField, infoButton } from "../dom.js";
 import { choose } from "../dialog.js";
 import { formatDate } from "../format.js";
@@ -54,26 +55,41 @@ export function mount(root) {
       });
       if (ok) await withReauth(() => api(`/api/account/passkeys/${passkey.id}`, { method: "DELETE" }));
     });
-    return h("div", { className: "item" },
-      h("div", { className: "item-title" }, passkey.name),
-      h("div", { className: "item-meta" }, `Added ${day(passkey.created_at)} · Last used ${day(passkey.last_used_at)}`),
-      h("div", { className: "item-meta" }, passkey.unlocks
-        ? "Unlocks your journal"
-        : "Signs in only: unlock with your recovery code (once, if it can unlock after that)"),
-      h("div", { className: "item-actions" },
-        h("button", { type: "button", onclick: rename }, "Rename"),
-        count > 1 ? h("button", { type: "button", className: "danger", onclick: remove }, "Remove") : null));
+    /** @type {import("../data-grid.js").GridRow} */
+    const row = {
+      className: "passkey-row",
+      cells: [
+        h("div", {}, h("div", { className: "grid-title passkey-name" }, passkey.name),
+          h("div", { className: "grid-meta passkey-unlocks" }, passkey.unlocks
+            ? "Unlocks your journal"
+            : "Signs in only: unlock with your recovery code (once, if it can unlock after that)")),
+        day(passkey.created_at),
+        day(passkey.last_used_at),
+      ],
+      actions: [
+        { icon: "rename", label: `Rename "${passkey.name}"`, className: "passkey-rename", onclick: rename },
+        count > 1 ? { icon: "delete", label: `Remove "${passkey.name}"`, className: "passkey-remove", onclick: remove } : null,
+      ],
+    };
+    return row;
   }
 
-  /** @param {Record<string, any>} session */
+  /**
+   * @param {Record<string, any>} session
+   * @returns {import("../data-grid.js").GridRow}
+   */
   function renderSession(session) {
     const end = () => attempt($("#session-message"), () => api(`/api/account/sessions/${session.id}`, { method: "DELETE" }));
-    return h("div", { className: "item" },
-      h("div", { className: "item-title" },
-        session.passkey_name ? `Signed in with ${session.passkey_name}` : "Signed in with a recovery code",
-        session.current ? h("span", { className: "badge" }, "This device") : null),
-      h("div", { className: "item-meta" }, `Since ${day(session.created_at)} · Last active ${day(session.last_used_at)}`),
-      session.current ? null : h("div", { className: "item-actions" }, h("button", { type: "button", onclick: end }, "Sign out")));
+    return {
+      className: "session-row",
+      cells: [
+        h("div", { className: "grid-title session-with" }, session.passkey_name ?? "Recovery code",
+          session.current ? h("span", { className: "badge" }, "This device") : null),
+        day(session.created_at),
+        day(session.last_used_at),
+      ],
+      actions: [session.current ? null : { icon: "signout", label: "Sign this device out", className: "session-end", onclick: end }],
+    };
   }
 
   /**
@@ -99,8 +115,14 @@ export function mount(root) {
 
   async function load() {
     const account = await api("/api/account");
-    $("#passkeys").replaceChildren(...account.passkeys.map((/** @type {any} */ p) => renderPasskey(p, account.passkeys.length)));
-    $("#sessions").replaceChildren(...account.sessions.map(renderSession));
+    $("#passkeys").replaceChildren(dataGrid({
+      className: "passkeys-grid", label: "Your passkeys", columns: ["Passkey", "Added", "Last used"],
+      rows: account.passkeys.map((/** @type {any} */ p) => renderPasskey(p, account.passkeys.length)),
+    }));
+    $("#sessions").replaceChildren(dataGrid({
+      className: "sessions-grid", label: "Where you're signed in", columns: ["Signed in with", "Since", "Last active"],
+      rows: account.sessions.map(renderSession),
+    }));
     /** @type {HTMLButtonElement} */ ($("#end-others")).hidden = account.sessions.length < 2;
     $("#recovery-status").textContent = account.has_recovery_code
       ? "You have a recovery code. Making a new one replaces it."

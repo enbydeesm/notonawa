@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  EXPIRY_CHOICES, DEFAULT_EXPIRY, DEFAULT_INVITE_EXPIRY, maxUsesFor, shareWarning, endsText, usesText, shareLink,
+  EXPIRY_CHOICES, DEFAULT_EXPIRY, DEFAULT_INVITE_EXPIRY, maxUsesFor, shareWarning, expiresIn, usesText, shareLink,
 } from "../../public/js/share-options.js";
 import { EXPIRY } from "../../src/shares/parse.js";
 import { readShareFragment } from "../../public/js/crypto/share.js";
@@ -33,10 +33,11 @@ describe("the share's choices", () => {
 describe("Shared by me's words", () => {
   const NOW = Date.parse("2026-10-24T12:00:00Z");
   it("says when a share ends", () => {
-    expect(endsText(null, NOW)).toBe("until you revoke it");
-    expect(endsText("2026-10-24T12:01:00Z", NOW)).toBe("ends in 1 minute");
-    expect(endsText("2026-10-24T15:00:00Z", NOW)).toBe("ends in 3 hours");
-    expect(endsText("2026-10-31T12:00:00Z", NOW)).toBe("ends in 7 days");
+    expect(expiresIn(null, NOW)).toBe("Never");
+    expect(expiresIn("2026-10-24T12:01:00Z", NOW)).toBe("1 min");
+    expect(expiresIn("2026-10-24T13:00:00Z", NOW)).toBe("1 hr");
+    expect(expiresIn("2026-10-24T15:00:00Z", NOW)).toBe("3 hrs");
+    expect(expiresIn("2026-10-31T12:00:00Z", NOW)).toBe("7 days");
   });
 
   it("says how much it's been used", () => {

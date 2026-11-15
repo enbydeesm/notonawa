@@ -117,8 +117,8 @@ export default async function () {
     [["Event link", true], ["Cost: €180", true]]);
   await go("/data");
   check("Shared by me lists them by kind", await run(`
-    for (let i = 0; i < 30 && document.querySelectorAll(".share-item").length < 3; i++) await wait(100);
-    return [...document.querySelectorAll(".share-item .item-meta")].map((m) => m.textContent.split(" · ")[0]);`),
+    for (let i = 0; i < 30 && document.querySelectorAll(".share-row").length < 3; i++) await wait(100);
+    return [...document.querySelectorAll(".share-row .share-type")].map((m) => m.textContent);`),
   ["Workshop", "Plan", "Tie"]);
 
   // Someone else adds them: Sam, who has a different Jude, and a Studio.

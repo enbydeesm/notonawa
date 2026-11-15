@@ -1,7 +1,7 @@
 // The words for connections (public/js/connection-text.js).
 import { describe, it, expect } from "vitest";
 import {
-  connectionTitle, connectionDetail, bannerText, unanswered, linksDroppedText, CONNECT_DISCLOSURE, ACCEPT_DISCLOSURE,
+  connectionVia, bannerText, unanswered, linksDroppedText, CONNECT_DISCLOSURE, ACCEPT_DISCLOSURE,
 } from "../../public/js/connection-text.js";
 
 /** @param {Partial<import("../../public/js/connection-text.js").Connection>} change */
@@ -10,16 +10,10 @@ const connection = (change) => ({
 });
 
 describe("a connection in Shared by me", () => {
-  it("says who it's on, or that it's on no one", () => {
-    expect(connectionTitle("Sam")).toBe("Linked to Sam");
-    expect(connectionTitle(null)).toBe("Not on any Person");
-  });
-
-  it("says how it was made, by the side's own name for it, and when", () => {
-    expect(connectionDetail(connection({ invited: 1, label: "Munch invite" }), "en-GB")).toBe('through "Munch invite" · 2 Nov 2026');
-    expect(connectionDetail(connection({ invited: 1 }), "en-GB")).toBe("through your profile invite · 2 Nov 2026");
-    expect(connectionDetail(connection({ label: "Rin" }), "en-GB")).toBe('shared as "Rin" · 2 Nov 2026');
-    expect(connectionDetail(connection({}), "en-GB")).toBe("2 Nov 2026");
+  it("says whose invite it came through: mine, by its tag, or theirs", () => {
+    expect(connectionVia(connection({ invited: 1, label: "Munch" }))).toBe('Your "Munch" invite');
+    expect(connectionVia(connection({ invited: 1 }))).toBe("Your invite");
+    expect(connectionVia(connection({ label: "Rin" }))).toBe("Their invite");
   });
 });
 

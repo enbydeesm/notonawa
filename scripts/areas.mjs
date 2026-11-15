@@ -139,8 +139,10 @@ export const AREAS = [
   },
   {
     name: "account",
-    files: ["src/account/", "public/js/views/account.js"],
-    ui: ["account"],
+    // data-grid.js: the passkeys' and devices' grids, and Your data's Shared
+    // by me and Connections (the shares chunk).
+    files: ["src/account/", "public/js/views/account.js", "public/js/data-grid.js"],
+    ui: ["account", "shares"],
   },
   {
     name: "consent",

@@ -105,31 +105,37 @@ export default async function () {
   const [forAnyone] = await run(MAKE_INVITE({ "#share-profile-expires": "never", "#share-profile-uses": "any", "#share-profile-label": "Class" }));
   const [revoked] = await run(MAKE_INVITE({ "#share-profile-label": "Oops" }));
   await go("/data");
-  check("Shared by me lists them, newest first, and shows a code again", await run(`
-    for (let i = 0; i < 30 && !$(".share-item"); i++) await wait(100);
-    const list = [...document.querySelectorAll(".share-item")].map((i) => [i.querySelector(".item-title").textContent, i.querySelector(".item-meta").textContent]);
-    [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Class")).querySelector(".share-show").click();
+  check("Shared by me lists them in a grid, newest first, and its eye shows a code again", await run(`
+    for (let i = 0; i < 30 && !$(".share-row"); i++) await wait(100);
+    const heads = [...document.querySelectorAll(".shares-grid th")].map((t) => t.textContent);
+    const list = [...document.querySelectorAll(".share-row")].map((r) => [r.querySelector(".share-tag").textContent,
+      r.querySelector(".share-type").textContent, r.querySelector(".share-expires").textContent, r.querySelector(".share-uses").textContent,
+      [...r.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))]);
+    [...document.querySelectorAll(".share-row")].find((r) => r.innerText.startsWith("Class")).querySelector(".share-show").click();
     for (let i = 0; i < 30 && !$("#share-code-link"); i++) await wait(100);
     const again = $("#share-code-link").value; $("#share-code-done").click(); await calm(200);
-    return [list, again.slice(again.indexOf("/open"))];`),
-  [[["Oops", "Profile · ends in 7 days · not opened yet"], ["Class", "Profile · until you revoke it · not opened yet"],
-    ["First", "Profile · ends in 7 days · not opened yet"]], forAnyone]);
-  check("revoking asks first, then takes it off the list", await run(`
-    [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Oops")).querySelector(".share-revoke").click();
+    return [heads, list, again.slice(again.indexOf("/open"))];`),
+  [["Tag", "Type", "Expires in", "Actions"],
+    [["Oops", "Profile", "7 days", "not opened yet", ['Show the code for "Oops"', 'Revoke "Oops"']],
+      ["Class", "Profile", "Never", "not opened yet", ['Show the code for "Class"', 'Revoke "Class"']],
+      ["First", "Profile", "7 days", "not opened yet", ['Show the code for "First"', 'Revoke "First"']]], forAnyone]);
+  check("revoking (the red trash can) asks first, then takes it off the list", await run(`
+    [...document.querySelectorAll(".share-row")].find((r) => r.innerText.startsWith("Oops")).querySelector(".share-revoke").click();
     await calm(300); const asked = $("dialog[open] h2").textContent; await clickDialog("Revoke");
-    return [asked, [...document.querySelectorAll(".share-item .item-title")].map((t) => t.textContent)];`),
+    return [asked, [...document.querySelectorAll(".share-row .share-tag")].map((t) => t.textContent)];`),
   ['Revoke "Oops"?', ["Class", "First"]]);
 
   await go("/people");
   const [connecting] = await run(MAKE_INVITE({ "#share-profile-connect": true, "#share-profile-label": "Munch" }, "Jude C"));
   await go("/data");
-  check("Shared by me says which invite connects accounts, and there are no connections yet", await run(`
-    for (let i = 0; i < 30 && !$(".share-item"); i++) await wait(100);
+  check("Shared by me says which invite connects accounts, and there are no connections yet; Connections says the server keeps no record", await run(`
+    for (let i = 0; i < 30 && !$(".share-row"); i++) await wait(100);
     for (let i = 0; i < 30 && $("#connections .empty")?.textContent === "Loading…"; i++) await wait(100);
-    const munch = [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Munch"));
-    const others = [...document.querySelectorAll(".share-item")].filter((i) => i !== munch).map((i) => !!i.querySelector(".share-connects"));
-    return [munch?.querySelector(".share-connects")?.textContent, others, $("#connections .empty")?.textContent];`),
-  ["Connects accounts", [false, false], "No connections. You can offer one when you share your profile, from your own card in People."]);
+    const uses = [...document.querySelectorAll(".share-row")].map((r) => [r.querySelector(".share-tag").textContent, r.querySelector(".share-uses").textContent]);
+    return [uses, $("#connections .empty")?.textContent, $("#connections-hint").textContent];`),
+  [[["Munch", "not opened yet · connects accounts"], ["Class", "not opened yet"], ["First", "not opened yet"]],
+    "No connections. You can offer one when you share your profile, from your own card in People.",
+    "Accounts connected to yours. Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you."]);
 
   // Someone else opens them.
   await freshAccount();
@@ -248,18 +254,20 @@ export default async function () {
       $(".connection-later").click(); await calm(300);
       return [document.querySelectorAll(".connection-notice").length, $("#connection-banners").hidden];`), [0, true]);
     await go("/data");
-    check("Connections lists each, with who it's on and how it was made", await run(`
-      for (let i = 0; i < 50 && !$(".connection-item"); i++) await wait(100);
-      return [...document.querySelectorAll(".connection-item")].map((i) => [i.querySelector(".item-title").textContent,
-        i.querySelector(".item-meta").textContent.split(" · ")[0], [...i.querySelectorAll("button")].map((b) => b.textContent)]);`),
-    [["Not on any Person", 'through "Munch 2"', ["Add to Person", "Remove"]], ["Linked to Pat", 'through "Class QR"', ["Remove"]],
-      ["Linked to Jude C", 'shared as "Jude C"', ["Remove"]]]);
+    check("Connections lists each in a grid: who it's on, whose invite, and icons to add it to a Person or remove it", await run(`
+      for (let i = 0; i < 50 && !$(".connection-row"); i++) await wait(100);
+      return [[...document.querySelectorAll(".connections-grid th")].map((t) => t.textContent),
+        [...document.querySelectorAll(".connection-row")].map((r) => [r.querySelector(".connection-title").textContent,
+          r.querySelector(".connection-via").textContent, [...r.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))])];`),
+    [["Person", "Via", "Since", "Actions"], [["Not on any Person", 'Your "Munch 2" invite', ["Add to a Person", "Remove this connection"]],
+      ["Pat", 'Your "Class QR" invite', ["Remove your connection with Pat"]],
+      ["Jude C", "Their invite", ["Remove your connection with Jude C"]]]]);
     check("Add to Person links it to the one chosen", await run(`
       $(".connection-add").click(); for (let i = 0; i < 50 && !$("#connect-person option"); i++) await wait(100);
       set("#connect-person", optionValue($("#connect-person"), "Sky")); $("#connect-save").click();
-      for (let i = 0; i < 50 && ![...document.querySelectorAll(".connection-item .item-title")].some((t) => t.textContent === "Linked to Sky"); i++) await wait(100);
-      return [...document.querySelectorAll(".connection-item .item-title")].map((t) => t.textContent);`),
-    ["Linked to Sky", "Linked to Pat", "Linked to Jude C"]);
+      for (let i = 0; i < 50 && ![...document.querySelectorAll(".connection-row .connection-title")].some((t) => t.textContent === "Sky"); i++) await wait(100);
+      return [...document.querySelectorAll(".connection-row .connection-title")].map((t) => t.textContent);`),
+    ["Sky", "Pat", "Jude C"]);
     await go("/people");
     check("Remove link asks, offering to clear my About from their card, then unlinks it", await run(`
       await openPerson("Jude C"); $("#person-unlink").click(); await calm(300);

@@ -3,7 +3,6 @@
 // banner. Pure, so it's easy to test. See considerations.md, "Sharing
 // between accounts": "Connecting accounts".
 
-import { formatDate } from "./format.js";
 
 /**
  * Shown when "Connect our accounts" is ticked on a profile invite. "Keeps no
@@ -31,23 +30,13 @@ export const REMOVE_ABOUT_NOTE =
  */
 
 /**
- * A connection's title in Your data's Connections.
- * @param {string | null} personName the name of the person it's on, if any
- */
-export function connectionTitle(personName) {
-  return personName ? `Linked to ${personName}` : "Not on any Person";
-}
-
-/**
- * What else Connections says about it: how it was made, and when.
+ * Whose invite a connection came through (Connections' "Via"): mine, by
+ * its tag, or theirs.
  * @param {Connection} connection
- * @param {string} [locale]
  */
-export function connectionDetail(connection, locale) {
-  const how = connection.invited
-    ? connection.label ? `through "${connection.label}"` : "through your profile invite"
-    : connection.label ? `shared as "${connection.label}"` : null;
-  return [how, formatDate(connection.created_at.slice(0, 10), locale)].filter(Boolean).join(" · ");
+export function connectionVia(connection) {
+  if (!connection.invited) return "Their invite";
+  return connection.label ? `Your "${connection.label}" invite` : "Your invite";
 }
 
 /**

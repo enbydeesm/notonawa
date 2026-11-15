@@ -435,8 +435,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   item once), `share-to-import.js` (pure: a shared item and the choices as
   an import, new items with `match: false`, mine filled in by id),
   `shared-by-me.js`
-  (Your data's list: Show code, Revoke; and Connections: Add to Person,
-  Remove), `views/open.js` (`/open`: opening a share, then
+  (Your data's Shared by me: Tag, Type, Expires in (`expiresIn`), an eye
+  for Show code and a red trash can to Revoke; and Connections: Person,
+  Via (`connectionVia`), Since, Add to a Person and Remove, both as
+  `data-grid.js`'s grids, as Account's passkeys (a pencil to rename) and
+  devices (sign out) are), `views/open.js` (`/open`: opening a share, then
   `open-profile.js` (adding a profile invite; Connect our accounts when it
   offers to; its field-by-field merge is `profile-merge.js`'s, shared with
   `profile-update.js`, format 2's "Updated info available" in a linked

@@ -9,7 +9,7 @@ const SVG = "http://www.w3.org/2000/svg";
 
 /**
  * @typedef {"close" | "share" | "archive" | "restore" | "delete" | "rename" | "save"
- *   | "earlier" | "later" | "duplicate" | "copy" | "check"} IconKind
+ *   | "earlier" | "later" | "duplicate" | "copy" | "check" | "show" | "signout" | "addperson"} IconKind
  */
 
 /** Each icon's shapes, on a 24 × 24 grid. */
@@ -50,6 +50,12 @@ const SHAPES = /** @type {Record<IconKind, [string, Record<string, string | numb
   ],
   copy: [["path", { d: "M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" }]],
   check: [["path", { d: "M5 12l5 5 9-10" }]],
+  // The data grids' rows (data-grid.js): an eye (show a share's code), a
+  // door with an arrow out (sign a device out), and a person with a +
+  // (put a connection on one of my People).
+  show: [["path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }], ["circle", { cx: 12, cy: 12, r: 3 }]],
+  signout: [["path", { d: "M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9" }]],
+  addperson: [["circle", { cx: 9, cy: 8, r: 4 }], ["path", { d: "M2 21v-1a7 7 0 0 1 12.5-4.3M19 14v6M16 17h6" }]],
 });
 
 /**

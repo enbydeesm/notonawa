@@ -50,18 +50,19 @@ export function shareWarning(expires, uses, connect = false) {
 }
 
 /**
- * When a share ends, in words.
+ * How long until a share ends, shortly (Shared by me's "Expires in"):
+ * "Never" for one that lasts until revoked.
  * @param {string | null} expiresAt ISO timestamp, or null: until revoked
  * @param {number} [now]
  * @returns {string}
  */
-export function endsText(expiresAt, now = Date.now()) {
-  if (expiresAt === null) return "until you revoke it";
+export function expiresIn(expiresAt, now = Date.now()) {
+  if (expiresAt === null) return "Never";
   const minutes = Math.max(0, Math.round((Date.parse(expiresAt) - now) / 60_000));
-  if (minutes < 60) return `ends in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  if (minutes < 60) return `${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 48) return `ends in ${hours} hour${hours === 1 ? "" : "s"}`;
-  return `ends in ${Math.round(hours / 24)} days`;
+  if (hours < 48) return `${hours} hr${hours === 1 ? "" : "s"}`;
+  return `${Math.round(hours / 24)} days`;
 }
 
 /**
