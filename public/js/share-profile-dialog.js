@@ -9,7 +9,7 @@ import { readAliases, PLATFORMS } from "./aliases.js";
 import { buildProfile, suggestedName } from "./profile-share.js";
 import { EXPIRY_CHOICES, DEFAULT_INVITE_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
 import { saveShare } from "./share-save.js";
-import { canConnect } from "./store/index.js";
+import { canConnect, profileInvite } from "./store/index.js";
 import { showShareCode } from "./share-code.js";
 import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
 import { roleName } from "./roles.js";
@@ -81,7 +81,6 @@ export function openShareProfile(me) {
       "Someone you invite can add your profile to their People. Your private notes are never shared.");
     const form = h("form", { onsubmit: make },
       aboutInfo.text,
-      // Format 2 accounts connect through contacts, which come later.
       canConnect() ? h("label", { className: "inline share-connect" }, connect, " ", h("strong", {}, "Connect our accounts")) : null,
       canConnect() ? disclosure : null,
       h("div", { className: "label-row" }, h("label", { htmlFor: "share-profile-name" }, "Profile name"), nameInfo.button),
@@ -116,7 +115,7 @@ export function openShareProfile(me) {
       submit.disabled = true;
       showMessage(message, "Making the invite…");
       try {
-        const profile = buildProfile(me, aliases, {
+        const choices = {
           name: name.value,
           pronouns: ticked("pronouns"),
           default_role: ticked("default_role"),
@@ -124,9 +123,11 @@ export function openShareProfile(me) {
           based_in: ticked("based_in"),
           is_educator: ticked("is_educator"),
           about: ticked("about"),
-        });
-        const { id, key } = await saveShare({
+        };
+        const profile = buildProfile(me, aliases, choices);
+        const { id, key } = await profileInvite({
           kind: "profile", data: profile, label: label.value, expires: expires.value, uses: uses.value, connect: connect.checked,
+          fields: choices, saveShare,
         });
         dialog.close();
         await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value, connect.checked) ?? undefined });

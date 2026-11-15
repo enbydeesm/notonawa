@@ -3701,3 +3701,24 @@ the page.
   other side would refuse as a replay.
 - **Only the same format connects**: a format 1 account opening a format 2
   invite (or the other way round) sees the profile, without Connect.
+
+Slice 2a: connecting and removing (`store/v2/contacts.js`).
+
+- **The invite record keeps what an acceptance needs**: the share's link
+  key (the acceptance is bound to it), its tag and whether it's for one
+  person. Reading them from `GET /api/shares` doesn't work: a one-person
+  invite is deleted from the server as soon as it's opened, before the
+  acceptance arrives. The contact then keeps the tag, for the banner and
+  Connections ("through "Munch"").
+- **An acceptance's contact id is worked out, not random**
+  (`recordIds`'s converted ids, from the share and the pair key), so two
+  of my devices checking at once make one contact; the one that loses
+  deletes the mailbox it made.
+- **A message is acknowledged only once what it says is saved.** One that
+  won't open, isn't for anything I have, or repeats a counter is dropped;
+  one that couldn't be fetched or saved waits for the next check.
+- **Reserving a counter compares the saved body itself**: the journal
+  keeps the body it was given, so the record holding mine means my save
+  won; otherwise another device's did, and it tries again on theirs.
+- **Checking is every 2 minutes while the page is in view**, and on coming
+  back to it: no push, as the server mustn't know which account to wake.

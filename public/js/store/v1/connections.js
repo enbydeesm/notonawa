@@ -15,8 +15,9 @@ export async function listConnections() {
 
 /**
  * Accepts an invite's offer to connect, putting it on one of my people.
- * @param {{ offer: string, personId: string, name: string }} accept name:
- *   the inviter's, sealed here as my side's label
+ * @param {{ offer: any, personId: string, name: string, shareId: string, linkKey: string }} accept offer: the
+ *   server's token (offerIn); name: the inviter's, sealed here as my side's label; the share's id and key
+ *   are format 2's
  */
 export async function acceptConnection({ offer, personId, name }) {
   const { label } = await sealOne("connection", { label: name });
@@ -47,4 +48,48 @@ export async function markConnectionAnswered(id) {
  */
 export async function deleteConnection(id, about) {
   await api(`/api/connections/${encodeURIComponent(id)}?about=${about}`, { method: "DELETE" });
+}
+
+/**
+ * A profile invite to make: the share (share-save.js's saveShare, passed in
+ * as it uses the store), whether it offers to connect, and what it shares
+ * (format 2 sends the same in later updates).
+ * @typedef {{ kind: "profile", data: Record<string, any>, label: string, expires: string, uses: string, connect: boolean,
+ *   fields: Record<string, any>, saveShare: (share: any) => Promise<{ id: string, key: string }> }} ProfileInvite
+ */
+
+/**
+ * Makes a profile invite, offering to connect if ticked (the server keeps
+ * the offer).
+ * @param {ProfileInvite} invite
+ * @returns {Promise<{ id: string, key: string }>}
+ */
+export function profileInvite({ fields: _fields, saveShare, ...share }) {
+  return saveShare(share);
+}
+
+/**
+ * The offer to connect in a share I opened: the server's token (POST
+ * /api/shares/open's offer). A format 2 invite's is in its snapshot, which
+ * a format 1 account can't take.
+ * @param {{ offer?: string | null, data: any }} opened
+ * @returns {any}
+ */
+export function offerIn({ offer }) {
+  return offer ?? null;
+}
+
+/**
+ * An invite revoked: the server ends its offer with it.
+ * @param {string} _shareId
+ */
+export async function inviteRevoked(_shareId) {}
+
+/**
+ * The shares that are invites offering to connect: the server says so on
+ * each (its connect).
+ * @returns {Set<string>}
+ */
+export function connectingShares() {
+  return new Set();
 }

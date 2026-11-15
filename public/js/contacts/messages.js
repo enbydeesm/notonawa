@@ -64,8 +64,8 @@ export function readAcceptance(value) {
   const mailbox = mailboxOf(a.mailbox);
   const pairKey = typeof a.pair_key === "string" && TOKEN.test(a.pair_key) ? a.pair_key : null;
   if (!publicKey || !userId || !mailbox || !pairKey) return null;
-  const profile = a.profile === undefined ? null : readProfile(a.profile);
-  if (a.profile !== undefined && !profile) return null;
+  const profile = a.profile == null ? null : readProfile(a.profile);
+  if (a.profile != null && !profile) return null;
   return { public_key: publicKey, user_id: userId, mailbox, pair_key: pairKey, profile };
 }
 
@@ -98,4 +98,34 @@ export function readMessage(value) {
   }
   if (m.type === "removed") return { type: "removed", clear_about: m.clear_about === true };
   return null;
+}
+
+/**
+ * What a profile invite that offers to connect carries in its sealed
+ * snapshot (format 2): the inviter's public key and the invite's intro
+ * mailbox with its token. The snapshot is sealed with the link's key, which
+ * the server never has, so it can't swap the key.
+ * @typedef {{ public_key: string, mailbox: MailboxAddress }} InviteOffer
+ */
+
+/**
+ * The offer as put in the snapshot.
+ * @param {InviteOffer} offer
+ */
+export function offerBody(offer) {
+  return { v: MESSAGE_VERSION, public_key: offer.public_key, mailbox: offer.mailbox };
+}
+
+/**
+ * An invite's offer to connect, from its opened snapshot (its `connect`),
+ * or null if it has none (or not one we can use).
+ * @param {unknown} snapshot
+ * @returns {InviteOffer | null}
+ */
+export function readInviteOffer(snapshot) {
+  const c = /** @type {any} */ (snapshot)?.connect;
+  if (!c || typeof c !== "object" || c.v !== MESSAGE_VERSION) return null;
+  const publicKey = keyOf(c.public_key);
+  const mailbox = mailboxOf(c.mailbox);
+  return publicKey && mailbox ? { public_key: publicKey, mailbox } : null;
 }

@@ -64,29 +64,20 @@ export default async function () {
     ["Educator: No", true], ["About me: Your shareable notes about yourself. Your private notes are never shared.", true]],
   "7d", "one", true, false, [], true, true], [false, true]]);
 
-  // Format 2 accounts connect through contacts, which come later (phase 6).
-  if (FORMAT === 2) {
-    check("format 2: Share my profile doesn't offer to connect accounts yet", await run(`
-      await openPerson("Me"); $("#person-share").click(); await calm(300);
-      const offered = [!!$("#share-profile-connect"), !!$("#share-profile-connect-note")];
-      $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
-      return offered;`), [false, false]);
-  } else {
-    check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
-      await openPerson("Me"); $("#person-share").click(); await calm(300);
-      const box = $("#share-profile-connect");
-      const before = [box.checked, $("#share-profile-connect-note").hidden,
-        // At the top, above the name to share, in bold.
-        !!(box.compareDocumentPosition($("#share-profile-name")) & Node.DOCUMENT_POSITION_FOLLOWING),
-        getComputedStyle(box.closest("label").querySelector("strong")).fontWeight >= 600];
-      set("#share-profile-connect", true);
-      const note = $("#share-profile-connect-note");
-      const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
-      set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
-      const warned = $("#share-profile-warning").textContent.includes("connect to your account");
-      $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
-      return [before, after, warned];`), [[false, true, true, true], [false, true], true]);
-  }
+  check("Connect our accounts is unticked; ticked, it says what it means, and warns more about a code for anyone, for good", await run(`
+    await openPerson("Me"); $("#person-share").click(); await calm(300);
+    const box = $("#share-profile-connect");
+    const before = [box.checked, $("#share-profile-connect-note").hidden,
+      // At the top, above the name to share, in bold.
+      !!(box.compareDocumentPosition($("#share-profile-name")) & Node.DOCUMENT_POSITION_FOLLOWING),
+      getComputedStyle(box.closest("label").querySelector("strong")).fontWeight >= 600];
+    set("#share-profile-connect", true);
+    const note = $("#share-profile-connect-note");
+    const after = [note.hidden, note.textContent.startsWith("Connecting your accounts lets NotoNawa's server see")];
+    set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
+    const warned = $("#share-profile-warning").textContent.includes("connect to your account");
+    $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
+    return [before, after, warned];`), [[false, true, true, true], [false, true], true]);
 
   check("the invite tag is required; it, the profile name and connecting each have a ? that shows more, and hides it again", await run(`
     await openPerson("Me"); $("#person-share").click(); await calm(300);
@@ -105,8 +96,8 @@ export default async function () {
   [true, ["Profile name", "Invite tag"], [
     ["?", true, [false, "The suggested name for your pr"], true],
     ["?", true, [false, "Provides context for you in Yo"], true],
-    ...(FORMAT === 2 ? [] : [["?", true, [false, "It still can't read anything i"], true]])],
-  FORMAT === 2 ? null : "Connecting your accounts lets NotoNawa's server see that the two accounts know each other. ?"]);
+    ["?", true, [false, "It still can't read anything i"], true]],
+  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other. ?"]);
   const [once, onceShown] = await run(MAKE_INVITE({ "#share-profile-label": "First" }));
   check("making an invite shows its QR code and link, with the key after #", [onceShown, /^\/open#[\w-]{22}\.[\w-]{43}$/.test(once)],
     [[true, true, []], true]);
@@ -128,19 +119,16 @@ export default async function () {
     return [asked, [...document.querySelectorAll(".share-item .item-title")].map((t) => t.textContent)];`),
   ['Revoke "Oops"?', ["Class", "First"]]);
 
-  let connecting = "";
-  if (FORMAT === 1) {
-    await go("/people");
-    [connecting] = await run(MAKE_INVITE({ "#share-profile-connect": true, "#share-profile-label": "Munch" }, "Jude C"));
-    await go("/data");
-    check("Shared by me says which invite connects accounts, and there are no connections yet", await run(`
-      for (let i = 0; i < 30 && !$(".share-item"); i++) await wait(100);
-      for (let i = 0; i < 30 && $("#connections .empty")?.textContent === "Loading…"; i++) await wait(100);
-      const munch = [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Munch"));
-      const others = [...document.querySelectorAll(".share-item")].filter((i) => i !== munch).map((i) => !!i.querySelector(".share-connects"));
-      return [munch?.querySelector(".share-connects")?.textContent, others, $("#connections .empty")?.textContent];`),
-    ["Connects accounts", [false, false], "No connections. You can offer one when you share your profile, from your own card in People."]);
-  }
+  await go("/people");
+  const [connecting] = await run(MAKE_INVITE({ "#share-profile-connect": true, "#share-profile-label": "Munch" }, "Jude C"));
+  await go("/data");
+  check("Shared by me says which invite connects accounts, and there are no connections yet", await run(`
+    for (let i = 0; i < 30 && !$(".share-item"); i++) await wait(100);
+    for (let i = 0; i < 30 && $("#connections .empty")?.textContent === "Loading…"; i++) await wait(100);
+    const munch = [...document.querySelectorAll(".share-item")].find((i) => i.innerText.startsWith("Munch"));
+    const others = [...document.querySelectorAll(".share-item")].filter((i) => i !== munch).map((i) => !!i.querySelector(".share-connects"));
+    return [munch?.querySelector(".share-connects")?.textContent, others, $("#connections .empty")?.textContent];`),
+  ["Connects accounts", [false, false], "No connections. You can offer one when you share your profile, from your own card in People."]);
 
   // Someone else opens them.
   await freshAccount();
@@ -190,32 +178,40 @@ export default async function () {
     ["Social & scene names", ["Add their 1 new one to yours*", "Replace yours with theirs", "Keep yours only"]]],
   "Jude is in your People.", ["Jude", "Seattle, WA", "Rigger, mostly floor", [{ platform: "instagram", alias: "@jude" }]]]);
 
-  // Connecting accounts (format 1: format 2's come with contacts).
+  // Connecting accounts: the accepting side, on either format (format 2's
+  // offer is in the snapshot, its acceptance left in the inviter's intro
+  // mailbox).
+  await openLink(connecting);
+  check("an invite offering to connect asks, unticked, saying what connecting means", await run(`
+    for (let i = 0; i < 50 && !$("#open-connect"); i++) await wait(100);
+    return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Connecting lets NotoNawa's server see")];`),
+  [false, true]);
+  check("ticked, adding them links their card to their account", await run(`
+    set("#open-connect", true); $("#open-add-new").click();
+    for (let i = 0; i < 50 && !$("#open-done"); i++) await wait(100);
+    return [$("#open-done").textContent, $("#open-linked")?.textContent];`),
+  ["Jude C is in your People.", "Their card is linked to their account."]);
+  await go("/people");
+  /** Whether each named card shows the link icon. */
+  const ICONS = `return [...document.querySelectorAll(".name-button")].map((b) => [b.textContent, !!b.closest(".item").querySelector(".link-icon")]).sort();`;
+  check("a linked card shows the link icon, and its dialog says so, with Remove link", await run(`
+    const icons = (() => { ${ICONS} })();
+    await openPerson("Jude C");
+    const flag = $("#person-linked");
+    const shown = [flag.hidden, flag.innerText.includes("Linked to their account"), $("#person-unlink").textContent];
+    $("[data-cancel-edit]").click(); await calm(200);
+    await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await calm(200);
+    return [icons, shown, onMe];`),
+  [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Remove link"], true]);
+  if (FORMAT === 2) {
+    check("format 2: the acceptance waits in the inviter's intro mailbox, and my mailbox for them is made", sql(`
+      SELECT (SELECT COUNT(*) FROM mailbox_messages msg JOIN mailboxes m ON m.id = msg.mailbox_id WHERE m.kind = 'intro') AS waiting,
+             (SELECT COUNT(*) FROM mailboxes WHERE kind = 'contact') AS contact`)[0], { waiting: 1, contact: 1 });
+  }
+  // The inviter's side, seeded as format 1's rows (format 2's, between two
+  // accounts for real, is the contacts chunk's).
   if (FORMAT === 1) {
-    await openLink(connecting);
-    check("an invite offering to connect asks, unticked, saying what connecting means", await run(`
-      for (let i = 0; i < 50 && !$("#open-connect"); i++) await wait(100);
-      return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Connecting lets NotoNawa's server see")];`),
-    [false, true]);
-    check("ticked, adding them links their card to their account", await run(`
-      set("#open-connect", true); $("#open-add-new").click();
-      for (let i = 0; i < 50 && !$("#open-done"); i++) await wait(100);
-      return [$("#open-done").textContent, $("#open-linked")?.textContent];`),
-    ["Jude C is in your People.", "Their card is linked to their account."]);
-    await go("/people");
-    /** Whether each named card shows the link icon. */
-    const ICONS = `return [...document.querySelectorAll(".name-button")].map((b) => [b.textContent, !!b.closest(".item").querySelector(".link-icon")]).sort();`;
-    check("a linked card shows the link icon, and its dialog says so, with Remove link", await run(`
-      const icons = (() => { ${ICONS} })();
-      await openPerson("Jude C");
-      const flag = $("#person-linked");
-      const shown = [flag.hidden, flag.innerText.includes("Linked to their account"), $("#person-unlink").textContent];
-      $("[data-cancel-edit]").click(); await calm(200);
-      await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await calm(200);
-      return [icons, shown, onMe];`),
-    [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Remove link"], true]);
-
-    // The inviter's side, seeded: two of my invites someone accepted.
+    // Two of my invites someone accepted.
     const myId = await run(`return (await (await fetch("/api/keys")).json()).user_id;`);
     const labels = await run(`
       const { sealOne } = await import("/js/vault.js");

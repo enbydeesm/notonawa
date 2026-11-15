@@ -53,7 +53,7 @@ describe("messages", () => {
 });
 
 describe("the contact record", () => {
-  const invite = invitedContact({ shareId: "share-1", introMailbox: MAILBOX.id, fields: { pronouns: true }, now: NOW });
+  const invite = invitedContact({ shareId: "share-1", linkKey: chars(43, "k"), label: "Munch", once: true, introMailbox: MAILBOX.id, fields: { pronouns: true }, now: NOW });
   const acceptance = { public_key: KEY_B, user_id: "user-b", mailbox: MAILBOX, pair_key: chars(43, "p"), profile: PROFILE };
   const mine = contactFromAcceptance({ invite, acceptance, myMailbox: chars(22, "y"), now: NOW });
 
@@ -97,7 +97,7 @@ describe("the contact record", () => {
   });
 
   it("shows as a connection on the screens format 1 has", () => {
-    expect(asConnection({ id: "c1", body: mine }, () => "Munch")).toEqual({
+    expect(asConnection({ id: "c1", body: mine })).toEqual({
       id: "c1", person_id: null, invited: true, answered: false, label: "Munch", created_at: NOW });
     const accepting = acceptingContact({ theirKey: KEY_A, personId: "p1", name: "Jude", myMailbox: chars(22, "z"), pairKey: chars(43, "p"),
       fields: {}, now: NOW });
@@ -132,7 +132,7 @@ describe("two accounts connecting", () => {
     // My side: open it, make the contact, answer "accepted" into their mailbox.
     const opened = readAcceptance(await inviter.openAcceptance({ shareId, linkKey, sealed }));
     expect(opened).toEqual(acceptance);
-    const invite = invitedContact({ shareId, introMailbox: chars(22, "i"), fields: {}, now: NOW });
+    const invite = invitedContact({ shareId, linkKey, label: null, once: false, introMailbox: chars(22, "i"), fields: {}, now: NOW });
     let mine = contactFromAcceptance({ invite, acceptance: /** @type {any} */ (opened), myMailbox: chars(22, "a"), now: NOW });
     const reserved = reserveCounter(mine);
     mine = reserved.body;

@@ -11,7 +11,7 @@ import { KIND_NAMES, endsText, usesText } from "./share-options.js";
 import { showShareCode } from "./share-code.js";
 import { loadConnections, chooseConnectionPerson, removeConnection, linkIcon, CONNECTIONS_CHANGED } from "./connections.js";
 import { connectionTitle, connectionDetail } from "./connection-text.js";
-import { listItems } from "./store/index.js";
+import { listItems, connectingShares, inviteRevoked } from "./store/index.js";
 
 /**
  * Fills the "Shared by me" card's list, and again after a revoke.
@@ -21,8 +21,9 @@ import { listItems } from "./store/index.js";
 export async function showSharedByMe(list, message) {
   try {
     const shares = await open("share", await api("/api/shares"));
+    const connecting = connectingShares();
     list.replaceChildren(...(shares.length
-      ? shares.map((share) => shareItem(share, () => showSharedByMe(list, message), message))
+      ? shares.map((share) => shareItem(share, connecting, () => showSharedByMe(list, message), message))
       : [h("p", { className: "empty" }, "Nothing shared right now.")]));
   } catch (err) {
     showMessage(message, "Couldn't load your shares: " + errorMessage(err), true);
@@ -31,16 +32,17 @@ export async function showSharedByMe(list, message) {
 
 /**
  * @param {any} share as GET /api/shares lists it, opened
+ * @param {Set<string>} connecting format 2's invites that offer to connect (format 1's say so themselves)
  * @param {() => void} reload
  * @param {HTMLElement} message
  */
-function shareItem(share, reload, message) {
+function shareItem(share, connecting, reload, message) {
   const kind = KIND_NAMES[/** @type {keyof typeof KIND_NAMES} */ (share.kind)] ?? "Share";
   const title = share.label || (share.kind === "profile" ? "Profile invite" : kind);
   return h("div", { className: "item share-item" },
     h("div", { className: "item-title" }, title),
     h("div", { className: "item-meta" }, [kind, endsText(share.expires_at), usesText(share.use_count, share.max_uses)].join(" · ")),
-    share.connect ? h("div", { className: "item-meta share-connects" }, "Connects accounts") : null,
+    share.connect || connecting.has(share.id) ? h("div", { className: "item-meta share-connects" }, "Connects accounts") : null,
     h("div", { className: "item-actions" },
       share.link_key
         ? h("button", { type: "button", className: "share-show", onclick: () => showShareCode({ id: share.id, key: share.link_key, title }) }, "Show code")
@@ -56,6 +58,7 @@ function shareItem(share, reload, message) {
           if (choice !== "revoke") return;
           try {
             await api(`/api/shares/${share.id}`, { method: "DELETE" });
+            await inviteRevoked(share.id);
             reload();
           } catch (err) {
             showMessage(message, "Couldn't revoke it: " + errorMessage(err), true);

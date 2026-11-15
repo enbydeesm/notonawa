@@ -249,7 +249,7 @@ async function connectTo(adding, personId) {
       return "linked";
     }
     if (!opened.offer || !adding.connect) return "not linked";
-    await acceptConnection({ offer: opened.offer, personId, name: profile.name });
+    await acceptConnection({ offer: opened.offer, personId, name: profile.name, shareId: opened.id, linkKey: opened.key });
     connectionsChanged();
     return "linked";
   } catch (err) {

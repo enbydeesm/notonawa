@@ -106,8 +106,15 @@ export const acceptConnection = byFormat(v1Connections.acceptConnection, v2Conne
 export const setConnectionPerson = byFormat(v1Connections.setConnectionPerson, v2Connections.setConnectionPerson);
 export const markConnectionAnswered = byFormat(v1Connections.markConnectionAnswered, v2Connections.markConnectionAnswered);
 export const deleteConnection = byFormat(v1Connections.deleteConnection, v2Connections.deleteConnection);
+export const profileInvite = byFormat(v1Connections.profileInvite, v2Connections.profileInvite);
+export const inviteRevoked = byFormat(v1Connections.inviteRevoked, v2Connections.inviteRevoked);
+export const connectingShares = byFormat(v1Connections.connectingShares, v2Connections.connectingShares);
+export const offerIn = byFormat(v1Connections.offerIn, v2Connections.offerIn);
 
-/** Whether the account can connect to others (format 2's contacts come later). */
+/**
+ * Whether the account can connect to others: either format can, but only
+ * to an account on the same format (offerIn finds only those offers).
+ */
 export function canConnect() {
-  return accountFormat() !== 2;
+  return true;
 }

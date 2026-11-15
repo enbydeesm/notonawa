@@ -125,8 +125,14 @@ async function open(s) {
   // otherwise show what's here and sync meanwhile.
   const first = s.records.size === 0;
   const synced = syncInto(s).then(() => ensureBasics(s));
-  // Once up to date: files no record lists, deleted (in the background).
+  // Once up to date: files no record lists, deleted (in the background),
+  // and my mailboxes checked until lock (imported here: contacts.js uses
+  // this module).
   synced.then(() => deleteOrphans(s)).catch(() => {});
+  synced.then(async () => {
+    const { watchMailboxes } = await import("./contacts.js");
+    if (state === s) watchMailboxes(s.stop.signal);
+  }).catch(() => {});
   if (first) await synced;
   else synced.catch(() => {});
 }

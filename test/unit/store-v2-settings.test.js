@@ -70,13 +70,3 @@ describe("v2 export", () => {
       .toEqual([["Me"], [{ name: "Phone" }], "Rigger", true, 2]);
   });
 });
-
-describe("v2 connections", () => {
-  it("has none, and connecting waits for contacts", async () => {
-    const CONNECTIONS = "../../public/js/store/v2/connections.js";
-    /** @type {Record<string, (...args: any[]) => Promise<any>>} */
-    const connections = await import(CONNECTIONS);
-    expect(await connections.listConnections()).toEqual([]);
-    await expect(connections.acceptConnection({ offer: "o", personId: "p", name: "n" })).rejects.toThrow(/isn't ready/);
-  });
-});

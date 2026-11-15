@@ -522,7 +522,21 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: the contact record at each step, "invited", "active", "removed";
   pinning their key, a change clearing the verified mark; counters
   reserved before sending; `asConnection`, a contact in the shape the
-  connection screens use), `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  connection screens use) and `store/v2/contacts.js` (connecting:
+  `connectingInvite` (an intro mailbox lasting as the invite, the offer in
+  its snapshot as `connect`, an "invited" record keeping the share's link
+  key, tag and whether it's for one person, as a one-person invite is gone
+  from the server once opened), `acceptConnection` (my mailbox for them, a
+  pair key, the acceptance sent with `credentials: "omit"`),
+  `checkMailboxes` (under a Web Lock: an acceptance becomes a contact at
+  an id every device works out the same, answered "accepted"; a contact's
+  message applied once, its counter checked; a removal quiet, their About
+  taken off my card if asked; acknowledged once saved, kept if it
+  couldn't be fetched or saved), `watchMailboxes` (from `journal.js`
+  once synced: now, every 2 minutes in view, and on coming back),
+  `deleteConnection` ("removed" sent, errors ignored), `reserve` (a
+  counter saved before sending, tried again if another device won),
+  `inviteRevoked`, `connectingShares`), `crypto/vault-core.js` (what the crypto Worker does; format 2's
   `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
   /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
   reaches the cache and the routes), `crypto-worker.js` (the Worker
@@ -702,8 +716,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   poses as records listed in their item's visuals, one save each; the
   order; a file's entry keeps its `bytes`; a share's files through the
   Worker's `reshareFile` and `adoptShareAsFile`), `v2/connections.js`
-  (none for format 2 until contacts; the store's `canConnect()` hides
-  Connect our accounts and an invite's offer), `v2/presets.js` (records, 50 at most; ones saved together
+  (contacts.js's, as the v1 functions; `profileInvite`, through
+  `connectingInvite` when it offers to connect; `offerIn`: an opened
+  share's offer only from the snapshot, so formats connect only to their
+  own, as v1's takes only the server's token), `v2/presets.js` (records, 50 at most; ones saved together
   keep their `order`), `v2/settings.js` (role names and the poser's
   default body in the settings record, the rest on the server, given as
   one) and `v2/data.js` (`exportJournal`: the server's export for the

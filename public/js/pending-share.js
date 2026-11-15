@@ -13,10 +13,11 @@ import { onLock } from "./vault.js";
 /**
  * @typedef {{ id: string, key: Uint8Array<ArrayBuffer> }} ShareLink
  * @typedef {{
- *   kind: string, own: boolean, data: unknown, offer: string | null, connectionId: string | null, id: string, key: string,
+ *   kind: string, own: boolean, data: unknown, offer: any, connectionId: string | null, id: string, key: string,
  * }} OpenedShare
- *   offer: a token to accept its offer to connect our accounts (POST
- *   /api/connections); connectionId: my side of our connection, if we're
+ *   offer: its offer to connect our accounts, from an account on my format
+ *   (the store's offerIn: format 1's a token for POST /api/connections,
+ *   format 2's the inviter's key and intro mailbox); connectionId: my side of our connection, if we're
  *   connected already; id and key (base64url): the link's, for fetching
  *   its photos.
  */

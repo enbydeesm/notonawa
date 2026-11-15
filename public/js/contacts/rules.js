@@ -3,8 +3,10 @@
 //
 // One is made at each step of connecting:
 // - "invited": an invite of mine that offers to connect. It remembers the
-//   share and its intro mailbox, and what my profile shares (so later
-//   updates send the same fields).
+//   share, its link's key (an acceptance is bound to it) and tag, whether
+//   it's for one person, its intro mailbox, and what my profile shares (so
+//   later updates send the same fields). The share itself may be gone by
+//   the time an acceptance comes: a one-person invite goes once opened.
 // - "active": connected. It pins their public key and holds their account
 //   id (for the safety number), their mailbox for me and its token, my
 //   mailbox for them, the pair key every later message is sealed with, a
@@ -28,11 +30,15 @@ import { compact } from "../records/parse.js";
 
 /**
  * My invite, waiting to be accepted.
- * @param {{ shareId: string, introMailbox: string, fields: Record<string, boolean>, now: string }} invite
+ * @param {{ shareId: string, linkKey: string, label: string | null, once: boolean, introMailbox: string,
+ *   fields: Record<string, boolean>, now: string }} invite
  * @returns {Body}
  */
-export function invitedContact({ shareId, introMailbox, fields, now }) {
-  return { state: "invited", share_id: shareId, intro_mailbox: introMailbox, fields, created_at: now, updated_at: now };
+export function invitedContact({ shareId, linkKey, label, once, introMailbox, fields, now }) {
+  return compact({
+    state: "invited", share_id: shareId, link_key: linkKey, label: label || null, once, intro_mailbox: introMailbox, fields,
+    created_at: now, updated_at: now,
+  });
 }
 
 /**
@@ -59,7 +65,7 @@ export function acceptingContact({ theirKey, personId, name, myMailbox, pairKey,
 export function contactFromAcceptance({ invite, acceptance, myMailbox, now }) {
   return compact({
     state: "active", invited: true, answered: false, person_id: null, name: acceptance.profile?.name ?? null,
-    share_id: invite.share_id, their_key: acceptance.public_key, their_user: acceptance.user_id, their_mailbox: acceptance.mailbox,
+    label: invite.label ?? null, share_id: invite.share_id, their_key: acceptance.public_key, their_user: acceptance.user_id, their_mailbox: acceptance.mailbox,
     my_mailbox: myMailbox, pair_key: acceptance.pair_key, sent: 0, received: 0, fields: invite.fields ?? {},
     verified: false, key_changed: false, pending_profile: acceptance.profile ?? null, created_at: now, updated_at: now,
   });
@@ -139,13 +145,12 @@ export const isActive = (body) => body?.state === "active";
  * Connection): Shared by me's Connections, People's link icon and the
  * inviter's banner work the same for both formats.
  * @param {{ id: string, body: Body }} contact
- * @param {(shareId: string) => string | null} [inviteLabel] my invite's tag, by its share
  */
-export function asConnection({ id, body }, inviteLabel = () => null) {
+export function asConnection({ id, body }) {
   return {
     id, person_id: body.person_id ?? null, invited: !!body.invited, answered: !!body.answered,
     // The inviter sees the invite's tag (as format 1's sealed label); the accepter, the name they shared.
-    label: body.invited ? inviteLabel(body.share_id) ?? body.name ?? null : body.name ?? null,
+    label: body.invited ? body.label ?? body.name ?? null : body.name ?? null,
     created_at: body.created_at,
   };
 }

@@ -1,20 +1,29 @@
-// Connections (format 2): not here yet. Format 1's connections are rows on
-// the server; format 2's become contact records, sealed, with keys of
-// their own (phase 6). Until then a format 2 account has none, the Share
-// my profile dialog doesn't offer to connect, and an invite's offer to
-// connect isn't shown.
+// Connections (format 2): contacts, records of my own sealed journal, and
+// the mailboxes our devices leave each other sealed messages in
+// (contacts.js). The same functions as v1/connections.js, so the
+// connection screens don't change.
 
-/** @returns {Promise<import("../../connection-text.js").Connection[]>} */
-export async function listConnections() {
-  return [];
+export {
+  listConnections, acceptConnection, setConnectionPerson, markConnectionAnswered, deleteConnection, inviteRevoked, connectingShares,
+} from "./contacts.js";
+import { connectingInvite } from "./contacts.js";
+
+/**
+ * Makes a profile invite, offering to connect if ticked.
+ * @param {import("../v1/connections.js").ProfileInvite} invite
+ * @returns {Promise<{ id: string, key: string }>}
+ */
+export function profileInvite({ connect, fields, saveShare, ...share }) {
+  return connect ? connectingInvite({ ...share, fields, saveShare }) : saveShare({ ...share, connect: false });
 }
 
-/** @param {...any} _args */
-async function notYet(..._args) {
-  throw new Error("Connecting accounts isn't ready in this version yet.");
+/**
+ * The offer to connect in a share I opened: format 2's is in its sealed
+ * snapshot (a format 1 account's offer, the server's, isn't one I can take).
+ * @param {{ offer?: string | null, data: any }} opened
+ * @returns {any}
+ */
+export function offerIn({ data }) {
+  return readInviteOffer(data);
 }
-
-export const acceptConnection = notYet;
-export const setConnectionPerson = notYet;
-export const markConnectionAnswered = notYet;
-export const deleteConnection = notYet;
+import { readInviteOffer } from "../../contacts/messages.js";

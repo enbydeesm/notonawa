@@ -29,7 +29,7 @@ export async function listItems(kind, archived) {
   if (kind === "plans") {
     return listPlans({ plans: records("plan"), ties: records("tie"), tags: records("tag"), workshops: records("workshop") }, archived);
   }
-  return kind === "people" ? listPeople(records("person"), archived) : listLocations(records("location"), archived);
+  return kind === "people" ? listPeople(records("person"), archived, records("contact")) : listLocations(records("location"), archived);
 }
 
 /**

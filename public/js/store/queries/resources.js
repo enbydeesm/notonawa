@@ -13,8 +13,9 @@ const bit = (value) => (value ? 1 : 0);
 /**
  * A person as the People page and pickers have them.
  * @param {Entry} entry
+ * @param {Map<string, string>} [connections] the contact on each person, by person id
  */
-export function personRow({ id, body }) {
+export function personRow({ id, body }, connections = new Map()) {
   const b = body ?? {};
   return {
     id,
@@ -29,8 +30,8 @@ export function personRow({ id, body }) {
     aliases: Array.isArray(b.aliases) && b.aliases.length ? JSON.stringify(b.aliases) : null,
     about: b.about ?? null,
     about_shared_on: b.about_shared_on ?? null,
-    // Connections come with contacts (phase 6).
-    connection_id: null,
+    // The contact on them, as format 1's connection (People's link icon).
+    connection_id: connections.get(id) ?? null,
     archived_at: b.archived_at ?? null,
     created_at: b.created_at ?? null,
     updated_at: b.updated_at ?? null,
@@ -89,9 +90,12 @@ export function nocase(a, b) {
  * My people, as GET /api/people lists them: "Me" first, then by name.
  * @param {Entry[]} entries person records
  * @param {Archived} archived
+ * @param {Entry[]} [contacts] contact records: who's on each live one
  */
-export function listPeople(entries, archived) {
-  return entries.map(personRow).filter((r) => passesArchived(r, archived))
+export function listPeople(entries, archived, contacts = []) {
+  const connections = new Map(contacts.filter((c) => c.body?.state === "active" && c.body.person_id)
+    .map((c) => [/** @type {string} */ (c.body?.person_id), c.id]));
+  return entries.map((e) => personRow(e, connections)).filter((r) => passesArchived(r, archived))
     .sort((a, b) => b.is_self - a.is_self || nocase(a.name, b.name));
 }
 
