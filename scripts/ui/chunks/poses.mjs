@@ -575,14 +575,13 @@ async function hanging({ topDialog }) {
     ring: [40, 250, 0], bamboo: null, hashira: null, ropes: [{ c: "red", w: 2, p: [["chest", 0, 0, 0], ["ring", 0, 0, 0]] }],
   };
   const tiePose = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Hang test");
-    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+    return (await store.listPoses({ tie_id: tie.id }))[0];
   })()`;
   await run(`
-    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-    const tie = await postJson("/api/ties", { tie_type: "suspension", tie_date: "2026-10-05", title: "Hang test" });
-    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+    const tie = await store.saveTie(null, { tie_type: "suspension", tie_date: "2026-10-05", title: "Hang test" });
+    await store.addPose({ tie_id: tie }, { data: ${JSON.stringify(seeded)}, caption: null });`);
   await go("/");
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Hang test").click(); await calm(1500);
     $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
@@ -614,9 +613,9 @@ async function hanging({ topDialog }) {
  */
 async function wrapping({ tap, drag, topDialog }) {
   const tiePose = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Wrap test");
-    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+    return (await store.listPoses({ tie_id: tie.id }))[0];
   })()`;
   const seeded = {
     v: 1, joints: {}, body: [0, 0, 0], lift: 99, shift: [0, 0], shape: [50, 50, 25, 184], camera: [0, 8, 380, 110, 0, 0],
@@ -624,9 +623,8 @@ async function wrapping({ tap, drag, topDialog }) {
   };
   await run(`$("#tie-close")?.click(); await calm(500);
     [...${topDialog}?.querySelectorAll("button") ?? []].find((b) => b.textContent === "Discard changes")?.click(); await calm(300);
-    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-06", title: "Wrap test" });
-    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+    const tie = await store.saveTie(null, { tie_type: "floor", tie_date: "2026-10-06", title: "Wrap test" });
+    await store.addPose({ tie_id: tie }, { data: ${JSON.stringify(seeded)}, caption: null });`);
   await go("/");
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Wrap test").click(); await calm(1500);
     $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
@@ -1055,14 +1053,13 @@ async function bodyCinch({ tap, topDialog }) {
     // With its shape, so the poser opens it as it is (one without is an older pose, its ropes moved).
     return { ...${JSON.stringify(base)}, shape: data.shape, ropes: [wrap("chest", "red"), wrap("spine", "blue")] };`);
   const tiePose = `(async () => {
-    const tie = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json())
+    const tie = (await store.findTies({}))
       .ties.find((t) => t.title === "Body cinch test");
-    return (await (await fetch("/api/poses?tie_id=" + tie.id)).json())[0];
+    return (await store.listPoses({ tie_id: tie.id }))[0];
   })()`;
   await run(`
-    const postJson = (url, body) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-    const tie = await postJson("/api/ties", { tie_type: "floor", tie_date: "2026-10-04", title: "Body cinch test" });
-    await postJson("/api/poses", { tie_id: tie.id, data: ${JSON.stringify(seeded)} });`);
+    const tie = await store.saveTie(null, { tie_type: "floor", tie_date: "2026-10-04", title: "Body cinch test" });
+    await store.addPose({ tie_id: tie }, { data: ${JSON.stringify(seeded)}, caption: null });`);
   const stored = await run(`return (await ${tiePose}).data;`);
   await go("/");
   await run(`[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Body cinch test").click(); await wait(1500);
