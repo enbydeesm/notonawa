@@ -93,8 +93,9 @@ function limbs(side) {
 /** Every joint, parents before children. @type {readonly Joint[]} */
 export const JOINTS = Object.freeze([
   // The pelvis tipped forward or back, one side hiked up, or turned, about
-  // the point between the hip joints, carrying the trunk and legs (its
-  // slider keeps the legs where they were: pose-skeleton.js's withHips).
+  // the point between the hip joints (its sliders keep the legs and the
+  // trunk where they were, the lower back bending: pose-skeleton.js's
+  // withHips).
   {
     name: "hips", label: "Hips", parent: "pelvis", offset: [0, 0, 0], order: "XZY",
     moves: [move("Tilt", "x", 1, -35, 35), move("Hike", "z", 1, -25, 25), move("Turn", "y", 1, -35, 35)],

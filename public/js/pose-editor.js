@@ -77,7 +77,7 @@ import { chosenRopeView } from "./pose-rope-panel.js";
 import { viewHint, ropeHint, hardpointLostNote } from "./pose-hints.js";
 import { saveFile } from "./download.js";
 /** The joints the Hips sliders turn: the pelvis, and the hips that keep the legs where they were. */
-const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip"]);
+const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip", "spine"]);
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -686,7 +686,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
         // A see-saw rope's other end moves to keep it the same length; let
         // go, any clash is settled (pose-contact.js).
-        // The Hips turn the pelvis keeping both legs where they were (pose-skeleton.js).
+        // The Hips turn the pelvis keeping both legs and the trunk where they were (pose-skeleton.js).
         apply: joint.name === "hips"
           ? (p, v) => keepSeesaws(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
           : (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),

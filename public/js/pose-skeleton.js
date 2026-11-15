@@ -256,22 +256,31 @@ export function posed(skeleton, pose) {
   root.updateMatrixWorld(true);
 }
 
+/**
+ * What the Hips sliders keep pointing where it was: the legs, and the
+ * trunk from the waist up (the waist is the pelvis's own child, as the
+ * thighs are, so the same turn makes up for the pelvis's).
+ */
+export const HIPS_KEEP = Object.freeze(["l_hip", "r_hip", "spine"]);
+
 /** The hip's angles, from a turn (pelvis to thigh), as its sliders have them. */
 const leg = new Quaternion();
 const held = new Quaternion();
 
 /**
- * A pose with the Hips joint changed, and the legs named kept pointing
- * where they were (their hip angles changed to make up for the pelvis's
- * turn), within the hips' limits: the Hips sliders keep both legs, and a
- * dragged leg pulling the pelvis keeps the other.
+ * A pose with the Hips joint changed, and the parts named kept pointing
+ * where they were (their angles changed to make up for the pelvis's
+ * turn), within their limits: the Hips sliders keep both legs and the
+ * trunk above the waist, so only the pelvis pivots, the lower back
+ * bending to meet it (past the waist's range, the trunk follows); a
+ * dragged leg pulling the pelvis keeps the other leg.
  * @param {Pose} pose
  * @param {readonly number[]} angles the Hips joint's new angles
- * @param {readonly string[]} [kept] the hips to keep ("l_hip", "r_hip")
+ * @param {readonly string[]} [kept] the joints on the pelvis to keep ("l_hip", "r_hip", "spine")
  * @param {{ exact?: boolean }} [options] exact: fractional angles, unclamped (while dragging)
  * @returns {Pose}
  */
-export function withHips(pose, angles, kept = ["l_hip", "r_hip"], { exact = false } = {}) {
+export function withHips(pose, angles, kept = HIPS_KEEP, { exact = false } = {}) {
   const hips = exact ? [...angles] : clampJoint("hips", angles);
   const joints = { ...pose.joints, hips };
   hipsTurn(hips, tilt).invert().multiply(hipsTurn(pose.joints.hips, swing));
@@ -327,8 +336,8 @@ export function keptLowest(skeleton, before, after) {
 }
 
 /**
- * The Hips sliders' change: the pelvis turned, both legs kept pointing
- * where they were, and the body moved up or down to keep its lowest point
+ * The Hips sliders' change: the pelvis turned, both legs and the trunk
+ * kept pointing where they were, and the body moved up or down to keep its lowest point
  * (one hip hiked lifts the other leg rather than pushing a foot into the floor).
  * @param {Skeleton} skeleton any (it's posed)
  * @param {Pose} pose

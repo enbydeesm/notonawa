@@ -3833,3 +3833,22 @@ Slice 3: verifying.
   not wanted for now. Slack went from 100 cm to 300 cm, so twice a long
   upline's length fits.
 
+## Poser: the pelvis pivots under the trunk (November 2026)
+
+**Status:** built (2026-11-14)
+
+- **The Hips sliders keep the trunk as well as the legs** (`HIPS_KEEP` in
+  `pose-skeleton.js`): before, Tilt, Hike and Turn tipped everything above
+  the pelvis rigidly, so tilting it leaned the whole body. Now the waist
+  takes the opposite turn (it's the pelvis's own child, as the thighs
+  are, so `withHips` makes up for it the same way), spread over the
+  lumbar bones as any waist bend is. The waist's own limits still hold:
+  past them the trunk follows the pelvis, which is how a real back runs
+  out. A leg drag that turns the pelvis keeps the trunk too.
+- **No new joint or stored number**: the pose format and the server's
+  limits are unchanged, and saved poses open as they were. Weighed: a
+  separate "keep trunk" tick box; left out until someone wants the old
+  rigid tip (bend the waist, or the whole body's Tip, for that).
+- **Not built yet**: deep hip bends rolling the pelvis back and wide
+  spreads hiking it (roadmap.md).
+

@@ -179,8 +179,8 @@ describe("the trunk joining in", () => {
     expect([moved.joints.hips, moved.joints.spine, moved.joints.chest]).toEqual([[0, 0, 0], [0, 0, 0], [0, 0, 0]]);
   });
 
-  it("names every joint a drag can change: the limb's, the trunk's, and the other hip for a leg", () => {
-    expect(dragJoints("l_ankle")).toEqual(["l_hip", "l_knee", "hips", "r_hip"]);
+  it("names every joint a drag can change: the limb's, the trunk's, and the other hip and the waist for a leg", () => {
+    expect(dragJoints("l_ankle")).toEqual(["l_hip", "l_knee", "hips", "r_hip", "spine"]);
     expect(dragJoints("r_wrist")).toEqual(["r_shoulder", "r_elbow", "chest"]);
   });
 
@@ -201,14 +201,35 @@ describe("the trunk joining in", () => {
 });
 
 describe("the Hips sliders", () => {
-  it("tip the pelvis about the hip joints, the trunk going with it and both feet staying put", () => {
+  it("tip the pelvis about the hip joints, the lower back bending so the trunk and both feet stay put", () => {
     const start = newPose();
     for (const tilt of [25, -30]) {
       const moved = withHips(start, [tilt, 0, 0]);
       for (const foot of ["l_ankle", "r_ankle"]) expect(at(moved, foot).distanceTo(at(start, foot))).toBeLessThan(0.5);
-      expect(Math.abs(at(moved, "head").z - at(start, "head").z)).toBeGreaterThan(15);
+      // The waist bends the other way, so the head hardly moves.
+      expect(moved.joints.spine[0]).toBe(-tilt);
+      expect(at(moved, "head").distanceTo(at(start, "head"))).toBeLessThan(8);
       expect(moved.joints.l_hip[0]).toBe(tilt);
     }
+  });
+
+  it("carry the trunk with the pelvis once the waist has no more bend to give", () => {
+    // Bent back as far as the waist goes: tipping the pelvis forward takes the trunk too.
+    const start = { ...newPose(), joints: { ...newPose().joints, spine: [-55, 0, 0] } };
+    const moved = withHips(start, [30, 0, 0]);
+    expect(moved.joints.spine[0]).toBe(-55);
+    expect(Math.abs(at(moved, "head").z - at(start, "head").z)).toBeGreaterThan(15);
+    withinLimits(moved);
+  });
+
+  it("keep the trunk as it leans and turns too, and can still be told to keep only the legs", () => {
+    const start = newPose();
+    const hiked = withHips(start, [0, 20, 20]);
+    expect(at(hiked, "head").distanceTo(at(start, "head"))).toBeLessThan(8);
+    withinLimits(hiked);
+    const rigid = withHips(start, [25, 0, 0], ["l_hip", "r_hip"]);
+    expect(rigid.joints.spine).toEqual([0, 0, 0]);
+    expect(Math.abs(at(rigid, "head").z - at(start, "head").z)).toBeGreaterThan(15);
   });
 
   it("hike one side, lifting that leg rather than pushing the other foot into the floor", () => {

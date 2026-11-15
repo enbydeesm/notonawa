@@ -663,7 +663,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
   only: where a joint or rope point is; the Hips joint turning the pelvis
   about the point between the hip joints, and `withHips`/`withHipsOn`,
-  its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a
+  its sliders' change keeping the legs, the trunk above the waist (`HIPS_KEEP`) and the body's lowest point; tested), `pose-cinch.js` (a
   cinch's points pulled in and the uplines' bends, an added rope's start
   on the rope as drawn, ropes drawn in runs, hanging stretches straight or
   sagging with slack; three.js's math only, tested), `pose-gravity.js`

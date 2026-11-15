@@ -50,6 +50,14 @@ export const DRAG_CHAINS = Object.freeze(Object.fromEntries(["l", "r"].flatMap((
   ];
 })));
 
+/**
+ * A joint's fractional angles kept within each movement's own range
+ * (while solving: clampJoint would round them).
+ * @param {string} name @param {readonly number[]} angles
+ */
+const clampExact = (name, angles) =>
+  /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name)).moves.map((m, i) => Math.min(m.max, Math.max(m.min, angles[i] ?? 0)));
+
 /** @param {string} bone @returns {boolean} whether holding this part drags it */
 export const canDrag = (bone) => bone in DRAG_CHAINS;
 
@@ -77,7 +85,7 @@ const otherHip = (bone) => (/_(hip|knee|ankle|toes)$/.test(bone) ? `${bone[0] ==
  */
 export function dragJoints(bone) {
   const other = otherHip(bone);
-  return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other] : []))];
+  return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other, "spine"] : []))];
 }
 
 /** How far off the target (cm) the limb alone must stay before the trunk joins in. */
@@ -166,8 +174,12 @@ export function dragTo(pose, bone, cm, target, { from = pose } = {}) {
         // the pelvis stays put rather than twisting that leg.
         const kept = withHips(keptLeg, joints.hips, [other], { exact: true }).joints[other];
         const allowed = clampJoint(other, kept, undefined, joints);
-        if (kept.every((a, n) => Math.abs(a - allowed[n]) <= 1)) joints[other] = kept;
-        else joints[name][i] = was;
+        if (kept.every((a, n) => Math.abs(a - allowed[n]) <= 1)) {
+          joints[other] = kept;
+          // The trunk stays upright too, the lower back bending to meet the
+          // pelvis as far as the waist can (past that, it tips with it).
+          joints.spine = clampExact("spine", withHips(keptLeg, joints.hips, ["spine"], { exact: true }).joints.spine);
+        } else joints[name][i] = was;
       }
     };
     const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
@@ -210,7 +222,7 @@ export function dragTo(pose, bone, cm, target, { from = pose } = {}) {
     solve(used, [...limb.map(() => 1), ...trunk.map(([, weight]) => weight)]);
   }
   const rounded = { ...pose.joints };
-  for (const name of new Set([...used.map(([n]) => n), ...(other && used !== limb ? [other] : [])])) {
+  for (const name of new Set([...used.map(([n]) => n), ...(other && used !== limb ? [other, "spine"] : [])])) {
     rounded[name] = clampJoint(name, joints[name], pose.joints[name], rounded);
   }
   const done = { ...pose, joints: rounded };

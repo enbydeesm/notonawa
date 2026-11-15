@@ -15,6 +15,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Cinch any rope, not just uplines: tap a rope round the body, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together, the ropes staying where they're tied.
 - A rope with just two points (body to body, body to the ring or bamboo, or body to a spot on another rope) has a Length in place of Slack. It starts in the middle: lower it to pull the body in, raise it for slack. Body-to-body ropes can sag now too.
 - Slack goes up to 300 cm.
+- The Hips sliders now pivot just the pelvis: the lower back bends to meet it, so the chest and head stay where they were, as the legs do. Once the waist has no more bend to give, the trunk follows. Dragging a leg far enough to turn the pelvis keeps the trunk upright the same way.
 
 ## 2026.11.09.0624
 Workshop updates and visual viewer improvements
