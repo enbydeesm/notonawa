@@ -21,6 +21,10 @@
 //   card of them until I do.
 // - Removing one tells them ("removed"), quietly: their device ends the
 //   contact without saying so.
+// - The safety number (crypto/safety-number.js) over both keys and account
+//   ids, the same on both phones: compared in person, or one scans the
+//   other's QR code (/verify#<number>), it marks the contact verified. A key
+//   that changes after clears that, with a warning, until it's checked again.
 
 import { api } from "../../api.js";
 import * as vault from "../../vault.js";
@@ -32,9 +36,10 @@ import { toBase64url, fromBase64url } from "../../crypto/keys.js";
 import { acceptanceBody, readAcceptance, messageBody, readMessage, offerBody } from "../../contacts/messages.js";
 import {
   invitedContact, acceptingContact, contactFromAcceptance, applyMessage, reserveCounter, isNewCounter, isActive, asConnection,
-  updateChoices, needsProfile,
+  updateChoices, needsProfile, verified,
 } from "../../contacts/rules.js";
 import { buildProfile } from "../../profile-share.js";
+import { safetyNumber } from "../../crypto/safety-number.js";
 import { webLock } from "../../cache/sync.js";
 
 /** @typedef {import("../../contacts/messages.js").MailboxAddress} MailboxAddress */
@@ -431,6 +436,82 @@ export async function profileUpdateDone(contactId) {
   const { pending_profile: _done, ...rest } = /** @type {Record<string, any>} */ (c.body);
   await save({ writes: [{ kind: "contact", id: contactId, from: c.body ?? undefined, body: { ...rest, updated_at: stamp() } }] });
   window.dispatchEvent(new Event(CHANGED));
+}
+
+/** @type {Map<string, string>} each contact's safety number, by their key and id, until lock */
+const numbers = new Map();
+vault.onWipe(() => numbers.clear());
+
+/**
+ * A contact's safety number, or null until their account has answered (I
+ * need their account id).
+ * @param {Record<string, any>} body
+ * @returns {Promise<string | null>}
+ */
+async function numberOf(body) {
+  if (!body.their_key || !body.their_user) return null;
+  const mine = await myIdentity();
+  const key = `${body.their_key}|${body.their_user}`;
+  if (!numbers.has(key)) {
+    numbers.set(key, await safetyNumber({ publicKey: fromBase64url(mine.public_key), id: mine.user_id },
+      { publicKey: fromBase64url(body.their_key), id: body.their_user }));
+  }
+  return /** @type {string} */ (numbers.get(key));
+}
+
+/**
+ * The contact on this person, as its details show it: whether it's
+ * verified, or its key changed since.
+ * @param {string} personId
+ * @returns {{ contactId: string, verified: boolean, keyChanged: boolean } | null}
+ */
+export function contactStatus(personId) {
+  const c = records("contact").find((r) => isActive(r.body) && r.body?.person_id === personId);
+  return c ? { contactId: c.id, verified: !!c.body?.verified, keyChanged: !!c.body?.key_changed } : null;
+}
+
+/**
+ * The people whose contact's key changed (People warns on their cards).
+ * @returns {Set<string>}
+ */
+export function peopleWithChangedKeys() {
+  return new Set(records("contact").filter((r) => isActive(r.body) && r.body?.person_id && r.body.key_changed)
+    .map((r) => /** @type {string} */ (r.body?.person_id)));
+}
+
+/**
+ * A contact's safety number, to compare.
+ * @param {string} contactId
+ * @returns {Promise<string | null>}
+ */
+export async function contactSafetyNumber(contactId) {
+  return numberOf(/** @type {Record<string, any>} */ (contactOf(contactId).body));
+}
+
+/**
+ * Marks a contact verified: its number checked in person, for the key it has now.
+ * @param {string} contactId
+ */
+export async function markVerified(contactId) {
+  const c = contactOf(contactId);
+  await save({ writes: [{ kind: "contact", id: contactId, from: c.body ?? undefined, body: verified(/** @type {any} */ (c.body), stamp()) }] });
+  window.dispatchEvent(new Event(CHANGED));
+}
+
+/**
+ * A safety number scanned from someone's phone: the contact it's ours
+ * with, marked verified; null if it's none of them.
+ * @param {string} number 60 digits
+ * @returns {Promise<{ contactId: string, personId: string | null, name: string | null } | null>}
+ */
+export async function verifyScanned(number) {
+  for (const c of records("contact")) {
+    if (!isActive(c.body) || (await numberOf(/** @type {Record<string, any>} */ (c.body))) !== number) continue;
+    await markVerified(c.id);
+    const personId = c.body?.person_id ?? null;
+    return { contactId: c.id, personId, name: (personId && record(personId)?.body?.name) || c.body?.name || null };
+  }
+  return null;
 }
 
 /**

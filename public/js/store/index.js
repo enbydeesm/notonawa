@@ -113,6 +113,11 @@ export const offerIn = byFormat(v1Connections.offerIn, v2Connections.offerIn);
 export const pendingProfile = byFormat(v1Connections.pendingProfile, v2Connections.pendingProfile);
 export const peopleWithUpdates = byFormat(v1Connections.peopleWithUpdates, v2Connections.peopleWithUpdates);
 export const profileUpdateDone = byFormat(v1Connections.profileUpdateDone, v2Connections.profileUpdateDone);
+export const contactStatus = byFormat(v1Connections.contactStatus, v2Connections.contactStatus);
+export const peopleWithChangedKeys = byFormat(v1Connections.peopleWithChangedKeys, v2Connections.peopleWithChangedKeys);
+export const contactSafetyNumber = byFormat(v1Connections.contactSafetyNumber, v2Connections.contactSafetyNumber);
+export const markVerified = byFormat(v1Connections.markVerified, v2Connections.markVerified);
+export const verifyScanned = byFormat(v1Connections.verifyScanned, v2Connections.verifyScanned);
 
 /**
  * Whether the account can connect to others: either format can, but only

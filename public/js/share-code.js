@@ -15,7 +15,7 @@ const SVG = "http://www.w3.org/2000/svg";
  * @param {string} label what it's for, for screen readers
  * @returns {SVGSVGElement}
  */
-function qrCode(text, label) {
+export function qrCode(text, label) {
   const { size, path } = qrPath(text);
   const svg = /** @type {SVGSVGElement} */ (document.createElementNS(SVG, "svg"));
   svg.setAttribute("viewBox", `0 0 ${size} ${size}`);

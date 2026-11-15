@@ -545,7 +545,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   fields (`keptChoices`/`updateChoices`: aliases by value) and sent in the
   `profile` slot only when it differs from `sent_profile`, which is saved
   once it's gone; `pendingProfile`, `peopleWithUpdates`,
-  `profileUpdateDone`), `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  `profileUpdateDone`; verifying: `contactSafetyNumber` (both keys and
+  account ids, none until their account has answered), `contactStatus`,
+  `peopleWithChangedKeys`, `markVerified`, `verifyScanned`),
+  `contact-verify.js` (a linked person's Safety number: the 12 blocks, a
+  QR code of `/verify#<number>`, "They match: mark as verified", and the
+  warning once their key changed; People marks that card "Key changed")
+  and `views/verify.js` (`/verify`: a scanned number, taken out of the
+  address at once, marks the contact it's ours with verified, or warns
+  that it's none of them), `crypto/vault-core.js` (what the crypto Worker does; format 2's
   `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
   /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
   reaches the cache and the routes), `crypto-worker.js` (the Worker
@@ -893,7 +901,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   account of its own (`freshAccount()`), seeded where it needs one with
   `scripts/ui/seed.mjs` (what the People, Locations, Plans and Ties chunks
   make, through the store), so any chunk runs alone. `scripts/ui/harness.mjs`
-  starts wrangler and Chrome and has the helpers (`run`, `go`, `check`,
+  starts wrangler and Chrome and has the helpers (`useTab(name)`: drive
+  another tab, a browser context of its own with its own passkey and
+  recovery code, for two accounts at once (the contacts chunk); every
+  chunk starts in "main"; `run`, `go`, `check`,
   `sql`; in the page, `store`: the app's own store module, so a check reads
   and changes the journal the same way on either format, never through
   format 1's routes; `plainOnServer(text)`: whether text is anywhere the

@@ -1243,6 +1243,12 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .qr-code { display: block; width: min(100%, 280px); height: auto; margin: 12px auto; border-radius: 8px; }
 .qr-dark { fill: var(--qr-dark); }
 .qr-light { fill: var(--qr-light); }
+/* A contact's safety number: 12 blocks of 5 digits, in rows of 4. */
+.safety-blocks {
+  display: grid; grid-template-columns: repeat(4, auto); justify-content: center; gap: 6px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; letter-spacing: 0.05em;
+}
+.key-badge { background: var(--danger); color: var(--danger-text); }
 .share-code input[readonly] { font-size: 0.85rem; }
 .shared-profile { margin: 8px 0 12px; }
 .shared-about { white-space: pre-wrap; overflow-wrap: anywhere; }

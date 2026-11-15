@@ -198,53 +198,81 @@ start(CHROME, [
   "--no-first-run", `--user-data-dir=${path.join(workDir, "chrome")}`, "about:blank",
 ], { stdio: "ignore" });
 const targets = await (await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome")).json();
-const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
-await new Promise((resolve) => ws.addEventListener("open", resolve));
 
-let nextId = 1;
-const pending = new Map();
+// Tabs: the walkthrough drives one at a time (useTab), "main" unless a
+// chunk needs a second account at once (the contacts chunk). Each other tab
+// is a browser context of its own, like another person's browser: its own
+// cookies, storage, passkey device and recovery code.
+
+/**
+ * @typedef {{ name: string, ws: WebSocket, nextId: number, pending: Map<number, (msg: any) => void>, authenticatorId: string,
+ *   code: string }} Tab
+ */
+
 export const consoleErrors = [];
-ws.addEventListener("message", (event) => {
-  const msg = JSON.parse(event.data);
-  if (msg.id && pending.has(msg.id)) {
-    pending.get(msg.id)(msg);
-    pending.delete(msg.id);
-  }
-  if (msg.method === "Runtime.exceptionThrown") {
-    consoleErrors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
-  }
-  if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
-    consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
-  }
-  // The browser's own messages, e.g. a script or style blocked by the CSP.
-  // Network ones are left out: some steps get a 400 on purpose.
-  if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
-    consoleErrors.push(msg.params.entry.text);
-  }
-  // An alert() blocks the page (and so the step waiting on it): note it as
-  // an error and dismiss it.
-  if (msg.method === "Page.javascriptDialogOpening") {
-    consoleErrors.push(`${msg.params.type}: ${msg.params.message}`);
-    ws.send(JSON.stringify({ id: nextId++, method: "Page.handleJavaScriptDialog", params: { accept: true } }));
-  }
+
+/**
+ * Connects to a DevTools target.
+ * @param {string} url its webSocketDebuggerUrl
+ * @param {string} name
+ * @returns {Promise<Tab>}
+ */
+async function connect(url, name) {
+  const ws = new WebSocket(url);
+  await new Promise((resolve) => ws.addEventListener("open", resolve));
+  /** @type {Tab} */
+  const tab = { name, ws, nextId: 1, pending: new Map(), authenticatorId: "", code: "" };
+  // Another tab's errors say which.
+  const note = (/** @type {string} */ text) => consoleErrors.push(name === "main" ? text : `[${name}] ${text}`);
+  ws.addEventListener("message", (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.id && tab.pending.has(msg.id)) {
+      tab.pending.get(msg.id)(msg);
+      tab.pending.delete(msg.id);
+    }
+    if (msg.method === "Runtime.exceptionThrown") {
+      note(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+    }
+    if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
+      note(msg.params.args.map((a) => a.value ?? a.description).join(" "));
+    }
+    // The browser's own messages, e.g. a script or style blocked by the CSP.
+    // Network ones are left out: some steps get a 400 on purpose.
+    if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
+      note(msg.params.entry.text);
+    }
+    // An alert() blocks the page (and so the step waiting on it): note it as
+    // an error and dismiss it.
+    if (msg.method === "Page.javascriptDialogOpening") {
+      note(`${msg.params.type}: ${msg.params.message}`);
+      ws.send(JSON.stringify({ id: tab.nextId++, method: "Page.handleJavaScriptDialog", params: { accept: true } }));
+    }
+  });
+  return tab;
+}
+
+/**
+ * @param {Tab} tab
+ * @param {string} method
+ * @param {object} [params]
+ * @returns {Promise<any>}
+ */
+const tabSend = (tab, method, params = {}) => new Promise((resolve) => {
+  const id = tab.nextId++;
+  tab.pending.set(id, resolve);
+  tab.ws.send(JSON.stringify({ id, method, params }));
 });
-export const send = (method, params = {}) => new Promise((resolve) => {
-  const id = nextId++;
-  pending.set(id, resolve);
-  ws.send(JSON.stringify({ id, method, params }));
-});
-await send("Runtime.enable");
-await send("Page.enable");
-// Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
-await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
-// Headless Chrome isn't a focused window, so focus and blur events wouldn't
-// fire (the tie form's location picker opens and settles on them).
-await send("Emulation.setFocusEmulationEnabled", { enabled: true });
-await send("Log.enable");
+
+/** @type {Map<string, Tab>} */
+const tabs = new Map();
+let current = await connect(targets.find((t) => t.type === "page").webSocketDebuggerUrl, "main");
+tabs.set("main", current);
+
+/** Sends a DevTools command to the tab in use. */
+export const send = (method, params = {}) => tabSend(current, method, params);
 
 // A virtual passkey, like a phone's: discoverable, verifies the user, and can
 // derive encryption keys (PRF). Chrome answers passkey requests with it.
-await send("WebAuthn.enable", { enableUI: false });
 // prf: false is a device that can sign in but not unlock (no PRF).
 export const addAuthenticator = async ({ prf = true } = {}) => (await send("WebAuthn.addVirtualAuthenticator", {
   options: {
@@ -252,15 +280,55 @@ export const addAuthenticator = async ({ prf = true } = {}) => (await send("WebA
     hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf: prf,
   },
 })).result.authenticatorId;
-let authenticatorId = await addAuthenticator();
+
+/** Readies the tab in use: its events, the idle tracker, focus, and a passkey device. */
+async function prepare() {
+  await send("Runtime.enable");
+  await send("Page.enable");
+  // Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
+  // Headless Chrome isn't a focused window, so focus and blur events wouldn't
+  // fire (the tie form's location picker opens and settles on them).
+  await send("Emulation.setFocusEmulationEnabled", { enabled: true });
+  await send("Log.enable");
+  await send("WebAuthn.enable", { enableUI: false });
+  current.authenticatorId = await addAuthenticator();
+}
+await prepare();
 
 /**
  * Swaps the passkey device for a new one (a lost phone, or a new person).
  * @param {{ prf?: boolean }} [options]
  */
 export async function replaceAuthenticator(options) {
-  await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
-  authenticatorId = await addAuthenticator(options);
+  await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: current.authenticatorId });
+  current.authenticatorId = await addAuthenticator(options);
+}
+
+/** @type {Tab | null} the browser itself, for making tabs */
+let browser = null;
+
+/**
+ * Drives another tab from here on, made the first time: "main" is the one
+ * every chunk starts in (and is put back in after each). A new one starts
+ * blank, as a new person's browser.
+ * @param {string} name
+ */
+export async function useTab(name) {
+  if (!tabs.has(name)) {
+    if (!browser) {
+      const version = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`)).json();
+      browser = await connect(version.webSocketDebuggerUrl, "browser");
+    }
+    const { browserContextId } = (await tabSend(browser, "Target.createBrowserContext")).result;
+    const { targetId } = (await tabSend(browser, "Target.createTarget", { url: "about:blank", browserContextId, width: 420, height: 1400 })).result;
+    const list = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`)).json();
+    current = await connect(list.find((/** @type {any} */ t) => t.id === targetId).webSocketDebuggerUrl, name);
+    tabs.set(name, current);
+    await prepare();
+    return;
+  }
+  current = /** @type {Tab} */ (tabs.get(name));
 }
 
 // Helpers available inside the page for each step.
@@ -412,7 +480,11 @@ export async function run(code) {
 
 // The recovery code that currently unlocks the journal (each new one shown
 // replaces it): set it whenever a new one is shown.
-export const account = { currentCode: "" };
+// Each tab's own.
+export const account = {
+  get currentCode() { return current.code; },
+  set currentCode(code) { current.code = code; },
+};
 
 // Loads a page. Loading locks the journal (the key is only in memory), so
 // unless told not to, this unlocks it again: with the passkey, or the
@@ -538,7 +610,8 @@ export function checkConsole() {
 
 /** Stops Chrome and wrangler, and deletes the throwaway database. */
 export async function stop() {
-  ws.close();
+  for (const tab of tabs.values()) tab.ws.close();
+  browser?.ws.close();
   // Waits for the app and Chrome to have shut down (up to 10 s, then
   // they're killed) before deleting their folder, which they write to as
   // they go.

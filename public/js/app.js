@@ -50,6 +50,7 @@ const VIEWS = {
   consent: () => import("./views/consent.js"),
   convert: () => import("./views/convert.js"),
   open: () => import("./views/open.js"),
+  verify: () => import("./views/verify.js"),
 };
 
 // A share's link (/open#<id>.<key>): its key is kept in memory and taken

@@ -3,8 +3,9 @@
 // them (/open): as a new person, merged into a card it has, after signing in,
 // and links that have ended or are damaged. Then connecting accounts: an
 // invite offering it, accepted by the second account (the link icon,
-// Connections in Shared by me, Remove link), and the inviter's banner,
-// seeded in the database (a chunk can't sign back in to its first account).
+// Connections in Shared by me, Remove link), and, on format 1, the
+// inviter's banner, seeded in the database (format 2's, between two
+// accounts at once, is the contacts chunk's).
 
 import { randomUUID } from "node:crypto";
 import { FORMAT, check, freshAccount, go, loadPage, run, sleep, sql } from "../harness.mjs";

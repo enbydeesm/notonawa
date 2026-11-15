@@ -117,3 +117,37 @@ export function peopleWithUpdates() {
  * @param {string} _contactId
  */
 export async function profileUpdateDone(_contactId) {}
+
+/**
+ * A connection's verification: format 1's have no keys to check.
+ * @param {string} _personId
+ * @returns {{ contactId: string, verified: boolean, keyChanged: boolean } | null}
+ */
+export function contactStatus(_personId) {
+  return null;
+}
+
+/** @returns {Set<string>} none on format 1 */
+export function peopleWithChangedKeys() {
+  return new Set();
+}
+
+/**
+ * @param {string} _contactId
+ * @returns {Promise<string | null>} none on format 1
+ */
+export async function contactSafetyNumber(_contactId) {
+  return null;
+}
+
+/** @param {string} _contactId */
+export async function markVerified(_contactId) {}
+
+/**
+ * A scanned safety number: format 1's connections have none to match.
+ * @param {string} _number
+ * @returns {Promise<{ contactId: string, personId: string | null, name: string | null } | null>}
+ */
+export async function verifyScanned(_number) {
+  return null;
+}

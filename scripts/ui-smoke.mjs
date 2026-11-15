@@ -79,7 +79,7 @@ process.exit(failures ? 1 : 0);
  */
 async function runHere(names) {
   // Starts the app and Chrome (only once the arguments are known to be good).
-  const { addFailure, checkConsole, failureCount, skippedCount, stop } = await import("./ui/harness.mjs");
+  const { addFailure, checkConsole, failureCount, skippedCount, stop, useTab } = await import("./ui/harness.mjs");
   try {
     for (const name of names) {
       const chunkStart = Date.now(), failedBefore = failureCount(), skippedBefore = skippedCount();
@@ -91,6 +91,8 @@ async function runHere(names) {
         // On stdout when reporting, so it stays with its chunk's lines.
         (report ? console.log : console.error)(`  ✗ ${name} stopped part-way:`, err);
       }
+      // The next chunk starts in the main tab, whichever this one ended in.
+      await useTab("main");
       checkConsole();
       const seconds = Math.round((Date.now() - chunkStart) / 1000);
       console.log(`  (${seconds}s)`);

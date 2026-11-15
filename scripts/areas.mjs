@@ -15,7 +15,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
-  "share-items", "convert",
+  "share-items", "convert", "contacts",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -25,7 +25,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65, "share-items": 45, convert: 40,
+  shares: 65, "share-items": 45, convert: 40, contacts: 60,
 };
 
 /**
@@ -304,8 +304,8 @@ export const AREAS = [
     name: "contacts",
     files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
       "src/mailboxes/", "public/js/contacts/", "public/js/store/v2/contacts.js", "public/js/profile-merge.js",
-      "public/js/profile-update.js"],
-    ui: ["basics", "shares", "people"],
+      "public/js/profile-update.js", "public/js/contact-verify.js", "public/js/views/verify.js"],
+    ui: ["basics", "shares", "people", "contacts"],
   },
   {
     name: "backup",

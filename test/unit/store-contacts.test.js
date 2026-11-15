@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { recordProblems } from "../../public/js/records/schema.js";
 import { listPeople } from "../../public/js/store/queries/resources.js";
 import { toBase64url, fromBase64url } from "../../public/js/crypto/keys.js";
+import { safetyNumber } from "../../public/js/crypto/safety-number.js";
 
 class CantOpen extends Error {}
 
@@ -386,6 +387,51 @@ describe("profile updates", () => {
     await connections.profileUpdateDone(contact.id);
     expect([connections.pendingProfile("person-0000000001"), connections.peopleWithUpdates().size]).toEqual([null, 0]);
     expect(journal.get(contact.id).body).toMatchObject({ state: "active", received: 1 });
+  });
+});
+
+describe("verifying a contact", () => {
+  function connected() {
+    put("person", "person-0000000001", { name: "Jude", created_at: NOW, updated_at: NOW });
+    put("contact", "contact-0000000001", { state: "active", person_id: "person-0000000001", their_key: THEIR_KEY, their_user: "user-them",
+      their_mailbox: THEIR_BOX, my_mailbox: "mymailbox0000000000000", pair_key: PAIR, sent: 0, received: 0, created_at: NOW, updated_at: NOW });
+    return journal.get("contact-0000000001");
+  }
+
+  it("has one safety number, over both keys and account ids, and none until their account has answered", async () => {
+    const contact = connected();
+    const expected = await safetyNumber({ publicKey: fromBase64url("P".repeat(1622)), id: "user-me" },
+      { publicKey: fromBase64url(THEIR_KEY), id: "user-them" });
+    expect(await contacts.contactSafetyNumber(contact.id)).toBe(expected);
+    expect(expected).toMatch(/^\d{60}$/);
+    put("contact", "contact-0000000002", { ...contact.body, their_user: undefined, person_id: undefined });
+    expect(await contacts.contactSafetyNumber("contact-0000000002")).toBeNull();
+  });
+
+  it("is marked verified by scanning their number, never by one that's someone else's", async () => {
+    const contact = connected();
+    expect(connections.contactStatus("person-0000000001")).toEqual({ contactId: contact.id, verified: false, keyChanged: false });
+    expect(await connections.verifyScanned("1".repeat(60))).toBeNull();
+    expect(journal.get(contact.id).body.verified).toBeFalsy();
+    const number = await contacts.contactSafetyNumber(contact.id);
+    expect(await connections.verifyScanned(number)).toEqual({ contactId: contact.id, personId: "person-0000000001", name: "Jude" });
+    expect(connections.contactStatus("person-0000000001")).toMatchObject({ verified: true, keyChanged: false });
+  });
+
+  it("warns once their key changes, clearing verified, until checked again", async () => {
+    const contact = connected();
+    await connections.markVerified(contact.id);
+    const newKey = "N".repeat(1622);
+    fromThem(journal.get(contact.id), 1, { type: "profile", public_key: newKey, profile: { v: 1, name: "Jude" } });
+    expect(await contacts.checkMailboxes()).toBe(1);
+    expect(connections.contactStatus("person-0000000001")).toMatchObject({ verified: false, keyChanged: true });
+    expect([...connections.peopleWithChangedKeys()]).toEqual(["person-0000000001"]);
+    // The number is the new key's.
+    const number = await contacts.contactSafetyNumber(contact.id);
+    expect(number).toBe(await safetyNumber({ publicKey: fromBase64url("P".repeat(1622)), id: "user-me" },
+      { publicKey: fromBase64url(newKey), id: "user-them" }));
+    await connections.verifyScanned(number);
+    expect([connections.contactStatus("person-0000000001")?.keyChanged, connections.peopleWithChangedKeys().size]).toEqual([false, 0]);
   });
 });
 

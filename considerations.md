@@ -3741,3 +3741,28 @@ Slice 2b: profile updates.
 - **Nothing changes on my card until I review it**: Save takes the fields
   I choose, as adding an invite to someone does (the same form,
   `profile-merge.js`); Ignore keeps my card. Either way it stops waiting.
+
+Slice 3: verifying.
+
+- **The safety number is worked out on the page**, not in the crypto
+  Worker: it's made from public keys and account ids only (5,200 rounds
+  of SHA-512 a side, kept per contact until lock).
+- **Scanning verifies the scanner's side only**: Jude scanning Alex's code
+  marks Alex verified on Jude's phone. Alex marks Jude after seeing the
+  numbers match ("They match: mark as verified"), or by scanning Jude's.
+  A scan proves the two phones show the same number; the server can't
+  make that happen with a key of its own.
+- **`/verify#<number>` keeps the number after #** (never sent to the
+  server) and takes it out of the address at once. A safety number isn't
+  a secret, but it needn't sit in the browser's history. Opened signed
+  out, sign-in drops it: scan again once signed in.
+- **No safety number until their account has answered**: it needs their
+  account id, which the inviter has from the acceptance and the accepter
+  from "accepted".
+- **A changed key warns on the card and in its dialog** ("Key changed"),
+  until checked again. An identity key is set once, so a change means
+  their account started over, or someone came between us.
+- **The walkthrough runs two accounts at once** as two browser contexts of
+  one Chrome (`useTab`), each with its own passkey device, rather than
+  signing out and in: a chunk can't sign back in to an account whose
+  passkey went with the last `freshAccount`.

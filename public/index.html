@@ -178,7 +178,9 @@
       <div class="person-flags">
         <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Linked to their account
           <button type="button" class="link" id="person-unlink">Remove link</button>
+          <button type="button" class="link" id="person-verify" hidden>Safety number</button>
           <button type="button" class="link" id="person-review-update" hidden>Updated info available</button></span>
+        <p class="warning-note" id="person-key-changed" hidden>Their account's key has changed. Open Safety number and check it with them in person.</p>
       </div>
       <form id="form">
         <div class="name-row">
@@ -613,6 +615,11 @@
   <template id="view-open">
     <h1>Shared with you</h1>
     <section class="card" id="open-body"></section>
+  </template>
+
+  <template id="view-verify">
+    <h1>Verify a connection</h1>
+    <section class="card" id="verify-body"></section>
   </template>
 
   <!-- Sign in (/signin) -->
