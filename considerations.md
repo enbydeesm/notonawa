@@ -3762,6 +3762,17 @@ Slice 3: verifying.
 - **A changed key warns on the card and in its dialog** ("Key changed"),
   until checked again. An identity key is set once, so a change means
   their account started over, or someone came between us.
+- **Sharing back rides in the acceptance** (format 2): the acceptance
+  always had room for a profile, so "Share your profile back?" is asked
+  before it's sent, and the inviter gets the connection and the profile in
+  one message, one banner ("Your "Munch" share was accepted and Jude has
+  connected and shared their profile"). New Person makes the card from it
+  (the name suggested from it); Add to a Person merges it into the one
+  chosen, as an update is reviewed. Sharing it after accepting goes from
+  the linked card's share icon, and arrives as an update. Either way, the
+  fields chosen are kept, so later changes to my profile go to them too.
+  Format 1's connections carry no messages, so it isn't offered there.
+  The privacy policy's rewrite for format 2 (phase 7) needs to say this.
 - **The walkthrough runs two accounts at once** as two browser contexts of
   one Chrome (`useTab`), each with its own passkey device, rather than
   signing out and in: a chunk can't sign back in to an account whose

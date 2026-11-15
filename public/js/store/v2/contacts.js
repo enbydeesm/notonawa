@@ -120,11 +120,12 @@ export async function connectingInvite({ fields, saveShare, ...share }) {
 
 /**
  * Accepts an invite's offer to connect, on one of my people: my mailbox for
- * them, a pair key, and the acceptance left in their intro mailbox.
- * @param {{ offer: any, personId: string, name: string, shareId: string, linkKey: string }} accept offer:
- *   an InviteOffer (offerIn)
+ * them, a pair key, and the acceptance left in their intro mailbox, with
+ * my profile in it if I share it back (its fields kept, for later updates).
+ * @param {{ offer: any, personId: string, name: string, shareId: string, linkKey: string,
+ *   shareBack?: import("../../share-back-dialog.js").ShareBack | null }} accept offer: an InviteOffer (offerIn)
  */
-export async function acceptConnection({ offer: anyOffer, personId, name, shareId, linkKey }) {
+export async function acceptConnection({ offer: anyOffer, personId, name, shareId, linkKey, shareBack = null }) {
   const offer = /** @type {InviteOffer} */ (anyOffer);
   const mine = await myIdentity();
   const box = newAddress();
@@ -133,7 +134,8 @@ export async function acceptConnection({ offer: anyOffer, personId, name, shareI
   try {
     const sealed = await vault.sealAcceptance({
       inviterPublicKey: offer.public_key, shareId, linkKey,
-      payload: acceptanceBody({ public_key: mine.public_key, user_id: mine.user_id, mailbox: box, pair_key: pairKey, profile: null }),
+      payload: acceptanceBody({ public_key: mine.public_key, user_id: mine.user_id, mailbox: box, pair_key: pairKey,
+        profile: shareBack?.profile ?? null }),
     });
     await send(offer.mailbox, toBase64url(new Uint8Array(sealed)));
   } catch (err) {
@@ -143,7 +145,8 @@ export async function acceptConnection({ offer: anyOffer, personId, name, shareI
   const now = stamp();
   await save({ writes: [
     ...offOtherContacts(personId, null, now),
-    { kind: "contact", id: newId(), body: acceptingContact({ theirKey: offer.public_key, personId, name, myMailbox: box.id, pairKey, fields: {}, now }) },
+    { kind: "contact", id: newId(), body: acceptingContact({ theirKey: offer.public_key, personId, name, myMailbox: box.id, pairKey,
+      fields: shareBack?.fields ?? {}, sentProfile: shareBack?.profile ?? null, now }) },
   ] });
   window.dispatchEvent(new Event(CHANGED));
 }
@@ -406,6 +409,20 @@ async function sendUpdates() {
     sent++;
   }
   return sent;
+}
+
+/**
+ * Shares my profile with the contact on this person, through our
+ * connection: these fields from now on, sent now (or once their account
+ * has answered, if it hasn't yet), and again whenever they change.
+ * @param {string} personId
+ * @param {import("../../share-back-dialog.js").ShareBack} share
+ */
+export async function shareProfileWith(personId, share) {
+  const c = records("contact").find((r) => isActive(r.body) && r.body?.person_id === personId);
+  if (!c?.body) throw new Error("Not found");
+  await save({ writes: [{ kind: "contact", id: c.id, from: c.body, body: { ...c.body, fields: share.fields, updated_at: stamp() } }] });
+  await sendProfileUpdates();
 }
 
 /**

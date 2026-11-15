@@ -219,6 +219,14 @@ describe("accepting someone's invite", () => {
     expect(events.map((e) => e.type)).toEqual(["notonawa:connections-changed"]);
   });
 
+  it("can share my profile back in the acceptance, keeping its fields for later updates", async () => {
+    const shareBack = { profile: { v: 1, name: "Jude", pronouns: "she/her" }, fields: { name: "Jude", pronouns: true, aliases: [] } };
+    await contacts.acceptConnection({ offer, personId: "person-0000000001", name: "Alex", shareId: "share-000000000009", linkKey: "K".repeat(43),
+      shareBack });
+    expect(dec(server.sent[0].body).payload.profile).toEqual(shareBack.profile);
+    expect(contactsNow()[0].body).toMatchObject({ fields: shareBack.fields, sent_profile: shareBack.profile });
+  });
+
   it("says so if the invite no longer offers to connect, saving nothing and leaving no mailbox", async () => {
     server.gone.add(THEIR_BOX.id);
     await expect(contacts.acceptConnection({ offer, personId: "person-0000000001", name: "Jude", shareId: "s".repeat(16), linkKey: "K".repeat(43) }))
@@ -244,7 +252,7 @@ describe("checking my mailboxes", () => {
     expect([...server.mailboxes.values()].map((m) => m.kind)).toEqual(["contact"]);
     expect(server.acked).toEqual(["msg-1"]);
     expect(events.map((e) => e.type)).toEqual(["notonawa:connections-changed"]);
-    expect(await contacts.listConnections()).toEqual([{ id: contact?.id, person_id: null, invited: true, answered: false, label: "Munch",
+    expect(await contacts.listConnections()).toEqual([{ id: contact?.id, person_id: null, invited: true, answered: false, label: "Munch", shared: null,
       created_at: expect.any(String) }]);
   });
 
@@ -256,6 +264,21 @@ describe("checking my mailboxes", () => {
     expect(contactsNow().map((c) => c.body.state).sort()).toEqual(["active", "invited"]);
     expect(server.acked).toEqual(["msg-1", "msg-2"]);
     expect(server.sent.length).toBe(1);
+  });
+
+  it("keeps a profile shared back for the banner, which offers it until answered", async () => {
+    const { invite } = await makeInvite();
+    const profile = { v: 1, name: "Jude", pronouns: "she/her" };
+    theirAcceptance(invite);
+    server.waiting[0].body = enc({ ...dec(server.waiting[0].body), payload: { ...dec(server.waiting[0].body).payload, profile } });
+    expect(await contacts.checkMailboxes()).toBe(1);
+    const [connection] = await contacts.listConnections();
+    expect([connection.shared, connection.label]).toEqual([profile, "Munch"]);
+    // Put on a new card made from it: answered, and the profile stops waiting.
+    await connections.setConnectionPerson(connection.id, "person-0000000001");
+    expect(connections.pendingProfile("person-0000000001")).toEqual({ contactId: connection.id, profile });
+    await connections.profileUpdateDone(connection.id);
+    expect([(await contacts.listConnections())[0].shared, connections.pendingProfile("person-0000000001")]).toEqual([null, null]);
   });
 
   it("drops an acceptance that isn't for this invite's link", async () => {
@@ -387,6 +410,21 @@ describe("profile updates", () => {
     await connections.profileUpdateDone(contact.id);
     expect([connections.pendingProfile("person-0000000001"), connections.peopleWithUpdates().size]).toEqual([null, 0]);
     expect(journal.get(contact.id).body).toMatchObject({ state: "active", received: 1 });
+  });
+});
+
+describe("sharing my profile from their card", () => {
+  it("keeps the fields chosen and sends it now, and again when it changes", async () => {
+    put("person", "me-00000000000001", { name: "Me", is_self: true, pronouns: "she/her", based_in: "York", created_at: NOW, updated_at: NOW });
+    put("contact", "contact-0000000001", { state: "active", person_id: "person-0000000001", their_key: THEIR_KEY, their_mailbox: THEIR_BOX,
+      my_mailbox: "mymailbox0000000000000", pair_key: PAIR, sent: 0, received: 0, fields: {}, created_at: NOW, updated_at: NOW });
+    const fields = { name: "Jude", pronouns: true, based_in: true, aliases: [] };
+    await connections.shareProfileWith("person-0000000001", { profile: { v: 1, name: "Jude" }, fields });
+    const sent = dec(server.sent[0].body);
+    expect([server.sent[0].slot, sent.payload.type, sent.payload.profile]).toEqual(["profile", "profile",
+      { v: 1, name: "Jude", pronouns: "she/her", based_in: "York" }]);
+    expect(journal.get("contact-0000000001").body.fields).toEqual(fields);
+    await expect(connections.shareProfileWith("someone-else-0001", { profile: { v: 1, name: "Jude" }, fields })).rejects.toThrow();
   });
 });
 

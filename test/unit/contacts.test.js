@@ -113,11 +113,18 @@ describe("the contact record", () => {
   });
 
   it("shows as a connection on the screens format 1 has", () => {
+    // Their profile, shared back on accepting, for the banner to offer until it's answered.
     expect(asConnection({ id: "c1", body: mine })).toEqual({
-      id: "c1", person_id: null, invited: true, answered: false, label: "Munch", created_at: NOW });
+      id: "c1", person_id: null, invited: true, answered: false, label: "Munch", created_at: NOW, shared: PROFILE });
+    expect(asConnection({ id: "c1", body: { ...mine, answered: true } }).shared).toBeNull();
     const accepting = acceptingContact({ theirKey: KEY_A, personId: "p1", name: "Jude", myMailbox: chars(22, "z"), pairKey: chars(43, "p"),
       fields: {}, now: NOW });
-    expect(asConnection({ id: "c2", body: accepting })).toMatchObject({ person_id: "p1", invited: false, answered: true, label: "Jude" });
+    expect(asConnection({ id: "c2", body: accepting })).toMatchObject({ person_id: "p1", invited: false, answered: true, label: "Jude", shared: null });
+    // Sharing back on accepting: what I shared, kept, so my later changes go to them too.
+    const sharing = acceptingContact({ theirKey: KEY_A, personId: "p1", name: "Jude", myMailbox: chars(22, "z"), pairKey: chars(43, "p"),
+      fields: { name: "Alex", pronouns: true }, sentProfile: PROFILE, now: NOW });
+    expect(sharing).toMatchObject({ fields: { name: "Alex", pronouns: true }, sent_profile: PROFILE });
+    expect(recordProblems("contact", sharing)).toEqual([]);
   });
 });
 

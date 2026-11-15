@@ -28,6 +28,10 @@ describe("the inviter's banner", () => {
     expect(bannerText("Class QR")).toMatch(/^Someone accepted your invite "Class QR"/);
     expect(bannerText(null)).toMatch(/^Someone accepted your profile invite/);
     expect(bannerText(null)).toMatch("never what's in either journal");
+    // Format 2, shared back on accepting: their profile's name, from another account, as text.
+    expect(bannerText("Munch", "Jude")).toBe('Your "Munch" share was accepted and Jude has connected and shared their profile. '
+      + "Add them to your People, or to someone you have?");
+    expect(bannerText(null, "Jude")).toMatch(/^Your profile invite was accepted and Jude has connected/);
   });
 
   it("is for invited connections not yet answered", () => {

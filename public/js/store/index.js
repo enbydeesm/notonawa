@@ -118,6 +118,15 @@ export const peopleWithChangedKeys = byFormat(v1Connections.peopleWithChangedKey
 export const contactSafetyNumber = byFormat(v1Connections.contactSafetyNumber, v2Connections.contactSafetyNumber);
 export const markVerified = byFormat(v1Connections.markVerified, v2Connections.markVerified);
 export const verifyScanned = byFormat(v1Connections.verifyScanned, v2Connections.verifyScanned);
+export const shareProfileWith = byFormat(v1Connections.shareProfileWith, v2Connections.shareProfileWith);
+
+/**
+ * Whether connected accounts can share profiles through their connection
+ * (format 2's carry sealed messages; format 1's share them by link only).
+ */
+export function canShareBack() {
+  return accountFormat() === 2;
+}
 
 /**
  * Whether the account can connect to others: either format can, but only

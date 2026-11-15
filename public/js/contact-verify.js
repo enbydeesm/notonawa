@@ -11,6 +11,27 @@ import { qrCode } from "./share-code.js";
 import { safetyBlocks } from "./crypto/safety-number.js";
 import { contactStatus, contactSafetyNumber, markVerified } from "./store/index.js";
 
+const SVG = "http://www.w3.org/2000/svg";
+
+/**
+ * A small shield, in the accent: a contact's safety number; with a tick
+ * inside once verified.
+ * @param {boolean} checked
+ * @returns {SVGSVGElement}
+ */
+export function shieldIcon(checked) {
+  const svg = /** @type {SVGSVGElement} */ (document.createElementNS(SVG, "svg"));
+  for (const [name, value] of Object.entries({ viewBox: "0 0 24 24", class: "shield-icon", "aria-hidden": "true", fill: "none",
+    stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round" })) svg.setAttribute(name, value);
+  const paths = ["M12 3l7.5 3v5.5c0 4.4-3.1 8.2-7.5 9.5-4.4-1.3-7.5-5.1-7.5-9.5V6L12 3z", ...(checked ? ["M8.5 12.2l2.4 2.4 4.6-4.8"] : [])];
+  for (const d of paths) {
+    const path = document.createElementNS(SVG, "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
 /** The address a safety number's QR code opens: the number after #, so it isn't sent anywhere. */
 export const verifyLink = (/** @type {string} */ origin, /** @type {string} */ number) => `${origin}/verify#${number}`;
 

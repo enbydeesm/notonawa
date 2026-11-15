@@ -448,7 +448,7 @@ const PAGE_HELPERS = `
       !!item.querySelector(".educator-icon"), [...item.querySelectorAll(":scope > .item-meta")].map((m) => m.textContent), item.querySelectorAll("button").length];
   };
   // An edit dialog's icons on its heading row, by name (dialog-icons.js).
-  const headerIcons = (sel) => [...document.querySelectorAll(sel + " .dialog-header button")].map((b) => b.getAttribute("aria-label"));
+  const headerIcons = (sel) => [...document.querySelectorAll(sel + " .dialog-header button.icon-button")].map((b) => b.getAttribute("aria-label"));
   const personButtons = () => headerIcons("#person-dialog");
   // An edit dialog's ✕, saying Discard changes if it asks.
   const closeDiscarding = async (sel) => {

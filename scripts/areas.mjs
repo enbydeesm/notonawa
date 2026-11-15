@@ -304,7 +304,8 @@ export const AREAS = [
     name: "contacts",
     files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
       "src/mailboxes/", "public/js/contacts/", "public/js/store/v2/contacts.js", "public/js/profile-merge.js",
-      "public/js/profile-update.js", "public/js/contact-verify.js", "public/js/views/verify.js"],
+      "public/js/profile-update.js", "public/js/contact-verify.js", "public/js/views/verify.js",
+      "public/js/share-back-dialog.js", "public/js/profile-choices.js"],
     ui: ["basics", "shares", "people", "contacts"],
   },
   {

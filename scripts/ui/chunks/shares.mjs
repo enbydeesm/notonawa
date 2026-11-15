@@ -3,7 +3,7 @@
 // them (/open): as a new person, merged into a card it has, after signing in,
 // and links that have ended or are damaged. Then connecting accounts: an
 // invite offering it, accepted by the second account (the link icon,
-// Connections in Shared by me, Remove link), and, on format 1, the
+// Connections in Shared by me, Unlink), and, on format 1, the
 // inviter's banner, seeded in the database (format 2's, between two
 // accounts at once, is the contacts chunk's).
 
@@ -187,23 +187,26 @@ export default async function () {
     for (let i = 0; i < 50 && !$("#open-connect"); i++) await wait(100);
     return [$("#open-connect").checked, $("#open-connect-note").textContent.startsWith("Connecting lets NotoNawa's server see")];`),
   [false, true]);
-  check("ticked, adding them links their card to their account", await run(`
+  check("ticked, adding them links their card to their account (format 2 asks about sharing back first: not here)", await run(`
     set("#open-connect", true); $("#open-add-new").click();
+    for (let i = 0; i < 50 && !$("#open-done") && !$("#share-back-skip"); i++) await wait(100);
+    const askedBack = !!$("#share-back-skip");
+    $("#share-back-skip")?.click();
     for (let i = 0; i < 50 && !$("#open-done"); i++) await wait(100);
-    return [$("#open-done").textContent, $("#open-linked")?.textContent];`),
-  ["Jude C is in your People.", "Their card is linked to their account."]);
+    return [askedBack, $("#open-done").textContent, $("#open-linked")?.textContent];`),
+  [FORMAT === 2, "Jude C is in your People.", "Their card is linked to their account."]);
   await go("/people");
   /** Whether each named card shows the link icon. */
   const ICONS = `return [...document.querySelectorAll(".name-button")].map((b) => [b.textContent, !!b.closest(".item").querySelector(".link-icon")]).sort();`;
-  check("a linked card shows the link icon, and its dialog says so, with Remove link", await run(`
+  check("a linked card shows the link icon, and its dialog says so, with Unlink", await run(`
     const icons = (() => { ${ICONS} })();
     await openPerson("Jude C");
     const flag = $("#person-linked");
-    const shown = [flag.hidden, flag.innerText.includes("Linked to their account"), $("#person-unlink").textContent];
+    const shown = [flag.hidden, flag.innerText.includes("Account linked"), $("#person-unlink").textContent];
     $("[data-cancel-edit]").click(); await calm(200);
     await openPerson("Me"); const onMe = $("#person-linked").hidden; $("[data-cancel-edit]").click(); await calm(200);
     return [icons, shown, onMe];`),
-  [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Remove link"], true]);
+  [[["Jude C", true], ["Jude", false], ["Jude", false], ["Me", false]], [false, true, "Unlink"], true]);
   if (FORMAT === 2) {
     check("format 2: the acceptance waits in the inviter's intro mailbox, and my mailbox for them is made", sql(`
       SELECT (SELECT COUNT(*) FROM mailbox_messages msg JOIN mailboxes m ON m.id = msg.mailbox_id WHERE m.kind = 'intro') AS waiting,

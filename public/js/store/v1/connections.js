@@ -151,3 +151,13 @@ export async function markVerified(_contactId) {}
 export async function verifyScanned(_number) {
   return null;
 }
+
+/**
+ * Sharing my profile through a connection: format 1's carry no messages
+ * (a profile invite's link does it).
+ * @param {string} _personId
+ * @param {import("../../share-back-dialog.js").ShareBack} _share
+ */
+export async function shareProfileWith(_personId, _share) {
+  throw new Error("Share your profile with an invite link.");
+}

@@ -7,17 +7,18 @@
 import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { readProfile } from "./profile-share.js";
-import { mergeFields } from "./profile-merge.js";
-import { profileCard } from "./open-profile.js";
+import { mergeFields, profileCard } from "./profile-merge.js";
 import { saveItem, pendingProfile, profileUpdateDone } from "./store/index.js";
 
 /**
  * Reviews the update waiting for this person, if there is one. Resolves
  * true if my card or the update changed (People reloads).
  * @param {any} person mine, opened
+ * @param {{ title?: string, intro?: string }} [words] the heading and line above their profile: an update's,
+ *   unless it's the profile they shared on connecting
  * @returns {Promise<boolean>}
  */
-export function reviewProfileUpdate(person) {
+export function reviewProfileUpdate(person, { title = `Updated info from ${person.name}`, intro = "What they share with you now:" } = {}) {
   const pending = pendingProfile(person.id);
   return new Promise((resolve) => {
     if (!pending) return resolve(false);
@@ -52,8 +53,8 @@ export function reviewProfileUpdate(person) {
         close, message);
     } else {
       const merge = mergeFields({ root: dialog, person, profile, prefix: "update" });
-      dialog.append(h("h2", { id: "update-heading" }, `Updated info from ${person.name}`),
-        h("p", { className: "hint" }, "What they share with you now:"),
+      dialog.append(h("h2", { id: "update-heading" }, title),
+        h("p", { className: "hint" }, intro),
         profileCard(profile, "update"),
         ...merge.elements,
         h("button", { type: "button", className: "primary", id: "update-save",

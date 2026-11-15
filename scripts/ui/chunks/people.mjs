@@ -146,10 +146,10 @@ export default async function () {
       const badge = [...document.querySelectorAll("#list .item")].map((i) => [i.querySelector(".name-button").textContent,
         i.querySelector(".update-badge")?.textContent ?? null]).find(([name]) => name === "Robin");
       await openPerson("Robin");
-      const offered = [$("#person-linked").hidden, $("#person-review-update").hidden, $("#person-review-update").textContent];
-      return [badge, offered];`), [["Robin", "Updated info"], [false, false, "Updated info available"]]);
+      const offered = [$("#person-linked").hidden, $("#person-update-badge").hidden, $("#person-update-badge").textContent];
+      return [badge, offered];`), [["Robin", "Updates available"], [false, false, "Updates available"]]);
     check("reviewing shows what they share now, field by field, and Save puts what I chose on the card", await run(`
-      $("#person-review-update").click(); await calm(400);
+      $("#person-update-badge").click(); await calm(400);
       const shown = [$("#update-heading").textContent, $("#update-name").textContent,
         [...document.querySelectorAll(".profile-update .merge-field legend")].map((l) => l.textContent), $("#update-about-note").textContent,
         leakyFields()];
@@ -157,7 +157,7 @@ export default async function () {
       $("#update-save").click(); for (let i = 0; i < 50 && $(".profile-update"); i++) await wait(100);
       await calm(500);
       await openPerson("Robin");
-      const onCard = [$("#person-name").value, $("#person-pronouns").value, $("#person-about").value, $("#person-review-update").hidden];
+      const onCard = [$("#person-name").value, $("#person-pronouns").value, $("#person-about").value, $("#person-update-badge").hidden];
       $("[data-cancel-edit]").click(); await calm(200);
       const badge = [...document.querySelectorAll("#list .update-badge")].length;
       return [shown, onCard, badge];`),

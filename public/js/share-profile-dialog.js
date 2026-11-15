@@ -5,16 +5,12 @@
 
 import { errorMessage } from "./api.js";
 import { h, showMessage, privateField, infoTip } from "./dom.js";
-import { readAliases, PLATFORMS } from "./aliases.js";
-import { buildProfile, suggestedName } from "./profile-share.js";
 import { EXPIRY_CHOICES, DEFAULT_INVITE_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
 import { saveShare } from "./share-save.js";
 import { canConnect, profileInvite } from "./store/index.js";
-import { keptChoices } from "./contacts/rules.js";
 import { showShareCode } from "./share-code.js";
+import { profileChoices } from "./profile-choices.js";
 import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
-import { roleName } from "./roles.js";
-import { capitalise } from "./format.js";
 
 /**
  * Opens the dialog for my own profile (as saved, opened). Resolves when
@@ -25,31 +21,8 @@ import { capitalise } from "./format.js";
  */
 export function openShareProfile(me) {
   return new Promise((resolve) => {
-    const aliases = readAliases(me.aliases);
     // Ids start with "share-profile-": this opens over the People dialog.
-    const name = privateField(h("input", {
-      id: "share-profile-name", name: "name", required: true, maxLength: 200, value: suggestedName(me.name),
-    }));
-    /**
-     * A tickbox for one thing to share, showing what it is.
-     * @param {string} id
-     * @param {string} label
-     * @param {string} value
-     */
-    const tick = (id, label, value) => h("label", { className: "inline share-field" },
-      h("input", { type: "checkbox", id: `share-profile-${id}`, checked: true }),
-      h("span", {}, h("strong", {}, label), " ", value));
-    const platform = (/** @type {string} */ value) => PLATFORMS.find((p) => p.value === value)?.label ?? "Other";
-    const fields = [
-      me.pronouns ? tick("pronouns", "Pronouns:", me.pronouns) : null,
-      me.default_role ? tick("default_role", "Usual role:", capitalise(roleName(me.default_role))) : null,
-      ...aliases.map((a, i) => tick(`alias-${i}`, `${platform(a.platform)}:`, a.alias)),
-      me.based_in ? tick("based_in", "Based in:", me.based_in) : null,
-      // Shown either way; only a yes goes in the invite (profile-share.js),
-      // so "No" leaves their card for me as they set it.
-      tick("is_educator", "Educator:", me.is_educator ? "Yes" : "No"),
-      me.about ? tick("about", "About me:", "Your shareable notes about yourself. Your private notes are never shared.") : null,
-    ].filter(Boolean);
+    const choose = profileChoices(me, "share-profile");
     const expires = h("select", { id: "share-profile-expires" },
       EXPIRY_CHOICES.map((c) => h("option", { value: c.value, selected: c.value === DEFAULT_INVITE_EXPIRY }, c.label)));
     const uses = h("select", { id: "share-profile-uses" }, USE_CHOICES.map((c) => h("option", { value: c.value }, c.label)));
@@ -60,8 +33,6 @@ export function openShareProfile(me) {
     const disclosure = h("div", { id: "share-profile-connect-note", hidden: true },
       h("p", { className: "hint connect-disclosure" }, CONNECT_DISCLOSURE_SHORT, " ", more.button),
       more.text);
-    const nameInfo = infoTip("share-profile-name-info", "About the profile name",
-      "The suggested name for your profile in the recipient's journal.");
     const tagInfo = infoTip("share-profile-label-info", "About the invite tag",
       "Provides context for you in Your data (Shared by me and Connections). e.g. the person's name and where you met them.");
     const warning = h("p", { className: "warning-note", id: "share-profile-warning", hidden: true });
@@ -84,10 +55,8 @@ export function openShareProfile(me) {
       aboutInfo.text,
       canConnect() ? h("label", { className: "inline share-connect" }, connect, " ", h("strong", {}, "Connect our accounts")) : null,
       canConnect() ? disclosure : null,
-      h("div", { className: "label-row" }, h("label", { htmlFor: "share-profile-name" }, "Profile name"), nameInfo.button),
-      nameInfo.text,
-      name,
-      h("fieldset", { className: "share-fields" }, h("legend", {}, "Also share"), fields),
+      ...choose.nameRow,
+      choose.fields,
       h("div", { className: "row" },
         h("div", {}, h("label", { htmlFor: "share-profile-expires" }, "Share invite lasts"), expires),
         h("div", {}, h("label", { htmlFor: "share-profile-uses" }, "Who can use it"), uses)),
@@ -107,28 +76,16 @@ export function openShareProfile(me) {
       resolve();
     });
 
-    /** @param {string} id */
-    const ticked = (id) => /** @type {HTMLInputElement | null} */ (dialog.querySelector(`#share-profile-${id}`))?.checked ?? false;
-
     /** @param {SubmitEvent} event */
     async function make(event) {
       event.preventDefault();
       submit.disabled = true;
       showMessage(message, "Making the invite…");
       try {
-        const choices = {
-          name: name.value,
-          pronouns: ticked("pronouns"),
-          default_role: ticked("default_role"),
-          aliases: aliases.flatMap((_, i) => (ticked(`alias-${i}`) ? [i] : [])),
-          based_in: ticked("based_in"),
-          is_educator: ticked("is_educator"),
-          about: ticked("about"),
-        };
-        const profile = buildProfile(me, aliases, choices);
+        const { profile, fields } = choose.read();
         const { id, key } = await profileInvite({
           kind: "profile", data: profile, label: label.value, expires: expires.value, uses: uses.value, connect: connect.checked,
-          fields: keptChoices(choices, aliases), saveShare,
+          fields, saveShare,
         });
         dialog.close();
         await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value, connect.checked) ?? undefined });

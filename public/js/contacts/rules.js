@@ -88,13 +88,14 @@ export function needsProfile(body, profile) {
  * My side, accepting someone's invite: connected, waiting for their
  * "accepted" with their mailbox for me.
  * @param {{ theirKey: string, personId: string, name: string, myMailbox: string, pairKey: string,
- *   fields: Record<string, boolean>, now: string }} accept
+ *   fields: Record<string, any>, sentProfile?: SharedProfile | null, now: string }} accept fields and sentProfile:
+ *   what I shared back in the acceptance, if anything
  * @returns {Body}
  */
-export function acceptingContact({ theirKey, personId, name, myMailbox, pairKey, fields, now }) {
+export function acceptingContact({ theirKey, personId, name, myMailbox, pairKey, fields, sentProfile = null, now }) {
   return compact({
     state: "active", invited: false, answered: true, person_id: personId, name, their_key: theirKey, their_user: null,
-    their_mailbox: null, my_mailbox: myMailbox, pair_key: pairKey, sent: 0, received: 0, fields, verified: false,
+    their_mailbox: null, my_mailbox: myMailbox, pair_key: pairKey, sent: 0, received: 0, fields, sent_profile: sentProfile, verified: false,
     key_changed: false, created_at: now, updated_at: now,
   });
 }
@@ -189,9 +190,12 @@ export const isActive = (body) => body?.state === "active";
  * Connection): Shared by me's Connections, People's link icon and the
  * inviter's banner work the same for both formats.
  * @param {{ id: string, body: Body }} contact
+ * @returns {import("../connection-text.js").Connection}
  */
 export function asConnection({ id, body }) {
   return {
+    // Their profile, if they shared it back on accepting my invite (the banner offers it).
+    shared: body.invited && !body.answered ? body.pending_profile ?? null : null,
     id, person_id: body.person_id ?? null, invited: !!body.invited, answered: !!body.answered,
     // The inviter sees the invite's tag (as format 1's sealed label); the accepter, the name they shared.
     label: body.invited ? body.label ?? body.name ?? null : body.name ?? null,

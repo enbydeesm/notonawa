@@ -1,6 +1,8 @@
 // The inviter's banner: someone accepted my profile invite and connected
 // our accounts, so which of my People is it? Add to a Person, New Person,
-// or Not now (it stays in Shared by me). Shown between the notices and the
+// or Not now (it stays in Shared by me). On format 2 they may have shared
+// their profile back: New Person makes their card from it, and Add to a
+// Person merges it into one I have, field by field. Shown between the notices and the
 // view while the journal is open; fetched again at most every few minutes
 // and after a change, and forgotten when the journal locks.
 
@@ -63,7 +65,7 @@ function draw() {
   box.hidden = !visible || waiting.length === 0;
   box.replaceChildren(...waiting.map((c) => h("div", { className: "notice connection-notice" },
     linkIcon(null),
-    h("p", {}, bannerText(c.label)),
+    h("p", {}, bannerText(c.label, c.shared?.name ?? null)),
     h("div", { className: "notice-actions" },
       h("button", { type: "button", className: "connection-pick", onclick: () => answer(c, false) }, "Add to a Person"),
       h("button", { type: "button", className: "connection-new", onclick: () => answer(c, true) }, "New Person"),
@@ -76,7 +78,7 @@ function draw() {
  */
 async function answer(connection, newPerson) {
   // Linking marks it answered and tells everything (this included) to look again.
-  await chooseConnectionPerson(connection.id, { newPerson });
+  await chooseConnectionPerson(connection.id, { newPerson, shared: connection.shared ?? null });
 }
 
 /** @param {Connection} connection */

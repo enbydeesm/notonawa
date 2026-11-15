@@ -15,8 +15,11 @@ import { aboutField } from "../person-about.js";
 import { openShareProfile } from "../share-profile-dialog.js";
 import { linkIcon, removeConnection, CONNECTIONS_CHANGED } from "../connections.js";
 import { reviewProfileUpdate } from "../profile-update.js";
-import { pendingProfile, peopleWithUpdates, contactStatus, peopleWithChangedKeys } from "../store/index.js";
-import { showSafetyNumber } from "../contact-verify.js";
+import {
+  pendingProfile, peopleWithUpdates, contactStatus, peopleWithChangedKeys, canShareBack, shareProfileWith, listItems,
+} from "../store/index.js";
+import { showSafetyNumber, shieldIcon } from "../contact-verify.js";
+import { chooseShareBack } from "../share-back-dialog.js";
 import { errorMessage } from "../api.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -102,6 +105,16 @@ export function mount(_root, { signal }) {
       showMessage(message, "Couldn't remove the link: " + errorMessage(err), true);
     }
   }, { signal });
+  /**
+   * Shares my profile with a connected person, choosing what, over their dialog.
+   * @param {any} person
+   */
+  async function shareWith(person) {
+    const me = (await listItems("people", "false")).find((p) => p.is_self);
+    if (!me) return;
+    await chooseShareBack(me, { name: person.name, accepting: false }, (share) => shareProfileWith(person.id, share));
+  }
+
   // A connected account's safety number (format 2), over the list.
   $("#person-verify").addEventListener("click", async () => {
     if (!linked) return;
@@ -110,7 +123,7 @@ export function mount(_root, { signal }) {
     if (await showSafetyNumber(person)) page.reload();
   }, { signal });
   // Their account sent its profile again: reviewed over the list, not the form.
-  $("#person-review-update").addEventListener("click", async () => {
+  $("#person-update-badge").addEventListener("click", async () => {
     if (!linked) return;
     const person = linked;
     /** @type {HTMLDialogElement} */ ($("#person-dialog")).close();
@@ -150,10 +163,12 @@ export function mount(_root, { signal }) {
       showAbout(person);
       linked = person?.connection_id ? person : null;
       $("#person-linked").hidden = !linked;
-      $("#person-review-update").hidden = !(linked && pendingProfile(linked.id));
+      $("#person-update-badge").hidden = !(linked && pendingProfile(linked.id));
       const status = linked ? contactStatus(linked.id) : null;
+      const isVerified = !!status?.verified && !status.keyChanged;
       $("#person-verify").hidden = !status;
-      $("#person-verify").textContent = status?.verified && !status.keyChanged ? "Verified ✓" : "Safety number";
+      $("#person-verify-icon").replaceChildren(shieldIcon(isVerified));
+      $("#person-verify-label").textContent = isVerified ? "Verified" : "Safety Number";
       $("#person-key-changed").hidden = !status?.keyChanged;
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
@@ -163,7 +178,10 @@ export function mount(_root, { signal }) {
     // what's being typed.
     extraActions: (person) => (person.is_self
       ? [iconButton("share", { id: "person-share", label: "Share my profile", onclick: () => openShareProfile(/** @type {any} */ (person)) })]
-      : []),
+      // Someone connected (format 2): my profile goes through our connection, no link needed.
+      : canShareBack() && contactStatus(person.id)
+        ? [iconButton("share", { id: "person-share-with", label: "Share my profile with them", onclick: () => shareWith(person) })]
+        : []),
     // Sealed whole, as JSON text (aliases.js).
     prepare: (data) => ({ ...data, aliases: aliasesText(collectAliases()) }),
 
@@ -181,7 +199,7 @@ export function mount(_root, { signal }) {
           person.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(person.default_role))) : null,
           person.is_educator ? educatorIcon() : null,
           person.connection_id ? linkIcon() : null,
-          updates.has(person.id) ? h("span", { className: "badge update-badge" }, "Updated info") : null,
+          updates.has(person.id) ? h("span", { className: "badge update-badge" }, "Updates available") : null,
           changed.has(person.id) ? h("span", { className: "badge key-badge" }, "Key changed") : null),
         person.based_in ? h("div", { className: "item-meta" }, `based in ${person.based_in}`) : null,
         aka ? h("div", { className: "item-meta" }, aka) : null,

@@ -32,7 +32,8 @@ export const REMOVE_ABOUT_NOTE =
 /**
  * My side of a connection, opened, with the name of the person it's on.
  * @typedef {{ id: string, invited: number | boolean, label: string | null, answered: number | boolean,
- *   created_at: string, person_id: string | null }} Connection
+ *   created_at: string, person_id: string | null, shared?: import("./profile-share.js").SharedProfile | null }} Connection
+ *   shared: format 2's: their profile, shared back on accepting my invite
  */
 
 /**
@@ -56,11 +57,16 @@ export function connectionDetail(connection, locale) {
 }
 
 /**
- * The inviter's banner. It says "someone": with an invite anyone could use,
- * the inviter can't tell who it was.
- * @param {string | null} label the invite's name
+ * The inviter's banner: someone accepted my invite, connecting our
+ * accounts, and maybe shared their profile back.
+ * @param {string | null} label my invite's tag
+ * @param {string | null} [sharedName] the name on their profile, if they shared it back
  */
-export function bannerText(label) {
+export function bannerText(label, sharedName = null) {
+  if (sharedName) {
+    return `${label ? `Your "${label}" share` : "Your profile invite"} was accepted and ${sharedName} has connected and shared their `
+      + "profile. Add them to your People, or to someone you have?";
+  }
   const invite = label ? `your invite "${label}"` : "your profile invite";
   return `Someone accepted ${invite}, and your accounts are now connected. NotoNawa's server can see that you know each ` +
     "other, never what's in either journal. Which of your People is it?";

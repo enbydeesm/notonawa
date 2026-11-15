@@ -7,9 +7,28 @@
 import { h, privateField } from "./dom.js";
 import { fieldChoices, newAliases, mergedPerson } from "./contact-merge.js";
 import { roleName } from "./roles.js";
+import { akaText } from "./aliases.js";
 import { capitalise, today } from "./format.js";
 
 /** @typedef {import("./profile-share.js").SharedProfile} SharedProfile */
+
+/**
+ * What they shared, as a card.
+ * @param {SharedProfile} profile
+ * @param {string} [prefix] the ids' start
+ */
+export function profileCard(profile, prefix = "open") {
+  const aka = akaText(profile.aliases ?? []);
+  return h("div", { className: "item shared-profile", id: `${prefix}-profile` },
+    h("div", { className: "item-title name-title" },
+      h("span", { id: `${prefix}-name` }, profile.name),
+      profile.pronouns ? h("span", { className: "item-meta" }, profile.pronouns) : null,
+      profile.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(profile.default_role))) : null,
+      profile.is_educator ? h("span", { className: "badge" }, "Educator") : null),
+    profile.based_in ? h("div", { className: "item-meta" }, `based in ${profile.based_in}`) : null,
+    aka ? h("div", { className: "item-meta" }, aka) : null,
+    profile.about ? h("p", { className: "item-notes shared-about" }, profile.about) : null);
+}
 
 /**
  * The merge's fields, and the card they make once chosen.

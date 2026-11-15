@@ -1100,7 +1100,14 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .name-row label { margin: 0; }
 /* The People dialog's "This is me", or a connection's link, under the
    heading row at the right. */
-.person-flags { display: flex; justify-content: flex-end; }
+/* Safety Number at the left, Account linked at the right (alone, still at the right); the warning under both. */
+.person-flags { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+.person-flags .linked-flag { margin-left: auto; }
+.person-flags .warning-note { flex-basis: 100%; }
+.verify-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+.verify-flag[hidden] { display: none; }
+.shield-icon { width: 18px; height: 18px; flex: none; }
+button.update-flag { border: 0; cursor: pointer; background: var(--accent); color: var(--accent-text); font: inherit; font-size: 0.75rem; font-weight: 600; }
 .person-flags:not(:has(> :not([hidden]))) { display: none; }
 .self-flag { display: inline-flex; align-items: center; gap: 6px; }
 .self-flag[hidden] { display: none; }
@@ -1108,7 +1115,7 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
    stops filling the row, and the badge pushes the icons to the right. */
 .self-badge { flex: none; margin: 0 auto 0 8px; }
 .self-badge[hidden] { display: none; }
-.dialog-header h2:has(+ .self-badge:not([hidden])) { flex: 0 1 auto; }
+.dialog-header h2:has(~ .self-badge:not([hidden])) { flex: 0 1 auto; }
 .alias-row input { flex: 1.4; min-width: 0; }
 /* Smaller, so "Scene name" fits once chosen. */
 .alias-row .alias-platform { font-size: 0.85rem; }

@@ -547,8 +547,20 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   once it's gone; `pendingProfile`, `peopleWithUpdates`,
   `profileUpdateDone`; verifying: `contactSafetyNumber` (both keys and
   account ids, none until their account has answered), `contactStatus`,
-  `peopleWithChangedKeys`, `markVerified`, `verifyScanned`),
-  `contact-verify.js` (a linked person's Safety number: the 12 blocks, a
+  `peopleWithChangedKeys`, `markVerified`, `verifyScanned`; sharing back:
+  `acceptConnection`'s `shareBack`, my profile in the acceptance and its
+  fields kept, and `shareProfileWith`, from a linked card later; the
+  store's `canShareBack()`, format 2 only), `share-back-dialog.js`
+  ("Share your profile back with …?" on accepting, Share and connect or
+  Connect without sharing; "Share my profile with …" from a linked
+  person's share icon), `profile-choices.js` (the name and tickboxes,
+  shared with Share my profile), the inviter's banner with a profile
+  shared back ("Your "Munch" share was accepted and Jude has connected
+  and shared their profile": New Person makes the card from it, Add to a
+  Person merges it in, `reviewProfileUpdate` with its own words),
+  `contact-verify.js` (a linked person's Safety Number, a shield icon at
+  the left of the dialog's flags, "Account linked" and Unlink at the right;
+  "Updates available" is a badge by the heading: the 12 blocks, a
   QR code of `/verify#<number>`, "They match: mark as verified", and the
   warning once their key changed; People marks that card "Key changed")
   and `views/verify.js` (`/verify`: a scanned number, taken out of the
