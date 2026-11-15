@@ -11,7 +11,8 @@ import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { forget } from "./pending-share.js";
 import { readProfile } from "./profile-share.js";
-import { fieldChoices, newAliases, mergedPerson, newPerson } from "./contact-merge.js";
+import { newPerson } from "./contact-merge.js";
+import { mergeFields } from "./profile-merge.js";
 import { akaText } from "./aliases.js";
 import { roleName } from "./roles.js";
 import { capitalise, today } from "./format.js";
@@ -51,12 +52,13 @@ export function showProfile(body, opened) {
 /**
  * What they shared, as a card.
  * @param {SharedProfile} profile
+ * @param {string} [prefix] the ids' start
  */
-function profileCard(profile) {
+export function profileCard(profile, prefix = "open") {
   const aka = akaText(profile.aliases ?? []);
-  return h("div", { className: "item shared-profile", id: "open-profile" },
+  return h("div", { className: "item shared-profile", id: `${prefix}-profile` },
     h("div", { className: "item-title name-title" },
-      h("span", { id: "open-name" }, profile.name),
+      h("span", { id: `${prefix}-name` }, profile.name),
       profile.pronouns ? h("span", { className: "item-meta" }, profile.pronouns) : null,
       profile.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(profile.default_role))) : null,
       profile.is_educator ? h("span", { className: "badge" }, "Educator") : null),
@@ -74,7 +76,6 @@ function connectChoice(adding) {
   if (adding.opened.connectionId) {
     return h("p", { className: "hint", id: "open-connected" }, "Your accounts are connected: the card you add them to will be linked to theirs.");
   }
-  // Format 2 accounts connect through contacts, which come later.
   if (!adding.opened.offer || !canConnect()) return null;
   const tick = h("input", { type: "checkbox", id: "open-connect", checked: adding.connect,
     onchange: () => { adding.connect = tick.checked; } });
@@ -174,34 +175,9 @@ async function pickPerson(adding) {
  * @param {any} person mine, opened
  */
 function showMerge(adding, person) {
-  const { body, profile, preview } = adding;
-  const choices = fieldChoices(person, profile, (role) => capitalise(roleName(role)));
+  const { body, preview } = adding;
   const message = h("p", { className: "message", id: "open-message" });
-  /**
-   * Two radio buttons: theirs or mine.
-   * @param {string} name
-   * @param {[string, string, boolean][]} options value, label, checked
-   */
-  const radios = (name, options) => options.map(([value, label, checked]) => h("label", { className: "inline" },
-    h("input", { type: "radio", name, value, checked }), label));
-  const rows = choices.map((c) => h("fieldset", { className: "merge-field", id: `open-merge-${c.field}` },
-    h("legend", {}, c.label),
-    radios(`open-${c.field}`, [
-      ["theirs", `Use theirs: ${c.theirs}`, c.choice === "theirs"],
-      ["mine", c.mine ? `Keep yours: ${c.mine}` : "Keep yours (empty)", c.choice === "mine"],
-    ])));
-  const extra = newAliases(person, profile);
-  const aliasRow = profile.aliases?.length
-    ? h("fieldset", { className: "merge-field", id: "open-merge-aliases" },
-      h("legend", {}, "Social & scene names"),
-      radios("open-aliases", [
-        ["add", extra.length ? `Add their ${extra.length} new one${extra.length === 1 ? "" : "s"} to yours` : "Add theirs (you have them all)", true],
-        ["replace", "Replace yours with theirs", false],
-        ["keep", "Keep yours only", false],
-      ]))
-    : null;
-  const chosen = (/** @type {string} */ name) =>
-    /** @type {HTMLInputElement | null} */ (body.querySelector(`input[name="${name}"]:checked`))?.value;
+  const merge = mergeFields({ root: body, person, profile: adding.profile, prefix: "open" });
   const save = h("button", {
     type: "submit", className: "primary", id: "open-save",
     onclick: async (/** @type {Event} */ event) => {
@@ -209,9 +185,7 @@ function showMerge(adding, person) {
       save.disabled = true;
       showMessage(message, "Saving…");
       try {
-        const picked = choices.map((c) => ({ ...c, choice: /** @type {"mine" | "theirs"} */ (chosen(`open-${c.field}`) ?? c.choice) }));
-        const aliases = /** @type {import("./contact-merge.js").AliasChoice} */ (chosen("open-aliases") ?? "keep");
-        const record = mergedPerson(person, profile, picked, aliases, today());
+        const record = merge.record();
         await saveItem("people", person.id, record);
         done(adding, record.name, await connectTo(adding, person.id));
       } catch (err) {
@@ -220,17 +194,12 @@ function showMerge(adding, person) {
       }
     },
   }, `Save to ${person.name}`);
-  body.replaceChildren(...[preview,
+  body.replaceChildren(preview,
     h("h2", {}, `Adding to ${person.name}`),
-    rows.length || aliasRow ? null : h("p", { className: "hint" }, "Nothing they shared differs from your card."),
-    ...rows,
-    aliasRow,
-    profile.about ? h("p", { className: "hint", id: "open-about-note" }, "Their About replaces what's in About them on the card.")
-      : h("p", { className: "hint", id: "open-about-note" }, "They didn't share an About: the card's stays as it is."),
-    h("p", { className: "hint" }, "Your private notes about them stay as they are."),
+    ...merge.elements,
     h("div", { className: "button-row" }, save,
       h("button", { type: "button", onclick: () => pickPerson(adding) }, "Back")),
-    message].filter((el) => el !== null));
+    message);
 }
 
 /**

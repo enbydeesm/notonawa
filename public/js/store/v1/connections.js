@@ -93,3 +93,27 @@ export async function inviteRevoked(_shareId) {}
 export function connectingShares() {
   return new Set();
 }
+
+/**
+ * A profile update waiting from the account linked to this person: format
+ * 1's connections send none.
+ * @param {string} _personId
+ * @returns {{ contactId: string, profile: import("../../profile-share.js").SharedProfile } | null}
+ */
+export function pendingProfile(_personId) {
+  return null;
+}
+
+/**
+ * The people with an update waiting: none on format 1.
+ * @returns {Set<string>}
+ */
+export function peopleWithUpdates() {
+  return new Set();
+}
+
+/**
+ * An update reviewed: none on format 1.
+ * @param {string} _contactId
+ */
+export async function profileUpdateDone(_contactId) {}

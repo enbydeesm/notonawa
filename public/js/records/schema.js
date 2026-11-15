@@ -254,6 +254,7 @@ export const FIELDS = {
     verified: bool,
     key_changed: bool,
     pending_profile: object,
+    sent_profile: object,
   },
 };
 

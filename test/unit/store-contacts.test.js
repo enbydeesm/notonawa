@@ -44,6 +44,7 @@ const server = {
   /** @type {any[]} */ sent: [],
   /** @type {Set<string>} */ gone: new Set(),
   /** The next GET of my messages fails, as offline. */ offline: false,
+  /** Sending fails, as offline. */ down: false,
 };
 vi.mock("../../public/js/api.js", () => ({
   api: async (/** @type {string} */ path, /** @type {any} */ options = {}) => {
@@ -101,6 +102,7 @@ vi.mock("../../public/js/vault.js", () => ({
 const events = [];
 vi.stubGlobal("window", { dispatchEvent: (/** @type {Event} */ e) => events.push(e) });
 vi.stubGlobal("fetch", async (/** @type {string} */ url, /** @type {any} */ init) => {
+  if (server.down) throw new TypeError("Failed to fetch");
   const id = decodeURIComponent(url.split("/")[3]);
   server.sent.push({ url, id, credentials: init.credentials, ...JSON.parse(/** @type {string} */ (init.body)) });
   return new Response("{}", { status: server.gone.has(id) ? 404 : 200 });
@@ -124,7 +126,7 @@ const contactsNow = () => [...journal.values()].filter((r) => r.kind === "contac
 
 beforeEach(() => {
   journal.clear();
-  Object.assign(server, { waiting: [], acked: [], sent: [], offline: false });
+  Object.assign(server, { waiting: [], acked: [], sent: [], offline: false, down: false });
   server.mailboxes.clear();
   server.gone.clear();
   events.length = 0;
@@ -322,6 +324,68 @@ describe("removing a contact", () => {
     racing = () => put("contact", "contact-0000000001", { ...journal.get("contact-0000000001").body, sent: 5 });
     await contacts.deleteConnection("contact-0000000001", "keep");
     expect(dec(server.sent[0].body).counter).toBe(6);
+  });
+});
+
+describe("profile updates", () => {
+  const SENT = { v: 1, name: "Alex", pronouns: "they/them", aliases: [{ platform: "instagram", alias: "@alex" }] };
+  /** Me, and a contact I shared my name and pronouns with (the invite's profile what they last got). */
+  function setUp(/** @type {Record<string, any>} */ me = {}) {
+    put("person", "me-00000000000001", { name: "Me", is_self: true, pronouns: "they/them", based_in: "Leeds",
+      aliases: [{ platform: "instagram", alias: "@alex" }], created_at: NOW, updated_at: NOW, ...me });
+    server.mailboxes.set("mymailbox0000000000000", { kind: "contact" });
+    put("contact", "contact-0000000001", { state: "active", invited: true, answered: true, person_id: "person-0000000001", their_key: THEIR_KEY,
+      their_mailbox: THEIR_BOX, my_mailbox: "mymailbox0000000000000", pair_key: PAIR, sent: 1, received: 0, created_at: NOW, updated_at: NOW,
+      fields: { name: "Alex", pronouns: true, default_role: false, based_in: false, is_educator: false, about: false,
+        aliases: [{ platform: "instagram", alias: "@alex" }] }, sent_profile: SENT });
+  }
+
+  it("go to each contact, the fields shared with them, in the profile slot, only when they've changed", async () => {
+    setUp();
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+    put("person", "me-00000000000001", { ...journal.get("me-00000000000001").body, pronouns: "she/her", based_in: "York" });
+    expect(await contacts.sendProfileUpdates()).toBe(1);
+    const [update] = server.sent;
+    const sealed = dec(update.body);
+    const profile = { v: 1, name: "Alex", pronouns: "she/her", aliases: [{ platform: "instagram", alias: "@alex" }] };
+    expect([update.id, update.slot, update.credentials, sealed.counter]).toEqual([THEIR_BOX.id, "profile", "omit", 2]);
+    expect(sealed.payload).toEqual({ v: 1, type: "profile", public_key: "P".repeat(1622), profile });
+    expect(journal.get("contact-0000000001").body).toMatchObject({ sent: 2, sent_profile: profile });
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+  });
+
+  it("go to no one I shared nothing with (I accepted their invite), and none without Me", async () => {
+    setUp({ pronouns: "she/her" });
+    put("contact", "contact-0000000001", { ...journal.get("contact-0000000001").body, fields: {} });
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+    journal.delete("me-00000000000001");
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+  });
+
+  it("offline, wait for the next try; to a mailbox that's gone, end the contact quietly", async () => {
+    setUp({ pronouns: "she/her" });
+    server.down = true;
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+    expect(journal.get("contact-0000000001").body.sent_profile).toEqual(SENT);
+    server.down = false;
+    expect(await contacts.sendProfileUpdates()).toBe(1);
+    put("person", "me-00000000000001", { ...journal.get("me-00000000000001").body, pronouns: "he/him" });
+    server.gone.add(THEIR_BOX.id);
+    expect(await contacts.sendProfileUpdates()).toBe(0);
+    expect([journal.get("contact-0000000001").body.state, server.mailboxes.size]).toEqual(["removed", 0]);
+  });
+
+  it("from them waits on the contact until I review it, then stops waiting", async () => {
+    setUp();
+    const contact = journal.get("contact-0000000001");
+    const theirs = { v: 1, name: "Jude", pronouns: "she/her" };
+    fromThem(contact, 1, { type: "profile", public_key: THEIR_KEY, profile: theirs });
+    expect(await contacts.checkMailboxes()).toBe(1);
+    expect(connections.pendingProfile("person-0000000001")).toEqual({ contactId: contact.id, profile: theirs });
+    expect([...connections.peopleWithUpdates()]).toEqual(["person-0000000001"]);
+    await connections.profileUpdateDone(contact.id);
+    expect([connections.pendingProfile("person-0000000001"), connections.peopleWithUpdates().size]).toEqual([null, 0]);
+    expect(journal.get(contact.id).body).toMatchObject({ state: "active", received: 1 });
   });
 });
 

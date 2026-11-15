@@ -10,6 +10,7 @@ import { buildProfile, suggestedName } from "./profile-share.js";
 import { EXPIRY_CHOICES, DEFAULT_INVITE_EXPIRY, USE_CHOICES, shareWarning } from "./share-options.js";
 import { saveShare } from "./share-save.js";
 import { canConnect, profileInvite } from "./store/index.js";
+import { keptChoices } from "./contacts/rules.js";
 import { showShareCode } from "./share-code.js";
 import { CONNECT_DISCLOSURE_SHORT, CONNECT_DISCLOSURE_MORE } from "./connection-text.js";
 import { roleName } from "./roles.js";
@@ -127,7 +128,7 @@ export function openShareProfile(me) {
         const profile = buildProfile(me, aliases, choices);
         const { id, key } = await profileInvite({
           kind: "profile", data: profile, label: label.value, expires: expires.value, uses: uses.value, connect: connect.checked,
-          fields: choices, saveShare,
+          fields: keptChoices(choices, aliases), saveShare,
         });
         dialog.close();
         await showShareCode({ id, key, title: "Your invite", note: shareWarning(expires.value, uses.value, connect.checked) ?? undefined });

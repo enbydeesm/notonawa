@@ -435,7 +435,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (Your data's list: Show code, Revoke; and Connections: Add to Person,
   Remove), `views/open.js` (`/open`: opening a share, then
   `open-profile.js` (adding a profile invite; Connect our accounts when it
-  offers to) or `open-item.js` (a tie, plan or workshop: Who is this?,
+  offers to; its field-by-field merge is `profile-merge.js`'s, shared with
+  `profile-update.js`, format 2's "Updated info available" in a linked
+  person's dialog: Save the fields chosen, or Ignore; People marks the
+  card "Updated info") or `open-item.js` (a tie, plan or workshop: Who is this?,
   Add to my journal through the import, Add another copy when it looks
   like it's there already; its photos' thumbnails, and each photo sealed
   as mine in the crypto Worker (`adoptShareFile`) and uploaded with
@@ -536,7 +539,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   once synced: now, every 2 minutes in view, and on coming back),
   `deleteConnection` ("removed" sent, errors ignored), `reserve` (a
   counter saved before sending, tried again if another device won),
-  `inviteRevoked`, `connectingShares`), `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  `inviteRevoked`, `connectingShares`; profile updates:
+  `sendProfileUpdates`, after saving "Me" (`v2/resources.js`) and at each
+  check, under a Web Lock, my profile built with each contact's kept
+  fields (`keptChoices`/`updateChoices`: aliases by value) and sent in the
+  `profile` slot only when it differs from `sent_profile`, which is saved
+  once it's gone; `pendingProfile`, `peopleWithUpdates`,
+  `profileUpdateDone`), `crypto/vault-core.js` (what the crypto Worker does; format 2's
   `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
   /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
   reaches the cache and the routes), `crypto-worker.js` (the Worker

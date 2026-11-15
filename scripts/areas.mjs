@@ -299,11 +299,13 @@ export const AREAS = [
   {
     // Identity keys, the acceptance, pair-key messages and safety numbers
     // (the crypto Worker loads them too), and contacts in the store: the
-    // invite's offer, accepting, the mailboxes checked.
+    // invite's offer, accepting, the mailboxes checked; profile updates and
+    // reviewing them (merged as adding an invite is).
     name: "contacts",
     files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
-      "src/mailboxes/", "public/js/contacts/", "public/js/store/v2/contacts.js"],
-    ui: ["basics", "shares"],
+      "src/mailboxes/", "public/js/contacts/", "public/js/store/v2/contacts.js", "public/js/profile-merge.js",
+      "public/js/profile-update.js"],
+    ui: ["basics", "shares", "people"],
   },
   {
     name: "backup",

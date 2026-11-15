@@ -25,20 +25,63 @@ import { compact } from "../records/parse.js";
  * @typedef {import("./messages.js").Acceptance} Acceptance
  * @typedef {import("./messages.js").ContactMessage} ContactMessage
  * @typedef {import("../profile-share.js").SharedProfile} SharedProfile
+ * @typedef {import("../profile-share.js").ProfileChoices} ProfileChoices
+ * @typedef {import("../aliases.js").Alias} Alias
  * @typedef {Record<string, any>} Body
  */
 
 /**
  * My invite, waiting to be accepted.
  * @param {{ shareId: string, linkKey: string, label: string | null, once: boolean, introMailbox: string,
- *   fields: Record<string, boolean>, now: string }} invite
+ *   fields: Record<string, any>, sentProfile: SharedProfile, now: string }} invite fields: keptChoices's;
+ *   sentProfile: the profile in the invite, so an update goes only when it differs
  * @returns {Body}
  */
-export function invitedContact({ shareId, linkKey, label, once, introMailbox, fields, now }) {
+export function invitedContact({ shareId, linkKey, label, once, introMailbox, fields, sentProfile, now }) {
   return compact({
     state: "invited", share_id: shareId, link_key: linkKey, label: label || null, once, intro_mailbox: introMailbox, fields,
-    created_at: now, updated_at: now,
+    sent_profile: sentProfile, created_at: now, updated_at: now,
   });
+}
+
+/**
+ * What an invite shared, kept for its updates: the choices, with the
+ * aliases as themselves (their places in my list change as I edit it).
+ * @param {ProfileChoices} choices
+ * @param {Alias[]} myAliases
+ * @returns {Body}
+ */
+export function keptChoices(choices, myAliases) {
+  return { ...choices, aliases: choices.aliases.map((i) => myAliases[i]).filter(Boolean) };
+}
+
+/**
+ * The choices for an update, from what was kept: the aliases shared that I
+ * still have (one I've renamed or removed isn't shared any more).
+ * @param {Body} fields keptChoices's
+ * @param {Alias[]} myAliases
+ * @returns {ProfileChoices}
+ */
+export function updateChoices(fields, myAliases) {
+  const kept = Array.isArray(fields.aliases) ? fields.aliases : [];
+  const same = (/** @type {Alias} */ a, /** @type {any} */ b) => a.platform === b?.platform && a.alias === b?.alias;
+  return {
+    name: String(fields.name ?? ""), pronouns: !!fields.pronouns, default_role: !!fields.default_role, based_in: !!fields.based_in,
+    is_educator: !!fields.is_educator, about: !!fields.about,
+    aliases: myAliases.flatMap((a, i) => (kept.some((k) => same(a, k)) ? [i] : [])),
+  };
+}
+
+/**
+ * Whether a contact should get my profile now: connected, with somewhere
+ * to send it, something shared with them, and it differs from the last
+ * they got.
+ * @param {Body | null | undefined} body
+ * @param {SharedProfile} profile
+ */
+export function needsProfile(body, profile) {
+  return body?.state === "active" && !!body.their_mailbox && !!body.fields?.name
+    && JSON.stringify(body.sent_profile ?? null) !== JSON.stringify(profile);
 }
 
 /**
@@ -67,6 +110,7 @@ export function contactFromAcceptance({ invite, acceptance, myMailbox, now }) {
     state: "active", invited: true, answered: false, person_id: null, name: acceptance.profile?.name ?? null,
     label: invite.label ?? null, share_id: invite.share_id, their_key: acceptance.public_key, their_user: acceptance.user_id, their_mailbox: acceptance.mailbox,
     my_mailbox: myMailbox, pair_key: acceptance.pair_key, sent: 0, received: 0, fields: invite.fields ?? {},
+    sent_profile: invite.sent_profile ?? null,
     verified: false, key_changed: false, pending_profile: acceptance.profile ?? null, created_at: now, updated_at: now,
   });
 }

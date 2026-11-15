@@ -14,6 +14,11 @@
 //   "accepted" with my mailbox for them; a message from a contact is applied
 //   to its record. A message is acknowledged (deleted from the server)
 //   only once what it says is saved, so a crash loses nothing.
+// - Saving my "Me" sends each contact my profile again, the fields I shared
+//   with them, when it differs from the last they got (sendProfileUpdates;
+//   also at each check, so one that couldn't go goes later). Theirs waits
+//   on my contact for me to review (pendingProfile): nothing changes on my
+//   card of them until I do.
 // - Removing one tells them ("removed"), quietly: their device ends the
 //   contact without saying so.
 
@@ -27,7 +32,9 @@ import { toBase64url, fromBase64url } from "../../crypto/keys.js";
 import { acceptanceBody, readAcceptance, messageBody, readMessage, offerBody } from "../../contacts/messages.js";
 import {
   invitedContact, acceptingContact, contactFromAcceptance, applyMessage, reserveCounter, isNewCounter, isActive, asConnection,
+  updateChoices, needsProfile,
 } from "../../contacts/rules.js";
+import { buildProfile } from "../../profile-share.js";
 import { webLock } from "../../cache/sync.js";
 
 /** @typedef {import("../../contacts/messages.js").MailboxAddress} MailboxAddress */
@@ -97,7 +104,7 @@ export async function connectingInvite({ fields, saveShare, ...share }) {
   try {
     const saved = await saveShare({ ...share, data: { ...share.data, connect: offerBody({ public_key: publicKey, mailbox: intro }) } });
     const body = invitedContact({ shareId: saved.id, linkKey: saved.key, label: share.label, once: share.uses !== "any",
-      introMailbox: intro.id, fields, now: stamp() });
+      introMailbox: intro.id, fields, sentProfile: /** @type {any} */ (share.data), now: stamp() });
     await save({ writes: [{ kind: "contact", id: newId(), body }] });
     return saved;
   } catch (err) {
@@ -351,12 +358,91 @@ async function fromContact(contact, message) {
 }
 
 /**
+ * Sends my profile to each contact it's changed for, the fields I shared
+ * with them. One that can't be reached now is tried at the next check;
+ * one whose mailbox is gone has removed me, so it ends, quietly.
+ * @returns {Promise<number>} how many were sent
+ */
+export async function sendProfileUpdates() {
+  const { user_id: userId } = me ?? (await api("/api/keys"));
+  return webLock(`notonawa-profile-${userId}`)(sendUpdates);
+}
+
+/** @returns {Promise<number>} */
+async function sendUpdates() {
+  const self = records("person").find((p) => p.body?.is_self);
+  if (!self?.body) return 0;
+  const meBody = self.body;
+  const aliases = Array.isArray(meBody.aliases) ? meBody.aliases : [];
+  let sent = 0;
+  for (const c of records("contact")) {
+    if (!c.body?.fields?.name) continue;
+    let profile;
+    try {
+      profile = buildProfile(/** @type {any} */ (meBody), aliases, updateChoices(c.body.fields, aliases));
+    } catch {
+      continue;
+    }
+    if (!needsProfile(c.body, profile)) continue;
+    const mine = await myIdentity();
+    const { body, counter } = await reserve(c.id);
+    const sealed = await vault.sealMessage({ pairKey: body.pair_key, mailboxId: body.their_mailbox.id, counter,
+      payload: messageBody({ type: "profile", public_key: mine.public_key, profile }) });
+    try {
+      await send(body.their_mailbox, sealed, "profile");
+    } catch (err) {
+      if (!(err instanceof Gone)) continue;
+      await save({ writes: [{ kind: "contact", id: c.id, from: body, body: { ...body, state: "removed", updated_at: stamp() } }] });
+      if (body.my_mailbox) await deleteMailbox(body.my_mailbox);
+      continue;
+    }
+    const now = /** @type {Record<string, any>} */ (record(c.id)?.body ?? body);
+    await save({ writes: [{ kind: "contact", id: c.id, from: now, body: { ...now, sent_profile: profile, updated_at: stamp() } }] });
+    sent++;
+  }
+  return sent;
+}
+
+/**
+ * The profile a contact on this person sent that I haven't reviewed yet.
+ * @param {string} personId
+ * @returns {{ contactId: string, profile: import("../../profile-share.js").SharedProfile } | null}
+ */
+export function pendingProfile(personId) {
+  const c = records("contact").find((r) => isActive(r.body) && r.body?.person_id === personId && r.body.pending_profile);
+  return c ? { contactId: c.id, profile: /** @type {any} */ (c.body?.pending_profile) } : null;
+}
+
+/**
+ * The people with an update from their contact waiting (People marks them).
+ * @returns {Set<string>}
+ */
+export function peopleWithUpdates() {
+  return new Set(records("contact").filter((r) => isActive(r.body) && r.body?.person_id && r.body.pending_profile)
+    .map((r) => /** @type {string} */ (r.body?.person_id)));
+}
+
+/**
+ * Their update reviewed (taken or ignored): it stops waiting.
+ * @param {string} contactId
+ */
+export async function profileUpdateDone(contactId) {
+  const c = contactOf(contactId);
+  const { pending_profile: _done, ...rest } = /** @type {Record<string, any>} */ (c.body);
+  await save({ writes: [{ kind: "contact", id: contactId, from: c.body ?? undefined, body: { ...rest, updated_at: stamp() } }] });
+  window.dispatchEvent(new Event(CHANGED));
+}
+
+/**
  * Checks my mailboxes now, every couple of minutes while the page is in
  * view, and on coming back to it, until signal aborts (the journal locks).
  * @param {AbortSignal} signal
  */
 export function watchMailboxes(signal) {
-  const check = () => { if (!signal.aborted && !document.hidden) checkMailboxes().catch(() => {}); };
+  const check = () => {
+    if (signal.aborted || document.hidden) return;
+    checkMailboxes().catch(() => {}).then(() => (signal.aborted ? 0 : sendProfileUpdates())).catch(() => {});
+  };
   check();
   const timer = setInterval(check, CHECK_MS);
   signal.addEventListener("abort", () => clearInterval(timer));

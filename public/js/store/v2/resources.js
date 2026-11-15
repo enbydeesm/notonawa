@@ -13,6 +13,7 @@ import {
 import { linkTags } from "../../records/tags.js";
 import { listPeople, listLocations } from "../queries/resources.js";
 import { listPlans } from "../queries/plans.js";
+import { sendProfileUpdates } from "./contacts.js";
 
 /** @typedef {import("../v1/resources.js").ResourceKind} ResourceKind */
 /** @typedef {import("../v1/resources.js").Archived} Archived */
@@ -64,6 +65,8 @@ export async function saveItem(kind, id, fields) {
       throw new BadEdit("There's already a profile marked as you.");
     }
     await save({ writes: [{ kind: "person", id: itemId, body, from: prev?.body ?? undefined }] });
+    // My own: my contacts get it, the fields each was shared (in the background).
+    if (body.is_self) sendProfileUpdates().catch(() => {});
     return itemId;
   }
   const body = locationBody(fields, prev?.body ?? null, now);

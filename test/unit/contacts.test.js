@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import { acceptanceBody, readAcceptance, messageBody, readMessage } from "../../public/js/contacts/messages.js";
 import {
   invitedContact, acceptingContact, contactFromAcceptance, applyMessage, withTheirKey, reserveCounter, isNewCounter, verified,
-  isActive, asConnection,
+  isActive, asConnection, keptChoices, updateChoices, needsProfile,
 } from "../../public/js/contacts/rules.js";
 import { recordProblems } from "../../public/js/records/schema.js";
 import { VaultCore } from "../../public/js/crypto/vault-core.js";
@@ -53,7 +53,7 @@ describe("messages", () => {
 });
 
 describe("the contact record", () => {
-  const invite = invitedContact({ shareId: "share-1", linkKey: chars(43, "k"), label: "Munch", once: true, introMailbox: MAILBOX.id, fields: { pronouns: true }, now: NOW });
+  const invite = invitedContact({ shareId: "share-1", linkKey: chars(43, "k"), label: "Munch", once: true, introMailbox: MAILBOX.id, fields: { name: "Jude", pronouns: true }, sentProfile: PROFILE, now: NOW });
   const acceptance = { public_key: KEY_B, user_id: "user-b", mailbox: MAILBOX, pair_key: chars(43, "p"), profile: PROFILE };
   const mine = contactFromAcceptance({ invite, acceptance, myMailbox: chars(22, "y"), now: NOW });
 
@@ -67,7 +67,7 @@ describe("the contact record", () => {
 
   it("from an acceptance: connected, on no one until I choose, their profile waiting", () => {
     expect(mine).toMatchObject({ state: "active", invited: true, answered: false, their_key: KEY_B, their_user: "user-b",
-      their_mailbox: MAILBOX, sent: 0, received: 0, pending_profile: PROFILE, fields: { pronouns: true } });
+      their_mailbox: MAILBOX, sent: 0, received: 0, pending_profile: PROFILE, fields: { name: "Jude", pronouns: true } });
     expect(mine).not.toHaveProperty("person_id");
     expect(isActive(mine)).toBe(true);
   });
@@ -94,6 +94,22 @@ describe("the contact record", () => {
     const second = reserveCounter(first.body);
     expect([first.counter, second.counter, second.body.sent]).toEqual([1, 2, 2]);
     expect([isNewCounter({ received: 3 }, 4), isNewCounter({ received: 3 }, 3), isNewCounter({}, 1)]).toEqual([true, false, true]);
+  });
+
+  it("keeps what an invite shared, aliases as themselves, and sends an update only when it differs", () => {
+    /** @type {import("../../public/js/aliases.js").Alias[]} */
+    const aliases = [{ platform: "instagram", alias: "@jude" }, { platform: "fetlife", alias: "Jude" }];
+    const choices = { name: "Jude", pronouns: true, default_role: false, aliases: [1], based_in: false, is_educator: false, about: true };
+    const kept = keptChoices(choices, aliases);
+    expect(kept.aliases).toEqual([{ platform: "fetlife", alias: "Jude" }]);
+    // Reordered, the same one is still shared; renamed or removed, it isn't.
+    expect(updateChoices(kept, [{ platform: /** @type {const} */ ("x"), alias: "@j" }, ...aliases]).aliases).toEqual([2]);
+    expect(updateChoices(kept, [{ platform: /** @type {const} */ ("fetlife"), alias: "Jude K" }]).aliases).toEqual([]);
+    expect(updateChoices(kept, aliases)).toMatchObject({ name: "Jude", pronouns: true, about: true, based_in: false });
+    expect(mine.sent_profile).toEqual(PROFILE);
+    expect([needsProfile(mine, PROFILE), needsProfile(mine, { ...PROFILE, pronouns: "they/them" })]).toEqual([false, true]);
+    expect(needsProfile({ ...mine, fields: {} }, { ...PROFILE, pronouns: "they/them" })).toBe(false);
+    expect(needsProfile({ ...mine, state: "removed" }, { ...PROFILE, pronouns: "they/them" })).toBe(false);
   });
 
   it("shows as a connection on the screens format 1 has", () => {
@@ -132,7 +148,7 @@ describe("two accounts connecting", () => {
     // My side: open it, make the contact, answer "accepted" into their mailbox.
     const opened = readAcceptance(await inviter.openAcceptance({ shareId, linkKey, sealed }));
     expect(opened).toEqual(acceptance);
-    const invite = invitedContact({ shareId, linkKey, label: null, once: false, introMailbox: chars(22, "i"), fields: {}, now: NOW });
+    const invite = invitedContact({ shareId, linkKey, label: null, once: false, introMailbox: chars(22, "i"), fields: {}, sentProfile: PROFILE, now: NOW });
     let mine = contactFromAcceptance({ invite, acceptance: /** @type {any} */ (opened), myMailbox: chars(22, "a"), now: NOW });
     const reserved = reserveCounter(mine);
     mine = reserved.body;

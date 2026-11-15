@@ -1,6 +1,6 @@
 // The walkthrough's people chunk. The People page.
 
-import { check, freshAccount, go, run } from "../harness.mjs";
+import { FORMAT, check, freshAccount, go, run } from "../harness.mjs";
 
 export default async function () {
   await freshAccount();
@@ -129,4 +129,39 @@ export default async function () {
     const shown = [$("#person-about-field").hidden, $("#person-about-label").textContent, $("#person-about").readOnly, $("#person-about").value];
     $("[data-cancel-edit]").click(); await calm(200);
     return shown;`), [false, "About them", true, "Teaches on weekends"]);
+
+  // A connected account's profile update (format 2: format 1's connections
+  // send none). Seeded as a contact on Robin with one waiting; contacts
+  // between two accounts for real are the contacts chunk's.
+  if (FORMAT === 2) {
+    await run(`
+      const { records, save } = await import("/js/store/v2/journal.js");
+      const robin = records("person").find((p) => p.body.name === "Robin");
+      const now = new Date().toISOString().replace(/\\.\\d+Z$/, "Z");
+      await save({ writes: [{ kind: "contact", id: crypto.randomUUID(), body: { state: "active", invited: false, answered: true,
+        person_id: robin.id, name: "Robin", pair_key: "p".repeat(43), sent: 0, received: 1, fields: {}, created_at: now, updated_at: now,
+        pending_profile: { v: 1, name: "Robin B", pronouns: "they/them", about: "Teaches on Sundays" } } }] });`);
+    await go("/people");
+    check("an update from their account marks the card, and their dialog offers to review it", await run(`
+      const badge = [...document.querySelectorAll("#list .item")].map((i) => [i.querySelector(".name-button").textContent,
+        i.querySelector(".update-badge")?.textContent ?? null]).find(([name]) => name === "Robin");
+      await openPerson("Robin");
+      const offered = [$("#person-linked").hidden, $("#person-review-update").hidden, $("#person-review-update").textContent];
+      return [badge, offered];`), [["Robin", "Updated info"], [false, false, "Updated info available"]]);
+    check("reviewing shows what they share now, field by field, and Save puts what I chose on the card", await run(`
+      $("#person-review-update").click(); await calm(400);
+      const shown = [$("#update-heading").textContent, $("#update-name").textContent,
+        [...document.querySelectorAll(".profile-update .merge-field legend")].map((l) => l.textContent), $("#update-about-note").textContent,
+        leakyFields()];
+      document.querySelector('input[name="update-name"][value="mine"]').click();
+      $("#update-save").click(); for (let i = 0; i < 50 && $(".profile-update"); i++) await wait(100);
+      await calm(500);
+      await openPerson("Robin");
+      const onCard = [$("#person-name").value, $("#person-pronouns").value, $("#person-about").value, $("#person-review-update").hidden];
+      $("[data-cancel-edit]").click(); await calm(200);
+      const badge = [...document.querySelectorAll("#list .update-badge")].length;
+      return [shown, onCard, badge];`),
+    [["Updated info from Robin", "Robin B", ["Name", "Pronouns"], "Their About replaces what's in About them on the card.", []],
+      ["Robin", "they/them", "Teaches on Sundays", true], 0]);
+  }
 }

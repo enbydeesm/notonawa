@@ -14,6 +14,8 @@ import { CAP_PATHS } from "../nav.js";
 import { aboutField } from "../person-about.js";
 import { openShareProfile } from "../share-profile-dialog.js";
 import { linkIcon, removeConnection, CONNECTIONS_CHANGED } from "../connections.js";
+import { reviewProfileUpdate } from "../profile-update.js";
+import { pendingProfile, peopleWithUpdates } from "../store/index.js";
 import { errorMessage } from "../api.js";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -99,6 +101,13 @@ export function mount(_root, { signal }) {
       showMessage(message, "Couldn't remove the link: " + errorMessage(err), true);
     }
   }, { signal });
+  // Their account sent its profile again: reviewed over the list, not the form.
+  $("#person-review-update").addEventListener("click", async () => {
+    if (!linked) return;
+    const person = linked;
+    /** @type {HTMLDialogElement} */ ($("#person-dialog")).close();
+    if (await reviewProfileUpdate(person)) page.reload();
+  }, { signal });
 
   /** About me on my own profile; on others', what they shared, read-only (person-about.js). */
   function showAbout(/** @type {any} */ person) {
@@ -109,6 +118,10 @@ export function mount(_root, { signal }) {
     $("#person-about-hint").textContent = about.hint;
     /** @type {HTMLTextAreaElement} */ ($("#person-about")).readOnly = about.readOnly;
   }
+
+  // Who has an update waiting, read once each time the list is drawn.
+  /** @type {WeakMap<object, Set<string>>} */
+  const updatesFor = new WeakMap();
 
   const page = setupResourcePage({
     resource: "people",
@@ -129,6 +142,7 @@ export function mount(_root, { signal }) {
       showAbout(person);
       linked = person?.connection_id ? person : null;
       $("#person-linked").hidden = !linked;
+      $("#person-review-update").hidden = !(linked && pendingProfile(linked.id));
       aliasRows.replaceChildren();
       for (const alias of readAliases(person?.aliases)) addAliasRow(alias);
     },
@@ -144,6 +158,8 @@ export function mount(_root, { signal }) {
     // The name (which opens the dialog), pronouns and usual role; then where
     // they're based and their other names. Notes are in the dialog only.
     renderItem: (person, _people, edit) => {
+      if (!updatesFor.has(_people)) updatesFor.set(_people, peopleWithUpdates());
+      const updates = /** @type {Set<string>} */ (updatesFor.get(_people));
       const aka = akaText(readAliases(person.aliases));
       return [
         h("div", { className: "item-title name-title" },
@@ -152,7 +168,8 @@ export function mount(_root, { signal }) {
           person.pronouns ? h("span", { className: "item-meta" }, person.pronouns) : null,
           person.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(person.default_role))) : null,
           person.is_educator ? educatorIcon() : null,
-          person.connection_id ? linkIcon() : null),
+          person.connection_id ? linkIcon() : null,
+          updates.has(person.id) ? h("span", { className: "badge update-badge" }, "Updated info") : null),
         person.based_in ? h("div", { className: "item-meta" }, `based in ${person.based_in}`) : null,
         aka ? h("div", { className: "item-meta" }, aka) : null,
       ];

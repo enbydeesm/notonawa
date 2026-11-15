@@ -110,6 +110,9 @@ export const profileInvite = byFormat(v1Connections.profileInvite, v2Connections
 export const inviteRevoked = byFormat(v1Connections.inviteRevoked, v2Connections.inviteRevoked);
 export const connectingShares = byFormat(v1Connections.connectingShares, v2Connections.connectingShares);
 export const offerIn = byFormat(v1Connections.offerIn, v2Connections.offerIn);
+export const pendingProfile = byFormat(v1Connections.pendingProfile, v2Connections.pendingProfile);
+export const peopleWithUpdates = byFormat(v1Connections.peopleWithUpdates, v2Connections.peopleWithUpdates);
+export const profileUpdateDone = byFormat(v1Connections.profileUpdateDone, v2Connections.profileUpdateDone);
 
 /**
  * Whether the account can connect to others: either format can, but only

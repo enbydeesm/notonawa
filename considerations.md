@@ -3722,3 +3722,22 @@ Slice 2a: connecting and removing (`store/v2/contacts.js`).
   won; otherwise another device's did, and it tries again on theirs.
 - **Checking is every 2 minutes while the page is in view**, and on coming
   back to it: no push, as the server mustn't know which account to wake.
+
+Slice 2b: profile updates.
+
+- **Only what changed for that contact is sent**: each contact keeps the
+  profile it last got (`sent_profile`, starting as the invite's), and an
+  update goes only when the profile built from its fields differs. Saving
+  "Me" for a note of my own sends nothing.
+- **The aliases shared are kept as themselves**, not their places in my
+  list, so reordering doesn't change what's shared; one renamed or removed
+  stops being shared (a new one isn't added either: I didn't choose it).
+- **`sent_profile` is saved after the send, not before** (the counter is
+  saved before, as always): one that couldn't go is tried again at the
+  next check rather than thought sent. Their side keeps only the latest
+  (the `profile` slot replaces one waiting).
+- **The accepter shares nothing back** (as format 1's connections): only
+  the inviter's fields are kept, so only the inviter sends updates.
+- **Nothing changes on my card until I review it**: Save takes the fields
+  I choose, as adding an invite to someone does (the same form,
+  `profile-merge.js`); Ignore keeps my card. Either way it stops waiting.
