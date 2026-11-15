@@ -943,6 +943,11 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   dev` (refusing `--dev` with `--remote` or `--persist-to`), and the
   wrangler commands name the database by its binding, `DB`, so the same
   command works for every target. Dev backups are named `notonawa-dev-…`.
+- `node scripts/mark-empty-accounts.mjs [--dry-run] [--remote | --dev]`:
+  makes format 1 accounts with nothing in their journal format 2 straight
+  away (what counts as empty, and the SQL, in `scripts/mark-empty-lib.mjs`,
+  tested in `test/api/mark-empty.test.js`), deleting their plain "Me": run
+  once after the release's deploy (phase 7). `--dry-run` counts them.
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks, has a recovery

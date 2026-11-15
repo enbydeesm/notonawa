@@ -3645,3 +3645,28 @@ Phase 5, slice 2: the Convert view and the switch.
   from the view. Its export afterwards matches the one before (order aside
   among items made in the same second, listed by their new ids), its photo
   and video are the same bytes, and the format 1 rows are gone.
+
+## Encrypt everything: empty accounts as built (November 2026)
+
+Phase 5, slice 3: `scripts/mark-empty-accounts.mjs`, run after the
+release's deploy (phase 7), makes accounts with nothing in their journal
+format 2 straight away, so they never see the conversion.
+
+- **Empty** is: format 1, not converting; no ties, plans, workshops,
+  locations, tags, photos, drawings, poses, presets, connections or offers
+  to connect; its "Me" with nothing filled in, not even renamed (a renamed
+  Me is the person's name, worth converting); no role names of its own and
+  no saved default body.
+- **No window to slip through**: the check is part of the UPDATE, so an
+  account that gains a tie while the script runs is either seen with it
+  and left to convert, or made format 2 first, after which format 1's
+  routes refuse the tie (an old open page is told to reload). The plain
+  "Me" rows are deleted after; that's safe to run again, as a format 2
+  account has no format 1 rows.
+- **Its first unlock** as format 2 makes the sealed "Me", the settings
+  record and the identity key, as a sign-up does.
+- **Phase 5 is finished**: the conversion, its view and switch, the
+  walkthrough's convert chunk on real format 1 accounts, and this script.
+  What's left before release (phase 7): contacts (phase 6), then the
+  privacy policy, reviewer sign-off and turning `NEW_ACCOUNT_FORMAT` and
+  `CONVERT_ON_UNLOCK` on in production.

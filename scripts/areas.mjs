@@ -292,7 +292,8 @@ export const AREAS = [
   {
     // Converting a format 1 journal to format 2 (phase 5).
     name: "convert",
-    files: ["public/js/convert/", "public/js/store/convert.js", "public/js/views/convert.js", "src/convert/"],
+    files: ["public/js/convert/", "public/js/store/convert.js", "public/js/views/convert.js", "src/convert/",
+      "scripts/mark-empty-accounts.mjs", "scripts/mark-empty-lib.mjs"],
     ui: ["convert"],
   },
   {
