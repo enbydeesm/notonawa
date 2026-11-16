@@ -3989,3 +3989,38 @@ Phase 7's code, ahead of the reviewer's sign-off and the release deploy.
 - **The policy** adds that backups and the database history held the
   older, partly readable journal for 30 days after an account's update;
   rebuilt with `--require-consent`.
+
+
+## The welcome tour (November 2026)
+
+The menu's Tutorial and the welcome after unlocking are now a click-through
+tour (`tour.js`), mocked up first on a design canvas. Built on the
+encryption branch, to ship with it.
+
+- **It replaces the welcome, which is gone** (`welcome.js`, WELCOME.md and
+  its generator and check). The tour carries what mattered of it: what
+  each part of the app is for, and Account Recovery's warning about losing
+  every passkey and the recovery code. The welcome's "install the app"
+  line isn't carried over: the install banner already offers it.
+- **One stop for the whole menu**, on its ☰ button, rather than a stop for
+  each row: eighteen stops was too many on a phone. The menu isn't opened
+  during the tour.
+- **Shown once, the same setting**: after unlocking until finished or
+  skipped (Done, Skip tour or Esc), kept in `users.hide_welcome`, the
+  welcome's own setting, rather than a new one (a column, export and
+  import changes). Closed any other way (the view changing under it), it
+  isn't remembered, and shows after the next unlock. To show it to
+  everyone, those who'd hidden the welcome included, migration 0033 sets
+  the setting back to 0 for every account: a data change only. Applied
+  before the tour is deployed, the old welcome would show once more.
+- **Drawn as SVG, not positioned with styles**: the dim, its hole round
+  the icon, the gold ring and the pointer are SVG elements placed with
+  attributes from the icon's `getBoundingClientRect()` (`tour-layout.js`),
+  so the CSP's ban on style attributes holds without an exception. The
+  card goes under the nav at a fixed 66px (the nav's own height) or in the
+  middle, by class; the progress bar is a `<progress>`. The pointer is a
+  second SVG over the card, so it covers the card's border where they join.
+- **The welcome card's logo** is `logo-mark.svg`, the pencil and knot, as a
+  mask in `--accent` in both modes, 44px tall; the file shares its canvas
+  with the name, so the mask is sized and moved to crop to the mark.
+

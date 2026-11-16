@@ -43,7 +43,7 @@ scripts/ui/harness.mjs holds the shared parts: starting wrangler and Chrome, run
 scripts/ui/seed.mjs creates people, locations, plans and ties through the API, sealing notes in the page as the walkthrough already does.
 scripts/ui/chunks/*.mjs are the chunks:
 Chunk	Sections
-basics	headers, icons, sign-up, welcome, single-page app
+basics	headers, icons, sign-up, welcome tour, single-page app
 lock	locking and unlocking
 settings	menu and Settings
 people	People

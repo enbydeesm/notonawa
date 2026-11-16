@@ -87,7 +87,7 @@ export const IGNORED = [
  *   name: string,
  *   files: string[],
  *   ui: string[],
- *   generated?: ("privacy" | "releases" | "welcome" | "vendor")[],
+ *   generated?: ("privacy" | "releases" | "vendor")[],
  * }} Area
  *
  * generated: the generated-file checks (`--check`) its files feed.
@@ -114,10 +114,9 @@ export const AREAS = [
     ui: ["lock", "photos"],
   },
   {
-    name: "welcome",
-    files: ["public/js/welcome.js", "public/js/welcome-text.js", "scripts/welcome.mjs", "scripts/welcome-lib.mjs", "WELCOME.md"],
-    ui: ["basics"],
-    generated: ["welcome"],
+    name: "tour",
+    files: ["public/js/tour.js", "public/js/tour-steps.js", "public/js/tour-layout.js"],
+    ui: ["basics", "settings"],
   },
   {
     name: "settings",
@@ -336,7 +335,7 @@ export function matches(file, entries) {
  * @typedef {{
  *   areas: string[],
  *   ui: string[],
- *   generated: ("privacy" | "releases" | "welcome" | "vendor")[],
+ *   generated: ("privacy" | "releases" | "vendor")[],
  *   unmapped: string[],
  *   everything: string[],
  * }} CheckPlan
@@ -354,7 +353,7 @@ export function matches(file, entries) {
 export function planFor(files) {
   /** @type {Set<string>} */ const areas = new Set();
   /** @type {Set<string>} */ const ui = new Set();
-  /** @type {Set<"privacy" | "releases" | "welcome" | "vendor">} */ const generated = new Set();
+  /** @type {Set<"privacy" | "releases" | "vendor">} */ const generated = new Set();
   const unmapped = [], everything = [];
   let allUi = false;
 

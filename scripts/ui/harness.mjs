@@ -583,8 +583,8 @@ export async function resetBrowser() {
 
 /**
  * Starts a chunk: a new account of its own, signed up with a new passkey
- * ("Test phone") and unlocked on the Ties list, the welcome dismissed for
- * good. The checks of signing up and the welcome are the basics chunk's.
+ * ("Test phone") and unlocked on the Ties list, the welcome tour skipped
+ * for good. The checks of signing up and the tour are the basics chunk's.
  * @returns {Promise<string>} the recovery code shown at sign-up
  */
 export async function freshAccount() {
@@ -599,8 +599,8 @@ export async function freshAccount() {
     for (let i = 0; i < 100 && !$("#recovery-code"); i++) await wait(100);
     const code = $("#recovery-code")?.textContent;
     $("#recovery-saved").click(); $("dialog[open] button.primary").click();
-    for (let i = 0; i < 100 && !$("dialog.welcome[open]"); i++) await wait(100);
-    $("#welcome-hide").click(); $("#welcome-ok").click();
+    for (let i = 0; i < 100 && !$("dialog.tour[open]"); i++) await wait(100);
+    $("dialog.tour[open] .tour-skip").click();
     for (let i = 0; i < 50 && !(await (await fetch("/api/account/settings")).json()).hide_welcome; i++) await wait(100);
     return [code, location.pathname, $("#tie-count") !== null, $("dialog") === null];`);
   if (!isDeepStrictEqual(code.slice(1), ["/", true, true]) || !code[0]) throw new Error(`Couldn't sign up a new account: ${JSON.stringify(code)}`);

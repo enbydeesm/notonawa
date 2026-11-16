@@ -49,15 +49,15 @@ export default async function () {
       Math.round(news.top - feedback.bottom), Math.round(feedback.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
       $(".menu-inner .app-version").textContent];`),
     [16, true, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
-  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome in place of the menu", await run(`
+  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome tour from its start in place of the menu", await run(`
     const icon = $(".menu-tutorial svg");
     const parts = [icon.querySelectorAll("path").length, icon.querySelectorAll("circle").length];
     $(".menu-tutorial").click(); await calm(400);
-    const opened = [$("dialog.menu-panel") === null, !!$("dialog.welcome[open]")];
-    [...document.querySelectorAll("dialog.welcome[open] button")].pop().click(); await calm(300);
+    const opened = [$("dialog.menu-panel") === null, !!$("dialog.tour[open]"), $("dialog.tour[open] h2")?.textContent];
+    $("dialog.tour[open] .tour-skip").click(); await calm(300);
     const closed = $("dialog[open]") === null;
     await openMenu();
-    return [parts, opened, closed];`), [[3, 1], [true, true], true]);
+    return [parts, opened, closed];`), [[3, 1], [true, true, "Welcome to NōtoNawa"], true]);
   check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
     const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
     return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);

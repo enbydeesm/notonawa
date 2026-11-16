@@ -121,8 +121,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `parse.js`), deleting the account (`DELETE /api/account`: one cascading
   delete), and my settings (`GET`/`PUT /api/account/settings`: role names
   and light/dark mode (migration 0013), `seen_release`, the last release
-  notes shown (migration 0014), and `hide_welcome`, the welcome's "Don't
-  show this again" (migration 0015), and `default_shape`, the poser's
+  notes shown (migration 0014), and `hide_welcome`, whether I've finished
+  or skipped the welcome tour (migration 0015, for the welcome it replaced;
+  migration 0033 set it back to 0 for everyone), and `default_shape`, the poser's
   "Save as default" body for new poses (migration 0028, JSON); `settings.js`
   (pure) parses them).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
@@ -601,9 +602,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   link is waiting to be opened),
   `release-notes.js` (pure: the releases I haven't seen) and `whats-new.js`
   (the "What's new" dialog: from the menu, and once after an update),
-  `welcome-text.js` (generated from WELCOME.md by `scripts/welcome.mjs`)
-  and `welcome.js` (the welcome dialog: after each unlock, before What's
-  new, until "Don't show this again" is ticked), `feedback-dialog.js` (the
+  `tour.js` (the welcome tour: one modal dialog over the window, a welcome
+  card, a ring round each nav icon in turn with its card under the nav,
+  Account Recovery, then "That's a wrap!"; Esc is Skip tour; the dim, its
+  hole, the ring and the pointer are SVG drawn from the icon's place, so no
+  style attribute is needed; after each unlock, before What's new, until
+  it's finished or skipped (`hide_welcome`), and from the menu's Tutorial),
+  `tour-steps.js` (pure: its stops, what each points at, and their words)
+  and `tour-layout.js` (pure: the ring round an icon, kept on screen, and
+  the pointer's place), `feedback-dialog.js` (the
   "Bug and feedback" form, with a `mailto:` link for screenshots and
   replies),
   `photo-fit.js` (pure:
@@ -829,7 +836,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide, pinned to the top (sticky); the + button and the ☰ menu panel: Settings, Account, Your
-  data, Tutorial (the welcome again, for now), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Tutorial (the welcome tour), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
@@ -973,8 +980,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
-  matches PRIVACY.md, the release files match VERSION and RELEASES.md, the welcome
-  matches WELCOME.md and `public/js/vendor/` matches node_modules. Run before a release.
+  matches PRIVACY.md, the release files match VERSION and RELEASES.md and
+  `public/js/vendor/` matches node_modules. Run before a release.
 - `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint, type
   check and every Vitest test (about 1½ minutes), then (with `--ui`) only
   the walkthrough chunks of the areas changed since the last commit, or of
@@ -996,9 +1003,6 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `## Next` heading at the top (`- ` bullets), left out of the app until
   a deploy names it; releases are newest first, none newer than `VERSION`.
   Never edit `VERSION` by hand.
-- `node scripts/welcome.mjs`: rebuild `public/js/welcome-text.js` after
-  editing WELCOME.md (the welcome dialog's text: a heading, paragraphs, a
-  list, **bold**, *italics*; email addresses become links).
 - `scripts/figure/` (Python, with Anny and PyTorch kept outside the repo;
   see its README): rebuild the poser's body, `public/figure/body-*.bin` and
   `public/js/figure-body-data.js`. A changed body needs a new file name.

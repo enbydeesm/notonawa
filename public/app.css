@@ -1237,11 +1237,75 @@ button.update-flag { border: 0; cursor: pointer; background: var(--accent); colo
 .linked-tie:last-child { border-bottom: none; }
 .linked-tie-title { min-width: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
 
-/* The welcome: a heading, a few lines and a list, then the checkbox and OK. */
-.welcome ul { margin: 0 0 16px; padding-left: 20px; }
-.welcome li { margin: 6px 0; }
-.welcome-footer { align-items: center; justify-content: space-between; gap: 12px; }
-.welcome-footer label.inline { margin: 0; }
+/* The welcome tour (tour.js): one dialog over the whole window, see-through,
+   holding the dim with its hole and the gold ring (SVG, under the card),
+   the card, and the pointer joining the card to its icon (SVG, over it).
+   A stop's card sits under the nav (66px: its tabs, padding and border),
+   lined up with the nav's content on the side nearer its icon (main's 640px
+   column less its 16px padding); the welcome, Account Recovery and the
+   wrap-up sit in the middle. */
+dialog.tour {
+  position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: none; max-height: none;
+  margin: 0; padding: 0; overflow: hidden; background: transparent; border: none; border-radius: 0;
+}
+dialog.tour::backdrop { background: transparent; }
+.tour-dim, .tour-pointer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tour-pointer { pointer-events: none; }
+.tour-dim[hidden], .tour-pointer[hidden], .tour-ring[hidden] { display: none; }
+.tour-shade { fill: rgb(0 0 0 / 0.66); }
+.tour-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.tour-pointer-fill { fill: var(--card); }
+.tour-pointer-edge { fill: none; stroke: var(--line); stroke-width: 1; }
+.tour-card {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 82px); overflow-y: auto;
+  padding: 16px 16px 12px; background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+.tour-card.at-nav { top: 66px; transform: none; }
+.tour-card.at-nav.start { left: max(16px, calc(50% - 304px)); }
+.tour-card.at-nav.end { left: auto; right: max(16px, calc(50% - 304px)); }
+.tour-card.centered { top: 50%; transform: translate(-50%, -50%); max-height: calc(100dvh - 32px); }
+.tour-card h2 { margin: 0; font-size: 1.2rem; line-height: 1.3; }
+.tour-card p { margin: 8px 0 0; line-height: 1.45; }
+.tour-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tour-count { margin: 0; white-space: nowrap; }
+.tour-body { margin-bottom: 12px; }
+.tour-body em { font-weight: 600; }
+/* The progress bar: a thin line in the accent along a line-colored track. */
+progress.tour-progress {
+  display: block; width: 100%; height: 3px; border: none; border-radius: 2px;
+  appearance: none; background: var(--line); color: var(--accent);
+}
+progress.tour-progress::-webkit-progress-bar { background: var(--line); border-radius: 2px; }
+progress.tour-progress::-webkit-progress-value { background: var(--accent); border-radius: 2px; }
+progress.tour-progress::-moz-progress-bar { background: var(--accent); border-radius: 2px; }
+.tour-buttons { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.tour-buttons .tour-back { margin-left: auto; }
+.tour-buttons button { min-height: 44px; padding: 0 18px; }
+.tour-buttons button.primary { width: auto; margin: 0; }
+/* Skip tour: small, muted and underlined, the same on every card. */
+button.link.tour-skip { min-height: 44px; padding: 0 4px; color: var(--muted); font-size: 0.9rem; text-decoration: underline; }
+/* The welcome, Account Recovery and the wrap-up: in the middle. */
+.tour-card.tour-welcome, .tour-card.tour-finish { width: min(364px, calc(100vw - 32px)); padding: 28px 24px 20px; text-align: center; }
+.tour-welcome h2, .tour-finish h2 { font-size: 1.5rem; line-height: 1.2; }
+.tour-card.tour-note { padding: 18px 16px 12px; }
+/* The logo's pencil and knot alone, in the accent, 44px tall. logo-mark.svg
+   shares its canvas with the name, so it's cropped to the mark: the canvas
+   drawn 159.25 × 68.36px, moved so the mark's own box (1.25px in from the
+   left, 0.96px down) fills this one. */
+.tour-mark {
+  display: block; width: 156.3px; height: 44px; margin: 0 auto 4px; background-color: var(--accent);
+  mask: url("/img/logo-mark.svg") -1.25px -0.96px / 159.25px 68.36px no-repeat;
+}
+@media (forced-colors: active) { .tour-mark { forced-color-adjust: none; background-color: CanvasText; } }
+.tour-welcome button.primary { margin-top: 16px; }
+/* Skip tour beside the note on replaying it, left-aligned under Start. */
+.tour-later { display: flex; align-items: center; gap: 12px; margin-top: 4px; text-align: left; }
+.tour-later .hint { margin: 0; line-height: 1.35; }
+.tour-finish button.link.tour-back { display: block; margin: 4px auto 0; min-height: 44px; color: var(--muted); text-decoration: underline; }
+.tour-finish .tour-coffee { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.tour-coffee a { display: block; margin-top: 6px; }
 
 /* Bug and feedback: the warning first, and the message's length under it. */
 .warning-note { padding: 8px 12px; border-left: 4px solid var(--error); background: var(--bg); border-radius: 6px; }

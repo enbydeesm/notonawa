@@ -3,7 +3,8 @@
 // its own, over the view: it asks where to save what it makes), then the + button
 // and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
-// their own dialog), the account and "Your data" links, Bug and feedback,
+// their own dialog), the account and "Your data" links, Tutorial (the
+// welcome tour), Bug and feedback,
 // What's new (the release notes), the privacy policy, Sign Out and the
 // app's version.
 // Drawn once by app.js; setCurrent() marks the view being shown.
@@ -14,7 +15,7 @@ import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
 import { openFeedback } from "./feedback-dialog.js";
-import { openWelcome } from "./welcome.js";
+import { openTour } from "./tour.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
@@ -165,11 +166,10 @@ function openMenu() {
       }, dataIcon(), h("span", {}, "Your data")),
       // The tutorial, feedback, What's new, the privacy policy and signing
       // out are pinned to the bottom of the panel. The tutorial is the
-      // welcome for now; a click-through tour will take its place
-      // (roadmap.md).
+      // welcome tour (tour.js), from its start.
       h("button", {
         type: "button", className: "menu-item menu-tutorial", "aria-haspopup": "dialog",
-        onclick: () => { dialog.close(); openWelcome(); },
+        onclick: () => { dialog.close(); openTour(); },
       }, tutorialIcon(), h("span", {}, "Tutorial")),
       h("button", {
         type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",

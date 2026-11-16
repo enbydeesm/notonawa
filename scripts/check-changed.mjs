@@ -44,7 +44,6 @@ try {
 const GENERATED = {
   privacy: ["node", "scripts/privacy-html.mjs", "--check"],
   releases: ["node", "scripts/releases.mjs", "--check"],
-  welcome: ["node", "scripts/welcome.mjs", "--check"],
   vendor: ["node", "scripts/vendor.mjs", "--check"],
 };
 

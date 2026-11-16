@@ -27,7 +27,7 @@ import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
-import { showWelcome } from "./welcome.js";
+import { showTourOnce } from "./tour.js";
 import { takeShareLink } from "./pending-share.js";
 
 /**
@@ -128,14 +128,14 @@ async function show({ fresh, scroll, focus }) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
   }
-  // Then, once per unlock, the welcome (until I ask not to see it again)
-  // and the release notes I haven't seen, one after the other (not over
-  // the privacy policy agreement, which comes first and doesn't need the
-  // key).
+  // Then, once per unlock, the welcome tour (until I've finished or skipped
+  // it) and the release notes I haven't seen, one after the other (not
+  // over the privacy policy agreement, which comes first and doesn't need
+  // the key).
   if (route.needsKey && !releasesChecked) {
     releasesChecked = true;
     // Unreachable for now: either is shown after the next unlock instead.
-    showWelcome()
+    showTourOnce()
       .catch(() => {})
       .then(() => showUnseenReleases())
       .catch(() => {});

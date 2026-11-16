@@ -1,7 +1,7 @@
 // The account's settings on the page: role names (roles.js) and light/dark
 // mode (theme.js), read once the journal is unlocked and saved from the
 // Settings dialog (settings-dialog.js), the last release notes seen
-// (whats-new.js), whether to show the welcome (welcome.js) and the body new
+// (whats-new.js), whether the welcome tour has been seen (tour.js) and the body new
 // poses start with (pose-editor.js). See src/account/settings.js.
 
 import { setRoleNames, namesToAdopt } from "./roles.js";
@@ -102,9 +102,11 @@ export async function saveSeenRelease(version) {
 }
 
 /**
- * Remembers on my account that the welcome shouldn't be shown again.
+ * Remembers on my account that I've finished or skipped the welcome tour,
+ * so it isn't shown again after unlocking. Kept in hide_welcome, the
+ * setting of the welcome the tour replaced.
  */
-export async function saveHideWelcome() {
+export async function saveTourSeen() {
   const settings = await saveSettings({ hide_welcome: true });
   if (loaded) loaded = { ...loaded, hide_welcome: settings.hide_welcome };
 }
