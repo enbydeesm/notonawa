@@ -89,21 +89,21 @@ nav .nav-poser:disabled { opacity: 0.4; }
   nav .nav-add, nav .nav-icon { width: 28px; height: 28px; }
 }
 
-/* The app's logo: on Sign in, Unlock and Consent, which have no nav, and
-   as a banner (the name on the bamboo) at the top of the menu. Each comes
-   in a light and a dark version, picked by the mode (data-theme, set before
-   the page draws by theme-init.js). A background rather than an <img>: the
-   browser only downloads a background whose rule matches, so only the
-   mode's version is fetched (a hidden <img> still downloads). Sized for
-   2× screens; nav.js loads the menu's ahead of opening it. */
-.logo { display: block; max-width: 100%; margin: 0 auto; background: center / contain no-repeat; }
-/* High-contrast modes drop backgrounds; keep the logo. */
-@media (forced-colors: active) { .logo { forced-color-adjust: none; } }
+/* The app's logo, the knotted pencil over "nōtonawa": on Sign in, Unlock
+   and Consent, which have no nav, and at the top of the menu. Two black
+   drawings on the same canvas, /img/logo-mark.svg (the pencil) and
+   logo-word.svg (the name), cut from logo.svg, each a mask over a color:
+   both the text color in light mode; in dark mode the pencil in the accent. */
+.logo { display: block; position: relative; max-width: 100%; margin: 0 auto; aspect-ratio: 165.4 / 71; }
+.logo::before, .logo::after { content: ""; position: absolute; inset: 0; background-color: var(--text); }
+.logo::before { mask: url("/img/logo-mark.svg") center / contain no-repeat; }
+.logo::after { mask: url("/img/logo-word.svg") center / contain no-repeat; }
+:root[data-theme="dark"] .logo::before { background-color: var(--accent); }
+/* High-contrast modes replace background colors, which would hide it. */
+@media (forced-colors: active) { .logo::before, .logo::after { forced-color-adjust: none; background-color: CanvasText; } }
 .app-title { text-align: center; }
-.app-title .logo { width: 220px; aspect-ratio: 1; background-image: url("/img/logo-light.avif"); }
-:root[data-theme="dark"] .app-title .logo { background-image: url("/img/logo-dark.avif"); }
-.menu-title .logo { width: 240px; aspect-ratio: 480 / 116; background-image: url("/img/bamboo-logo-light.avif"); }
-:root[data-theme="dark"] .menu-title .logo { background-image: url("/img/bamboo-logo-dark.avif"); }
+.app-title .logo { width: 280px; }
+.menu-title .logo { width: 240px; }
 
 .card {
   background: var(--card); border: 1px solid var(--line);
@@ -314,14 +314,19 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-marks.drawing { pointer-events: auto; cursor: crosshair; }
 .pose-marks.drawing.erasing { cursor: cell; }
 /* Over the view, on the floor's light (the 3D view's colors are the same
-   in both modes): undo, redo and the pencil top left, the cube top right,
-   the hint and "Allow collisions" along the foot. */
+   in both modes): undo, redo and the pencil top left, Wrap (Rope) in the
+   middle of the gap, the cube top right, the hint and "Allow collisions"
+   along the foot. The top row lets taps through between its groups. */
+.pose-view-top {
+  position: absolute; top: 8px; left: 8px; right: 8px; display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 6px; pointer-events: none;
+}
+.pose-view-top > * { pointer-events: auto; }
 .pose-view-tools, .pose-frame .pose-view-menu {
-  position: absolute; top: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
+  display: flex; align-items: center; gap: 2px; padding: 3px;
   background: color-mix(in srgb, var(--pose-backdrop) 90%, transparent); border: 1px solid var(--pose-floor); border-radius: 11px;
 }
-.pose-view-tools { left: 8px; }
-.pose-frame .pose-view-menu { right: 8px; gap: 0; padding: 3px 6px 3px 9px; height: 46px; box-sizing: border-box; color: var(--ink-black); }
+.pose-frame .pose-view-menu { gap: 0; padding: 3px 6px 3px 9px; height: 46px; box-sizing: border-box; color: var(--ink-black); }
 .pose-float-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-black); }
 .pose-view-tools .tool-icon-under { stroke: var(--pose-backdrop); }
 .pose-float-button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
@@ -433,18 +438,32 @@ dialog.preset-picker.searchable[open] {
 .pose-actions button.primary { flex: 1.5; }
 /* The thickness row: its buttons, then (right) the hardpoint's chip for
    ropes or Done for the pencil, in the same place so nothing moves. */
-.pose-tools-row { display: flex; align-items: center; gap: 6px; }
+.pose-tools-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.pose-tools-row > .pose-rope-tools { flex-wrap: nowrap; }
 .pose-tools-row > :last-child { margin-left: auto; flex: none; }
-/* Wrap, over the view under undo and redo: its switch, and − 1 turn +. */
-.pose-view-tools.pose-wrap-row { top: 62px; }
+/* Wrap, over the view top middle: its switch, + over −, and the turns.
+   Too narrow for it between undo and the views (under 360px), it drops
+   under undo and redo. */
 .pose-wrap-row[hidden] { display: none; }
 .pose-wrap-row .pose-wrap { width: auto; padding: 0 10px; font-size: 0.85rem; font-weight: 600; }
-.pose-wrap-row .pose-wrap-step { width: 32px; font-size: 1.1rem; }
-.pose-wrap-row .pose-wrap-step:disabled { opacity: 0.35; }
-.pose-wrap-count { min-width: 3.6em; text-align: center; font-size: 0.75rem; color: var(--ink-grey); }
-.pose-hang { align-self: flex-start; min-height: 36px; }
+.pose-wrap-steps { display: flex; flex-direction: column; gap: 2px; }
+.pose-wrap-step { width: 24px; height: 19px; padding: 0; border: 0; border-radius: 5px; background: transparent;
+  color: var(--ink-black); font-size: 0.9rem; line-height: 1; }
+.pose-wrap-step:disabled { opacity: 0.35; }
+.pose-wrap-count { min-width: 1.4em; padding-right: 4px; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--ink-black); }
+@media (max-width: 359px) {
+  .pose-view-top > .pose-wrap-row { position: absolute; top: 54px; left: 0; }
+}
+/* Dangle, between the eraser and the hardpoint's chip. */
+.pose-hang { min-height: 36px; padding: 0 8px; }
 .pose-hang[hidden] { display: none; }
-.pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 10px; text-transform: none; }
+/* The hardpoint's chip, kept tight so the thickness row stays one line;
+   under 360px it's its icon and › (its name still in its aria-label). */
+.pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 40px; padding: 0 2px 0 6px; text-transform: none; }
+.pose-hardpoint-chip .tool-icon:last-child { width: 14px; margin-left: -2px; }
+@media (max-width: 359px) {
+  .pose-hardpoint-name { display: none; }
+}
 .pose-hardpoint-chip.empty { padding: 0 12px; border-style: dashed; border-color: var(--accent); color: var(--accent-ink); }
 .pose-draw-done { display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent); }

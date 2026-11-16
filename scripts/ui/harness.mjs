@@ -430,15 +430,17 @@ const PAGE_HELPERS = `
   const openMenu = async () => { $(".nav-menu").click(); await calm(300); };
   // Whether this page has fetched a file (by path).
   const fetched = (path) => performance.getEntriesByName(new URL(path, location.href).href).length > 0;
-  // The logo in sel, app.css's background for the mode: whether its file
-  // has loaded, its name for screen readers, and its file. An image the
+  // The logo in sel, app.css's masks: whether its files have loaded, its
+  // name for screen readers, its files, and the pencil's and the name's colors. An image the
   // page before showed comes from Chrome's memory cache, which leaves no
   // timing entry, but an image of it is complete at once.
   const loadedImage = (path) => { const img = new Image(); img.src = path; return img.complete && img.naturalWidth > 0; };
   const logo = (sel) => {
     const el = $(sel);
-    const file = el ? new URL(getComputedStyle(el).backgroundImage.slice(5, -2)).pathname : null;
-    return [file !== null && (fetched(file) || loadedImage(file)), el?.getAttribute("aria-label") ?? null, file];
+    const parts = el ? ["::before", "::after"].map((p) => getComputedStyle(el, p)) : [];
+    const files = parts.map((s) => new URL(s.maskImage.slice(5, -2)).pathname);
+    return [files.length > 0 && files.every((f) => fetched(f) || loadedImage(f)), el?.getAttribute("aria-label") ?? null, files,
+      parts.map((s) => s.backgroundColor)];
   };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);

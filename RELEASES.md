@@ -16,8 +16,8 @@ Now with more encryption flavor!
 - Connected accounts now talk privately: our server keeps no record of who is connected to whom.
 - Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.
 - Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.
-- Raise and lower uplines: tap an upline and its Length lifts or lowers what it's tied to. The body will swing, tip and turn until its weight sits as low as its taut uplines allow. You can still freely pose or draw uplines. Tap 'Let it hang' in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone. It's not a physics engine, just a constraint solver.
-- Rope now lies on the body better, rather than clipping through. Turn on Wrap over the 3D view and tap an arm, a leg or the body to lay a full turn of rope round it there.
+- Raise and lower uplines: tap an upline and its Length lifts or lowers what it's tied to. The body will swing, tip and turn until its weight sits as low as its taut uplines allow. You can still freely pose or draw uplines. Tap Dangle in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone. It's not a physics engine, just a constraint solver.
+- Rope now lies on the body better, rather than clipping through. Turn on Wrap at the top of the 3D view, set how many turns with + and −, and tap an arm, a leg or the body to lay turns of rope round it there.
 - The Hips sliders now pivot just the pelvis.
 - The poser's ring is 50% bigger.
 

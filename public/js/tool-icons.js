@@ -3,7 +3,7 @@
 // (an arrow curling back left or on right), download (an arrow down into
 // a tray), a pencil (the poser's drawing), and the poser's own: a cube (the
 // views), a picture with a plus (Add to visuals), a turning arrow (Facing),
-// a cross (letting a rope go), the chosen rope's Cinch, Slide and Add rope,
+// a cross (letting a rope go), an eraser (a block tipped on its corner), the chosen rope's Cinch, Slide and Add rope,
 // the hardpoints (a ring hanging from a line, a bamboo with its nodes, a
 // hashira post), a › and the Body and Arms positions' figures. Each button using one says what
 // it does in its aria-label and title.
@@ -66,7 +66,7 @@ const rounded = (x, y, w, hgt, r) =>
   `a${r} ${r} 0 0 1 ${-r} ${-r}v${-(hgt - 2 * r)}a${r} ${r} 0 0 1 ${r} ${-r}z`;
 
 /**
- * @typedef {"undo" | "redo" | "download" | "pencil" | "views" | "addVisual" | "facing" | "close" | "cinch" | "slide" | "addRope"
+ * @typedef {"undo" | "redo" | "download" | "pencil" | "views" | "addVisual" | "facing" | "close" | "eraser" | "cinch" | "slide" | "addRope"
  *   | "ring" | "bamboo" | "hashira" | "chevron" | "bodyPosition" | "armsPosition"} ToolIcon
  */
 
@@ -91,6 +91,7 @@ export const TOOL_ICONS = {
   // An arrow turning back round: which way the body faces.
   facing: () => icon(["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5"]),
   close: () => icon(["M18 6 6 18", "m6 6 12 12"]),
+  eraser: () => icon(["m7 21-4.3-4.3a2.4 2.4 0 0 1 0-3.4l9.6-9.6a2.4 2.4 0 0 1 3.4 0l5.6 5.6a2.4 2.4 0 0 1 0 3.4L13 21", "M22 21H7", "m5 11 9 9"]),
   // Two lines coming down side by side, and the cinch across them.
   cinch: () => icon(["M5 3l4 7v11", "M19 3l-4 7v11", "M6.5 13h11"]),
   // A bamboo (its nodes) over an arrow both ways: wider than the rest, so

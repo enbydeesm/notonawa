@@ -565,7 +565,7 @@ export default async function () {
 }
 
 /**
- * Let it hang: a body in the air, on a line to a ring off to its side,
+ * Dangle: a body in the air, on a line to a ring off to its side,
  * comes to rest under the ring; a body standing on the floor has no button.
  * @param {{ topDialog: string }} helpers
  */
@@ -587,8 +587,11 @@ async function hanging({ topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await calm(500); $("#pose-mode-rope").click(); await calm(300);`);
-  check("a body in the air has Let it hang in the Rope tab; at rest, tapping it again says so; Undo puts the body back", await run(`
-    const shown = [!$("#pose-hang").hidden, $("#pose-hang").textContent];
+  check("a body in the air has Dangle in the Rope tab, on one line between the eraser and the hardpoint's chip; at rest, tapping it again says so; Undo puts the body back", await run(`
+    const box = (id) => $(id).getBoundingClientRect();
+    const [eraser, dangle, chip] = [box("#pose-eraser"), box("#pose-hang"), box("#pose-hardpoint-link")];
+    const shown = [!$("#pose-hang").hidden, $("#pose-hang").textContent, !!$("#pose-eraser svg"), $("#pose-eraser").textContent,
+      eraser.right <= dangle.left && dangle.right <= chip.left, Math.abs(eraser.top - dangle.top) < 12 && Math.abs(dangle.top - chip.top) < 12];
     $("#pose-hang").click(); await calm(500);
     $("#pose-hang").click(); await calm(400);
     const said = $("#pose-rope-note").textContent;
@@ -596,7 +599,7 @@ async function hanging({ topDialog }) {
     const undone = $("#pose-undo").disabled;
     $("#pose-redo").click(); await calm(400);
     return [shown, said, undone];`),
-  [[true, "Let it hang"], "It's hanging as low as its lines allow.", true]);
+  [[true, "Dangle", true, "", true, true], "It's hanging as low as its lines allow.", true]);
   check("it swings the body under the ring, as one piece, saved with the pose", await run(`
     $("#pose-save").click();
     for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
@@ -630,12 +633,17 @@ async function wrapping({ tap, drag, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await calm(800); $("#tie-pose-edit").click();
     for (let i = 0; i < 100 && !document.querySelector("dialog.pose-editor[open]"); i++) await wait(100);
     await calm(500); $("#pose-mode-rope").click(); await calm(300);`);
-  check("the Rope tab has Wrap, off, its turns greyed out; on, + makes it two turns and the help says what a tap does", await run(`
-    const off = [$("#pose-wrap").getAttribute("aria-pressed"), $("#pose-wrap-fewer").disabled, $("#pose-wrap-more").disabled, $("#pose-wrap-count").textContent];
+  const count = `[$("#pose-wrap-count [aria-hidden]").textContent, $("#pose-wrap-count .visually-hidden").textContent]`;
+  check("the Rope tab has Wrap top middle, between undo and the views, + over −; off, its turns greyed out; on, + makes it two turns and the help says what a tap does", await run(`
+    const box = (id) => $(id).getBoundingClientRect();
+    const [left, wrap, views, more, fewer] = [box(".pose-view-tools"), box(".pose-wrap-row"), box("#pose-view-choice"), box("#pose-wrap-more"), box("#pose-wrap-fewer")];
+    const placed = [left.right < wrap.left && wrap.right < views.left, Math.abs(wrap.top - left.top) < 2,
+      Math.abs((wrap.left - left.right) - (views.left - wrap.right)) < 3, more.bottom <= fewer.top && Math.abs(more.left - fewer.left) < 1];
+    const off = [$("#pose-wrap").getAttribute("aria-pressed"), $("#pose-wrap-fewer").disabled, $("#pose-wrap-more").disabled, ${count}];
     $("#pose-wrap").click(); await calm(200);
     $("#pose-wrap-more").click(); await calm(200);
-    return [off, $("#pose-wrap").getAttribute("aria-pressed"), $("#pose-wrap-count").textContent, $("#pose-rope-hint").textContent];`),
-  [["false", true, true, "1 turn"], "true", "2 turns", "Wrap: tap an arm, a leg or the body to lay a turn of rope round it there."]);
+    return [placed, off, $("#pose-wrap").getAttribute("aria-pressed"), ${count}, $("#pose-rope-hint").textContent];`),
+  [[true, true, true, true], ["false", true, true, ["1", "1 turn"]], "true", ["2", "2 turns"], "Wrap: tap an arm, a leg or the body to lay a turn of rope round it there."]);
   await tap(0.5, 0.42);
   check("a tap on the chest lays two turns round it, twenty-five points; Undo takes the whole wrap back", await run(`
     const laid = $("#pose-laying-count").textContent;

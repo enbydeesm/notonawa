@@ -342,32 +342,48 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     // --- the Rope panel ----------------------------------------------------------
 
     /**
-     * The thickness, an eraser and the colors: the Rope tab's and the
-     * pencil's are the same rows in the same place, so turning the pencil
-     * on moves nothing; each has its own color (the width is shared). The
-     * end of the thickness row holds the hardpoint's chip for ropes, Done
-     * for the pencil.
+     * The thickness, an eraser (an icon) and the colors: the Rope tab's and
+     * the pencil's are the same rows in the same place, so turning the
+     * pencil on moves nothing; each has its own color (the width is
+     * shared). The end of the thickness row holds the hardpoint's chip for
+     * ropes, Done for the pencil; ropes have Dangle before it.
      * @param {string} prefix the buttons' ids, e.g. "pose" (pose-color-red) or "pose-mark"
      * @param {string} what "Rope" or "Line", for their groups' names
      * @param {string} eraserLabel @param {() => void} onEraser
      * @param {(c: Color) => void} onPick @param {HTMLElement} end
+     * @param {HTMLElement} [middle] between the eraser and the end
      */
-    const styleRows = (prefix, what, eraserLabel, onEraser, onPick, end) => {
+    const styleRows = (prefix, what, eraserLabel, onEraser, onPick, end, middle) => {
       const colors = COLORS.map((c) => toggle(`${prefix}-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => onPick(c),
         h("span", { className: "swatch-dot", "aria-hidden": "true" })));
       const widths = WIDTHS.map((w) => toggle(`${prefix}-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
         h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
-      const eraser = toggle(`${prefix}-eraser`, eraserLabel, "", onEraser, "Eraser");
+      const eraser = toggle(`${prefix}-eraser`, eraserLabel, "width-tool icon-tool", onEraser, TOOL_ICONS.eraser());
       const element = h("div", { className: "pose-rope-tools-rows" },
         h("div", { className: "pose-tools-row" },
-          h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser), end),
+          h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser),
+          ...(middle ? [middle] : []), end),
         h("div", { className: "tool-group", role: "group", "aria-label": `${what} color` }, colors));
       return { element, colors, widths, eraser };
     };
     // The hardpoint's chip: which there is (its icon and name), or + Hardpoint,
     // and tapping it opens Scene to change it.
     const hardpointLink = h("button", { type: "button", className: "tool pose-hardpoint-chip", id: "pose-hardpoint-link", onclick: () => setMode("scene") });
-    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing), (c) => pickColor(c), hardpointLink);
+    // Dangle: a body in the air comes to rest under its uplines, as one
+    // piece (pose-hang.js). Changing an upline's Length does it too; this is
+    // for after posing, which never moves the body by itself. In the
+    // thickness row, between the eraser and the hardpoint's chip.
+    const hangButton = h("button", { type: "button", className: "tool pose-hang", id: "pose-hang", hidden: true, title: "The body comes to rest under its uplines", onclick: () => {
+      const hung = hang(history.pose);
+      if (samePose(hung, history.pose)) {
+        sayRope("It's hanging as low as its lines allow.");
+        return;
+      }
+      commit(hung, true);
+      sayRope("");
+    } }, "Dangle");
+    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing), (c) => pickColor(c),
+      hardpointLink, hangButton);
     const { colors: colorButtons, widths: widthButtons, eraser: eraserButton } = ropeStyle;
     // While a rope is laid: its count, Cancel and Finish, in a bar over the
     // foot of the view (hidden otherwise).
@@ -390,35 +406,27 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     // The rope chosen (pose-rope-panel.js), in place of the tools.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
     // Wrap: with it on, a tap on the body lays a turn round that part, and
-    // − + set how many turns. It floats over the view, under undo and redo
-    // (the Rope tab's rows keep their places, which the pencil's share),
-    // clear of the bar a rope being laid has along the foot.
+    // + and − (stacked, as a slider's ▲▼ are) set how many turns, shown as
+    // a number. It floats over the view, top middle, between undo and redo
+    // and the views (the Rope tab's rows keep their places, which the
+    // pencil's share), clear of the bar a rope being laid has along the foot.
     const wrapToggle = h("button", { type: "button", className: "pose-float-button pose-wrap", id: "pose-wrap", "aria-pressed": "false", title: "Wrap: a tap lays a turn of rope round the part", onclick: () => {
       wrapping = !wrapping;
       drawAll();
     } }, "Wrap");
-    const wrapCount = h("span", { className: "pose-wrap-count", id: "pose-wrap-count", "aria-live": "polite" }, "1 turn");
+    const wrapNumber = h("span", { "aria-hidden": "true" }, "1");
+    const wrapWords = h("span", { className: "visually-hidden" }, "1 turn");
+    const wrapCount = h("span", { className: "pose-wrap-count", id: "pose-wrap-count", "aria-live": "polite" }, wrapNumber, wrapWords);
     const wrapStep = (/** @type {number} */ by) => () => {
       wrapTurns = Math.min(MAX_WRAPS, Math.max(1, wrapTurns + by));
       drawAll();
     };
-    const wrapFewer = h("button", { type: "button", className: "pose-float-button pose-wrap-step", id: "pose-wrap-fewer", "aria-label": "Fewer turns", title: "Fewer turns", onclick: wrapStep(-1) }, "−");
-    const wrapMore = h("button", { type: "button", className: "pose-float-button pose-wrap-step", id: "pose-wrap-more", "aria-label": "More turns", title: "More turns", onclick: wrapStep(1) }, "+");
-    const wrapRow = h("div", { className: "pose-view-tools pose-wrap-row", role: "group", "aria-label": "Wrap", hidden: true }, wrapToggle, wrapFewer, wrapCount, wrapMore);
-    // Let it hang: a body in the air comes to rest under its uplines, as one
-    // piece (pose-hang.js). Changing an upline's Length does it too; this is
-    // for after posing, which never moves the body by itself.
-    const hangButton = h("button", { type: "button", className: "tool pose-hang", id: "pose-hang", hidden: true, title: "The body comes to rest under its uplines", onclick: () => {
-      const hung = hang(history.pose);
-      if (samePose(hung, history.pose)) {
-        sayRope("It's hanging as low as its lines allow.");
-        return;
-      }
-      commit(hung, true);
-      sayRope("");
-    } }, "Let it hang");
+    const wrapFewer = h("button", { type: "button", className: "pose-wrap-step", id: "pose-wrap-fewer", "aria-label": "Fewer turns", title: "Fewer turns", onclick: wrapStep(-1) }, "−");
+    const wrapMore = h("button", { type: "button", className: "pose-wrap-step", id: "pose-wrap-more", "aria-label": "More turns", title: "More turns", onclick: wrapStep(1) }, "+");
+    const wrapRow = h("div", { className: "pose-view-tools pose-wrap-row", role: "group", "aria-label": "Wrap", hidden: true },
+      wrapToggle, h("div", { className: "pose-wrap-steps" }, wrapMore, wrapFewer), wrapCount);
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
-      ropeTools, ropeOptions, hangButton, ropeHintLine, ropeNote);
+      ropeTools, ropeOptions, ropeHintLine, ropeNote);
 
     // --- the Pencil panel ------------------------------------------------------------
 
@@ -437,9 +445,12 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     // The view, with its tools and bars over it.
     const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
-      h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
-        undoButton, redoButton, h("span", { className: "pose-view-divider", "aria-hidden": "true" }), drawTab),
-      wrapRow, viewMenu, viewList,
+      // Across the top: undo, redo and the pencil; Wrap (Rope) in the middle; the views.
+      h("div", { className: "pose-view-top" },
+        h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
+          undoButton, redoButton, h("span", { className: "pose-view-divider", "aria-hidden": "true" }), drawTab),
+        wrapRow, viewMenu),
+      viewList,
       h("div", { className: "pose-view-foot" }, viewHintLine, allowLabel),
       layingBar);
 
@@ -788,7 +799,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       // Wrap is for laying a rope or an added one: not with a rope chosen, the eraser, or a cinch.
       wrapRow.hidden = mode !== "rope" || drawing || !!rope || erasing || (!!laying && layingKind === "cinch");
       wrapToggle.setAttribute("aria-pressed", String(wrapping));
-      wrapCount.textContent = `${wrapTurns} ${wrapTurns === 1 ? "turn" : "turns"}`;
+      wrapNumber.textContent = String(wrapTurns);
+      wrapWords.textContent = `${wrapTurns} ${wrapTurns === 1 ? "turn" : "turns"}`;
       wrapFewer.disabled = !wrapping || wrapTurns <= 1;
       wrapMore.disabled = !wrapping || wrapTurns >= MAX_WRAPS;
       if (draft) return;
@@ -808,7 +820,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       hardpointLink.setAttribute("aria-label", kind ? `Hardpoint: ${kind}. Change in Scene` : "Add a hardpoint in Scene");
       hardpointLink.title = kind ? "Change the hardpoint in Scene" : "Add a ring, bamboo or hashira in Scene";
       hardpointLink.replaceChildren(...(kind
-        ? [TOOL_ICONS[kind](), capitalise(kind), TOOL_ICONS.chevron()]
+        ? [TOOL_ICONS[kind](), h("span", { className: "pose-hardpoint-name" }, capitalise(kind)), TOOL_ICONS.chevron()]
         : ["+ Hardpoint"]));
     }
 

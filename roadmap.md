@@ -89,7 +89,7 @@ Re-running an import gives a tie that's skipped as a duplicate (or a plan matche
   pelvis back, and a leg spread wide hiking it, as on a real body (the
   Hips sliders already pivot the pelvis under a steady trunk).
 - **Limbs with weight**: unsupported limbs and the head drooping, perhaps
-  as part of "Let it hang" (the body hanging as one piece is built:
+  as part of "Dangle" (the body hanging as one piece is built:
   considerations.md), and partial suspensions, where the floor carries
   part of the body.
 - **Rope presets** (a chest harness, hip harness, futomomo, cuffs, and my

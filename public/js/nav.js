@@ -20,7 +20,6 @@ import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
 import { wipeCaches } from "./cache/db.js";
 import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
-import { currentTheme } from "./settings.js";
 import { HANK_PATH } from "./rope-rating.js";
 
 /** The tabs: address, name and icon, in order. */
@@ -53,17 +52,17 @@ export const TIE_SAVED = "tie-saved";
 export const PLAN_SAVED = "plan-saved";
 export const WORKSHOP_SAVED = "workshop-saved";
 
-// The menu's logo for each mode, as in app.css (.menu-title .logo).
-const MENU_LOGOS = { light: "/img/bamboo-logo-light.avif", dark: "/img/bamboo-logo-dark.avif" };
+// The logo's two parts, as in app.css (.logo), the same in both modes.
+const LOGO = ["/img/logo-mark.svg", "/img/logo-word.svg"];
 
 /**
- * Fetches the menu's logo for the mode on screen, so it's there as soon as
- * the menu first opens rather than loading as it slides in. app.js calls it
- * once the journal is unlocked; images are cached (public/_headers), so the
- * menu's background then comes from the cache.
+ * Fetches the logo, so it's there as soon as the menu first opens rather
+ * than loading as it slides in. app.js calls it once the journal is
+ * unlocked; images are cached (public/_headers), so the menu's mask then
+ * comes from the cache.
  */
 export function preloadMenuLogo() {
-  new Image().src = MENU_LOGOS[currentTheme()];
+  for (const src of LOGO) new Image().src = src;
 }
 
 /** The path of the view being shown (null: not one of the app's views). @type {string | null} */
@@ -150,8 +149,7 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's logo as a banner (the name on the bamboo), app.css's
-      // background for the mode. Search for "NotoNawa" when it's renamed.
+      // The app's logo, app.css's mask in the text color. Search for "NotoNawa" when it's renamed.
       h("h2", { className: "menu-title" }, h("span", { className: "logo", role: "img", "aria-label": "NotoNawa" })),
       h("button", {
         type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",

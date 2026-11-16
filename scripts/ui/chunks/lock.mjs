@@ -24,7 +24,7 @@ export default async function () {
   check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav, not even while it loads", await run(`
     return [location.pathname, ...(() => { ${shown} })(), window.navShownWhileLoading];`),
     ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false, false]);
-  check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", "/img/logo-dark.avif"]);
+  check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
   check("Unlock says who to email for help, on its own centred line", await run(HELP_LINE),
     ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`

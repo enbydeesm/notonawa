@@ -3916,7 +3916,7 @@ a new engine, and slow on a phone).
   some of it and we don't work out how much (so partial suspensions don't
   settle), and settling stops at the floor.
 - **When it settles** (the user's choice of three): on an upline's
-  Length changing (let go, not while sliding), and on "Let it hang" in
+  Length changing (let go, not while sliding), and on "Dangle" in
   the Rope tab, shown for a body in the air on an upline. Posing never
   moves it. The others: settling on every joint change (most lifelike,
   but the body shifts under each adjustment), or the button only.

@@ -19,7 +19,7 @@ export default async function () {
   // The app's code and images hold none of the journal: kept by the
   // browser, the code checked with the server before each use.
   for (const [path, cache] of [["/js/api.js", "no-cache"], ["/js/views/plans.js", "no-cache"], ["/app.css", "no-cache"],
-    ["/img/logo-dark.avif", "max-age=604800"], ["/img/favicon.png", "max-age=604800"]]) {
+    ["/img/logo-mark.svg", "max-age=604800"], ["/img/favicon-v2.png", "max-age=604800"]]) {
     const res = await fetch(BASE + path);
     check(`${path}: cached (${cache}), with the security headers`, [res.headers.get("cache-control"), res.headers.get("x-frame-options")], [cache, "DENY"]);
   }
@@ -35,17 +35,16 @@ export default async function () {
     const res = await fetch(BASE + path);
     check(`${path} is a PNG`, [res.status, res.headers.get("content-type")], [200, "image/png"]);
   }
-  for (const path of ["/img/logo-light.avif", "/img/logo-dark.avif", "/img/bamboo-logo-light.avif", "/img/bamboo-logo-dark.avif"]) {
+  for (const path of ["/img/logo-mark.svg", "/img/logo-word.svg"]) {
     const res = await fetch(BASE + path);
-    check(`${path} is an AVIF`, [res.status, res.headers.get("content-type")], [200, "image/avif"]);
+    check(`${path} is an SVG, with no script in it`, [res.status, res.headers.get("content-type"), (await res.text()).includes("<script")],
+      [200, "image/svg+xml", false]);
   }
   console.log("Signing up");
   await go("/");
-  check("signed out, the journal goes to the sign-in page, without the nav, its title centered", await run(`
+  check("signed out, the journal goes to the sign-in page, without the nav, its title centered, the logo's pencil in the accent and its name in dark mode's light text", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 .logo")];`),
-    ["/signin", "choose", "none", "center", [true, "NotoNawa", "/img/logo-dark.avif"]]);
-  check("…and only the mode's logo is downloaded, not the light one too, nor the menu's", await run(`
-    return [fetched("/img/logo-light.avif"), fetched("/img/bamboo-logo-dark.avif")];`), [false, false]);
+    ["/signin", "choose", "none", "center", [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];

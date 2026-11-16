@@ -95,7 +95,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (the pages' CSP lives there); keep the shared headers the same in both.
   Pages stay `no-store`; `/js/*` and `app.css` are `no-cache` and
   `/img/*` is cached a week, so **a changed image needs a new file name**.
-  The logos are `.logo` backgrounds for the mode (`app.css`), AVIF.
+  The logo is `/img/logo-mark.svg` (the pencil) and `logo-word.svg` (the
+  name), cut from `logo.svg` on the same canvas, black drawings used as
+  masks over colors (`.logo`'s `::before` and `::after` in `app.css`):
+  `--text` in light mode, the pencil `--accent` in dark.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.
   `src/parse.js`: field parsers. `src/sql.js`: `NOW`.
 - `src/auth/`: sign-in. `session.js` (pure: tokens, hashes, expiry rules),
@@ -681,7 +684,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   taut uplines keep their lengths; tested), `pose-hang.js` (`hang`: a body
   in the air, as one piece, settled where its weight (`weightMiddle`, from
   its capsules) is lowest with every taut upline at its length; after an
-  upline's Length changes, and the Rope tab's Let it hang; tested), `pose-surface.js`
+  upline's Length changes, and the Rope tab's Dangle; tested), `pose-surface.js`
   (rope on the skin: `alongSkin`, the way round a part between two of a
   rope's points, on the body's capsules, as `ropeRuns` draws it; `wrapRound`,
   a Wrap's points, on the real skin when the view measures it,
