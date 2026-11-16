@@ -20,7 +20,7 @@ Now with more encryption flavor!
 - Rope now lies on the body better, rather than clipping through. Turn on Wrap at the top of the 3D view, set how many turns with + and −, and tap an arm, a leg or the body to lay turns of rope round it there.
 - The Hips sliders now pivot just the pelvis.
 - The poser's ring is 50% bigger.
-- A new welcome tour walks you round the icons at the top and the menu, and how to keep from losing access to your account. Everyone sees it once; replay it any time from Menu > Tutorial.
+- A new welcome tour walks you through the app. Replay it any time from Menu > Tutorial.
 
 ## 2026.11.09.0624
 Workshop updates and visual viewer improvements
