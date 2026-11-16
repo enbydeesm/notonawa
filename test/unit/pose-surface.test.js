@@ -47,6 +47,22 @@ describe("a rope between two points on one part", () => {
     });
   });
 
+  it("stays on the skin between points under a capsule's surface, rather than jutting out to it (the small of the back, an ankle)", () => {
+    // The capsules stand out past the skin where it curves in: a wrap's
+    // points, on the real skin, are then inside one. The way between them
+    // keeps as far out as they are, not out on the capsule.
+    const skin = skinFor(page.newPose());
+    const { a, b, r } = forearm(skin);
+    const mid = a.clone().lerp(b, 0.5);
+    const front = mid.clone().add(new Vector3(0, 0, r - 1)), back = mid.clone().add(new Vector3(0, 0, -(r - 1)));
+    const between = alongSkin(skin, "l_elbow", front, "l_elbow", back);
+    expect(between.length).toBeGreaterThanOrEqual(5);
+    for (const p of between) {
+      expect(outside(p, forearm(skin))).toBeLessThan(-0.5);
+      expect(outside(p, forearm(skin))).toBeGreaterThan(-1.5);
+    }
+  });
+
   it("adds nothing between points close together, or when an end isn't on the body", () => {
     const skin = skinFor(page.newPose());
     const { a, b, r } = forearm(skin);

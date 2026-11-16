@@ -28,7 +28,14 @@ describe("the tour's stops", () => {
     for (const stop of STOPS) expect(stop.body.flat().length).toBeGreaterThan(0);
     const recovery = STOPS[STOPS.length - 1].body;
     expect(recovery).toHaveLength(2);
-    expect(recovery[0]).toEqual(["Because everything is encrypted, ", { em: "we cannot restore your data if you lose it" }, "."]);
+    // The warning starts a line of its own, so it isn't split.
+    expect(recovery[0]).toEqual(["Because everything is encrypted,", { br: true }, { em: "we cannot restore your data if you lose it" }, "."]);
+  });
+
+  it("breaks Locations' line before its aside, rather than wrapping it", () => {
+    const [locations] = STOPS.find((s) => s.title === "Locations")?.body ?? [];
+    expect(locations.at(-2)).toEqual({ br: true });
+    expect(locations.at(-1)).toBe("(if that's your kink).");
   });
 
   it("numbers the stops from 1, after the welcome, with the wrap-up after the last", () => {

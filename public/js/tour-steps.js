@@ -8,8 +8,9 @@
 // and the wrap-up is after the last.
 
 /**
- * Part of a paragraph: plain text, or text in italics.
- * @typedef {string | { em: string }} Span
+ * Part of a paragraph: plain text, text in italics, or a line break (where
+ * a line would otherwise wrap awkwardly).
+ * @typedef {string | { em: string } | { br: true }} Span
  */
 
 /**
@@ -42,7 +43,7 @@ export const STOPS = Object.freeze([
   },
   {
     title: "Locations", target: 'nav a[href="/locations"]',
-    body: [["Where you tie. Save a maps link or coordinates and your ties show up on the global map (if that's your kink)."]],
+    body: [["Where you tie. Save a maps link or coordinates and your ties show up on the global map", { br: true }, "(if that's your kink)."]],
   },
   {
     title: "Calendar", target: 'nav a[href="/calendar"]',
@@ -69,7 +70,7 @@ export const STOPS = Object.freeze([
   {
     title: "Account Recovery", target: null,
     body: [
-      ["Because everything is encrypted, ", { em: "we cannot restore your data if you lose it" }, "."],
+      ["Because everything is encrypted,", { br: true }, { em: "we cannot restore your data if you lose it" }, "."],
       ["We strongly recommend adding additional passkeys, using a password manager that syncs passkeys across devices, "
         + "and storing your recovery code there to avoid losing access to your account. You also can periodically "
         + "download a decrypted copy of your data to backup in a secure location of your choice."],

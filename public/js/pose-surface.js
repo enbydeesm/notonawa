@@ -10,6 +10,13 @@
 // points are, and never inside a capsule. So a rope from the front of an
 // arm to its back goes round it, not through it. Between points on
 // different parts it runs straight, lifted out of any capsule in its way.
+//
+// The capsules only fit the body on average: they stand out past the skin
+// where it curves in (the small of the back) or narrows (an ankle). A rope's
+// points are on the real skin, so where either of two is inside one of its
+// own part's capsules, the way between them isn't lifted out of that one:
+// it stays on the line round the part between them, as their own points
+// do, rather than jutting out to the capsule in a zig-zag.
 
 import { Vector3 } from "./vendor/three.js";
 import { SEGMENTS } from "./figure-body.js";
@@ -115,12 +122,15 @@ export function liftedOut(p, caps) {
 /** The furthest the skin is looked for from a part's middle line (cm). */
 const FAR = 45;
 
-/** Whether a point is inside a capsule. @param {Vector3} p @param {Capsule} capsule */
-function inside(p, { a, b, r }) {
+/**
+ * Whether a point is inside a capsule, or within `margin` of it.
+ * @param {Vector3} p @param {Capsule} capsule @param {number} [margin]
+ */
+function inside(p, { a, b, r }, margin = 0) {
   const ab = b.clone().sub(a);
   const length = ab.lengthSq();
   const t = length === 0 ? 0 : Math.min(1, Math.max(0, p.clone().sub(a).dot(ab) / length));
-  return p.distanceTo(a.clone().addScaledVector(ab, t)) < r;
+  return p.distanceTo(a.clone().addScaledVector(ab, t)) < r + margin;
 }
 
 /**
@@ -148,9 +158,14 @@ export function alongSkin(skin, partA, a, partB, b) {
   if (turn > Math.PI) turn -= 2 * Math.PI;
   if (turn <= -Math.PI) turn += 2 * Math.PI;
   const steps = Math.min(MOST, Math.ceil(Math.max(Math.abs(turn) / TURN, a.distanceTo(b) / REACH))) - 1;
+  // Where an end is inside one of its own part's capsules (or as near as a
+  // rope lies), the real skin is under that capsule's: the way between
+  // keeps out of the rest.
+  const under = (/** @type {Vector3} */ p, /** @type {number} */ segment, /** @type {Capsule} */ c) => skin.groups[segment].includes(c) && inside(p, c, GAP);
+  const caps = axis.caps.filter((c) => !under(a, i, c) && !under(b, j, c));
   return Array.from({ length: Math.max(0, steps) }, (_, k) => {
     const t = (k + 1) / (steps + 1);
-    return liftedOut(at(axis, from.s + (to.s - from.s) * t, from.turn + turn * t, from.out + (to.out - from.out) * t), axis.caps);
+    return liftedOut(at(axis, from.s + (to.s - from.s) * t, from.turn + turn * t, from.out + (to.out - from.out) * t), caps);
   });
 }
 

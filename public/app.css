@@ -1304,7 +1304,8 @@ button.link.tour-skip { min-height: 44px; padding: 0 4px; color: var(--muted); f
 .tour-later { display: flex; align-items: center; gap: 12px; margin-top: 4px; text-align: left; }
 .tour-later .hint { margin: 0; line-height: 1.35; }
 .tour-finish button.link.tour-back { display: block; margin: 4px auto 0; min-height: 44px; color: var(--muted); text-decoration: underline; }
-.tour-finish .tour-coffee { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* Right under Back, whose own height (a 44px tap area) is gap enough. */
+.tour-finish .tour-coffee { margin-top: 0; padding-top: 10px; border-top: 1px solid var(--line); }
 .tour-coffee a { display: block; margin-top: 6px; }
 
 /* Bug and feedback: the warning first, and the message's length under it. */

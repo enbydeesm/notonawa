@@ -240,14 +240,14 @@ export default async function () {
     [...document.querySelectorAll(".add-to-row")].find((r) => r.querySelector(".item-title").textContent === "Hip harness").click(); await calm(1200);
     const rows = [...document.querySelectorAll("#workshop-linked .linked-row")].map((r) => r.getAttribute("aria-label"));
     [...document.querySelectorAll("#workshop-linked .linked-row")][1].click(); await calm(1500);
-    const shown = [$("#tie-workshop-name").textContent, $("#tie-workshop-show").hidden];
+    const shown = [$("#tie-workshop-name").textContent, $("#tie-workshop").hidden];
     $("#tie-form .workshop-chosen .tag-x").click(); await wait(50);
-    const unlinked = [$("#tie-workshop_id").value, $("#tie-workshop-show").hidden];
+    const unlinked = [$("#tie-workshop_id").value, $("#tie-workshop").hidden];
     $("#tie-save").click(); await calm(1800);
     const after = [...document.querySelectorAll("#workshop-linked .linked-row")].map((r) => r.getAttribute("aria-label"));
     $("#workshop-close").click(); await calm(300);
     return [linked, rows, shown, unlinked, after];`),
-    [["Audit practice"], ["Plan: Hip harness", "Tie: Audit practice"], ["Audit day", true], ["", false], ["Plan: Hip harness"]]);
+    [["Audit practice"], ["Plan: Hip harness", "Tie: Audit practice"], ["Audit day", false], ["", true], ["Plan: Hip harness"]]);
   check("the workshop's card counts the plan linked to it; the plan's card names the workshop under its type", await run(`
     const counted = [...document.querySelectorAll(".workshop-card")].find((c) => c.querySelector(".tie-title").textContent === "Audit day")
       .querySelector(".tie-photos")?.textContent;

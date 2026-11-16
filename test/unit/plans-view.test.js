@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tieSummary, tieCountText, filterPlans, hasPlanFilters, EMPTY_SEARCH, planKindText } from "../../public/js/plans-view.js";
+import { tieSummary, tieCountText, filterPlans, hasPlanFilters, EMPTY_SEARCH, planKindText, variationsOf } from "../../public/js/plans-view.js";
 
 /** @param {number | null} success_rating */
 const tie = (success_rating) => ({ id: "t", title: "x", tie_date: "2026-01-01", success_rating });
@@ -63,5 +63,25 @@ describe("a plan card's second line", () => {
     expect(planKindText({ tie_type: null, plan_type: "sequence" })).toBe("Sequence");
     expect(planKindText({ tie_type: "floor", plan_type: "idea" }, "Gote")).toBe("Floor idea · variation of Gote");
     expect(planKindText({ tie_type: null, plan_type: "idea" }, "")).toBe("Idea · variation of another plan");
+  });
+});
+
+describe("a plan's variations", () => {
+  const plans = [
+    { id: "a", title: "Gote", variation_of: null, updated_at: "2026-01-01T00:00:00Z" },
+    { id: "b", title: "Gote, one rope", variation_of: "a", updated_at: "2026-03-01T00:00:00Z" },
+    { id: "c", title: "Gote, archived", variation_of: "a", updated_at: "2026-05-01T00:00:00Z", archived_at: "2026-05-01T00:00:00Z" },
+    { id: "d", title: "Beta", variation_of: "a", updated_at: "2026-03-01T00:00:00Z" },
+    { id: "e", title: "Of another", variation_of: "b", updated_at: "2026-06-01T00:00:00Z" },
+  ];
+
+  it("lists the plans that are its variations, most recently updated first, archived ones too", () => {
+    expect(variationsOf(plans, "a").map((p) => p.id)).toEqual(["c", "d", "b"]);
+    expect(variationsOf(plans, "b").map((p) => p.id)).toEqual(["e"]);
+    expect(variationsOf(plans, "e")).toEqual([]);
+  });
+
+  it("has none for a new plan", () => {
+    expect(variationsOf(plans, null)).toEqual([]);
   });
 });

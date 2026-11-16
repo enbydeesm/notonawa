@@ -23,14 +23,16 @@ export default async function () {
     ["+ | Add a Plan", true, true, true, true, "Search plans", false]);
   check("+ opens the form in a dialog; add plans with a variation, each closing it", await run(`
     ${addPlan}
-    const opened = [!!document.querySelector("#plan-dialog[open]"), $("#plan-form-heading").textContent, $("#plan-linked").hidden, leakyFields()];
+    // A new plan has no linked ties or variations, and no Workshop row (that link is made from a workshop).
+    const opened = [!!document.querySelector("#plan-dialog[open]"), $("#plan-form-heading").textContent, $("#plan-linked").hidden,
+      $("#plan-variations").hidden, $("#plan-workshop").hidden, leakyFields()];
     const types = [...$("#plan-plan_type").options].map((o) => o.text);
     set("#plan-title", "Hip harness"); set("#plan-plan_type", "harness"); $("#plan-est_difficulty-picker .hank-button:nth-child(3)").click(); await submit();
     const closed = !!document.querySelector("#plan-dialog[open]");
     ${addPlan} set("#plan-title", "Hip harness, one-sided"); set("#plan-variation_of", optionValue($("#plan-variation_of"), "Hip harness")); await submit();
     ${planCard}
     return [opened, types, closed, $("#stage"), parts(cardOf("Hip harness")), parts(cardOf("Hip harness, one-sided"))];`),
-    [[true, "Add a plan", true, []], ["Idea", "Harness", "Sequence"], false, null,
+    [[true, "Add a plan", true, true, true, []], ["Idea", "Harness", "Sequence"], false, null,
       ["Harness", 3, "", 1], ["Idea · variation of Hip harness", 0, "", 1]]);
   check("tapping a plan's card opens it, with Delete, Archive and Share icons on the heading's row", await run(`
     ${planCard}
@@ -39,6 +41,26 @@ export default async function () {
       getComputedStyle(cardOf("Hip harness")).cursor];
     $("[data-cancel-edit]").click(); await calm(200);
     return opened;`), [true, "Hip harness", ["Delete plan", "Archive plan", "Share plan", "Close"], "pointer"]);
+  check("a plan's form lists its variations as titles, folded under 'Variations (n)' after Linked ties, most recently updated first, archived ones marked", await run(`
+    const plans = await store.listItems("plans", "all");
+    const parent = plans.find((p) => p.title === "Hip harness").id;
+    // A second later, so it's the most recently updated.
+    await wait(1100);
+    const later = await store.saveItem("plans", null, { title: "Hip harness, later", variation_of: parent, plan_type: "idea" });
+    await store.archiveItem("plans", later);
+    ${planCard}
+    cardOf("Hip harness").querySelector(".tie-place").click(); await calm(800);
+    const fold = $("#plan-variations");
+    const state = [fold.hidden, fold.open, $("#plan-variations-label").textContent.trim(),
+      fold.previousElementSibling === $("#plan-linked"), fold.querySelectorAll("button").length,
+      [...document.querySelectorAll("#plan-variations-list li")].map((li) => [...li.children].map((c) => c.textContent).join(" "))];
+    $("[data-cancel-edit]").click(); await calm(200);
+    cardOf("Hip harness, one-sided").querySelector(".tie-place").click(); await calm(800);
+    const none = $("#plan-variations").hidden;
+    $("[data-cancel-edit]").click(); await calm(200);
+    await store.deletePlan(later, "keep");
+    return [state, none];`),
+    [[false, false, "Variations (2)", true, 0, ["Hip harness, later Archived", "Hip harness, one-sided"]], true]);
   check("difficulty is rope hanks: the list shows them, Edit opens the dialog filled in, and Cancel closes it; + then starts empty", await run(`
     const filled = () => document.querySelectorAll("#plan-est_difficulty-picker .hank-button.filled").length;
     const listed = [...document.querySelectorAll(".plan-card")].find((i) => i.querySelector(".tie-title").textContent === "Hip harness")

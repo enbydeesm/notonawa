@@ -31,7 +31,8 @@ function svg(tag, attrs = {}) {
 
 /** @param {import("./tour-steps.js").Span} span */
 function renderSpan(span) {
-  return typeof span === "string" ? span : h("em", {}, span.em);
+  if (typeof span === "string") return span;
+  return "br" in span ? h("br") : h("em", {}, span.em);
 }
 
 /**

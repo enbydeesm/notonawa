@@ -24,8 +24,8 @@ export default async function () {
     const hiddenAgain = [$("#tie-location").offsetParent === null, $("#tie-location-show").hidden];
     return [!!$("dialog[open] #tie-form"), firstPerson, hiddenAtFirst, locations, corner, hiddenAgain, [...$("#tie-tie_type").options].map((o) => o.text),
       document.querySelectorAll(".hank-button.filled").length + "/" + document.querySelectorAll(".hank-button").length,
-      leakyFields()];`),
-    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, true, true, true], [true, false], ["–", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", []]);
+      leakyFields(), $("#tie-workshop").hidden];`),
+    [true, ["Me (you)", ""], true, ["Old flat", "Studio"], [true, true, true, true], [true, false], ["–", "Suspension", "Partial suspension", "Floor", "Hashira"], "0/5", [], true]);
   // Sorted: these were all added within the same second, so "newest" ties.
   check("people and plans pickers list the active ones", await run(`
     const person = lastBox("#tie-participants"), plan = lastBox("#tie-plans");
