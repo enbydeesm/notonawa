@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.11.09.0624";
+export const APP_VERSION = "2026.11.16.0758";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,23 @@ export const APP_VERSION = "2026.11.09.0624";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.11.16.0758",
+    "intro": [
+      "Now with more encryption flavor!"
+    ],
+    "notes": [
+      "Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.",
+      "Connected accounts now talk privately: our server keeps no record of who is connected to whom.",
+      "Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.",
+      "Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.",
+      "Raise and lower uplines: tap an upline and its Length lifts or lowers what it's tied to. The body will swing, tip and turn until its weight sits as low as its taut uplines allow. You can still freely pose or draw uplines. Tap Dangle in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone. It's not a physics engine, just a constraint solver.",
+      "Rope now lies on the body better, rather than clipping through. Turn on Wrap at the top of the 3D view, set how many turns with + and −, and tap an arm, a leg or the body to lay turns of rope round it there.",
+      "The Hips sliders now pivot just the pelvis.",
+      "The poser's ring is 50% bigger.",
+      "A new welcome tour walks you through the app. Replay it any time from Menu > Tutorial."
+    ]
+  },
   {
     "version": "2026.11.09.0624",
     "intro": [

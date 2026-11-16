@@ -56,28 +56,31 @@ import {
   PICK_COLORS as COLORS, WIDTHS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
   setCamera, panCamera, typedNumber, clamp, maxInset,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
-  bonePoint, addPoint, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
-  isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
+  bonePoint, addPoint, movePoint, removePoint, MAX_ROPE_POINTS, ROPE_RADIUS, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
+  samePose, isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
 } from "./pose-format.js";
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
 import { loadSettings, saveDefaultShape } from "./settings.js";
 import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
-import { makeSkeleton, posed, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
+import { makeSkeleton, posed, toBone, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchPoints, spotOn } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
 import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
+import { uplineStretch, uplineLength, setUplineLength } from "./pose-uplines.js";
+import { hang, canHang } from "./pose-hang.js";
+import { skinOf, wrapRound, MAX_WRAPS } from "./pose-surface.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
 import { TOOL_ICONS } from "./tool-icons.js";
 import { scenePanel } from "./pose-scene-panel.js";
 import { chosenRopeView } from "./pose-rope-panel.js";
-import { viewHint, ropeHint, hardpointLostNote } from "./pose-hints.js";
+import { viewHint, ropeHint, hardpointLostNote, pointGoneNote } from "./pose-hints.js";
 import { saveFile } from "./download.js";
 /** The joints the Hips sliders turn: the pelvis, and the hips that keep the legs where they were. */
-const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip"]);
+const HIPS_MOVE = Object.freeze(["hips", "l_hip", "r_hip", "spine"]);
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -165,6 +168,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
      * @type {"rope" | "cinch" | "added"}
      */
     let layingKind = "rope";
+    /** How many points the rope being laid had before each tap, so Undo takes a whole wrap back. @type {number[]} */
+    let layingTaps = [];
+    /** Wrap: a tap on the body lays a turn round that part (pose-surface.js), this many turns. */
+    let wrapping = false;
+    let wrapTurns = 1;
     let erasing = false;
     /** The rope chosen (tapped in Rope mode), and where on it. @type {{ index: number, segment: number, along: number } | null} */
     let chosen = null;
@@ -334,32 +342,48 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     // --- the Rope panel ----------------------------------------------------------
 
     /**
-     * The thickness, an eraser and the colors: the Rope tab's and the
-     * pencil's are the same rows in the same place, so turning the pencil
-     * on moves nothing; each has its own color (the width is shared). The
-     * end of the thickness row holds the hardpoint's chip for ropes, Done
-     * for the pencil.
+     * The thickness, an eraser (an icon) and the colors: the Rope tab's and
+     * the pencil's are the same rows in the same place, so turning the
+     * pencil on moves nothing; each has its own color (the width is
+     * shared). The end of the thickness row holds the hardpoint's chip for
+     * ropes, Done for the pencil; ropes have Dangle before it.
      * @param {string} prefix the buttons' ids, e.g. "pose" (pose-color-red) or "pose-mark"
      * @param {string} what "Rope" or "Line", for their groups' names
      * @param {string} eraserLabel @param {() => void} onEraser
      * @param {(c: Color) => void} onPick @param {HTMLElement} end
+     * @param {HTMLElement} [middle] between the eraser and the end
      */
-    const styleRows = (prefix, what, eraserLabel, onEraser, onPick, end) => {
+    const styleRows = (prefix, what, eraserLabel, onEraser, onPick, end, middle) => {
       const colors = COLORS.map((c) => toggle(`${prefix}-color-${c}`, capitalise(c), `swatch-tool ink-${c}`, () => onPick(c),
         h("span", { className: "swatch-dot", "aria-hidden": "true" })));
       const widths = WIDTHS.map((w) => toggle(`${prefix}-width-${w}`, WIDTH_NAMES[w], "width-tool", () => pickWidth(w),
         h("span", { className: `width-sample width-${w}`, "aria-hidden": "true" })));
-      const eraser = toggle(`${prefix}-eraser`, eraserLabel, "", onEraser, "Eraser");
+      const eraser = toggle(`${prefix}-eraser`, eraserLabel, "width-tool icon-tool", onEraser, TOOL_ICONS.eraser());
       const element = h("div", { className: "pose-rope-tools-rows" },
         h("div", { className: "pose-tools-row" },
-          h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser), end),
+          h("div", { className: "tool-group pose-rope-tools", role: "group", "aria-label": `${what} thickness` }, widths, eraser),
+          ...(middle ? [middle] : []), end),
         h("div", { className: "tool-group", role: "group", "aria-label": `${what} color` }, colors));
       return { element, colors, widths, eraser };
     };
     // The hardpoint's chip: which there is (its icon and name), or + Hardpoint,
     // and tapping it opens Scene to change it.
     const hardpointLink = h("button", { type: "button", className: "tool pose-hardpoint-chip", id: "pose-hardpoint-link", onclick: () => setMode("scene") });
-    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing), (c) => pickColor(c), hardpointLink);
+    // Dangle: a body in the air comes to rest under its uplines, as one
+    // piece (pose-hang.js). Changing an upline's Length does it too; this is
+    // for after posing, which never moves the body by itself. In the
+    // thickness row, between the eraser and the hardpoint's chip.
+    const hangButton = h("button", { type: "button", className: "tool pose-hang", id: "pose-hang", hidden: true, title: "The body comes to rest under its uplines", onclick: () => {
+      const hung = hang(history.pose);
+      if (samePose(hung, history.pose)) {
+        sayRope("It's hanging as low as its lines allow.");
+        return;
+      }
+      commit(hung, true);
+      sayRope("");
+    } }, "Dangle");
+    const ropeStyle = styleRows("pose", "Rope", "Eraser: tap a rope to take it out", () => setErasing(!erasing), (c) => pickColor(c),
+      hardpointLink, hangButton);
     const { colors: colorButtons, widths: widthButtons, eraser: eraserButton } = ropeStyle;
     // While a rope is laid: its count, Cancel and Finish, in a bar over the
     // foot of the view (hidden otherwise).
@@ -381,6 +405,26 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     const sayRope = (text, isError = false) => showMessage(ropeNote, text, isError);
     // The rope chosen (pose-rope-panel.js), in place of the tools.
     const ropeOptions = h("div", { className: "pose-rope-options", id: "pose-rope-options" });
+    // Wrap: with it on, a tap on the body lays a turn round that part, and
+    // + and − (stacked, as a slider's ▲▼ are) set how many turns, shown as
+    // a number. It floats over the view, top middle, between undo and redo
+    // and the views (the Rope tab's rows keep their places, which the
+    // pencil's share), clear of the bar a rope being laid has along the foot.
+    const wrapToggle = h("button", { type: "button", className: "pose-float-button pose-wrap", id: "pose-wrap", "aria-pressed": "false", title: "Wrap: a tap lays a turn of rope round the part", onclick: () => {
+      wrapping = !wrapping;
+      drawAll();
+    } }, "Wrap");
+    const wrapNumber = h("span", { "aria-hidden": "true" }, "1");
+    const wrapWords = h("span", { className: "visually-hidden" }, "1 turn");
+    const wrapCount = h("span", { className: "pose-wrap-count", id: "pose-wrap-count", "aria-live": "polite" }, wrapNumber, wrapWords);
+    const wrapStep = (/** @type {number} */ by) => () => {
+      wrapTurns = Math.min(MAX_WRAPS, Math.max(1, wrapTurns + by));
+      drawAll();
+    };
+    const wrapFewer = h("button", { type: "button", className: "pose-wrap-step", id: "pose-wrap-fewer", "aria-label": "Fewer turns", title: "Fewer turns", onclick: wrapStep(-1) }, "−");
+    const wrapMore = h("button", { type: "button", className: "pose-wrap-step", id: "pose-wrap-more", "aria-label": "More turns", title: "More turns", onclick: wrapStep(1) }, "+");
+    const wrapRow = h("div", { className: "pose-view-tools pose-wrap-row", role: "group", "aria-label": "Wrap", hidden: true },
+      wrapToggle, h("div", { className: "pose-wrap-steps" }, wrapMore, wrapFewer), wrapCount);
     const ropePanel = h("div", { className: "pose-panel", id: "pose-panel-rope", hidden: true },
       ropeTools, ropeOptions, ropeHintLine, ropeNote);
 
@@ -401,9 +445,12 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     // The view, with its tools and bars over it.
     const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
-      h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
-        undoButton, redoButton, h("span", { className: "pose-view-divider", "aria-hidden": "true" }), drawTab),
-      viewMenu, viewList,
+      // Across the top: undo, redo and the pencil; Wrap (Rope) in the middle; the views.
+      h("div", { className: "pose-view-top" },
+        h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
+          undoButton, redoButton, h("span", { className: "pose-view-divider", "aria-hidden": "true" }), drawTab),
+        wrapRow, viewMenu),
+      viewList,
       h("div", { className: "pose-view-foot" }, viewHintLine, allowLabel),
       layingBar);
 
@@ -573,7 +620,9 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     function doUndo() {
       // Laying a rope: the last point goes first (a cinch's or added rope's first, and it's stopped).
       if (laying?.p.length) {
-        laying = { ...laying, p: laying.p.slice(0, -1) };
+        // A tap's worth: one point, or the whole wrap it laid.
+        const before = layingTaps.pop() ?? laying.p.length - 1;
+        laying = { ...laying, p: laying.p.slice(0, Math.min(before, laying.p.length - 1)) };
         if (!laying.p.length && layingKind !== "rope") cancelRope();
         drawAll();
         return;
@@ -686,7 +735,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
         // A see-saw rope's other end moves to keep it the same length; let
         // go, any clash is settled (pose-contact.js).
-        // The Hips turn the pelvis keeping both legs where they were (pose-skeleton.js).
+        // The Hips turn the pelvis keeping both legs and the trunk where they were (pose-skeleton.js).
         apply: joint.name === "hips"
           ? (p, v) => keepSeesaws(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
           : (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
@@ -742,12 +791,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       layingCount.textContent = layingKind === "cinch" ? `Cinch · ${count}` : layingKind === "added" ? `Added rope · ${count}` : `Laying rope · ${count}`;
       ropeHintLine.textContent = ropeHint({
         erasing, layingKind: laying ? layingKind : "rope", points, chosen: !rope ? "none" : !isCinch(rope) ? "rope" : pullsUplines(pose.ropes, rope) ? "cinch" : "body cinch",
-        sliding: !!sliding, hardpoint: kind,
+        sliding: !!sliding, hardpoint: kind, wrapping,
       });
       drawHardpointChip(kind);
       // A rope chosen: its own panel in place of the tools.
       ropeTools.hidden = !!rope;
+      // Wrap is for laying a rope or an added one: not with a rope chosen, the eraser, or a cinch.
+      wrapRow.hidden = mode !== "rope" || drawing || !!rope || erasing || (!!laying && layingKind === "cinch");
+      wrapToggle.setAttribute("aria-pressed", String(wrapping));
+      wrapNumber.textContent = String(wrapTurns);
+      wrapWords.textContent = `${wrapTurns} ${wrapTurns === 1 ? "turn" : "turns"}`;
+      wrapFewer.disabled = !wrapping || wrapTurns <= 1;
+      wrapMore.disabled = !wrapping || wrapTurns >= MAX_WRAPS;
       if (draft) return;
+      hangButton.hidden = !!laying || !canHang(pose);
       drawRopeOptions(pose);
     }
 
@@ -763,7 +820,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       hardpointLink.setAttribute("aria-label", kind ? `Hardpoint: ${kind}. Change in Scene` : "Add a hardpoint in Scene");
       hardpointLink.title = kind ? "Change the hardpoint in Scene" : "Add a ring, bamboo or hashira in Scene";
       hardpointLink.replaceChildren(...(kind
-        ? [TOOL_ICONS[kind](), capitalise(kind), TOOL_ICONS.chevron()]
+        ? [TOOL_ICONS[kind](), h("span", { className: "pose-hardpoint-name" }, capitalise(kind)), TOOL_ICONS.chevron()]
         : ["+ Hardpoint"]));
     }
 
@@ -829,6 +886,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           id: "pose-along-bamboo", label: "Position (cm)", min: -half, max: half,
           value: Math.round(rope.p[point][1] / 10), apply: (p, v) => moveAlongBamboo(p, index, point, v),
         });
+      } else if (uplineStretch(pose, index, chosen.segment) >= 0) {
+        // An upline's hanging stretch has a Length, raising and lowering
+        // what it's tied to: shorter lifts it (the other uplines keeping
+        // theirs), longer lowers it to the floor, the rest slack.
+        const stretch = uplineStretch(pose, index, chosen.segment);
+        posed(measuring, pose);
+        const now = Math.round(uplineLength(measuring, pose, index, stretch));
+        if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2, 2 * now) };
+        settings = slider({
+          id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
+          apply: (p, v) => setUplineLength(p, index, stretch, v),
+          // Let go, a body in the air comes to rest under its lines (pose-hang.js).
+          settle: (_before, after) => hang(after),
+        });
       } else if (hasLength(rope)) {
         // A rope of two points has a Length: from none to twice as long as
         // it was when chosen, starting in the middle. Shorter moves the
@@ -841,7 +912,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           apply: (p, v) => setRopeLength(p, index, v),
         });
       } else if (isUpline(rope)) {
-        // An upline can be given slack: its hanging stretches sag (drawn only).
+        // A see-saw, or an upline tied only to other ropes, can be given
+        // slack: its hanging stretches sag (drawn only).
         settings = slider({
           id: "pose-slack", label: "Slack (cm)", min: SLACK_RANGE[0], max: SLACK_RANGE[1], value: rope.k ?? 0,
           apply: (p, v) => setSlack(p, index, v),
@@ -908,6 +980,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     function cancelRope() {
       laying = null;
       layingKind = "rope";
+      layingTaps = [];
     }
 
     // --- modes and tools -------------------------------------------------------
@@ -1187,9 +1260,32 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       const point = hit.kind === "ring" ? RING_POINT
         : hit.kind === "bamboo" ? bambooPoint(hit.along, /** @type {number[]} */ (history.pose.bamboo)[4])
           : hit.kind === "hashira" ? hashiraPoint(hit.mm) : bonePoint(hit.bone, hit.mm);
-      laying = addPoint(laying ?? { c: color, w: width, p: [] }, point);
+      const started = laying ?? { c: color, w: width, p: [] };
+      // Wrap: a turn (or several) round the part tapped, from the tap.
+      const turn = wrapping && hit.kind === "body" ? wrapPoints(hit.bone, hit.point) : [];
+      if (started.p.length + turn.length > MAX_ROPE_POINTS) {
+        sayRope(`A rope can have at most ${MAX_ROPE_POINTS} points. Finish this one and start another.`, true);
+        return;
+      }
+      layingTaps.push(started.p.length);
+      laying = (turn.length ? turn : [point]).reduce(addPoint, started);
       sayRope("");
       drawAll();
+    }
+
+    /**
+     * A wrap's points round the part tapped, each kept on that part; none
+     * when it can't be wrapped (the tap lays one point).
+     * @param {string} bone the part tapped
+     * @param {import("./vendor/three.js").Vector3} at where, on its skin
+     * @returns {RopePoint[]}
+     */
+    function wrapPoints(bone, at) {
+      posed(measuring, history.pose);
+      // Each turn a rope's width along from the last.
+      // On the real skin, as the view has it, where the capsules are only near it.
+      return wrapRound(skinOf(measuring), bone, at, wrapTurns, ROPE_RADIUS[width] * 2.2, view.skinMeasure(bone))
+        .map((v) => bonePoint(bone, toBone(measuring, bone, v)));
     }
 
     /**
@@ -1216,6 +1312,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         sayRope(problem, true);
         return;
       }
+      layingTaps.push(laying.p.length);
       laying = addPoint(laying, point);
       sayRope("");
       drawAll();
@@ -1235,6 +1332,12 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     let limb = null;
     /** The dragged limb's pose, before any see-saw follows it. @type {Pose | null} */
     let limbPose = null;
+    /**
+     * A point of the chosen rope held by its dot (Rope mode): dragged, it
+     * moves over the skin; tapped, it's taken out.
+     * @type {{ index: number, k: number } | null}
+     */
+    let held = null;
     /** The two-finger gesture's last spread and middle. @type {{ spread: number, x: number, y: number } | null} */
     let pinch = null;
 
@@ -1278,12 +1381,15 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       if (pointers.size === 1) {
         dragged = false;
         limb = mode === "pose" ? grab(x, y) : null;
+        const k = mode === "rope" && chosen && !laying && !sliding && !erasing && !drawing ? view.handleAt(x, y) : -1;
+        held = k >= 0 && chosen ? { index: chosen.index, k } : null;
       }
       if (pointers.size === 2) {
         // A second finger turns a limb's drag into a pinch, putting it back.
-        if (limb) {
+        if (limb || held) {
           limb = null;
           limbPose = null;
+          held = null;
           draft = null;
           drawAll();
         }
@@ -1328,6 +1434,15 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         }
         return;
       }
+      if (held) {
+        // The point follows the finger over the skin; off the body, it stays where it last was.
+        const hit = view.pick(x, y);
+        if (hit?.kind === "body") {
+          draft = movePoint(history.pose, held.index, held.k, bonePoint(hit.bone, hit.mm));
+          drawSoon();
+        }
+        return;
+      }
       lookAt([yaw - dx * 0.45, pitch + dy * 0.35, distance, height, tx, tz]);
     });
     /** @param {PointerEvent} event */
@@ -1350,8 +1465,38 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           drawAll();
         }
       }
+      if (held) {
+        const { index, k } = held;
+        held = null;
+        if (event.type === "pointerup" && dragged && draft) {
+          // Moved: one change. Its place along the rope is the same, so cinches on it stay.
+          commit(draft);
+        } else if (event.type === "pointerup" && !dragged) {
+          takeOutPoint(index, k);
+        } else if (draft) {
+          draft = null;
+          drawAll();
+        }
+        return;
+      }
       if (event.type === "pointerup" && !dragged && pointers.size === 0) tap(p.x, p.y);
     };
+
+    /**
+     * Takes a point out of the chosen rope (its dot tapped). What was tied
+     * on that rope goes with it, as their places along it are counted in
+     * its points, and it says so; Undo brings it all back.
+     * @param {number} index the rope's @param {number} k the point's
+     */
+    function takeOutPoint(index, k) {
+      const before = history.pose.ropes;
+      const whole = before[index].p.length <= 2;
+      const next = removePoint(history.pose, index, k);
+      // Still there: the rope stays chosen, on a stretch it still has.
+      chosen = whole || !chosen ? null : { ...chosen, segment: Math.min(chosen.segment, next.ropes[index].p.length - 2) };
+      commit(next);
+      sayRope(pointGoneNote(before.length - next.ropes.length - (whole ? 1 : 0), whole));
+    }
     view.canvas.addEventListener("pointerup", lift);
     view.canvas.addEventListener("pointercancel", lift);
     view.canvas.addEventListener("wheel", (event) => {

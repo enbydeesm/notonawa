@@ -15,6 +15,8 @@ const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Conte
 // with its own database, app and Chrome: UI_SLOT (0, 1, 2…) gives each its
 // own ports.
 const SLOT = Number(process.env.UI_SLOT ?? 0);
+/** The format this run's accounts are in: UI_FORMAT, set by ui-smoke.mjs's --format. */
+export const FORMAT = process.env.UI_FORMAT === "2" ? 2 : 1;
 const PORT = 8799 + SLOT;
 const DEBUG_PORT = 9333 + SLOT;
 const INSPECTOR_PORT = 9430 + SLOT;
@@ -170,6 +172,13 @@ for (const binding of [...config.d1_databases, ...config.r2_buckets]) delete bin
 // wrangler dev rewrites each request's Origin to dev.host (see wrangler.jsonc),
 // so it must be this walkthrough's own address.
 config.dev = { ...config.dev, host: `localhost:${PORT}` };
+// The format new accounts start in (npm run test:ui -- --format 2):
+// every chunk signs up its own account, so this runs the whole walkthrough
+// on format 1 or format 2 journals.
+// Format 1 accounts stay format 1 here (no conversion at unlock), so the
+// walkthrough still runs on them until phase 8 removes format 1; the
+// convert chunk converts its own account directly.
+config.vars = { ...config.vars, NEW_ACCOUNT_FORMAT: FORMAT === 2 ? "2" : "1", CONVERT_ON_UNLOCK: FORMAT === 2 ? "1" : "0" };
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -192,53 +201,81 @@ start(CHROME, [
   "--no-first-run", `--user-data-dir=${path.join(workDir, "chrome")}`, "about:blank",
 ], { stdio: "ignore" });
 const targets = await (await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json`, "Chrome")).json();
-const ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
-await new Promise((resolve) => ws.addEventListener("open", resolve));
 
-let nextId = 1;
-const pending = new Map();
+// Tabs: the walkthrough drives one at a time (useTab), "main" unless a
+// chunk needs a second account at once (the contacts chunk). Each other tab
+// is a browser context of its own, like another person's browser: its own
+// cookies, storage, passkey device and recovery code.
+
+/**
+ * @typedef {{ name: string, ws: WebSocket, nextId: number, pending: Map<number, (msg: any) => void>, authenticatorId: string,
+ *   code: string }} Tab
+ */
+
 export const consoleErrors = [];
-ws.addEventListener("message", (event) => {
-  const msg = JSON.parse(event.data);
-  if (msg.id && pending.has(msg.id)) {
-    pending.get(msg.id)(msg);
-    pending.delete(msg.id);
-  }
-  if (msg.method === "Runtime.exceptionThrown") {
-    consoleErrors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
-  }
-  if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
-    consoleErrors.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
-  }
-  // The browser's own messages, e.g. a script or style blocked by the CSP.
-  // Network ones are left out: some steps get a 400 on purpose.
-  if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
-    consoleErrors.push(msg.params.entry.text);
-  }
-  // An alert() blocks the page (and so the step waiting on it): note it as
-  // an error and dismiss it.
-  if (msg.method === "Page.javascriptDialogOpening") {
-    consoleErrors.push(`${msg.params.type}: ${msg.params.message}`);
-    ws.send(JSON.stringify({ id: nextId++, method: "Page.handleJavaScriptDialog", params: { accept: true } }));
-  }
+
+/**
+ * Connects to a DevTools target.
+ * @param {string} url its webSocketDebuggerUrl
+ * @param {string} name
+ * @returns {Promise<Tab>}
+ */
+async function connect(url, name) {
+  const ws = new WebSocket(url);
+  await new Promise((resolve) => ws.addEventListener("open", resolve));
+  /** @type {Tab} */
+  const tab = { name, ws, nextId: 1, pending: new Map(), authenticatorId: "", code: "" };
+  // Another tab's errors say which.
+  const note = (/** @type {string} */ text) => consoleErrors.push(name === "main" ? text : `[${name}] ${text}`);
+  ws.addEventListener("message", (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.id && tab.pending.has(msg.id)) {
+      tab.pending.get(msg.id)(msg);
+      tab.pending.delete(msg.id);
+    }
+    if (msg.method === "Runtime.exceptionThrown") {
+      note(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+    }
+    if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
+      note(msg.params.args.map((a) => a.value ?? a.description).join(" "));
+    }
+    // The browser's own messages, e.g. a script or style blocked by the CSP.
+    // Network ones are left out: some steps get a 400 on purpose.
+    if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && msg.params.entry.source !== "network") {
+      note(msg.params.entry.text);
+    }
+    // An alert() blocks the page (and so the step waiting on it): note it as
+    // an error and dismiss it.
+    if (msg.method === "Page.javascriptDialogOpening") {
+      note(`${msg.params.type}: ${msg.params.message}`);
+      ws.send(JSON.stringify({ id: tab.nextId++, method: "Page.handleJavaScriptDialog", params: { accept: true } }));
+    }
+  });
+  return tab;
+}
+
+/**
+ * @param {Tab} tab
+ * @param {string} method
+ * @param {object} [params]
+ * @returns {Promise<any>}
+ */
+const tabSend = (tab, method, params = {}) => new Promise((resolve) => {
+  const id = tab.nextId++;
+  tab.pending.set(id, resolve);
+  tab.ws.send(JSON.stringify({ id, method, params }));
 });
-export const send = (method, params = {}) => new Promise((resolve) => {
-  const id = nextId++;
-  pending.set(id, resolve);
-  ws.send(JSON.stringify({ id, method, params }));
-});
-await send("Runtime.enable");
-await send("Page.enable");
-// Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
-await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
-// Headless Chrome isn't a focused window, so focus and blur events wouldn't
-// fire (the tie form's location picker opens and settles on them).
-await send("Emulation.setFocusEmulationEnabled", { enabled: true });
-await send("Log.enable");
+
+/** @type {Map<string, Tab>} */
+const tabs = new Map();
+let current = await connect(targets.find((t) => t.type === "page").webSocketDebuggerUrl, "main");
+tabs.set("main", current);
+
+/** Sends a DevTools command to the tab in use. */
+export const send = (method, params = {}) => tabSend(current, method, params);
 
 // A virtual passkey, like a phone's: discoverable, verifies the user, and can
 // derive encryption keys (PRF). Chrome answers passkey requests with it.
-await send("WebAuthn.enable", { enableUI: false });
 // prf: false is a device that can sign in but not unlock (no PRF).
 export const addAuthenticator = async ({ prf = true } = {}) => (await send("WebAuthn.addVirtualAuthenticator", {
   options: {
@@ -246,20 +283,77 @@ export const addAuthenticator = async ({ prf = true } = {}) => (await send("WebA
     hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf: prf,
   },
 })).result.authenticatorId;
-let authenticatorId = await addAuthenticator();
+
+/** Readies the tab in use: its events, the idle tracker, focus, and a passkey device. */
+async function prepare() {
+  await send("Runtime.enable");
+  await send("Page.enable");
+  // Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
+  // Headless Chrome isn't a focused window, so focus and blur events wouldn't
+  // fire (the tie form's location picker opens and settles on them).
+  await send("Emulation.setFocusEmulationEnabled", { enabled: true });
+  await send("Log.enable");
+  await send("WebAuthn.enable", { enableUI: false });
+  current.authenticatorId = await addAuthenticator();
+}
+await prepare();
 
 /**
  * Swaps the passkey device for a new one (a lost phone, or a new person).
  * @param {{ prf?: boolean }} [options]
  */
 export async function replaceAuthenticator(options) {
-  await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
-  authenticatorId = await addAuthenticator(options);
+  await send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: current.authenticatorId });
+  current.authenticatorId = await addAuthenticator(options);
+}
+
+/** @type {Tab | null} the browser itself, for making tabs */
+let browser = null;
+
+/**
+ * Drives another tab from here on, made the first time: "main" is the one
+ * every chunk starts in (and is put back in after each). A new one starts
+ * blank, as a new person's browser.
+ * @param {string} name
+ */
+export async function useTab(name) {
+  if (!tabs.has(name)) {
+    if (!browser) {
+      const version = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`)).json();
+      browser = await connect(version.webSocketDebuggerUrl, "browser");
+    }
+    const { browserContextId } = (await tabSend(browser, "Target.createBrowserContext")).result;
+    const { targetId } = (await tabSend(browser, "Target.createTarget", { url: "about:blank", browserContextId, width: 420, height: 1400 })).result;
+    const list = await (await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`)).json();
+    current = await connect(list.find((/** @type {any} */ t) => t.id === targetId).webSocketDebuggerUrl, name);
+    tabs.set(name, current);
+    await prepare();
+    return;
+  }
+  current = /** @type {Tab} */ (tabs.get(name));
 }
 
 // Helpers available inside the page for each step.
 const PAGE_HELPERS = `
   const $ = (s) => document.querySelector(s);
+  // The journal, read and changed as the app does it (public/js/store/):
+  // through format 1's API or format 2's records, whichever the account is,
+  // so a check works on both. The same module the app has loaded.
+  const store = await import("/js/store/index.js");
+  // Whether some text is anywhere the server keeps the journal, in plain
+  // text: format 1's rows (its export, fields still sealed) or format 2's
+  // records. Notes, captions and the like never should be.
+  const plainOnServer = async (text) => {
+    const { format } = await (await fetch("/api/keys")).json();
+    return JSON.stringify(await (await fetch(format === 2 ? "/api/sync?since=0" : "/api/data/export")).json()).includes(text);
+  };
+  // A saved photo's or video's part as the server keeps it, sealed: format
+  // 1's media or format 2's files.
+  const rawPart = async (id, part) => {
+    const { format } = await (await fetch("/api/keys")).json();
+    return fetch((format === 2 ? "/api/files/" : "/api/media/") + id + "/" + part);
+  };
   ${WAIT_HELPERS}
   // Bubbling, as typing's are: an edit form watches for changes (form-changes.js).
   const set = (sel, v) => { const el = $(sel); if (el.type === "checkbox") el.checked = v; else el.value = v; el.dispatchEvent(new Event("change", { bubbles: true })); };
@@ -325,7 +419,7 @@ const PAGE_HELPERS = `
   const tagBubbles = () => [...document.querySelectorAll("#tags-list .tag")].map((t) =>
     t.querySelector(".tag-toggle").textContent + (t.classList.contains("selected") ? "*" : "") + (t.querySelector(".tag-x") ? " ×" : ""));
   const tagChips = (sel) => [...document.querySelectorAll(sel + " .tag")].map((t) => t.firstChild.textContent);
-  const tagsJson = async () => (await (await fetch("/api/tags")).json()).map((t) => t.name + ":" + t.tie_count);
+  const tagsJson = async () => (await store.listTags()).map((t) => t.name + ":" + t.tie_count);
   // Fields that could leak what's typed into form history or spellcheck.
   const leakyFields = () => [...document.querySelectorAll("input:not([type=checkbox]), textarea")]
     .filter((f) => f.getAttribute("autocomplete") !== "off" || f.getAttribute("spellcheck") !== "false")
@@ -336,15 +430,17 @@ const PAGE_HELPERS = `
   const openMenu = async () => { $(".nav-menu").click(); await calm(300); };
   // Whether this page has fetched a file (by path).
   const fetched = (path) => performance.getEntriesByName(new URL(path, location.href).href).length > 0;
-  // The logo in sel, app.css's background for the mode: whether its file
-  // has loaded, its name for screen readers, and its file. An image the
+  // The logo in sel, app.css's masks: whether its files have loaded, its
+  // name for screen readers, its files, and the pencil's and the name's colors. An image the
   // page before showed comes from Chrome's memory cache, which leaves no
   // timing entry, but an image of it is complete at once.
   const loadedImage = (path) => { const img = new Image(); img.src = path; return img.complete && img.naturalWidth > 0; };
   const logo = (sel) => {
     const el = $(sel);
-    const file = el ? new URL(getComputedStyle(el).backgroundImage.slice(5, -2)).pathname : null;
-    return [file !== null && (fetched(file) || loadedImage(file)), el?.getAttribute("aria-label") ?? null, file];
+    const parts = el ? ["::before", "::after"].map((p) => getComputedStyle(el, p)) : [];
+    const files = parts.map((s) => new URL(s.maskImage.slice(5, -2)).pathname);
+    return [files.length > 0 && files.every((f) => fetched(f) || loadedImage(f)), el?.getAttribute("aria-label") ?? null, files,
+      parts.map((s) => s.backgroundColor)];
   };
   // People's and Locations' cards: each name is a button that opens its dialog.
   const personNames = () => [...document.querySelectorAll(".name-button")].map((b) => b.textContent);
@@ -357,7 +453,7 @@ const PAGE_HELPERS = `
       !!item.querySelector(".educator-icon"), [...item.querySelectorAll(":scope > .item-meta")].map((m) => m.textContent), item.querySelectorAll("button").length];
   };
   // An edit dialog's icons on its heading row, by name (dialog-icons.js).
-  const headerIcons = (sel) => [...document.querySelectorAll(sel + " .dialog-header button")].map((b) => b.getAttribute("aria-label"));
+  const headerIcons = (sel) => [...document.querySelectorAll(sel + " .dialog-header button.icon-button")].map((b) => b.getAttribute("aria-label"));
   const personButtons = () => headerIcons("#person-dialog");
   // An edit dialog's ✕, saying Discard changes if it asks.
   const closeDiscarding = async (sel) => {
@@ -389,7 +485,11 @@ export async function run(code) {
 
 // The recovery code that currently unlocks the journal (each new one shown
 // replaces it): set it whenever a new one is shown.
-export const account = { currentCode: "" };
+// Each tab's own.
+export const account = {
+  get currentCode() { return current.code; },
+  set currentCode(code) { current.code = code; },
+};
 
 // Loads a page. Loading locks the journal (the key is only in memory), so
 // unless told not to, this unlocks it again: with the passkey, or the
@@ -483,8 +583,8 @@ export async function resetBrowser() {
 
 /**
  * Starts a chunk: a new account of its own, signed up with a new passkey
- * ("Test phone") and unlocked on the Ties list, the welcome dismissed for
- * good. The checks of signing up and the welcome are the basics chunk's.
+ * ("Test phone") and unlocked on the Ties list, the welcome tour skipped
+ * for good. The checks of signing up and the tour are the basics chunk's.
  * @returns {Promise<string>} the recovery code shown at sign-up
  */
 export async function freshAccount() {
@@ -499,8 +599,8 @@ export async function freshAccount() {
     for (let i = 0; i < 100 && !$("#recovery-code"); i++) await wait(100);
     const code = $("#recovery-code")?.textContent;
     $("#recovery-saved").click(); $("dialog[open] button.primary").click();
-    for (let i = 0; i < 100 && !$("dialog.welcome[open]"); i++) await wait(100);
-    $("#welcome-hide").click(); $("#welcome-ok").click();
+    for (let i = 0; i < 100 && !$("dialog.tour[open]"); i++) await wait(100);
+    $("dialog.tour[open] .tour-skip").click();
     for (let i = 0; i < 50 && !(await (await fetch("/api/account/settings")).json()).hide_welcome; i++) await wait(100);
     return [code, location.pathname, $("#tie-count") !== null, $("dialog") === null];`);
   if (!isDeepStrictEqual(code.slice(1), ["/", true, true]) || !code[0]) throw new Error(`Couldn't sign up a new account: ${JSON.stringify(code)}`);
@@ -515,7 +615,8 @@ export function checkConsole() {
 
 /** Stops Chrome and wrangler, and deletes the throwaway database. */
 export async function stop() {
-  ws.close();
+  for (const tab of tabs.values()) tab.ws.close();
+  browser?.ws.close();
   // Waits for the app and Chrome to have shut down (up to 10 s, then
   // they're killed) before deleting their folder, which they write to as
   // they go.

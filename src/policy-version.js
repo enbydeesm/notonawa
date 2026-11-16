@@ -8,7 +8,7 @@
 // CONSENT_SUMMARY: what changed, shown when they're asked.
 // POLICY_HASH: the wording the version is for (without the date).
 
-export const POLICY_VERSION = "2026-11-08T21:03:16Z";
-export const CONSENT_VERSION = "2026-10-12-draft";
-export const CONSENT_SUMMARY = null;
-export const POLICY_HASH = "ba48be327c1af94a2a080af18c31ecfb35d63f1f33a19bee229546c9db4d2061";
+export const POLICY_VERSION = "2026-11-16T00:31:05Z";
+export const CONSENT_VERSION = "2026-11-16T00:31:05Z";
+export const CONSENT_SUMMARY = "Your whole journal is now encrypted on your device, connections between accounts are no longer recorded on our server, and we now count basic usage totals (how many accounts are active, how many entries of each kind, and storage used).";
+export const POLICY_HASH = "9bedf84f0d197327e7aa83516bdc4ab789a47a3ef4b9027bb7e1ad4508618cf3";

@@ -4,14 +4,13 @@
 // notes opened here), narrows all three tabs: Attended (my "this is me"
 // profile isn't one of the educators), Taught (it is) and Summary.
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { multiSelect } from "../multi-select.js";
 import { readAliases } from "../aliases.js";
 import { pickTags } from "../tag-picker.js";
 import { fitPeople } from "../tie-card.js";
 import { hankIcon } from "../rope-rating.js";
-import { open } from "../vault.js";
 import { formatDate } from "../format.js";
 import { formatMoney } from "../currency.js";
 import { openWorkshopForm, editWorkshop } from "../workshop-form.js";
@@ -20,6 +19,7 @@ import { WORKSHOP_SAVED } from "../nav.js";
 import {
   EMPTY_SEARCH, TABS, hasWorkshopFilters, filterWorkshops, splitByMe, summarise, workshopCountText,
 } from "../workshops-view.js";
+import { listItems, listWorkshops } from "../store/index.js";
 
 /** @typedef {import("../workshops-view.js").Workshop} Workshop */
 /** @typedef {import("../workshops-view.js").WorkshopSearch} WorkshopSearch */
@@ -270,13 +270,13 @@ export function mount(_root, { signal }) {
   async function load() {
     try {
       const [rows, people, locations] = await Promise.all([
-        api("/api/workshops"),
+        listWorkshops(),
         // Archived ones too: a search covers your whole history. People
         // are opened, for their aliases (searched too).
-        api("/api/people?archived=all").then((list) => open("person", list)),
-        api("/api/locations?archived=all"),
+        listItems("people", "all"),
+        listItems("locations", "all"),
       ]);
-      workshops = /** @type {Workshop[]} */ (await open("workshop", rows));
+      workshops = /** @type {Workshop[]} */ (rows);
       const me = people.find((p) => p.is_self);
       selfId = me?.id ?? null;
       selfIsEducator = !!me?.is_educator;

@@ -5,19 +5,22 @@ import { account, check, freshAccount, go, replaceAuthenticator, run, sleep, sql
 export default async function () {
   const recoveryCode = await freshAccount();
   // A tie, to see the journal again after signing back in.
-  await run(`await post("/api/ties", { title: "Before signing out", tie_type: "floor", tie_date: "2026-01-01" });`);
+  await run(`await store.saveTie(null, { title: "Before signing out", tie_type: "floor", tie_date: "2026-01-01" });`);
   console.log("Account");
   await go("/account");
-  check("the account page lists the passkey and this session", await run(`
+  check("the account page lists the passkey and this session as grids, with icons to act on them", await run(`
     await openMenu(); const current = $(".nav-account").getAttribute("aria-current"); $("dialog.menu-panel").close();
-    return [current, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent),
-      [...$("#sessions").querySelectorAll(".item-title")].map((t) => [t.firstChild.textContent, t.querySelector(".badge")?.textContent]),
-      [...$("#passkeys").querySelectorAll("button")].map((b) => b.textContent), $("#end-others").hidden, $("#recovery-status").textContent];`),
-    ["page", ["Test phone"], [["Signed in with Test phone", "This device"]], ["Rename"], true, "You have a recovery code. Making a new one replaces it."]);
-  check("rename a passkey", await run(`
-    [...$("#passkeys").querySelectorAll("button")].find((b) => b.textContent === "Rename").click(); await calm(300);
+    const heads = (sel) => [...$(sel).querySelectorAll("th")].map((t) => t.textContent);
+    return [current, heads("#passkeys"), [...$("#passkeys").querySelectorAll(".passkey-name")].map((t) => t.textContent),
+      heads("#sessions"), [...$("#sessions").querySelectorAll(".session-with")].map((t) => [t.firstChild.textContent, t.querySelector(".badge")?.textContent]),
+      [...$("#passkeys").querySelectorAll("button")].map((b) => b.getAttribute("aria-label")), $("#sessions button") === null,
+      $("#end-others").hidden, $("#recovery-status").textContent];`),
+    ["page", ["Passkey", "Added", "Last used", "Actions"], ["Test phone"], ["Signed in with", "Since", "Last active", "Actions"],
+      [["Test phone", "This device"]], ['Rename "Test phone"'], true, true, "You have a recovery code. Making a new one replaces it."]);
+  check("rename a passkey with its pencil", await run(`
+    $("#passkeys .passkey-rename").click(); await calm(300);
     const leaky = leakyFields(); $("#rename-input").value = "Phone"; $("dialog[open] button[type=submit]").click(); await calm(800);
-    return [leaky, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`), [[], ["Phone"]]);
+    return [leaky, [...$("#passkeys").querySelectorAll(".passkey-name")].map((t) => t.textContent)];`), [[], ["Phone"]]);
   check("the recovery email's i button shows and hides its explanation", await run(`
     const button = $("#email-info-button"); const shown = () => [button.getAttribute("aria-expanded"), !$("#email-info").hidden];
     const before = shown(); button.click(); const open = shown(); button.click();
@@ -97,14 +100,14 @@ export default async function () {
     return [...why, $("#view h1").textContent];`),
     [false, "This passkey can't unlock your journal (its device doesn't support it), so use your recovery code.", "Account"]);
   check("the account page says which passkeys unlock", await run(`
-    return [...$("#passkeys").querySelectorAll(".item")].map((i) => [i.querySelector(".item-title").textContent, i.querySelectorAll(".item-meta")[1].textContent]);`),
+    return [...$("#passkeys").querySelectorAll(".passkey-row")].map((i) => [i.querySelector(".passkey-name").textContent, i.querySelector(".passkey-unlocks").textContent]);`),
     [["Phone", "Unlocks your journal"], ["New phone", "Signs in only: unlock with your recovery code (once, if it can unlock after that)"]]);
   check("the lost phone's passkey can then be removed", await run(`
-    const before = [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent);
-    const phone = [...$("#passkeys").querySelectorAll(".item")].find((i) => i.querySelector(".item-title").textContent === "Phone");
-    [...phone.querySelectorAll("button")].find((b) => b.textContent === "Remove").click(); await calm(300);
+    const before = [...$("#passkeys").querySelectorAll(".passkey-name")].map((t) => t.textContent);
+    const phone = [...$("#passkeys").querySelectorAll(".passkey-row")].find((i) => i.querySelector(".passkey-name").textContent === "Phone");
+    phone.querySelector(".passkey-remove").click(); await calm(300);
     await clickDialog("Remove passkey"); await calm(800);
-    return [before, [...$("#passkeys").querySelectorAll(".item-title")].map((t) => t.textContent)];`),
+    return [before, [...$("#passkeys").querySelectorAll(".passkey-name")].map((t) => t.textContent)];`),
     [["Phone", "New phone"], ["New phone"]]);
 
   console.log("Notices and policy changes");
@@ -129,14 +132,14 @@ export default async function () {
   await go("/");
   check("a changed policy must be agreed to; nothing is saved till then, but export still opens", await run(`
     const first = [document.title, $("#consent-go").disabled, $("nav").hidden, $("#notices").hidden];
-    const save = (await fetch("/api/people", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Nope" }) })).status;
+    const save = await store.saveItem("people", null, { name: "Nope" }).then(() => "saved", () => "refused");
     $("#view a[href='/data']").click(); await calm(1000); const data = document.title;
     history.back(); await calm(1000); const back = document.title;
     $("#consent-agree").click(); const enabled = !$("#consent-go").disabled;
     $("#consent-go").click(); await calm(1500);
     const after = [document.title, $("#tie-count") !== null, (await (await fetch("/api/consent")).json()).needed];
     return [first, save, data, back, enabled, after];`),
-    [["Privacy policy update · NotoNawa", true, true, true], 403, "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
+    [["Privacy policy update · NotoNawa", true, true, true], "refused", "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
       ["NotoNawa", true, false]]);
 
   console.log("Deleting the account");

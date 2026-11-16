@@ -29,11 +29,11 @@ export default async function () {
     const nav = [...document.querySelector("nav").children];
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
-  check("once unlocked, the menu's logo for the mode and the other views' code load ahead, before the menu or a view is opened", await run(`
-    const ready = () => fetched("/img/bamboo-logo-dark.avif") && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
+  check("once unlocked, the logo and the other views' code load ahead, before the menu or a view is opened", await run(`
+    const ready = () => ["/img/logo-mark.svg", "/img/logo-word.svg"].every((f) => fetched(f) || loadedImage(f)) && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
       .every((v) => fetched("/js/views/" + v + ".js"));
     for (let i = 0; i < 50 && !ready(); i++) await wait(100);
-    return [ready(), fetched("/img/bamboo-logo-light.avif"), fetched("/js/views/open.js"), $("dialog.menu-panel") === null];`), [true, false, false, true]);
+    return [ready(), fetched("/js/views/open.js"), $("dialog.menu-panel") === null];`), [true, false, true]);
   check("the menu opens with the logo, Settings (a gear), Account, Your data, Bug and feedback, What's new, Privacy Policy and Sign Out", await run(`
     await openMenu();
     return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
@@ -49,15 +49,15 @@ export default async function () {
       Math.round(news.top - feedback.bottom), Math.round(feedback.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
       $(".menu-inner .app-version").textContent];`),
     [16, true, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
-  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome in place of the menu", await run(`
+  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome tour from its start in place of the menu", await run(`
     const icon = $(".menu-tutorial svg");
     const parts = [icon.querySelectorAll("path").length, icon.querySelectorAll("circle").length];
     $(".menu-tutorial").click(); await calm(400);
-    const opened = [$("dialog.menu-panel") === null, !!$("dialog.welcome[open]")];
-    [...document.querySelectorAll("dialog.welcome[open] button")].pop().click(); await calm(300);
+    const opened = [$("dialog.menu-panel") === null, !!$("dialog.tour[open]"), $("dialog.tour[open] h2")?.textContent];
+    $("dialog.tour[open] .tour-skip").click(); await calm(300);
     const closed = $("dialog[open]") === null;
     await openMenu();
-    return [parts, opened, closed];`), [[3, 1], [true, true], true]);
+    return [parts, opened, closed];`), [[3, 1], [true, true, "Welcome to NōtoNawa"], true]);
   check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
     const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
     return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);
@@ -102,7 +102,7 @@ export default async function () {
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
   check("the logo is at the top of the menu", await run(`
-    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", "/img/bamboo-logo-dark.avif", true]);
+    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"], true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);
@@ -132,9 +132,10 @@ export default async function () {
     ["false", LIGHT_BG, "light", "light", "light"]);
   check("Cancel closes the dialog, keeping the mode", await run(`
     $(".settings-dialog .dialog-cancel").click(); await calm(300); ${themeState}`), [LIGHT_BG, "light", "light", "light"]);
-  check("in light mode the menu shows the light logo", await run(`
-    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", "/img/bamboo-logo-light.avif"]);
+  check("in light mode the menu's logo is all in light mode's dark text", await run(`
+    await openMenu(); const shown = logo(".menu-title .logo");
+    $("dialog.menu-panel").close(); await calm(300); return shown;`),
+    [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(34, 34, 34)", "rgb(34, 34, 34)"]]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
@@ -145,7 +146,7 @@ export default async function () {
     ["Couldn't save: Give the two roles different names.", true]);
   check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
     $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await calm(1200);
-    const saved = [$(".settings-dialog") === null, await (await fetch("/api/account/settings")).json()];
+    const saved = [$(".settings-dialog") === null, await store.getSettings()];
     // Saving redraws the view, which closes any dialog: wait for it to finish
     // before opening the tie form, then for the form's first role box.
     await calm(1500);
@@ -164,12 +165,13 @@ export default async function () {
     [["All roles", "As rigger", "As Rope bunny", "As self tie", "As spotter", "As photographer"], ["As rigger", "As Rope bunny"]]);
   check("blank names go back to top and bottom", await run(`
     ${openSettings} $("#settings-top").value = ""; $("#settings-bottom").value = ""; $("#settings-save").click(); await calm(1200);
-    return [await (await fetch("/api/account/settings")).json(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
+    return [await store.getSettings(), [...$("#role").options].map((o) => o.text).slice(1, 3)];`),
     [{ top_label: null, bottom_label: null, theme: "light", seen_release: APP_VERSION, hide_welcome: true, default_shape: null }, ["As top", "As bottom"]]);
   // Back to dark, the default.
   await run(`${openSettings} $("#settings-dark").click(); await calm(800); $(".settings-dialog .dialog-cancel").click(); await calm(300);`);
   check("…and back to dark", await run(themeState), [DARK_BG, "dark", "dark", "dark"]);
-  check("…with the dark logo in the menu", await run(`
-    await openMenu(); const shown = logo(".menu-title .logo"); $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", "/img/bamboo-logo-dark.avif"]);
+  check("…with the logo's pencil in the accent and its name in light text in the menu", await run(`
+    await openMenu(); const shown = logo(".menu-title .logo");
+    $("dialog.menu-panel").close(); await calm(300); return shown;`),
+    [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
 }

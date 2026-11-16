@@ -2,15 +2,14 @@
 // start any pose from (src/pose-presets/). Read once the poser is first
 // opened and kept while the journal is unlocked (their names are opened,
 // so they're dropped on lock); saving, renaming, saving over and deleting keep the copy
-// up to date. Names are sealed before they're sent.
+// up to date. Reading and writing them, names sealed, is the store's.
 
-import { api } from "./api.js";
-import { open, sealOne, onWipe } from "./vault.js";
+import { onWipe } from "./vault.js";
+import {
+  listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
+} from "./store/index.js";
 
-/**
- * A saved preset, its name opened (null if it couldn't be).
- * @typedef {{ id: string, kind: "body" | "arms", name: string | null, data: Record<string, any> }} SavedPreset
- */
+/** @typedef {import("./store/v1/presets.js").SavedPreset} SavedPreset */
 
 /** @type {Promise<SavedPreset[]> | null} */
 let loaded = null;
@@ -24,11 +23,7 @@ onWipe(() => {
  * @returns {Promise<SavedPreset[]>}
  */
 export function savedPresets() {
-  loaded ??= (async () => {
-    /** @type {SavedPreset[]} */
-    const listed = await api("/api/pose-presets");
-    return (await open("posePreset", listed)).map(({ id, kind, name, data }) => ({ id, kind, name, data }));
-  })();
+  loaded ??= listPosePresets();
   // A failed read is tried again next time.
   loaded.catch(() => { loaded = null; });
   return loaded;
@@ -42,8 +37,7 @@ export function savedPresets() {
  * @returns {Promise<SavedPreset>}
  */
 export async function savePreset(kind, name, data) {
-  const { name: sealed } = await sealOne("posePreset", { name });
-  const { id } = await api("/api/pose-presets", { method: "POST", body: { kind, name: sealed, data } });
+  const [id] = await addPosePresets([{ kind, name, data }]);
   const preset = { id, kind, name: name.trim(), data };
   const list = await savedPresets();
   list.push(preset);
@@ -55,8 +49,7 @@ export async function savePreset(kind, name, data) {
  * @param {string} name
  */
 export async function renamePreset(id, name) {
-  const { name: sealed } = await sealOne("posePreset", { name });
-  await api(`/api/pose-presets/${id}`, { method: "PUT", body: { name: sealed } });
+  await renamePosePreset(id, name);
   const preset = (await savedPresets()).find((p) => p.id === id);
   if (preset) preset.name = name.trim();
 }
@@ -67,14 +60,14 @@ export async function renamePreset(id, name) {
  * @param {Record<string, any>} data as savePreset's
  */
 export async function overwritePreset(id, data) {
-  await api(`/api/pose-presets/${id}`, { method: "PUT", body: { data } });
+  await setPosePresetData(id, data);
   const preset = (await savedPresets()).find((p) => p.id === id);
   if (preset) preset.data = data;
 }
 
 /** @param {string} id */
 export async function deletePreset(id) {
-  await api(`/api/pose-presets/${id}`, { method: "DELETE" });
+  await deletePosePreset(id);
   const list = await savedPresets();
   const at = list.findIndex((p) => p.id === id);
   if (at >= 0) list.splice(at, 1);

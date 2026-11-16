@@ -1,510 +1,288 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** November 8, 2026
+**Last updated:** November 15, 2026
 
 ## The short version
 
-- NōtoNawa is a private journal for rope practice. It is built so that
-  **the most sensitive parts, your notes, photos and videos, are encrypted
-  on your device before they leave it.** We can't read them, and neither can
-  anyone who gets hold of our servers.
+- NōtoNawa is a private journal for rope practice. **Everything you put in
+  your journal is encrypted on your device before it leaves it**: your ties,
+  plans, workshops, people, locations, tags, notes, photos, videos, drawings
+  and poses. We can't read any of it, and neither can anyone who gets hold of
+  our servers.
 - **You sign in with a passkey.** There are no passwords, and we don't ask for
-  your legal name or a sign-in through Google, Apple or anyone else. An email
-  address is optional, only for account recovery, and we keep only a
-  scrambled copy that we can't read.
-- **Keep a second passkey and your recovery code.** If you lose them all, we
-  can't guarantee to get you back in, and your encrypted notes, photos and
-  videos can't be recovered by anyone.
-- **No ads, no analytics, no tracking, no selling or sharing your data.** The
-  app loads no scripts or fonts from other companies.
-- Some information has to stay readable by our server so the app can sort and
-  filter it, such as names, titles, dates and ratings, and the drawings and
-  poses you add to ties, plans and workshops (but not their captions). See
-  [What we can and can't read](#what-we-can-and-cant-read).
-- **You can share your profile, or a copy of a tie, plan or workshop, with
-  someone** through a link or QR code. It's encrypted on your device with a
-  key that's only in the link, so we can't read it. **Connecting your account to theirs is optional**: it lets
-  our server see that the two accounts know each other, never what's in
-  either journal. See [Sharing with other people](#sharing-with-other-people).
-- You can export everything, import entries from a file, or delete your
-  account and everything in it, at any time.
+  your name. A recovery email is optional, and we keep only a scrambled copy
+  we can't read.
+- **Keep a second passkey and your recovery code.** If you lose them all, your
+  journal can't be recovered, by you or by us.
+- **No ads, no tracking, no third-party analytics, and we never sell or share
+  your data.** We only count basic totals, such as how many accounts are
+  active (see [Usage statistics](#usage-statistics)).
+- **You can share things with other people**, by link or through a
+  connection between your accounts. What you share is encrypted too, and
+  **our server keeps no record of who is connected to whom.**
+- You can export everything, or delete your account, at any time.
 
 ## Who we are
 
 NōtoNawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
 Contact us about privacy, give feedback, or tell us how frickin cool we are at contact@notonawa.app.
 
-## What we collect
+## What we store
+
+### Your journal, encrypted
+
+Each entry in your journal (a tie, plan, workshop, person, location, tag,
+drawing, pose, preset, your settings for role names and the poser's body, and
+each connection) is encrypted on your device and stored as a sealed record.
+Photos and videos are encrypted on your device and stored as sealed files.
+
+All our server can see of them is:
+
+- **what kind each record is** (for example "tie" or "person"), so it can
+  tell how many of each you have;
+- **roughly how big each one is** (records are padded, so their size says
+  little), which counts toward your 1 GB;
+- **the order your changes were made in**, so your other devices can catch up;
+- **for each photo or video**, that it's a photo or a video, its size and when
+  it was uploaded. Nothing on our server says which entry it belongs to.
+
+When you delete an entry, we keep a small marker (its random id and its kind,
+nothing of what it was) so your other devices know to remove it too.
 
 ### Your account
 
-- **A passkey.** When you create a passkey, your device keeps the secret part.
-  We store only the public part, an ID for it, the name you give it (e.g.
-  "My phone") and when it was created and last used. A passkey can't be
-  used to identify you outside NōtoNawa.
-- **Your sessions.** When you sign in we give your browser a random session
-  token in a cookie. We store a scrambled (hashed) copy of it, which passkey
-  you signed in with, when the session started, and when it was last used
-  (to the hour), so you can see and end your sessions. We don't store your IP
+- **Your passkeys**: the public part only (your device keeps the secret part),
+  with the name you gave each one and when it was added and last used.
+- **Your sessions**: a scrambled copy of each sign-in's token, which passkey
+  was used, and when it started and was last used. We don't store your IP
   address or a description of your device.
 - **Your recovery code, scrambled.** The code is made on your device and we
-  never receive it. We store only a scrambled (hashed) value derived from it,
-  which can't be turned back into the code.
-- **Your recovery email, scrambled, if you add one.** It's optional. Your
-  device scrambles the address (a slow, salted hash) before sending it, and
-  we store only that, so we can't read the address or send you email. We use
-  it for one thing: checking that someone asking us to recover an account is
-  its owner (see [Our own access](#our-own-access)).
-- **Your agreement.** When you confirmed you're 18 or older and agreed to
-  this policy, and which version of it you agreed to (updated if you agree
-  to a newer version).
-- **Messages we've sent you.** Which of our in-app messages you've
-  dismissed, and any message meant only for you (see
-  [Messages from us](#messages-from-us)).
-- **Your invite.** Accounts are by invite for now. We record that an invite
-  was used, and by which account, but nothing about who it was for.
-- **Your settings.** Whether you use light or dark mode, and the words
-  you've chosen for the top and bottom roles (if any), so every device you
-  use shows them the same way, which version of the app's release notes
-  you last saw, so "What's new" is shown once, and whether you've asked not
-  to see the welcome again. They're stored as plain text, readable by our
-  server like the rest of the section below.
-- **Bug reports and ideas you send us.** If you use "Bug and feedback" in
-  the menu, we store what you wrote, whether it's a bug or an idea, the
-  version of the app you were using and when you sent it, with your
-  account, so we can read it and answer with a message in the app. **It
-  isn't encrypted** (we have to be able to read it), so please don't put
-  journal details in it. It's included in your export and deleted with
-  your account. To attach a screenshot or get an answer by email, email us
-  instead.
-- **Your encryption keys, locked.** Your notes, photos and videos are encrypted with a
-  key that only exists unlocked on your own device. We store copies of it that
-  are themselves locked by your passkeys and by your recovery code, so we
-  can't use them, and which of your passkeys can unlock it. See
-  [How encryption works](#how-encryption-works).
-
-We don't collect your phone number, real name, contacts or location, or your
-email address unless you add a recovery email.
-
-### Your journal
-
-What you choose to write in the app: ties, plans, workshops, people,
-locations, tags, photos and videos, drawings, and poses. Some of this is encrypted so only you can read it, and some
-isn't (see the next section).
+  never receive it, only a scrambled value made from it.
+- **Your recovery email, scrambled, if you add one.** Your device scrambles it
+  before sending it, so we can't read it or email you. We use it only to check
+  that someone asking us to recover an account is its owner.
+- **Your encryption key, locked**, so we can't use it (see
+  [How encryption works](#how-encryption-works)), and a public key other
+  accounts use to connect with you.
+- **A few settings**: light or dark mode, the last release notes you saw, and
+  whether you've hidden the welcome. They're readable by our server.
+- **Your agreement** to this policy, which version, and when; and that you
+  joined with an invite (not who it was from).
+- **Messages from us** you've dismissed, and any meant only for you.
+- **Bug reports and ideas you send us**, as you wrote them. **These aren't
+  encrypted** (we need to read them), so please leave journal details out.
 
 ### Technical information
 
-To deliver the app and protect it from attacks, our hosting provider,
-Cloudflare, briefly processes standard connection information such as your IP
-address, and counts sign-in attempts per IP address for a minute at a time to
-stop people guessing. We don't store it, and we don't keep request logs. We don't use
-analytics, advertising or tracking tools of any kind.
+Our hosting provider, Cloudflare, briefly handles standard connection
+information such as your IP address to deliver the app, and counts requests
+per IP address for a minute at a time to stop abuse. We don't store it and we
+keep no request logs.
 
-## What we can and can't read
+## Usage statistics
 
-**Encrypted on your device, so only you can read them:** every notes field
-(on ties, people, locations, plans and workshops, including plan and
-workshop descriptions), the photo album links on ties, plans and
-workshops, a workshop's event link, what you paid for a workshop (or
-earned teaching one) with its currency, where people are based and their
-social and scene names, the About on your own profile and the About someone
-shared with you on theirs, your photos and videos, their thumbnails and
-captions, the captions of your drawings and poses, the names of the
-poser presets you save, and everything you share with someone else
-(encrypted with the share's own key, see
-[Sharing with other people](#sharing-with-other-people)), with the names
-you give your shares and connections.
-
-**Everything else in your journal is readable by our server**, so the app
-can list, sort and filter it: the details of your ties, plans, workshops,
-people and locations (such as names, pronouns, titles, dates, types,
-ratings, who took part, a workshop's educators and how many attended,
-which workshop a tie or plan is linked to,
-whether someone is an educator, and a location's city, state or province
-and country, and the date someone last shared their About with you),
-your tags, when things were created, changed or archived and how they link
-together, which of your people is linked to a connected account, and for each photo or video which tie, plan or workshop it's on, its size,
-whether it's a photo or a video, its file type and when it was added (not
-what it shows). **Drawings are not encrypted**: the lines you draw, their
-colors, and which tie, plan or workshop each is on are readable by our
-server (only a drawing's caption is encrypted), so don't write names or
-other identifying details in a drawing itself. **Poses are not encrypted
-either**: the figure's position, the view, the ropes and the ring, bamboo
-or hashira they're tied to, and
-which tie, plan or workshop each pose is on, are readable by our server
-(only a pose's caption is encrypted), and so are the positions in the
-poser presets you save (only their names are encrypted).
-
-This readable information is still private to your account: the app never shows it to
-anyone else, and we don't look at it (see [Our own access](#our-own-access)).
-But because it isn't encrypted on your device, it could be disclosed if our
-systems were breached or if we were legally required to hand it over. **Keep
-anything you consider truly sensitive, such as full names, addresses or
-identifying details, in the notes fields, which are encrypted.** We plan to
-encrypt more of these fields over time.
+To understand how NōtoNawa is used and which features matter, we count a few
+things from what we already store: how many accounts there are, how many have
+been used recently (from when their passkeys and sessions were last used),
+how many entries of each kind accounts have (for example ties, plans or
+poses), and how much storage they use. We look at these as totals and spreads
+across accounts, not at what any one person is doing, and we never combine
+them with information from outside NōtoNawa. We can't see what's in any
+entry, only its kind and size.
 
 ## How encryption works
 
 - When you create your account, your device makes a random encryption key.
-  Your notes, photos and videos are encrypted with it (AES-256-GCM) on your device,
-  before anything is sent to us.
-- That key is locked using a secret your passkey produces (the WebAuthn "PRF"
-  feature), which never leaves your device: it's never sent to us. On its
-  way to the walled-off part of the app that holds your key (see below), it
-  passes through the app's page for a moment. If your passkey doesn't
-  support this, you unlock with your recovery code instead.
-- A new passkey can only unlock your journal once you've confirmed it's you
-  with a passkey or recovery code that already can. A passkey that couldn't
-  unlock before (for example one added before encryption) can after you've
-  unlocked once with your recovery code.
-- You get a **recovery code** when you create your account. It can also unlock
-  your key. We show it once and don't keep a copy.
-- **If you lose every passkey and your recovery code, your encrypted notes,
-  photos and videos can't be recovered, by you or by us.** That is the cost of us not
-  being able to read them. **We strongly recommend keeping a second passkey
-  (on another device, or a hardware security key) and keeping your recovery
-  code somewhere safe**, such as a password manager or on paper.
+  Every entry gets a key of its own, locked with yours, and is encrypted with
+  it (AES-256-GCM) on your device.
+- Your key is locked with a secret your passkey produces, which never leaves
+  your device, and with your recovery code. We store only these locked
+  copies.
+- **If you lose every passkey and your recovery code, your journal can't be
+  recovered, by you or by us.** That's the cost of us not being able to read
+  it. Keep a second passkey (on another device, or a hardware security key)
+  and keep your recovery code somewhere safe.
 
-## How the app protects your data on your device
+## On your device
 
-- **Nothing decrypted is saved on your device.** Your notes, photos and
-  videos are decrypted in your browser's memory only while the app is open
-  and unlocked, and are never written to the browser's storage, its cache or
-  its form history. Photos and videos on screen are let go of when the app
-  locks. Our pages
-  and your data are sent with instructions not to be cached; only the
-  app's own code and images, which contain none of your data, are kept by
-  your browser so the app opens faster. The browser's
-  spellcheck is turned off in the app, because some browsers can send the
-  text being checked to their maker. The one exception is an export, which
-  saves a file wherever you choose (see
-  [Your rights and choices](#your-rights-and-choices)).
-- **The app locks itself.** It forgets your key and everything it decrypted
-  after 15 minutes without use, after 5 minutes in the background, when
-  you sign out, and when you close or reload the tab. You unlock again with
-  your passkey.
-- **Decryption happens in a separate, walled-off part of the browser** (a Web
-  Worker), so the rest of the page only ever sees the results it is
-  displaying, and your key can't be copied out of the page. This can't
-  protect what is shown while the app is unlocked from other code running in
-  the page itself, such as a browser extension you've allowed on this site.
-  That's why the app is so strict about which code may run in it (below).
-- **Searching happens on your device.** What you type in the search box is
-  never sent to us and never appears in the page address, so it doesn't end
-  up in your browser history either. Your notes are decrypted and searched
-  on your device; to show the results a page at a time, the app tells us
-  which entries matched, but not what you searched for.
-- **Only our own code runs in the app.** Strict browser security rules
-  (Content Security Policy and Trusted Types) block scripts from anywhere
-  else, and the app can't be embedded in other websites.
+- **Nothing decrypted is stored on your device.** Your device keeps a copy of
+  your journal still sealed, so the app opens quickly, and decrypts it in
+  memory only while the app is unlocked. Signing out, or deleting your
+  account, removes that copy.
+- **Searching and sorting happen on your device.** What you search for is
+  never sent to us.
+- **The app locks itself** after 15 minutes without use, after 5 minutes in
+  the background, and when you close or reload it, forgetting your key and
+  everything it decrypted.
+- **Decryption happens in a walled-off part of the browser**, and only our own
+  code can run in the app.
 
-Browsers have limits that no app can fully overcome. Your operating system
-may copy memory to disk (for example when your computer sleeps or hibernates),
-and browser extensions you install can see what's on the page. Using
-full-disk encryption on your devices, and being careful which extensions you
-allow on this site, protects you further.
+Your operating system may copy memory to disk, and browser extensions you
+allow on this site can see what's on screen, so use full-disk encryption and
+be careful which extensions you allow.
 
 ## Photos and videos
 
-- Before a photo leaves your device, the app removes its hidden metadata,
-  including GPS location, camera details and timestamps, by redrawing it as
-  a new image. It's also made smaller (at most 2048 pixels on its longest
-  side) to save space, and a small thumbnail is made from it. Your original
-  file is never uploaded.
-- A video (up to 3 minutes) is re-encoded on your device in the same way:
-  every frame and its sound are written into a new, smaller file (480p),
-  and none of the original's metadata (GPS location, dates, the phone or
-  camera it was made with, track names) is copied over. A frame from it is
-  made into a small thumbnail. Your original file is never uploaded.
-- The photo or video, its thumbnail and its caption are then encrypted on
-  your device and stored in a private storage area that isn't reachable
-  from the internet. They're only ever handed back to your own signed-in
-  account, and only your device can decrypt them.
-- Each account can store up to 1 GB of photos and videos together, and up
-  to 30 on each tie, plan or workshop, of which up to 5 can be videos.
-  Copying one to another tie, plan or workshop makes a new encrypted copy
-  of it there, which counts toward your 1 GB.
-- We never scan, analyse, tag or share your photos or videos, and no other
-  company processes them.
-- **Only store photos and videos of people who have agreed to it.** You are
-  responsible for having their consent.
-
-## Drawings
-
-- A drawing is stored as the lines you drew (their points, colors and
-  widths), not as a picture, so you can edit it again. Its lines are **not
-  encrypted** and are readable by our server; its caption is encrypted on
-  your device, like a photo's.
-- Up to 20 drawings can be stored on each tie, plan or workshop.
-  Duplicating or copying one stores a new drawing with the same lines.
-- Deleting a drawing, or the tie, plan or workshop it's on, deletes it
-  straight away.
-
-## Poses
-
-- A pose is a generic 3D figure you position, with ropes drawn on it. It's
-  stored as numbers (the angle of each joint, how the body is turned, the
-  view, and the points each rope passes through), not as a picture, so you
-  can pose it again. These numbers are **not encrypted** and are readable
-  by our server; a pose's caption is encrypted on your device, like a
-  drawing's.
-- Pictures of a pose are drawn on your device from those numbers. "Add to
-  visuals" in the poser turns one into a photo, which is then encrypted and
-  stored like any other photo.
-- Up to 20 poses can be stored on each tie, plan or workshop. Duplicating or
-  copying one stores a new pose with the same numbers.
-- Deleting a pose, or the tie, plan or workshop it's on, deletes it straight
-  away. Photos made from it are kept until you delete them.
-- You can save up to 50 body and arms positions of your own as presets, to
-  start any pose from. A preset is stored like a pose: the joint angles
-  (and for a body, how it's turned and how high) are **not encrypted**; its
-  name is encrypted on your device. Deleting a preset deletes it straight
-  away, and poses made from it stay as they are. Presets are in your export
-  and deleted with your account.
+- Before a photo or video leaves your device, the app rebuilds it as a new,
+  smaller file, so none of its hidden details (GPS location, dates, the camera
+  or phone it was made with) are kept. Your original is never uploaded.
+- Each account can store up to 1 GB in all, with up to 30 photos and videos
+  (5 of them videos) on each tie, plan or workshop.
+- We never scan or analyse your photos or videos.
+- **Only store photos and videos of people who have agreed to it.**
 
 ## Sharing with other people
 
-### Sharing your profile
+### By link
 
-- From your own profile in People, you can make an invite: a link (and a
-  QR code of it) that lets someone add your profile to their People. You
-  choose what goes in it (the name to share, and any of your pronouns,
-  usual role, social and scene names, where you're based, whether you're
-  an educator, and your About). Your private notes are never shared.
-- What you share is encrypted on your device with a new key that's only in
-  the link, after the "#", which browsers never send to us. We store the
-  encrypted copy and can't open it. Anyone who has the link can open it
-  while it lasts, so send it only to the person it's for.
-- For each share we also store: what kind it is, the name you give it
-  (encrypted), the link's key (encrypted with your own key, so you can show
-  the code again; we can't use it), how big it is, when it ends, how many
-  times it can be and has been opened (not by whom), and whether it offers
-  to connect accounts. Shares count toward your 1 GB.
-- You choose how long a share lasts (from 10 minutes, to until you revoke
-  it) and whether one person or anyone with the link can use it. It's
-  deleted, with its encrypted copy, when it expires, when its last allowed
-  use is opened, or as soon as you revoke it. One with photos or videos is
-  kept an hour longer after it expires or is used up, only so whoever
-  opened it can finish adding them; nobody can open it again in that hour.
-  One whose photos never finished uploading is deleted after a day. A
-  daily clean-up removes any left over.
-- When someone opens a share, we don't record who they are. What they add
-  to their journal is theirs: revoking a share doesn't take back what was
-  already added.
-
-### Sharing ties, plans and workshops
-
-- From a saved tie, plan or workshop, you can share a copy of it the same
-  way: encrypted on your device with a key that's only in the link, with
-  the same choices of how long it lasts and who can use it, and stored the
-  same way.
-- You choose what goes in it: its title, location (its name and place,
-  never its notes), plans, tags, notes, description, album link, rating,
-  drawings and poses, photos and videos, and the people on it. Its date and
-  type (or a workshop's title and dates, or a plan's title) always go.
-- Photos and videos are opened on your device and encrypted again with the
-  share's key, so we can't open them either. They're stored with the
-  share, counting toward your 1 GB until it's deleted.
-- People on it go as their names and roles only, never anything else from
-  your cards for them. You choose the name shown for you.
-- Whoever opens it chooses who each person is in their own journal (them,
-  someone they have, or someone new), and which of their locations and
-  plans its own are, before anything is added. A copy isn't updated when
-  you change yours later.
+- You can share your profile, or a copy of a tie, plan or workshop, as a link
+  or QR code. You choose exactly what goes in it.
+- It's encrypted on your device with a key that's only in the link, after the
+  "#", which browsers never send to us. We store the encrypted copy and can't
+  open it, so send the link only to the person it's for.
+- We store the share's kind, its size, when it ends, how many times it can be
+  and has been opened (not by whom), and its name (encrypted). It counts
+  toward your 1 GB until it ends.
+- It's deleted when it ends, when its last allowed use is opened, or as soon
+  as you revoke it. Revoking doesn't take back what someone already added.
 
 ### Connecting accounts
 
-- An invite can also offer to connect your accounts. It's off unless you
-  tick it, and the person opening it chooses too. If either of you
-  doesn't, they still get your profile, just not a connection.
-- A connection is the only way NōtoNawa's server learns that two accounts
-  know each other. We store, for each of you: the two accounts, when you
-  connected, your own name for the connection (encrypted: the invite's
-  name for whoever made it, the shared name for whoever accepted it),
-  which of your people it's on, and whether the inviter has answered
-  "Which of your People is it?". We still can't read anything in either
-  journal, and neither of you ever sees the other's account details.
-- When someone opens an invite that offers to connect, we keep a one-time
-  token for it (scrambled) for a day, so they can accept it. It records
-  whose invite it was, not who opened it, and is deleted once used or
-  expired.
-- When it's accepted, the inviter is told that someone accepted their
-  invite (not who, as an invite anyone can use could have been opened by
-  anyone), and chooses which of their people it is.
-- Either of you can remove a connection at any time, from your Connections
-  in Your data or from their card. It's removed for both of you, and both
-  cards stay, just unlinked. When you remove one, you can also choose to
-  clear the About you shared from their card for you; nothing else in
-  their journal is changed. A connection is deleted with either account.
+- A profile invite can offer to connect your accounts, if you tick it and the
+  person opening it agrees.
+- **Our server keeps no record that two accounts are connected.** Each of you
+  keeps the connection in your own encrypted journal. Your devices pass each
+  other messages (profile updates, and things you send) through mailboxes on
+  our server: a mailbox has an owner but no record of who writes to it, and
+  every message is encrypted so only the two of you can read it. Messages are
+  deleted once fetched, or after 90 days.
+- Through a connection you can share your profile (it updates when you change
+  it, with the same fields), and send a tie, plan or workshop, which is
+  stored as a one-use share that ends after 30 days.
+- You can each check a connection's safety number in person, to be sure no
+  one is in between.
+- Either of you can remove a connection at any time. It ends for both of you,
+  and you can also clear the About you shared from their card.
 
 ## Information about other people
 
 Your journal may hold information about the people you tie with. Please only
-record what they would be comfortable with, and remove it if they ask.
-Entries about someone stay in your account. If that person also uses
-NōtoNawa, they can't see your entries, and we don't tell them you've written
-about them. If someone shares their profile with you, what you add is in
-your journal, and its About shows as theirs. A tie, plan or workshop you
-share can name the people on it and hold your notes about it: share only
-what they would be comfortable with.
+record what they would be comfortable with, and remove it if they ask. If they
+also use NōtoNawa, they can't see your entries, and we don't tell them you've
+written about them. When you share a tie, plan or workshop, share only what
+the people on it would be comfortable with.
 
 ## Where your data is stored
 
-NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), which is
-our only service provider with access to stored data. We ask Cloudflare to
-store photos and videos in North America [and the database in enam]; Cloudflare
-doesn't guarantee where data is kept, and its network may handle it in
-other countries. Everything is
-encrypted at rest by Cloudflare, in addition to our own encryption of your
-notes, photos and videos.
+NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), our only
+service provider with access to stored data. We ask Cloudflare to store photos
+and videos in North America [and the database in enam]; its network may
+handle data in other countries. Everything is also encrypted at rest by
+Cloudflare.
 
 When you paste a short Google Maps link (maps.app.goo.gl) into a location, our
-server asks Google where the link points, to fill in its coordinates. Google
-sees that request coming from our server, not from you, and it carries only
-the link. Full Google Maps links are read on our server without contacting
-Google.
+server asks Google where it points, to fill in its coordinates. Google sees
+our server, not you, and only the link. Full Google Maps links are read on
+your device.
 
-## Cookies
+## Cookies and browser storage
 
-We use one cookie: your session cookie. It's needed to keep you signed in. It
-can't be read by scripts, is only sent over secure connections and only to
-NōtoNawa, and expires after 30 days, or sooner after 7 days without
-use. We use no other cookies, local storage for tracking, or similar
-technologies. The app also remembers the last light or dark mode your
-browser showed in its local storage (just the word "light" or "dark"), so
-pages appear in the right colors before you sign in; that copy never
-leaves your device. Your mode itself is saved with your account (see
-[Your account](#your-account)).
+We use one cookie, to keep you signed in. It can't be read by scripts, is sent
+only to NōtoNawa over secure connections, and expires after 30 days (7 without
+use). Your browser also keeps the app's own code, the sealed copy of your
+journal (see [On your device](#on-your-device)), and the word "light" or
+"dark" so pages show the right colors before you sign in. Nothing is used for
+tracking.
 
 ## How long we keep your data
 
-- **While you have an account**, we keep what you've stored until you delete
-  it.
-- **When you delete something**, it's removed from our live database straight
-  away. Deleted photos and videos are removed from storage straight away
-  (deleting a tie, plan or workshop deletes its photos and videos too). If that's ever interrupted, a daily
-  clean-up removes what was left within a day or two.
-- **Shares** are deleted when they end (see
-  [Sharing with other people](#sharing-with-other-people)), and **offers
-  to connect** a day after the invite was opened, if not accepted.
-- **When you delete your account**, everything in it (journal, photos, videos,
-  passkeys, sessions, recovery email, locked keys, shares and connections) is
-  deleted straight away. Your connections are removed from the other
-  person's side too. Your device
-  or password manager may still list your passkey for NōtoNawa; where the
-  browser supports it, the app tells it the passkey no longer works.
+- **What you store** is kept until you delete it. Deleting removes it from our
+  live database and storage straight away.
+- **Shares and messages** are deleted when they end, as above.
+- **When you delete your account**, everything in it is deleted straight away.
 - **Backups.** Our database provider keeps a rolling history for disaster
-  recovery, so deleted data can remain there for up to 30 days before it
-  disappears permanently. We also back up the database every day. Each
-  backup is encrypted with a key that only Mx_Piggie holds, kept away from
-  our servers, so not even our own systems can read it, and stored with
-  Cloudflare in North America. Each one is deleted after 30 days. Photos
-  and videos aren't in either: once deleted, they're gone. We would only restore from
-  these to recover from a failure, never to bring back something you
-  deleted unless you ask us to.
-- **Signed-out sessions** are deleted when you sign out, and expired sessions
-  are cleared every day.
+  recovery, and we back up the database every day, encrypted with a key that
+  only Mx_Piggie holds, away from our servers. Both are gone after 30 days.
+  Photos and videos aren't backed up. We restore only to recover from a
+  failure, never to bring back something you deleted unless you ask.
+- **When your account was updated to full encryption**, our backups and our
+  database provider's history still held the older, partly readable version
+  of your journal; that copy is gone 30 days after the update.
+- **Sessions** end when you sign out, and expired ones are cleared daily.
 
 ## Your rights and choices
 
 Wherever you live, you can:
 
-- **Export** all your data from the app at any time, including your notes,
-  photos and videos, decrypted on your device into a file only you hold (a
-  .zip when you have photos or videos). It contains your
-  whole journal, plus when you created your account and agreed to this
-  policy, your passkeys' names and dates, whether you've set a recovery
-  email (not the address, which we don't have), any bug reports and
-  ideas you've sent us, the shares you've made (not what's in them) and
-  your connections (never the other person's account). The file isn't encrypted, so keep it somewhere
-  safe.
-- **Import** entries from an export, or ties from a spreadsheet (a CSV file).
-  The file is read in your browser, and only the entries in it are sent to
-  us, just as if you'd typed them in. Photos and videos in an export are
-  prepared and encrypted on your device first, as when you add one. A
-  person's link to a connected account is kept only if that connection is
-  still yours.
-- **Correct** anything by editing it in the app.
-- **Delete** individual entries, or your whole account, from the app.
-- **End sessions** on any device, or remove passkeys, from your account
-  settings.
-- **Contact us** at contact@notonawa.app with any privacy question or request. We
-  will respond within 10 days.
+- **Export** everything, decrypted on your device into a file only you hold
+  (with your photos and videos, as a .zip). The file isn't encrypted, so keep
+  it somewhere safe.
+- **Import** entries from an export or a spreadsheet. The file is read and
+  encrypted on your device.
+- **Correct or delete** anything in the app, or delete your whole account.
+- **End sessions** or remove passkeys from your account settings.
+- **Contact us** at contact@notonawa.app. We will respond within 10 days.
 
 Depending on where you live (for example the EU, UK or California), you may
 have further rights under laws such as the GDPR or CCPA, including the right
 to complain to your data protection authority.
 
-**Legal basis (EU/UK users).** We process your journal because you ask us to
-in order to provide the service. Information about your or other people's sex
+**Legal basis (EU/UK users).** We store your journal because you ask us to in
+order to provide the service. Information about your or other people's sex
 lives is special-category data, which we process only with your explicit
-consent, given when you create your account. You can withdraw consent at any
-time by deleting your data or your account.
+consent, given when you create your account. You can withdraw it at any time
+by deleting your data or your account. We count usage statistics because we
+have a legitimate interest in improving the service; they're totals, worked
+out from data we already hold for running your account.
 
 ## Our own access
 
-The only person who can access NōtoNawa's systems is Mx_Piggie,
-using an account protected by a hardware security key. We don't browse users'
-data. We would look at the readable parts of an account only when you ask us
-to (for example to help with a problem), or when the law requires it.
-Encrypted notes, photos and videos can't be read by us under any circumstances.
+The only person who can access NōtoNawa's systems is Mx_Piggie, using an
+account protected by a hardware security key. We don't browse accounts, and we
+can't read your journal under any circumstances.
 
-**Keep a second passkey and your recovery code: we can't guarantee that we
-can restore your account or your data if you lose them all.** We may be able
-to help you sign in again, but only if you added a recovery email:
-
-- Contact us from that address. We'll send a one-time code to it from our
-  own mailbox, and you send it back, so we know the address is yours (an
-  email that merely appears to come from an address doesn't prove it).
-- We then give your account a new recovery code. We only do this when you
-  ask.
-- Without a recovery email we have no way to tell that an account is yours,
-  so we can't help.
-
-A new recovery code restores signing in and the parts of your journal we can
-read. It never brings back your encrypted notes, photos and videos, which still need
-one of your own passkeys or your own earlier recovery code. (If you do unlock
-with one of those, the app gives you a new recovery code straight away, so
-the old one stops working.) If you have neither, you can start a new
-encryption key, but what the old key encrypted can't be read again.
+**We can't restore your journal if you lose every passkey and your recovery
+code.** If you added a recovery email, we can help you sign in again: contact
+us from that address, we'll send a one-time code to it, and when you send it
+back we'll give your account a new recovery code. That restores signing in
+only. Your journal still needs one of your own passkeys or your earlier
+recovery code; without either, you can start again, but the old journal can't
+be read.
 
 ## Legal requests
 
 If we receive a legally valid demand for data, we can only provide what we
-can read (see [What we can and can't read](#what-we-can-and-cant-read)). We
-cannot decrypt your notes, photos or videos. Unless the law forbids it, we will tell
-you about the request, with a message in the app, before handing anything
-over.
+store (see [What we store](#what-we-store)), and we can't decrypt your
+journal. Unless the law forbids it, we will tell you in the app before handing
+anything over.
 
 ## Security incidents
 
-If a breach affects your data, we will tell you with a message in the app as
-quickly as we can (we can't email you: we only hold a scrambled copy of any
-recovery email), and notify regulators where the law requires.
+If a breach affects your data, we will tell you in the app as quickly as we
+can, and notify regulators where the law requires.
 
 ## What we don't do
 
 - sell, rent or share your data
 - show ads or use your data for advertising
-- use analytics, tracking pixels or third-party scripts
+- track how you use the app: no analytics or session-recording tools,
+  tracking pixels, third-party scripts or request logs (beyond the totals in
+  [Usage statistics](#usage-statistics))
 - train AI models on your data or send it to AI services
 - let anyone else see your journal, except what you choose to share
 
 ## Messages from us
 
 We can show you messages in the app, for example about a change to this
-policy, a problem with the service, or a legal request about your account.
-They're written by us, as plain text; a message for everyone is stored
-once, and a message just for you is stored with your account, included in
-your export, and deleted with your account. We record which messages you've
-dismissed, so they don't come back.
+policy or a problem with the service. They're written by us as plain text. We
+record which ones you've dismissed, so they don't come back.
 
 ## Changes to this policy
 
-If we change this policy, we will update the date at the top. If a change would
-reduce your privacy, we will ask for your agreement in the app. Until you
-agree, nothing new can be saved to your journal, but you can still export
-your data or delete your account.
+If we change this policy, we will update the date at the top. If a change
+would reduce your privacy, we will ask for your agreement in the app first.
+Until you agree, nothing new can be saved to your journal, but you can still
+export your data or delete your account.
 
 ## Contact
 

@@ -12,7 +12,7 @@
 // journal is locked, and are drawn again when it locks (lock.js), so nothing
 // decrypted stays on the page.
 
-import { ROUTES, matchRoute, inAppTarget, UNLOCK, CONSENT } from "./router.js";
+import { ROUTES, matchRoute, inAppTarget, UNLOCK, CONSENT, CONVERT } from "./router.js";
 import { setNavigator } from "./navigate.js";
 import { renderNav, showNav, setCurrent, preloadMenuLogo } from "./nav.js";
 import { $ } from "./dom.js";
@@ -25,8 +25,9 @@ import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
+import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
-import { showWelcome } from "./welcome.js";
+import { showTourOnce } from "./tour.js";
 import { takeShareLink } from "./pending-share.js";
 
 /**
@@ -47,7 +48,9 @@ const VIEWS = {
   "not-found": () => import("./views/not-found.js"),
   unlock: () => import("./views/unlock.js"),
   consent: () => import("./views/consent.js"),
+  convert: () => import("./views/convert.js"),
   open: () => import("./views/open.js"),
+  verify: () => import("./views/verify.js"),
 };
 
 // A share's link (/open#<id>.<key>): its key is kept in memory and taken
@@ -118,19 +121,21 @@ async function show({ fresh, scroll, focus }) {
 
   // The first time the journal is shown after unlocking (with a full
   // session, which signing up or recovering only has once they're done):
-  // encrypt any notes left in plain text from before encryption.
-  if (route.needsKey && !leftoversChecked) {
+  // encrypt any notes left in plain text from before encryption (format 1
+  // only: format 2's records are sealed whole; and not while converting,
+  // when the format 1 journal takes no changes).
+  if (route.needsKey && !leftoversChecked && accountFormat() === 1 && !conversionWantedNow()) {
     leftoversChecked = true;
     sealLeftovers().catch((err) => console.error("Couldn't encrypt older notes:", err));
   }
-  // Then, once per unlock, the welcome (until I ask not to see it again)
-  // and the release notes I haven't seen, one after the other (not over
-  // the privacy policy agreement, which comes first and doesn't need the
-  // key).
+  // Then, once per unlock, the welcome tour (until I've finished or skipped
+  // it) and the release notes I haven't seen, one after the other (not
+  // over the privacy policy agreement, which comes first and doesn't need
+  // the key).
   if (route.needsKey && !releasesChecked) {
     releasesChecked = true;
     // Unreachable for now: either is shown after the next unlock instead.
-    showWelcome()
+    showTourOnce()
       .catch(() => {})
       .then(() => showUnseenReleases())
       .catch(() => {});
@@ -183,6 +188,10 @@ function warmUp() {
 async function routeFor(addressed) {
   if (!addressed.needsKey) return addressed;
   if (!isUnlocked()) return UNLOCK;
+  // Format 2: the journal opened from the cache (the first time on this
+  // device, synced down first). If it can't be, the view's own requests
+  // say why; the next view tries again.
+  await startJournal().catch(() => {});
   // My role names and mode, before the journal is drawn with them.
   await loadSettings().catch(() => {
     // Unreachable for now: the defaults until the next view tries again.
@@ -195,7 +204,10 @@ async function routeFor(addressed) {
       // refusal for want of agreement brings the agreement up.
     }
   }
-  return consentState()?.needed && !addressed.beforeConsent ? CONSENT : addressed;
+  if (consentState()?.needed && !addressed.beforeConsent) return CONSENT;
+  // A format 1 journal converting to format 2 (store/convert.js): nothing
+  // else until it's done, but Your data and Account, as for Consent.
+  return conversionWantedNow() && !addressed.beforeConsent ? CONVERT : addressed;
 }
 
 /**

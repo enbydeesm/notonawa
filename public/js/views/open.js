@@ -13,6 +13,7 @@ import { toBase64url, fromBase64url } from "../crypto/keys.js";
 import { pendingShare, keepOpened, forget } from "../pending-share.js";
 import { showProfile } from "../open-profile.js";
 import { showItem } from "../open-item.js";
+import { offerIn } from "../store/index.js";
 
 /**
  * @param {HTMLElement} root
@@ -33,7 +34,9 @@ export async function mount(root, { signal }) {
       const res = await api("/api/shares/open", { method: "POST", body: { id: link.id } });
       const data = await openShare(link.id, res.kind, toBase64url(link.key), fromBase64url(res.snapshot).buffer);
       opened = {
-        kind: res.kind, own: res.own, data, offer: res.offer ?? null, connectionId: res.connection_id ?? null,
+        kind: res.kind, own: res.own, data,
+        // Only an offer from an account on my format: format 1's is the server's, format 2's in the snapshot.
+        offer: offerIn({ offer: res.offer ?? null, data }), connectionId: res.connection_id ?? null,
         id: link.id, key: toBase64url(link.key),
       };
       keepOpened(opened);

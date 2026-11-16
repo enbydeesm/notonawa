@@ -48,10 +48,29 @@ export function choose({ title, message, content, choices, cancelLabel = "Cancel
 }
 
 /**
+ * Shows a small modal saying something has happened, with one OK button.
+ * Resolves once it's closed (OK, Esc, or clicking outside).
+ * @param {{ title: string, message?: string, id?: string }} options id: the dialog's, for finding it
+ * @returns {Promise<void>}
+ */
+export function tell({ title, message, id }) {
+  return new Promise((resolve) => {
+    const dialog = h("dialog", { className: "tell-dialog", ...(id ? { id } : {}), onclose: () => { dialog.remove(); resolve(); } },
+      h("h2", {}, title),
+      message ? h("p", {}, message) : null,
+      h("div", { className: "dialog-buttons" },
+        h("button", { type: "button", className: "primary", onclick: () => dialog.close() }, "OK")));
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+/**
  * The delete dialog for people and locations: delete for good, or (if it's
  * not archived already) archive instead.
  * @param {{ title: string, message: string, archived: boolean }} options
- * @returns {Promise<{ archive: true } | { query: string } | null>}
+ * @returns {Promise<{ archive: true } | { delete: true } | null>}
  */
 export async function confirmDeleteOrArchive({ title, message, archived }) {
   const choice = await choose({
@@ -63,6 +82,6 @@ export async function confirmDeleteOrArchive({ title, message, archived }) {
     ],
   });
   if (choice === "archive") return { archive: true };
-  if (choice === "delete") return { query: "" };
+  if (choice === "delete") return { delete: true };
   return null;
 }

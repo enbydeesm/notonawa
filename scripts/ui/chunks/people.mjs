@@ -1,6 +1,6 @@
 // The walkthrough's people chunk. The People page.
 
-import { check, freshAccount, go, run } from "../harness.mjs";
+import { FORMAT, check, freshAccount, go, run } from "../harness.mjs";
 
 export default async function () {
   await freshAccount();
@@ -33,10 +33,12 @@ export default async function () {
     const onMe = [$("#person-self-badge").hidden, !$("[name=is_self]"), Math.abs(mid(badge) - mid(heading)) < 4,
       badge.left - heading.right >= 0 && badge.left - heading.right < 24, personButtons()];
     $("[data-cancel-edit]").click(); await calm(200);
-    const res = await fetch("/api/people?archived=false"); const me = (await res.json()).find((p) => p.is_self);
-    const refused = [(await fetch("/api/people/" + me.id, { method: "DELETE" })).status, (await fetch("/api/people/" + me.id + "/archive", { method: "POST" })).status];
+    const me = (await store.listItems("people", false)).find((p) => p.is_self);
+    const refusal = (promise) => promise.then(() => "saved", (err) => err.message);
+    const refused = [await refusal(store.deleteItem("people", me.id)), await refusal(store.archiveItem("people", me.id))];
     return [onAdd, onSam, onMe, $("#person-dialog").open, refused];`),
-    [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false, [400, 400]]);
+    [true, [true, ["Delete person", "Archive person", "Close"]], [false, true, true, true, ["Share my profile", "Close"]], false,
+      Array(2).fill("Your own profile can't be deleted or archived. You can rename it.")]);
   check("the + comes first on its card; Educator sits on the Name row, at the right", await run(`
     const add = $("#add-person"), label = $("#add-person-label"), addCard = add.closest(".card");
     const plusFirst = [addCard.firstElementChild === add, add.getBoundingClientRect().left - addCard.getBoundingClientRect().left < 40,
@@ -65,8 +67,8 @@ export default async function () {
     fill(rows[0], "fetlife", "knotsam"); fill(rows[1], "instagram", "@sam");
     const fields = leakyFields();
     await submit();
-    const sam = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.name === "Sam");
-    const stored = [/^e1\\./.test(sam.based_in), /^e1\\./.test(sam.aliases), sam.is_educator];
+    const sam = (await store.listItems("people", "false")).find((p) => p.name === "Sam");
+    const stored = [!(await plainOnServer("Seattle")), !(await plainOnServer("knotsam")), sam.is_educator];
     const samCard = personCard("Sam"); const notesShown = document.querySelector("#list").innerText.includes("Prefers floor work");
     await openPerson("Sam");
     const refilled = [[...document.querySelectorAll(".alias-row")].map((r) => r.querySelector("select").value + ":" + r.querySelector("input").value),
@@ -84,11 +86,11 @@ export default async function () {
       $("#person-about").readOnly, $("label[for=person-notes]").textContent, $("#person-notes-hint").textContent,
       beside($("#person-about-label"), $("#person-about-hint")), beside($("label[for=person-notes]"), $("#person-notes-hint"))];
     set("#person-about", "Rigger, mostly floor"); await submit();
-    const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self);
+    const me = (await store.listItems("people", "false")).find((p) => p.is_self);
     await openPerson("Me"); const refilled = $("#person-about").value; $("[data-cancel-edit]").click(); await calm(200);
     await openPerson("Sam"); const onSam = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await calm(200);
     $("#add-person").click(); await calm(300); const onAdd = $("#person-about-field").hidden; $("[data-cancel-edit]").click(); await calm(200);
-    return [shown, /^e1\\./.test(me.about), refilled, onSam, onAdd, leakyFields()];`),
+    return [shown, !(await plainOnServer("mostly floor")), refilled, onSam, onAdd, leakyFields()];`),
     [[false, "About me", "What a profile invite may optionally share.", false, "Private notes", "These are never shared.", true, true],
       true, "Rigger, mostly floor", true, true, []]);
   check("people: a search card (by name or alias) and sorts by name or date added (newest first to start), with me always on top", await run(`
@@ -120,13 +122,46 @@ export default async function () {
   // Until profile invites are built, only an import puts About on someone
   // else's card: this adds one through the API, as an import would.
   await run(`
-    const { sealOne } = await import("/js/vault.js");
-    const body = await sealOne("person", { name: "Robin", about: "Teaches on weekends" });
-    await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });`);
+    await store.saveItem("people", null, { name: "Robin", about: "Teaches on weekends" });`);
   await go("/people");
   check("someone else's About shows as theirs, read-only", await run(`
     await openPerson("Robin");
     const shown = [$("#person-about-field").hidden, $("#person-about-label").textContent, $("#person-about").readOnly, $("#person-about").value];
     $("[data-cancel-edit]").click(); await calm(200);
     return shown;`), [false, "About them", true, "Teaches on weekends"]);
+
+  // A connected account's profile update (format 2: format 1's connections
+  // send none). Seeded as a contact on Robin with one waiting; contacts
+  // between two accounts for real are the contacts chunk's.
+  if (FORMAT === 2) {
+    await run(`
+      const { records, save } = await import("/js/store/v2/journal.js");
+      const robin = records("person").find((p) => p.body.name === "Robin");
+      const now = new Date().toISOString().replace(/\\.\\d+Z$/, "Z");
+      await save({ writes: [{ kind: "contact", id: crypto.randomUUID(), body: { state: "active", invited: false, answered: true,
+        person_id: robin.id, name: "Robin", pair_key: "p".repeat(43), sent: 0, received: 1, fields: {}, created_at: now, updated_at: now,
+        pending_profile: { v: 1, name: "Robin B", pronouns: "they/them", about: "Teaches on Sundays" } } }] });`);
+    await go("/people");
+    check("an update from their account marks the card, and their dialog offers to review it", await run(`
+      const badge = [...document.querySelectorAll("#list .item")].map((i) => [i.querySelector(".name-button").textContent,
+        i.querySelector(".update-badge")?.textContent ?? null]).find(([name]) => name === "Robin");
+      await openPerson("Robin");
+      const offered = [$("#person-linked").hidden, $("#person-update-badge").hidden, $("#person-update-badge").textContent];
+      return [badge, offered];`), [["Robin", "Updates available"], [false, false, "Updates available"]]);
+    check("reviewing shows what they share now, field by field, and Save puts what I chose on the card", await run(`
+      $("#person-update-badge").click(); await calm(400);
+      const shown = [$("#update-heading").textContent, $("#update-name").textContent,
+        [...document.querySelectorAll(".profile-update .merge-field legend")].map((l) => l.textContent), $("#update-about-note").textContent,
+        leakyFields()];
+      document.querySelector('input[name="update-name"][value="mine"]').click();
+      $("#update-save").click(); for (let i = 0; i < 50 && $(".profile-update"); i++) await wait(100);
+      await calm(500);
+      await openPerson("Robin");
+      const onCard = [$("#person-name").value, $("#person-pronouns").value, $("#person-about").value, $("#person-update-badge").hidden];
+      $("[data-cancel-edit]").click(); await calm(200);
+      const badge = [...document.querySelectorAll("#list .update-badge")].length;
+      return [shown, onCard, badge];`),
+    [["Updated info from Robin", "Robin B", ["Name", "Pronouns"], "Their About replaces what's in About them on the card.", []],
+      ["Robin", "they/them", "Teaches on Sundays", true], 0]);
+  }
 }

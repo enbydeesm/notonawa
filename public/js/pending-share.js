@@ -8,15 +8,17 @@
 // forgotten when the journal locks, and once it's been added.
 
 import { readShareFragment } from "./crypto/share.js";
+import { fromBase64url } from "./crypto/keys.js";
 import { onLock } from "./vault.js";
 
 /**
  * @typedef {{ id: string, key: Uint8Array<ArrayBuffer> }} ShareLink
  * @typedef {{
- *   kind: string, own: boolean, data: unknown, offer: string | null, connectionId: string | null, id: string, key: string,
+ *   kind: string, own: boolean, data: unknown, offer: any, connectionId: string | null, id: string, key: string,
  * }} OpenedShare
- *   offer: a token to accept its offer to connect our accounts (POST
- *   /api/connections); connectionId: my side of our connection, if we're
+ *   offer: its offer to connect our accounts, from an account on my format
+ *   (the store's offerIn: format 1's a token for POST /api/connections,
+ *   format 2's the inviter's key and intro mailbox); connectionId: my side of our connection, if we're
  *   connected already; id and key (base64url): the link's, for fetching
  *   its photos.
  */
@@ -41,6 +43,16 @@ export function takeShareLink() {
   link = found;
   damaged = !found;
   return true;
+}
+
+/**
+ * A share a connection sent me (format 2's "share" message), to open as a
+ * link would be: /open, next.
+ * @param {{ id: string, key: string }} sent its id and key (base64url)
+ */
+export function openSentShare({ id, key }) {
+  forget();
+  link = { id, key: /** @type {Uint8Array<ArrayBuffer>} */ (fromBase64url(key)) };
 }
 
 /** The share waiting to be opened, if any. */

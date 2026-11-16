@@ -312,6 +312,170 @@ export function copyMedia(args) {
   return call("copyMedia", args);
 }
 
+// Format 2: records and the cache (crypto/vault-core.js). The Worker
+// syncs and saves them itself; the page gets them opened, whole.
+
+/** @typedef {import("./crypto/vault-core.js").Opened} Opened */
+
+/**
+ * Ids worked out rather than random: converted rows', "this is me"'s, the settings record's.
+ * @param {{ converted?: { table: string, oldId: string | number }[], self?: boolean, settings?: boolean }} args
+ * @returns {Promise<{ converted: string[], self: string | null, settings: string | null }>}
+ */
+export function recordIds(args) {
+  return call("recordIds", args);
+}
+
+/** Opens the account's cache on this device. */
+export function openCache() {
+  return call("openCache", {});
+}
+
+/**
+ * Syncs the cache with the server.
+ * @returns {Promise<{ records: Opened[], removed: string[], refused: string[] }>} what changed, opened
+ */
+export function syncCache() {
+  return call("syncCache", {});
+}
+
+/**
+ * Records from the cache, opened: all of them, or those asked for.
+ * @param {string[]} [ids]
+ * @returns {Promise<Opened[]>}
+ */
+export function readCache(ids) {
+  return call("readCache", { ids });
+}
+
+/**
+ * Saves records and deletes others, all or none.
+ * @param {{ writes?: { kind: string, id: string, base_version: number, body: Record<string, unknown> }[],
+ *   deletes?: { kind: string, id: string, base_version: number, files?: string[] }[] }} batch
+ * @returns {Promise<{ saved: { kind: string, id: string, version: number | null }[] } | { stale: string[] }>}
+ */
+export function saveRecords(batch) {
+  return call("saveRecords", batch);
+}
+
+/**
+ * A prepared photo or video sealed as a format v3 file under a new key of
+ * its own, for its item's record. The buffers are handed to the Worker.
+ * @param {string} fileId
+ * @param {ArrayBuffer} thumb
+ * @param {ArrayBuffer} full
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function sealFile(fileId, thumb, full) {
+  return call("sealFile", { fileId, thumb, full }, [thumb, full]);
+}
+
+/**
+ * One part of a format v3 file, fetched and opened in the Worker with the
+ * key from its record. Throws CantOpen if it won't open.
+ * @param {{ fileId: string, key: string, part: "thumb" | "full" }} args
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function openFile(args) {
+  return call("openFile", args);
+}
+
+/**
+ * A copy of a file under a new id and key, sealed for upload.
+ * @param {{ fileId: string, key: string, newFileId: string }} args
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function copyFile(args) {
+  return call("copyFile", args);
+}
+
+/**
+ * Converting: one of my format 1 photos or videos sealed as a v3 file under
+ * a new key, in the Worker. Throws CantOpen if it won't open.
+ * @param {{ mediaId: string, kind: "photo" | "video", newFileId: string }} args
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function convertMedia(args) {
+  return call("convertMedia", args);
+}
+
+/**
+ * One of my v3 files sealed again for a share (format 2): opened in the
+ * Worker with its key, sealed with the link's.
+ * @param {{ shareId: string, key: string, fileId: string, sourceId: string, sourceKey: string, kind: "photo" | "video" }} args
+ * @returns {Promise<{ body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function reshareFile(args) {
+  return call("reshareFile", args);
+}
+
+/**
+ * A share's photo or video sealed as one of my v3 files (format 2), under
+ * a new key. Throws CantOpen if it won't open.
+ * @param {{ shareId: string, key: string, fileId: string, kind: "photo" | "video", newFileId: string }} args
+ * @returns {Promise<{ key: string, body: ArrayBuffer, thumbBytes: number }>}
+ */
+export function adoptShareAsFile(args) {
+  return call("adoptShareAsFile", args);
+}
+
+/**
+ * Opens my identity key's seed in the Worker, kept there (for opening
+ * acceptances of my invites). Throws CantOpen if it isn't mine.
+ * @param {{ publicKey: string, sealedSeed: string }} args
+ */
+export function openIdentity(args) {
+  return call("openIdentity", args);
+}
+
+/**
+ * Accepting an invite: the acceptance sealed to the inviter's key, bound to
+ * the invite's share and its link's key (crypto/pair.js).
+ * @param {{ inviterPublicKey: string, shareId: string, linkKey: string, payload: unknown }} args
+ * @returns {Promise<ArrayBuffer>}
+ */
+export function sealAcceptance(args) {
+  return call("sealAcceptance", args);
+}
+
+/**
+ * An acceptance of my invite, opened with my identity key (openIdentity
+ * first). Throws CantOpen unless it's for that share, from someone with
+ * its link.
+ * @param {{ shareId: string, linkKey: string, sealed: ArrayBuffer }} args
+ * @returns {Promise<unknown>}
+ */
+export function openAcceptance(args) {
+  return call("openAcceptance", args, [args.sealed]);
+}
+
+/**
+ * A message to a contact's mailbox, sealed with our pair key.
+ * @param {{ pairKey: string, mailboxId: string, counter: number, payload: unknown }} args
+ * @returns {Promise<string>}
+ */
+export function sealMessage(args) {
+  return call("sealMessage", args);
+}
+
+/**
+ * A message from my mailbox, opened with our pair key. Throws CantOpen if
+ * it isn't from that contact.
+ * @param {{ pairKey: string, mailboxId: string, sealed: string }} args
+ * @returns {Promise<{ counter: number, payload: unknown }>}
+ */
+export function openMessage(args) {
+  return call("openMessage", args);
+}
+
+/**
+ * A new identity key pair, kept in the Worker; the seed comes out sealed.
+ * @returns {Promise<{ publicKey: string, sealedSeed: string }>}
+ */
+export function makeIdentity() {
+  return call("makeIdentity", {});
+}
+
 /**
  * Locks: ends the Worker, dropping the key and all it held.
  * @param {{ quiet?: boolean }} [options] quiet: don't tell the lock

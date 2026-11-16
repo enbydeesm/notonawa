@@ -43,7 +43,7 @@ scripts/ui/harness.mjs holds the shared parts: starting wrangler and Chrome, run
 scripts/ui/seed.mjs creates people, locations, plans and ties through the API, sealing notes in the page as the walkthrough already does.
 scripts/ui/chunks/*.mjs are the chunks:
 Chunk	Sections
-basics	headers, icons, sign-up, welcome, single-page app
+basics	headers, icons, sign-up, welcome tour, single-page app
 lock	locking and unlocking
 settings	menu and Settings
 people	People
@@ -68,3 +68,5 @@ npm run check:changed -- people plans: checks named areas, whatever changed. -- 
 npm run test:ui -- --only people,plans: chosen walkthrough chunks only.
 npm run check and npm run test:ui still run everything, before a release.
 
+Run npm run deploy:prod.
+Run node scripts/release-cleanup.mjs --dry-run --remote, then run it again without --dry-run.

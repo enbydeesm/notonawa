@@ -9,7 +9,7 @@
 // Ids start with "plan-": this dialog opens over views (People, Locations)
 // whose own forms use ids like #title, and the tie form opens over it.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, $, showMessage, privateField } from "./dom.js";
 import { choose } from "./dialog.js";
 import { capitalise } from "./format.js";
@@ -17,14 +17,14 @@ import { pickTags } from "./tag-picker.js";
 import { TIE_TYPES } from "./ties-view.js";
 import { ratingField, ratingHanks } from "./rope-rating.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { sealOne, forgetSearch } from "./vault.js";
+import { listItems, saveItem, archiveItem, restoreItem, deletePlan } from "./store/index.js";
 import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogIcon, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
 import { editTie } from "./tie-card.js";
-import { PLAN_TYPE_NAMES } from "./plans-view.js";
+import { PLAN_TYPE_NAMES, variationsOf } from "./plans-view.js";
 import { workshopLink } from "./workshop-link.js";
 
 /** @typedef {import("./plans-view.js").LinkedTie} LinkedTie */
@@ -79,6 +79,13 @@ function showPlanForm(plan, start, fromWorkshop) {
     const linked = h("details", { className: "fold", id: "plan-linked", hidden: true },
       h("summary", { id: "plan-linked-label" }, "Linked ties ", linkedCount),
       linkedList);
+    // The plans that are variations of this one, under "Variations (n)",
+    // folded, below the linked ties: titles only, most recently updated first.
+    const variationsCount = h("span", { className: "item-meta", id: "plan-variations-count" });
+    const variationsList = h("ul", { className: "linked-ties", id: "plan-variations-list", "aria-labelledby": "plan-variations-label" });
+    const variations = h("details", { className: "fold", id: "plan-variations", hidden: true },
+      h("summary", { id: "plan-variations-label" }, "Variations ", variationsCount),
+      variationsList);
     const visuals = visualSection({ item: plan ? { plan_id: plan.id } : null, idPrefix: "plan" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "plan-save" }, plan ? "Save changes" : "Add plan");
 
@@ -120,6 +127,7 @@ function showPlanForm(plan, start, fromWorkshop) {
         h("button", { type: "button", className: "label-add", id: "plan-add-tags", "aria-label": "Edit tags", title: "Edit tags", onclick: chooseTags }, "+")),
       tagList,
       linked,
+      variations,
       saveButton,
       message);
 
@@ -205,7 +213,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       try {
         if (!(await editTie(id))) return;
         changed = true;
-        const fresh = (await api("/api/plans?archived=all")).find((/** @type {any} */ p) => p.id === savedId);
+        const fresh = (await listItems("plans", "all")).find((/** @type {any} */ p) => p.id === savedId);
         if (fresh && dialog.open) showLinkedTies(fresh.linked_ties ?? []);
       } catch (err) {
         say("Couldn't open the tie: " + errorMessage(err), true);
@@ -213,14 +221,31 @@ function showPlanForm(plan, start, fromWorkshop) {
     }
 
     /**
+     * The plans that are variations of this one (archived ones marked), or
+     * the section hidden when there are none.
+     * @param {Record<string, any>[]} plans every plan, archived ones too
+     */
+    function showVariations(plans) {
+      const shown = variationsOf(plans, savedId);
+      variations.hidden = shown.length === 0;
+      variationsCount.textContent = `(${shown.length})`;
+      variationsList.replaceChildren(...shown.map((p) => h("li", { className: "linked-tie" },
+        h("span", { className: "linked-tie-title" }, p.title || "Untitled plan"),
+        p.archived_at ? h("span", { className: "item-meta" }, "Archived") : null)));
+    }
+
+    /**
      * "Variation of" lists active plans, except this one; editing a
      * variation of an archived plan keeps that link rather than losing it.
-     * The choice made (or the plan's) is kept.
+     * The choice made (or the plan's) is kept. The same list gives this
+     * plan's own variations.
      */
     async function loadVariations() {
       try {
-        const active = await api("/api/plans?archived=false");
+        const all = await listItems("plans", "all");
         if (!dialog.open && !document.body.contains(dialog)) return;
+        showVariations(all);
+        const active = all.filter((/** @type {any} */ p) => !p.archived_at);
         const untouched = !changes.changed();
         const chosen = variationSelect.value || plan?.variation_of || "";
         variationSelect.replaceChildren(h("option", { value: "" }, "N/A"),
@@ -270,12 +295,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       changes.busy(true);
       say("Saving…");
       try {
-        // The description, notes and album link are sealed here, on the device.
-        const body = await sealOne("plan", collect());
-        if (savedId) await api(`/api/plans/${encodeURIComponent(savedId)}`, { method: "PUT", body });
-        else savedId = /** @type {string} */ ((await api("/api/plans", { method: "POST", body })).id);
-        // A plan's title is searched in, with the ties it's on.
-        forgetSearch();
+        savedId = await saveItem("plans", savedId, collect());
         changed = true;
         if (visuals.waiting) {
           const problem = await visuals.savePending({ plan_id: /** @type {string} */ (savedId) });
@@ -303,8 +323,7 @@ function showPlanForm(plan, start, fromWorkshop) {
      */
     async function act(p, action, errorPrefix) {
       try {
-        await api(`/api/plans/${encodeURIComponent(p.id)}/${action}`, { method: "POST" });
-        forgetSearch();
+        await (action === "archive" ? archiveItem : restoreItem)("plans", p.id);
         changed = true;
         dialog.close();
       } catch (err) {
@@ -328,8 +347,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       });
       if (!choice) return;
       try {
-        await api(`/api/plans/${encodeURIComponent(p.id)}?linked_ties=${choice}`, { method: "DELETE" });
-        forgetSearch();
+        await deletePlan(p.id, /** @type {"remove" | "keep"} */ (choice));
         changed = true;
         dialog.close();
       } catch (err) {

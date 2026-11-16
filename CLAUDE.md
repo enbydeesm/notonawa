@@ -15,7 +15,8 @@ building live in [roadmap.md](roadmap.md).
   tested on its own.
 - **Lint, type check and test with every change**: run `npm run
   check:changed` after each change (add `-- --ui` when pages change), and
-  the full `npm run check` plus `npm run test:ui` before a release. Report
+  the full `npm run check` plus `npm run test:ui` and `npm run test:ui --
+  --format 2` before a release. Report
   the results faithfully, failures included. New behavior gets new tests; a
   bug fix gets a test that would have caught it. A new file goes in an area
   in `scripts/areas.mjs` (a unit test fails until it is).
@@ -51,7 +52,14 @@ building live in [roadmap.md](roadmap.md).
   passkeys are tied to `RP_ID` for good, so changing domain means everyone
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
-  account.
+  account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
+  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"2"` in
+  both since the release (phase 7)): the format new sign-ups start in.
+  `CONVERT_ON_UNLOCK` (`"1"` in both since the release): whether a format
+  1 account converts to format 2 at its next unlock (`GET /api/keys`'s
+  `convert`; one that has started converting carries on whatever it says).
+  The walkthrough's generated config sets both per `--format`, so its
+  format 1 accounts stay format 1.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -87,7 +95,10 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (the pages' CSP lives there); keep the shared headers the same in both.
   Pages stay `no-store`; `/js/*` and `app.css` are `no-cache` and
   `/img/*` is cached a week, so **a changed image needs a new file name**.
-  The logos are `.logo` backgrounds for the mode (`app.css`), AVIF.
+  The logo is `/img/logo-mark.svg` (the pencil) and `logo-word.svg` (the
+  name), cut from `logo.svg` on the same canvas, black drawings used as
+  masks over colors (`.logo`'s `::before` and `::after` in `app.css`):
+  `--text` in light mode, the pencil `--accent` in dark.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.
   `src/parse.js`: field parsers. `src/sql.js`: `NOW`.
 - `src/auth/`: sign-in. `session.js` (pure: tokens, hashes, expiry rules),
@@ -110,8 +121,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `parse.js`), deleting the account (`DELETE /api/account`: one cascading
   delete), and my settings (`GET`/`PUT /api/account/settings`: role names
   and light/dark mode (migration 0013), `seen_release`, the last release
-  notes shown (migration 0014), and `hide_welcome`, the welcome's "Don't
-  show this again" (migration 0015), and `default_shape`, the poser's
+  notes shown (migration 0014), and `hide_welcome`, whether I've finished
+  or skipped the welcome tour (migration 0015, for the welcome it replaced;
+  migration 0033 set it back to 0 for everyone), and `default_shape`, the poser's
   "Save as default" body for new poses (migration 0028, JSON); `settings.js`
   (pure) parses them).
 - `src/data/`: "Your data". `shape.js` (pure: the export document) and
@@ -181,6 +193,61 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   /api/visuals/order` with `{ tie_id | plan_id | workshop_id, order: [{
   kind: "media" | "drawing" | "pose", id }] }`: every visual, or it's
   refused). The kinds have no order routes of their own.
+- `src/records/`: sealed records, format 2 (migration 0032; built, no
+  account uses it yet). `parse.js` (pure: `KINDS`, the same as the page's
+  `RECORD_KINDS`; a batch's shape, `k2.`/`e2.` sealed, up to 50 and 1.5 MB
+  a body; `pageCut`), `db.js` (`syncPage`; `writeRecords`, one D1 batch:
+  `users.sync_seq` raised by the batch's size and each op given the next
+  seq, every op starting with an INSERT into `version_checks` that fails
+  the batch unless the record is at the version it was based on, and an
+  INSERT into `quota_checks` that does the same over 1 GB; a stale batch is
+  409 with the stale ids), `routes.js` (`GET /api/sync?since=&limit=`,
+  `POST /api/records`; both refuse a format 1 account unless it's
+  converting). A record's `version` rises by one per write and a deleted
+  id can't come back (triggers); deletion markers are kept for good.
+- `src/files/`: format v3 photos and videos in R2, `<owner>/files/<id>`;
+  the row has only sizes, nothing says which item a file is on (its key is
+  in the item's record). `parse.js` (pure: today's per-file limits;
+  `roomLeft`: while converting, format 1 media doesn't count toward the
+  1 GB), `db.js` (the quota checked in the insert), `storage.js`,
+  `routes.js` (`PUT /api/files/:id?kind=&thumb_bytes=`, `GET
+  /api/files/:id/thumb|full`, `GET /api/files` (ids and sizes, for the
+  device's orphan check), `POST /api/files/delete` with `{ ids }`; format 2
+  or converting only). The daily sweep (`media/storage.js`) keeps a file
+  object with a row.
+- `src/identity/`: my identity key, format 2 (`GET`/`PUT /api/identity`:
+  the X-Wing public key, plain, and its seed sealed `i1.`; set once,
+  replaced only with a fresh session). No route gives anyone else's key:
+  keys travel inside invites.
+- `src/mailboxes/`: where connected accounts' devices leave each other
+  sealed messages, format 2. `parse.js` (pure: ids and 32-byte tokens made
+  by the device; an intro (an invite's) lasts as long as the invite,
+  its choice sent as `expires`, "never" kept as `NEVER`; 100 waiting a mailbox, 1,000
+  mailboxes an account, 200,000 characters a message, 90 days unfetched),
+  `db.js` (only the token's hash kept; a `profile` message replaces one
+  waiting), `cleanup.js` (the daily job), `routes.js` (`POST
+  /api/mailboxes/:id/messages` with `{ token, slot?, body }`: no session,
+  routed in `index.js` before signing in is checked, cookies ignored,
+  `MAILBOX_RATE_LIMIT` per IP; a wrong token and no such mailbox are the
+  same 404. Signed in: `POST /api/mailboxes`, `DELETE /api/mailboxes/:id`,
+  `GET /api/mailboxes/messages`, `POST /api/mailboxes/messages/ack`).
+- `src/format.js` (pure): the format gate, applied in `index.js` to every
+  signed-in request after consent. The format 1 journal's routes refuse a
+  format 2 account (410 `{ reload: true }`) and, while converting, refuse
+  changes (409; GETs and the two POSTs that only read, `/api/ties/search`
+  and `/api/stats/ties`, still work). `/api/sync`, `/api/records`,
+  `/api/files` and `/api/identity` refuse format 1 unless converting;
+  mailboxes, format 1 always. `/api/locations/coords`, the account,
+  keys, shares, notices and the rest are either's. `newAccountFormat`
+  reads `NEW_ACCOUNT_FORMAT`.
+- `src/convert/`: converting an account to format 2 (the device does the
+  work). `db.js` (`V1_TABLES`, the format 1 journal in the order it's
+  deleted; `startConversion`; `finishConversion`, one batch: refused
+  unless converting and with at least one record, the media ids read,
+  `format = 2`, `converted_at`, and every `V1_TABLES` row of mine deleted,
+  children by cascade; connections and shares stay), `routes.js` (`POST
+  /api/convert/start` (once: again keeps the first time; 409 once format
+  2), `POST /api/convert/finish` (then the old photos' R2 objects)).
 - `src/cleanup.js`: the daily cron trigger (ended sessions, expired
   challenges; `index.js` also runs the share clean-up, the photo sweep
   (which checks share files too) and the backup, each carrying on if one
@@ -265,7 +332,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: which Google Maps links we accept, reading their coordinates),
   `resolve.js` (following a short link's redirects; `fetch` is passed in),
   `routes.js` (`POST /api/locations/coords` with `{ url }`; routed before
-  resources in `index.js`).
+  resources in `index.js`; the page sends only short links, reading full
+  ones itself).
 - `src/ties/`: ties (`parse.js`, `search.js` builds the list filters' SQL,
   `db.js`, `routes.js`). `POST /api/ties/search` (filters in the JSON body;
   a keyword is searched for on the device, which sends `match_ids`) is filtered and paged (20 per page by default)
@@ -364,22 +432,162 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   link too); people as names and roles, the
   sender marked; Drawings and poses and Photos and videos ticked
   separately, in one order, each photo a new file id; `shareFiles`), `share-item-dialog.js` (Share in a saved tie's, plan's or
-  workshop's dialog), `share-people.js` (pure: Who is this? suggestions for
+  workshop's dialog: what to share, then Send to connection (a search
+  over my connected people, `search-picker.js` with `canAdd: false`, then Send to …, and a "Sent to …" `tell()` whose OK closes the Share dialog) or
+  Share with link (how long, who, the tag, Make share link; 7 days by
+  default)), `share-people.js` (pure: Who is this? suggestions for
   each person, and the location's and plans' choices; a person is on an
   item once), `share-to-import.js` (pure: a shared item and the choices as
   an import, new items with `match: false`, mine filled in by id),
   `shared-by-me.js`
-  (Your data's list: Show code, Revoke; and Connections: Add to Person,
-  Remove), `views/open.js` (`/open`: opening a share, then
+  (Your data's Shared by me: Tag, Type, Expires in (`expiresIn`), an eye
+  for Show code and a red trash can to Revoke; and Connections: Person,
+  Via (`connectionVia`), Since, Add to a Person and Remove, both as
+  `data-grid.js`'s grids, as Account's passkeys (a pencil to rename) and
+  devices (sign out) are), `views/open.js` (`/open`: opening a share, then
   `open-profile.js` (adding a profile invite; Connect our accounts when it
-  offers to) or `open-item.js` (a tie, plan or workshop: Who is this?,
+  offers to; its field-by-field merge is `profile-merge.js`'s, shared with
+  `profile-update.js`, format 2's "Updated info available" in a linked
+  person's dialog: Save the fields chosen, or Ignore; People marks the
+  card "Updated info") or `open-item.js` (a tie, plan or workshop: Who is this?,
   Add to my journal through the import, Add another copy when it looks
   like it's there already; its photos' thumbnails, and each photo sealed
   as mine in the crypto Worker (`adoptShareFile`) and uploaded with
-  `photo-upload.js`'s `uploadSealed`)),
-  `crypto/vault-core.js` (what the crypto Worker does), `crypto-worker.js`
-  (the Worker itself), `vault.js` (the page's side of it: unlock, lock,
-  `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
+  the store's `uploadSealed`)),
+  format 2, built but not used yet (considerations.md, "Encrypt
+  everything: the formats"): `crypto/records.js` (pure: item keys
+  `k2.`, sealed bodies `e2.` padded to 256 bytes, bound to user, kind, id
+  and version; `RECORD_KINDS`), `crypto/files.js` (pure: v3 files, a key
+  each, every part in pieces), `crypto/identity.js` (pure: X-Wing key
+  pairs through `vendor/hpke.js`, the seed sealed `i1.`; the only file
+  that touches the library), `crypto/pair.js` (pure: the acceptance,
+  pair-key messages `m1.`, `acceptCounter`), `crypto/safety-number.js`
+  (pure: Signal's numeric fingerprint), `records/ids.js` (pure: random
+  ids, and conversion, "this is me" and settings ids by HMAC under the id
+  key, from the data key through `keys.js`'s `unwrapKeyMaterial`) and
+  `records/schema.js` (pure: each kind's fields and the checks on one
+  record), `records/parse.js` (pure: the server's field parsers, with its
+  messages, `BadEdit`; `stamp`, `compact`), converting (phase 5):
+  `convert/plan.js` (pure: a format 1 journal, as `store/v1/data.js`'s
+  `exportJournal` opens it, as format 2 records: `idRequests` (every id to
+  work out: by format 1 table and old id, tags by name, profile notes by
+  person and place), `planConversion` (one record per item, links and the
+  visuals' order folded in, "Me" and the settings at their fixed ids;
+  `keepWithinRules` moves a field that breaks a rule into `unconverted`),
+  `withFileKeys`; a unit test converts a journal and checks its format 2
+  export is format 1's) and `store/convert.js` (`convertJournal`: start,
+  read, plan, identity key, files (the Worker's `convertMedia`: a format 1
+  photo sealed as a v3 file; each read back), records in batches, read
+  back, finish; each step safe to repeat, an interrupted run picking up
+  where it got to; `stopAt` for tests), `convert/offer.js` (pure: when to
+  convert, `conversionWanted`; the progress's words) and `views/convert.js`
+  (the Convert view, `CONVERT` in `router.js`: shown by `app.js` in place
+  of the journal while converting, as Consent is, Your data and Account
+  still open; Update now, or "Continue on this device" for one already
+  started; `lock.js`'s `noteActivity` keeps it from locking part-way; then
+  `restartJournal()` opens it as format 2), `records/import.js` (pure:
+  format 1's import on the device: the server's parsing and messages,
+  matching people, locations and plans by name, new tags, duplicate ties
+  and workshops (the same but for their notes) for the page to compare; a
+  unit test imports an export back into an empty journal and into the
+  same one), `records/settings.js` (pure:
+  the settings record's role names and default body, with the server's
+  checks) and `records/edits.js` (pure:
+  a form's fields as a record, keeping fields the form hasn't, and the
+  rules across records the database kept for format 1: one default
+  location, "Me" not archived or deleted, a deleted person or location
+  left on ties and workshops as "(… deleted)", a plan's variation and
+  deletion (its ties' choice, its drawings, poses and files), a tie from
+  its form (`tieBody`: links checked to be mine, a person kept in the same
+  role keeping their entry, a plan its version, deleted links kept only
+  as the form says), a workshop from its form (`workshopBody`: educators
+  and participants one list, a person once), `workshopDeleted` (its ties
+  and plans unlinked), `linkedToWorkshop`, `itemDeletes` (an item's
+  drawings, poses and files);
+  each gives
+  the writes for one batch), `records/tags.js` (pure: tag names read as
+  the server does, matched to my tag records ignoring capitals, new ones
+  made in the same batch; a deleted tag taken off everything),
+  `records/visuals.js` (pure: an item's visuals as one ordered list in its
+  record, a file's entry with its key, kind, type and caption; adding,
+  captioning, removing (a cover that goes stops being one), ordering
+  (every one listed once), and format 1's media, drawings and poses rows),
+  the cache:
+  `cache/db.js` (IndexedDB `notonawa-<user id>`, opened in the crypto
+  Worker: the sealed rows, the highest version seen of each id and the
+  ids deleted, and `since`; `wipeCaches`, on signing out and deleting the
+  account), `cache/sync-rules.js` (pure: `planPage`, a sync page refusing
+  older versions and deleted ids; `mergeEdit`, a stale edit carried onto
+  the newer version, mine winning a clash; the `CacheDb` type),
+  `cache/orphans.js` (pure: files no record lists, a day old or more;
+  the journal deletes them after syncing, unless a record won't open),
+  `cache/sync.js` (the sync loop, run alone across tabs with Web Locks,
+  `webLock`), `cache/tabs.js` (a BroadcastChannel per account: which ids
+  changed, and locking together), and `store/v2/journal.js` (the journal
+  in memory: `startJournal` at every unlock reads `GET /api/keys`'s
+  `format`, and for format 2 opens the cache, syncs (waiting the first
+  time on a device) and makes "Me", the settings record and the identity
+  key if missing; `records`, `record`, `save` (one retry after a stale
+  write), `sync` (also on coming back to the tab), `onJournalChange`;
+  dropped on lock),
+  contacts (format 2, phase 6): `contacts/messages.js` (pure: the
+  acceptance and the messages "accepted", "profile" and "removed", read
+  strictly as they come from another account) and `contacts/rules.js`
+  (pure: the contact record at each step, "invited", "active", "removed";
+  pinning their key, a change clearing the verified mark; counters
+  reserved before sending; `asConnection`, a contact in the shape the
+  connection screens use) and `store/v2/contacts.js` (connecting:
+  `connectingInvite` (an intro mailbox lasting as the invite, the offer in
+  its snapshot as `connect`, an "invited" record keeping the share's link
+  key, tag and whether it's for one person, as a one-person invite is gone
+  from the server once opened), `acceptConnection` (my mailbox for them, a
+  pair key, the acceptance sent with `credentials: "omit"`),
+  `checkMailboxes` (under a Web Lock: an acceptance becomes a contact at
+  an id every device works out the same, answered "accepted"; a contact's
+  message applied once, its counter checked; a removal quiet, their About
+  taken off my card if asked; acknowledged once saved, kept if it
+  couldn't be fetched or saved), `watchMailboxes` (from `journal.js`
+  once synced: now, every 2 minutes in view, and on coming back),
+  `deleteConnection` ("removed" sent, errors ignored), `reserve` (a
+  counter saved before sending, tried again if another device won),
+  `inviteRevoked`, `connectingShares`; profile updates:
+  `sendProfileUpdates`, after saving "Me" (`v2/resources.js`) and at each
+  check, under a Web Lock, my profile built with each contact's kept
+  fields (`keptChoices`/`updateChoices`: aliases by value) and sent in the
+  `profile` slot only when it differs from `sent_profile`, which is saved
+  once it's gone; `pendingProfile`, `peopleWithUpdates`,
+  `profileUpdateDone`; verifying: `contactSafetyNumber` (both keys and
+  account ids, none until their account has answered), `contactStatus`,
+  `peopleWithChangedKeys`, `markVerified`, `verifyScanned`; sharing back:
+  `acceptConnection`'s `shareBack`, my profile in the acceptance and its
+  fields kept, and `shareProfileWith`, from a linked card later; the
+  store's `canShareBack()`, format 2 only), `share-back-dialog.js`
+  ("Share your profile back with …?" on accepting, Share and connect or
+  Connect without sharing; "Share my profile with …" from a linked
+  person's share icon), `profile-choices.js` (the name and tickboxes,
+  shared with Share my profile), the inviter's banner with a profile
+  shared back ("Your "Munch" share was accepted and Jude has connected
+  and shared their profile": New Person makes the card from it, Add to a
+  Person merges it in, `reviewProfileUpdate` with its own words); sending
+  to a connection: `sendToConnection` (a share for one use, 30 days, its
+  id and key sent in a "share" message; revoked if it can't be sent),
+  `receivedShares`, `receivedShareDone` (the contact's `inbox`,
+  `waitingShares` in `contacts/rules.js`), the banner "Alex sent you a
+  tie" with Open (`pending-share.js`'s `openSentShare`, then `/open` as a
+  link would) and Not now (until lock),
+  `contact-verify.js` (a linked person's Safety Number, a shield icon at
+  the left of the dialog's flags, "Account linked" and Unlink at the right;
+  "Updates available" is a badge by the heading: the 12 blocks, a
+  QR code of `/verify#<number>`, "They match: mark as verified", and the
+  warning once their key changed; People marks that card "Key changed")
+  and `views/verify.js` (`/verify`: a scanned number, taken out of the
+  address at once, marks the contact it's ours with verified, or warns
+  that it's none of them), `crypto/vault-core.js` (what the crypto Worker does; format 2's
+  `openCache`, `syncCache`, `readCache`, `saveRecords` (sealed, then POST
+  /api/records, then the cache) and `recordIds`, with `CacheIo`, how it
+  reaches the cache and the routes), `crypto-worker.js` (the Worker
+  itself: it fetches `/api/sync` and posts `/api/records` too), `vault.js`
+  (the page's side of it: unlock, lock, `addWrap`), `key-flows.js` (unlocking, setup, adding a passkey or recovery
   code with proof, sign-up, recovery), `search-match.js` (pure: keyword
   matching), `journal-fields.js` (pure: a whole export or import, kind by
   kind), `import-dedupe.js` (pure: import duplicates from candidates),
@@ -394,9 +602,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   link is waiting to be opened),
   `release-notes.js` (pure: the releases I haven't seen) and `whats-new.js`
   (the "What's new" dialog: from the menu, and once after an update),
-  `welcome-text.js` (generated from WELCOME.md by `scripts/welcome.mjs`)
-  and `welcome.js` (the welcome dialog: after each unlock, before What's
-  new, until "Don't show this again" is ticked), `feedback-dialog.js` (the
+  `tour.js` (the welcome tour: one modal dialog over the window, a welcome
+  card, a ring round each nav icon in turn with its card under the nav,
+  Account Recovery, then "That's a wrap!"; Esc is Skip tour; the dim, its
+  hole, the ring and the pointer are SVG drawn from the icon's place, so no
+  style attribute is needed; after each unlock, before What's new, until
+  it's finished or skipped (`hide_welcome`), and from the menu's Tutorial),
+  `tour-steps.js` (pure: its stops, what each points at, and their words)
+  and `tour-layout.js` (pure: the ring round an icon, kept on screen, and
+  the pointer's place), `feedback-dialog.js` (the
   "Bug and feedback" form, with a `mailto:` link for screenshots and
   replies),
   `photo-fit.js` (pure:
@@ -407,9 +621,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   nothing of the original copied, no tags or track names; loaded only once
   a video is chosen), `drag-order.js` (pure: dragging photos into order),
   `photo-urls.js` (every `blob:` URL for a decrypted photo, revoked on
-  lock), `photo-upload.js` (sealing and uploading one prepared photo or
-  video and its caption; used by the Visuals section and import),
-  `visuals-ui.js` (a form's Visuals section, on ties, plans and workshops:
+  lock), `visuals-ui.js` (a form's Visuals section, on ties, plans and workshops:
   photos and videos, drawings and poses in one grid and one order, each
   tile outlined in its kind's chart color with a key beside the label;
   + opens "Add a visual from…"; each kind's own part is in `photos-ui.js`,
@@ -462,7 +674,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   like the presets), `pose-skeleton.js` (the bones posed, with three.js's math
   only: where a joint or rope point is; the Hips joint turning the pelvis
   about the point between the hip joints, and `withHips`/`withHipsOn`,
-  its sliders' change keeping the legs and the body's lowest point; tested), `pose-cinch.js` (a
+  its sliders' change keeping the legs, the trunk above the waist (`HIPS_KEEP`) and the body's lowest point; tested), `pose-cinch.js` (a
   cinch's points pulled in and the uplines' bends, an added rope's start
   on the rope as drawn, ropes drawn in runs, hanging stretches straight or
   sagging with slack; three.js's math only, tested), `pose-gravity.js`
@@ -473,7 +685,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (moving the body to keep uplines' lengths: a cinch's "Move the body",
   see-saw ropes; a cinch round the body drawing the parts it's tied to
   together; a two-point rope's Length, `setRopeLength`, shorter moving the
-  body, longer as slack; the drag solver's method, tested), `pose-marks.js` (pure:
+  body, longer as slack; the drag solver's method, tested), `pose-uplines.js`
+  (an upline's Length, `setUplineLength`: shorter raises the limb or the
+  whole body, longer lowers it to the floor, the rest slack; the other
+  taut uplines keep their lengths; tested), `pose-hang.js` (`hang`: a body
+  in the air, as one piece, settled where its weight (`weightMiddle`, from
+  its capsules) is lowest with every taut upline at its length; after an
+  upline's Length changes, and the Rope tab's Dangle; tested), `pose-surface.js`
+  (rope on the skin: `alongSkin`, the way round a part between two of a
+  rope's points, on the body's capsules, as `ropeRuns` draws it; `wrapRound`,
+  a Wrap's points, on the real skin when the view measures it,
+  `skinMeasure`; tested), `pose-marks.js` (pure:
   the pencil's marks, in view units, never saved) and `pose-marks-ui.js`
   (their layer over the view, and drawing them onto a picture),
   `pose-scene.js` (the 3D view, with `vendor/three.js`, the jute hanging
@@ -482,7 +704,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   and the pencil (a switch over any tab) on the view, and ▲▼
   beside each slider; `pose-scene-panel.js` (the Scene tab: Hardpoint |
   Body shape, Save as my model, Load default, Reset), `pose-rope-panel.js`
-  (the chosen rope's panel: Cinch, Slide, Add rope and one setting's box)
+  (the chosen rope's panel: Cinch, Slide, Add rope and one setting's box;
+  on the view, the chosen rope's white dots move a point when dragged and
+  take it out when tapped, and Wrap, under undo and redo, lays turns)
   and `pose-hints.js` (pure: the view's hint and the Rope tab's help); "Add to visuals" puts a picture of the pose, with
   any pencil marks showing, in the item's visuals as a photo), `poses-ui.js`
   (poses: the poser, their pictures, and the viewer),
@@ -518,7 +742,75 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/vendor.mjs`, never edited; their `.d.ts` beside them; three.js
   is bundled there from only the parts in `scripts/vendor/three-entry.mjs`,
   with our own types, `scripts/vendor/three.d.ts`), `lock-rules.js` (pure) and `lock.js`
-  (locking by itself), `api.js`, `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
+  (locking by itself), `api.js`, `store/` (every journal read and write
+  goes through `store/index.js`, never `api()` directly (an ESLint rule
+  refuses a journal route, or `/api/` and a variable, outside it): plain text in,
+  opened rows out, sealing, opening and the keyword search done inside;
+  `v1/` is today's API, one file per feature, e.g. `v1/ties.js`
+  (`findTies`, `getTie`, `saveTie`, `deleteTie`, `recentOnTies`) and
+  `v1/resources.js` (plans, people and locations by kind: `listItems`,
+  `saveItem`, `archiveItem`, `restoreItem`, `deleteItem`, `deletePlan`
+  with the linked ties' choice) and `v1/workshops.js`
+  (`listWorkshops`, `getWorkshop`, `saveWorkshop`, `deleteWorkshop`,
+  `linkToWorkshop`), `v1/media.js` (photos and videos: `uploadPhoto`,
+  sealing and uploading one prepared photo or video and its caption,
+  `uploadSealed`, `listMedia`, `setMediaCaption`, `deleteMedia`, and,
+  both formats through the store, `openMediaPart` (a part opened in the
+  Worker), `copyMediaTo` (Copy to…), `shareFileObject` (one sealed again
+  with a share's link key, for share-save.js) and `adoptSharedMedia` (a
+  share's added to one of my items, for open-item.js)),
+  `v1/drawings.js` (drawings and poses alike: `listDrawings`,
+  `addDrawing`, `updateDrawing`, `deleteDrawing` and the same for poses),
+  `v1/visuals.js` (`setVisualOrder`) and `v1/presets.js` (poser presets,
+  kept in memory by `pose-presets.js`), `v1/tags.js`, `v1/stats.js`
+  (`statsTies`), `v1/settings.js` (`getSettings`, `saveSettings`; kept in
+  memory by `settings.js`), `v1/data.js` (export and import, passing
+  today's sealed shapes through: `exportSealed`, `importItems`,
+  `importTies`, `importWorkshops`; `exportJournal`, both formats: the
+  whole journal opened, captions too, with the count left out;
+  `sealImport`, both formats: an import's fields sealed before sending
+  for format 1, left plain for format 2) and `v1/connections.js`; `v2/` is
+  format 2's, over the journal in memory (`v2/journal.js`), chosen when
+  each function is called by the account's format (`byFormat` in
+  `index.js`; an area not yet built for v2 is v1's only):
+  `v2/resources.js` (plans, people and locations), `v2/tags.js`,
+  `v2/ties.js` (the keyword searched in memory, `search-match.js` over
+  `queries/ties.js`'s `searchIndex`), `v2/stats.js`,
+  `v2/workshops.js`, `v2/visuals.js` (photos and videos as v3 files: sealed
+  by `vault.sealFile`, uploaded with `PUT /api/files/:id`, then listed on
+  their item; removed from the item, then the file deleted; drawings and
+  poses as records listed in their item's visuals, one save each; the
+  order; a file's entry keeps its `bytes`; a share's files through the
+  Worker's `reshareFile` and `adoptShareAsFile`), `v2/connections.js`
+  (contacts.js's, as the v1 functions; `profileInvite`, through
+  `connectingInvite` when it offers to connect; `offerIn`: an opened
+  share's offer only from the snapshot, so formats connect only to their
+  own, as v1's takes only the server's token), `v2/presets.js` (records, 50 at most; ones saved together
+  keep their `order`), `v2/settings.js` (role names and the poser's
+  default body in the settings record, the rest on the server, given as
+  one) and `v2/data.js` (`exportJournal`: the server's export for the
+  account part, the journal from the records; `importItems`,
+  `importTies`, `importWorkshops`: format 1's requests and answers,
+  worked out by `records/import.js` and saved as records), with the
+  pages' rows made by the pure `queries/`
+  (`queries/workshops.js`: format 1's `WORKSHOP_COLUMNS`, a unit test
+  checks, educators and participants with link ids `w<n>`, the linked
+  plans A–Z then ties oldest first, newest first; `queries/ties.js`: the Ties search's
+  filters (`readTieFilters`, the server's messages), order and paging, a
+  tie's row (format 1's `TIE_COLUMNS`, a unit test checks; each person's
+  and plan's entry with a link id, `p<n>`/`l<n>`, its place in the record,
+  for the form's `keep_deleted`), `recentOn` and Analytics' `statsRows`;
+  `queries/resources.js`,
+  `queries/plans.js` (tags by name, linked ties newest first, the
+  workshop's title, visuals counted), `queries/export.js` (the export's
+  journal in format 1's shape, a unit test comparing the two from the same
+  journal) and `queries/tags.js` (most recently
+  on a tie first, with counts): format 1's columns, unit tests check, and
+  order); and `maps.js`, both formats'
+  `mapLinkCoords`: a full Google Maps link read on the device
+  (`public/js/maps.js`, a copy of `src/locations/maps.js` kept the same by
+  a unit test), only a short link sent to `POST /api/locations/coords` to
+  be followed), `dom.js` (`h`, `$`, `privateField`, `infoButton`, `infoTip` (a "?" and
   the explanation it shows), `removeX` (the small × on a chosen value's
   corner, like a tag's), `opensOnTap`: a list's
   card opens when tapped anywhere, its title still the button), `dialog.js` (`choose`),
@@ -544,7 +836,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide, pinned to the top (sticky); the + button and the ☰ menu panel: Settings, Account, Your
-  data, Tutorial (the welcome again, for now), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Tutorial (the welcome tour), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
@@ -657,9 +949,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `scripts/ui/chunks/` (`UI_CHUNKS` in `scripts/areas.mjs`), each from a new
   account of its own (`freshAccount()`), seeded where it needs one with
   `scripts/ui/seed.mjs` (what the People, Locations, Plans and Ties chunks
-  make, through the API), so any chunk runs alone. `scripts/ui/harness.mjs`
-  starts wrangler and Chrome and has the helpers (`run`, `go`, `check`,
-  `sql`). A check that relies on another chunk's data seeds it instead.
+  make, through the store), so any chunk runs alone. `scripts/ui/harness.mjs`
+  starts wrangler and Chrome and has the helpers (`useTab(name)`: drive
+  another tab, a browser context of its own with its own passkey and
+  recovery code, for two accounts at once (the contacts chunk); every
+  chunk starts in "main"; `run`, `go`, `check`,
+  `sql`; in the page, `store`: the app's own store module, so a check reads
+  and changes the journal the same way on either format, never through
+  format 1's routes; `plainOnServer(text)`: whether text is anywhere the
+  server keeps the journal in plain text; `rawPart(id, part)`: a photo's
+  part as stored; `FORMAT` for the few checks that differ). Every chunk
+  runs on format 1 or format 2 accounts (`--format`, `NEW_ACCOUNT_FORMAT`
+  in the generated config). A check that relies on another chunk's data seeds it instead.
   Chunks run 3 at a time by default (`--jobs`): each batch (`batches()` in
   `scripts/areas.mjs`, sharing them out by `UI_SECONDS`) in its own copy of
   the script, with its own database, app and Chrome on its own ports
@@ -679,12 +980,12 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Commands
 
 - `npm run check`: lint + type check + tests, and checks `public/privacy.html`
-  matches PRIVACY.md, the release files match VERSION and RELEASES.md, the welcome
-  matches WELCOME.md and `public/js/vendor/` matches node_modules. Run before a release.
+  matches PRIVACY.md, the release files match VERSION and RELEASES.md and
+  `public/js/vendor/` matches node_modules. Run before a release.
 - `npm run check:changed [-- <area>…] [-- --ui] [-- --jobs N] [-- --list]`: lint, type
   check and every Vitest test (about 1½ minutes), then (with `--ui`) only
   the walkthrough chunks of the areas changed since the last commit, or of
-  the areas named. A shared file, or one in no area, runs every chunk. `--list` shows what it would
+  the areas named, on format 1 then format 2 accounts. A shared file, or one in no area, runs every chunk. `--list` shows what it would
   run. Run after every change.
 - `npm run deploy:prod` / `npm run deploy:dev`: deploy (`scripts/deploy.mjs`), always
   this way rather than `npx wrangler deploy`. Every deploy gets a new
@@ -702,9 +1003,6 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `## Next` heading at the top (`- ` bullets), left out of the app until
   a deploy names it; releases are newest first, none newer than `VERSION`.
   Never edit `VERSION` by hand.
-- `node scripts/welcome.mjs`: rebuild `public/js/welcome-text.js` after
-  editing WELCOME.md (the welcome dialog's text: a heading, paragraphs, a
-  list, **bold**, *italics*; email addresses become links).
 - `scripts/figure/` (Python, with Anny and PyTorch kept outside the repo;
   see its README): rebuild the poser's body, `public/figure/body-*.bin` and
   `public/js/figure-body-data.js`. A changed body needs a new file name.
@@ -734,6 +1032,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   dev` (refusing `--dev` with `--remote` or `--persist-to`), and the
   wrangler commands name the database by its binding, `DB`, so the same
   command works for every target. Dev backups are named `notonawa-dev-…`.
+- `node scripts/release-cleanup.mjs [--dry-run] [--remote | --dev]`: run
+  once after the release's deploy (phase 7). Makes format 1 accounts with
+  nothing in their journal format 2 straight away, deleting their plain
+  "Me"; then deletes format 1's connections and offers to connect (format
+  2 keeps none on the server; the cards stay, unlinked) and stops old
+  invites offering to connect. The SQL is in
+  `scripts/release-cleanup-lib.mjs`, tested in
+  `test/api/release-cleanup.test.js`. `--dry-run` counts what it would do.
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks, has a recovery
@@ -743,8 +1049,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   computer, in `backups/`; deletes ones older than 30 days when it runs.
   `node scripts/restore-backup.mjs <file>` decrypts one, or one of the
   daily backups (`.json.gz.enc`, with the backup private key).
-- `npm run test:ui [-- --only people,plans] [-- --jobs N] [-- --list]`: UI
-  walkthrough in headless Chrome on throwaway databases (with a generated
+- `npm run test:ui [-- --only people,plans] [-- --jobs N] [-- --format 2] [-- --list]`: UI
+  walkthrough in headless Chrome on throwaway databases, its accounts
+  format 1 (or format 2 with `--format 2`) (with a generated
   copy of `wrangler.jsonc` whose sign-in rate limit is higher, as every
   page load there locks and unlocks): every chunk, or the ones named, 3 at
   a time (`--jobs 1`: one at a time, with output as it happens; use it to
@@ -757,7 +1064,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
 ### Data rules
 
 - **Scope every query to the signed-in user** with `owner_id = ?` bound to
-  `user.id`. Users are keyed by `users.id`. `users.email` is a leftover that
+  `user.id`. `getUser` also gives the account's `format` (1 or 2) and
+  whether it's `converting` (migration 0032); `src/format.js` decides which
+  routes each may use. Users are keyed by `users.id`. `users.email` is a leftover that
   just holds the id (see migration 0003); never read it or put anything in it.
 - **Ownership is also enforced in the database**: triggers reject linking rows
   that belong to different users, and `owner_id` can't change. Errors start
@@ -798,13 +1107,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   cleared when the connection goes. Import keeps it only for one of my
   connections not already on someone (`links_dropped` counts the rest).
 - **Every journal has a "this is me" profile**, named "Me" when the account
-  is made (`newUserStatements`; migration 0005 added one to older accounts).
+  is made (`newUserStatements`, format 1; migration 0005 added one to older accounts).
   It can be renamed, but not archived or deleted (the API refuses: the tie
   form, Calendar, Analytics and Education rely on it), and edits can't change who it
   is (`is_self` is `createOnly` in `src/resources/config.js`; only adding a
   person, or an import into a journal without one, sets it). A unique index
   allows at most one. The People form shows "This is me" only on it, ticked
   and greyed out, and the People list keeps it at the top.
+  A format 2 account has no `people` row for it: its device writes "Me"
+  as a record, with an id from `selfId` (`records/ids.js`).
 - **At most one default location** (`locations.is_default`, migration 0011;
   a unique partial index per owner). Setting one clears the old one in the
   same batch; archiving clears it, and an archived location can't be made
@@ -961,8 +1272,11 @@ change affects what's collected, stored, readable or kept, update it too.
   Never add a Worker operation that returns the key, or that wraps it
   without proof (an existing wrap and its secret, given just now). The
   encrypted notes' operations work on whole records, never a general
-  decrypt. Nothing decrypted goes to localStorage, sessionStorage,
-  IndexedDB or a cache. Anything that ends the session or signs out must
+  decrypt; format 2's open whole records only. Nothing decrypted goes to
+  localStorage, sessionStorage, IndexedDB or a cache: the format 2 cache
+  holds records sealed, as the server does. Inside an IndexedDB
+  transaction, await nothing but its own requests (Safari and Firefox end
+  it otherwise). Anything that ends the session or signs out must
   `lock()`.
 - **Sensitive account changes need a fresh session** (`isFresh`: signed in in
   the last 10 minutes): adding or removing a passkey, replacing the recovery

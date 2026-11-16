@@ -4,7 +4,7 @@
 // offered there only once it's marked too, and a workshop with me as an
 // educator is one I taught.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, $, showMessage, privateField, removeX, infoTip } from "./dom.js";
 import { choose } from "./dialog.js";
 import { today } from "./format.js";
@@ -21,12 +21,15 @@ import { editTie } from "./tie-card.js";
 import { openPlanForm } from "./plan-form.js";
 import { formatDate } from "./format.js";
 import { WEB_LINK_PATTERN, webLinkOrNull } from "./links.js";
-import { sealOne, open } from "./vault.js";
+import { open } from "./vault.js";
 import { visualSection } from "./visuals-ui.js";
 import { openShareItem } from "./share-item-dialog.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
+import {
+  recentOnTies, listItems, listWorkshops, getWorkshop, saveWorkshop, deleteWorkshop, linkToWorkshop,
+} from "./store/index.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -54,7 +57,7 @@ export function openWorkshopForm(workshop = null, { start } = {}) {
  * @returns {Promise<boolean>}
  */
 export async function editWorkshop(id) {
-  const [workshop] = await open("workshop", [await api(`/api/workshops/${encodeURIComponent(id)}`)]);
+  const workshop = await getWorkshop(id);
   return openWorkshopForm(workshop);
 }
 
@@ -306,7 +309,7 @@ function showWorkshopForm(workshop, start) {
     async function reloadLinked() {
       if (!savedId) return;
       try {
-        const [fresh] = await open("workshop", [await api(`/api/workshops/${encodeURIComponent(savedId)}`)]);
+        const fresh = await getWorkshop(savedId);
         current = fresh;
         showLinked(fresh.linked ?? []);
       } catch (err) {
@@ -322,7 +325,7 @@ function showWorkshopForm(workshop, start) {
           await editTie(item.id);
         } else {
           // As the Plans view opens one: from the list, opened on the device.
-          const plans = await api("/api/plans?archived=all");
+          const plans = await listItems("plans", "all");
           const found = plans.find((/** @type {any} */ p) => p.id === item.id);
           if (!found) throw new Error("It's no longer there.");
           const [plan] = await open("plan", [found]);
@@ -344,7 +347,7 @@ function showWorkshopForm(workshop, start) {
         if ("target" in choice) {
           const { kind, id } = choice.target;
           const body = kind === "tie" ? { tie_id: id } : { plan_id: id };
-          await api(`/api/workshops/${encodeURIComponent(savedId)}/links`, { method: "POST", body });
+          await linkToWorkshop(savedId, body);
         } else if (choice.create === "tie") {
           const w = /** @type {Parameters<typeof tieFromWorkshop>[0]} */ (current);
           await openTieForm(null, { fromWorkshop: { ...tieFromWorkshop(w, today()), title: choice.title } });
@@ -374,13 +377,13 @@ function showWorkshopForm(workshop, start) {
         // it instead of adding a second one. People are opened, for their
         // aliases (searched too).
         const [people, locations, recentPeople, recentLocations, mine] = await Promise.all([
-          api("/api/people?archived=all").then((rows) => open("person", rows)),
-          api("/api/locations?archived=all"),
-          api("/api/ties/recent/people"),
-          api("/api/ties/recent/locations"),
+          listItems("people", "all"),
+          listItems("locations", "all"),
+          recentOnTies("people"),
+          recentOnTies("locations"),
           // A new one's currency starts as the last one used (sealed, so
           // only the device can tell which).
-          workshop ? Promise.resolve([]) : api("/api/workshops").then((rows) => open("workshop", rows)),
+          workshop ? Promise.resolve([]) : listWorkshops(),
         ]);
         // Filled in place: the pickers already hold these objects.
         Object.assign(sources.people, pickerSource(people, recentPeople));
@@ -457,7 +460,7 @@ function showWorkshopForm(workshop, start) {
       if (choice !== "delete" || !workshop) return;
       showMessage(message, "Deleting…");
       try {
-        await api(`/api/workshops/${encodeURIComponent(workshop.id)}`, { method: "DELETE" });
+        await deleteWorkshop(workshop.id);
         saved = true;
         dialog.close();
       } catch (err) {
@@ -510,10 +513,7 @@ function showWorkshopForm(workshop, start) {
       changes.busy(true);
       showMessage(message, "Saving…");
       try {
-        // The description, notes and album link are sealed here, on the device.
-        const body = await sealOne("workshop", collect());
-        if (savedId) await api(`/api/workshops/${encodeURIComponent(savedId)}`, { method: "PUT", body });
-        else savedId = (await api("/api/workshops", { method: "POST", body })).id;
+        savedId = await saveWorkshop(savedId, collect());
         saved = true;
         if (visuals.waiting) {
           const problem = await visuals.savePending({ workshop_id: /** @type {string} */ (savedId) });

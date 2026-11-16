@@ -15,7 +15,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
-  "share-items",
+  "share-items", "convert", "contacts",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -25,7 +25,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65, "share-items": 45,
+  shares: 65, "share-items": 45, convert: 40, contacts: 60,
 };
 
 /**
@@ -58,14 +58,16 @@ export function batches(chunks, jobs, seconds = UI_SECONDS) {
 export const SHARED = [
   "package.json", "package-lock.json", "wrangler.jsonc", "worker-configuration.d.ts", "vitest.config.js",
   "tsconfig.json", "public/tsconfig.json", "eslint.config.js", "migrations/",
-  "src/index.js", "src/errors.js", "src/http.js", "src/parse.js", "src/sql.js", "src/security-headers.js",
+  "src/index.js", "src/format.js", "src/errors.js", "src/http.js", "src/parse.js", "src/sql.js", "src/security-headers.js",
   "src/encryption/config.js",
   "public/index.html", "public/app.css", "public/_headers",
   "public/js/app.js", "public/js/api.js", "public/js/dom.js", "public/js/dialog.js", "public/js/dialog-icons.js",
   "public/js/form-changes.js", "public/js/router.js",
   "public/js/navigate.js", "public/js/nav.js", "public/js/format.js", "public/js/vault.js",
   "public/js/crypto-worker.js", "public/js/crypto/fields.js", "public/js/crypto/keys.js",
-  "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc",
+  "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc", "public/js/store/index.js",
+  // The cache and the journal in memory: opened at every unlock (format 2).
+  "public/js/cache/", "public/js/store/v2/journal.js",
 ];
 
 /** The tests and their helpers: Vitest runs them all anyway, so a change runs no chunk. */
@@ -85,7 +87,7 @@ export const IGNORED = [
  *   name: string,
  *   files: string[],
  *   ui: string[],
- *   generated?: ("privacy" | "releases" | "welcome" | "vendor")[],
+ *   generated?: ("privacy" | "releases" | "vendor")[],
  * }} Area
  *
  * generated: the generated-file checks (`--check`) its files feed.
@@ -112,14 +114,13 @@ export const AREAS = [
     ui: ["lock", "photos"],
   },
   {
-    name: "welcome",
-    files: ["public/js/welcome.js", "public/js/welcome-text.js", "scripts/welcome.mjs", "scripts/welcome-lib.mjs", "WELCOME.md"],
-    ui: ["basics"],
-    generated: ["welcome"],
+    name: "tour",
+    files: ["public/js/tour.js", "public/js/tour-steps.js", "public/js/tour-layout.js"],
+    ui: ["basics", "settings"],
   },
   {
     name: "settings",
-    files: ["src/account/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
+    files: ["src/account/settings.js", "public/js/store/v1/settings.js", "public/js/store/v2/settings.js", "public/js/settings.js", "public/js/settings-dialog.js", "public/js/theme.js",
       "public/js/theme-init.js", "public/js/roles.js"],
     ui: ["settings", "people", "ties", "insights"],
   },
@@ -137,8 +138,10 @@ export const AREAS = [
   },
   {
     name: "account",
-    files: ["src/account/", "public/js/views/account.js"],
-    ui: ["account"],
+    // data-grid.js: the passkeys' and devices' grids, and Your data's Shared
+    // by me and Connections (the shares chunk).
+    files: ["src/account/", "public/js/views/account.js", "public/js/data-grid.js"],
+    ui: ["account", "shares"],
   },
   {
     name: "consent",
@@ -160,7 +163,8 @@ export const AREAS = [
   },
   {
     name: "resources",
-    files: ["src/resources/", "public/js/resource-page.js"],
+    files: ["src/resources/", "public/js/resource-page.js", "public/js/store/v1/resources.js", "public/js/store/v2/resources.js",
+      "public/js/store/queries/resources.js", "public/js/store/queries/plans.js"],
     ui: ["people", "locations", "plans", "deleting"],
   },
   {
@@ -171,7 +175,7 @@ export const AREAS = [
   },
   {
     name: "locations",
-    files: ["src/locations/", "public/js/views/locations.js"],
+    files: ["src/locations/", "public/js/views/locations.js", "public/js/maps.js", "public/js/store/maps.js"],
     ui: ["locations"],
   },
   {
@@ -181,14 +185,15 @@ export const AREAS = [
   },
   {
     name: "tags",
-    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js"],
+    files: ["src/tags/", "public/js/tag-picker.js", "public/js/tags.js", "public/js/store/v1/tags.js", "public/js/store/v2/tags.js",
+      "public/js/store/queries/tags.js"],
     ui: ["plans", "ties", "search", "education"],
   },
   {
     name: "ties",
     files: ["src/ties/", "public/js/tie-form.js", "public/js/search-picker.js", "public/js/search-choices.js",
       "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/ties-view.js", "public/js/views/ties.js",
-      "public/js/links.js", "public/js/person-rows.js"],
+      "public/js/links.js", "public/js/person-rows.js", "public/js/store/v1/ties.js", "public/js/store/v2/ties.js", "public/js/store/queries/ties.js"],
     ui: ["ties", "plans", "search", "notes", "deleting", "education"],
   },
   {
@@ -196,7 +201,7 @@ export const AREAS = [
     name: "education",
     files: ["src/workshops/", "public/js/views/education.js", "public/js/workshop-form.js", "public/js/workshop-card.js",
       "public/js/workshops-view.js", "public/js/person-rows.js", "public/js/currency.js",
-      "public/js/workshop-link.js"],
+      "public/js/workshop-link.js", "public/js/store/v1/workshops.js", "public/js/store/v2/workshops.js", "public/js/store/queries/workshops.js"],
     ui: ["education"],
   },
   {
@@ -206,13 +211,15 @@ export const AREAS = [
   },
   {
     name: "encryption",
-    files: ["src/encryption/", "public/js/seal-leftovers.js"],
+    files: ["src/encryption/", "public/js/seal-leftovers.js", "public/js/vendor/hpke.js", "public/js/vendor/hpke.d.ts",
+      "scripts/vendor/hpke-entry.mjs", "scripts/vendor/hpke.d.ts", "scripts/vendor.mjs"],
     ui: ["notes"],
+    generated: ["vendor"],
   },
   {
     name: "photos",
     files: ["src/media/", "public/js/crypto/media.js", "public/js/photo-fit.js", "public/js/photo-prep.js",
-      "public/js/photo-upload.js", "public/js/photo-urls.js", "public/js/photos-ui.js",
+      "public/js/store/v1/media.js", "public/js/photo-urls.js", "public/js/photos-ui.js",
       "public/js/drag-order.js", "public/js/tile-drag.js", "public/js/video-fit.js", "public/js/video-prep.js", "public/js/vendor/",
       "scripts/vendor.mjs"],
     ui: ["photos", "data", "education"],
@@ -222,7 +229,7 @@ export const AREAS = [
     // Shares: profile invites, their codes, Shared by me, opening one, and
     // the connections between accounts they can make.
     name: "shares",
-    files: ["src/shares/", "src/connections/", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
+    files: ["src/shares/", "src/connections/", "public/js/store/v1/connections.js", "public/js/store/v2/connections.js", "public/js/crypto/share.js", "public/js/share-options.js", "public/js/profile-share.js",
       "public/js/contact-merge.js", "public/js/pending-share.js", "public/js/qr.js", "public/js/share-code.js",
       "public/js/share-profile-dialog.js", "public/js/shared-by-me.js", "public/js/views/open.js",
       "public/js/connections.js", "public/js/connection-text.js", "public/js/connection-banner.js",
@@ -234,6 +241,7 @@ export const AREAS = [
     name: "drawings",
     files: ["src/drawings/", "public/js/drawing-format.js", "public/js/drawing-edit.js", "public/js/drawing-svg.js",
       "public/js/drawing-editor.js", "public/js/drawing-copy.js", "public/js/drawings-ui.js", "public/js/import-drawings.js",
+      "public/js/store/v1/drawings.js",
       "public/js/tile-drag.js", "public/js/tool-icons.js", "public/js/item-targets.js", "public/js/add-to-choices.js"],
     ui: ["drawings", "data"],
   },
@@ -243,21 +251,24 @@ export const AREAS = [
       "public/js/pose-scene.js", "public/js/pose-editor.js", "public/js/pose-ik.js", "public/js/poses-ui.js",
       "public/js/import-poses.js", "src/pose-presets/", "public/js/pose-presets.js", "public/js/pose-presets-ui.js", "public/js/preset-picker.js", "public/js/preset-list.js",
       "public/js/drawing-copy.js", "public/js/tile-drag.js", "public/js/tool-icons.js", "scripts/vendor/",
-      "public/js/pose-cinch.js", "public/js/pose-gravity.js", "public/js/pose-constraints.js", "public/js/pose-marks.js", "public/js/pose-marks-ui.js",
+      "public/js/pose-cinch.js", "public/js/pose-gravity.js", "public/js/pose-constraints.js", "public/js/pose-uplines.js", "public/js/pose-hang.js", "public/js/pose-surface.js", "public/js/pose-marks.js", "public/js/pose-marks-ui.js",
       "public/js/figure-body.js", "public/js/figure-body-data.js", "public/figure/", "scripts/figure/", "public/js/pose-skinning.js", "public/js/joint-limits.js", "public/js/pose-contact.js", "public/js/wake-lock.js",
       "public/js/standalone-poser.js", "public/js/add-to-picker.js", "public/js/add-to-choices.js", "public/js/item-targets.js",
-      "public/js/new-entry-start.js", "public/js/pose-hints.js", "public/js/pose-scene-panel.js", "public/js/pose-rope-panel.js"],
+      "public/js/new-entry-start.js", "public/js/pose-hints.js", "public/js/pose-scene-panel.js", "public/js/pose-rope-panel.js",
+      "public/js/store/v1/drawings.js", "public/js/store/v1/presets.js",
+      "public/js/store/v2/presets.js"],
     ui: ["poses", "data"],
     generated: ["vendor"],
   },
   {
     name: "visuals",
-    files: ["src/visuals/", "public/js/visuals-ui.js", "public/js/visual-viewer.js", "public/js/visual-order.js", "public/js/visual-icons.js"],
+    files: ["src/visuals/", "public/js/visuals-ui.js", "public/js/visual-viewer.js", "public/js/visual-order.js", "public/js/visual-icons.js",
+      "public/js/store/v1/visuals.js", "public/js/store/v2/visuals.js"],
     ui: ["photos", "drawings", "poses", "data"],
   },
   {
     name: "data",
-    files: ["src/data/", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
+    files: ["src/data/", "public/js/store/v1/data.js", "public/js/store/v2/data.js", "public/js/store/queries/export.js", "public/js/views/data.js", "public/js/csv.js", "public/js/import-csv.js",
       "public/js/import-steps.js", "public/js/import-dedupe.js", "public/js/import-photos.js",
       "public/js/journal-fields.js", "public/js/zip.js", "public/js/download.js", "public/import-template.csv",
       "public/js/import-presets.js"],
@@ -266,11 +277,37 @@ export const AREAS = [
   },
   {
     name: "insights",
-    files: ["src/stats/", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
+    files: ["src/stats/", "public/js/store/v1/stats.js", "public/js/store/v2/stats.js", "public/js/stats.js", "public/js/stats-period.js", "public/js/charts.js",
       "public/js/chart-parts.js", "public/js/tie-list-dialog.js", "public/js/views/calendar.js",
       "public/js/views/analytics.js", "public/js/map-geo.js", "public/js/world-map.js", "public/js/world-shapes.js",
       "scripts/world-map.mjs", "scripts/world-map-lib.mjs", "public/js/workshop-stats.js"],
     ui: ["insights"],
+  },
+  {
+    // Format 2 records, ids and v3 files: nothing on the page uses them
+    // yet, but the crypto Worker loads them, so a change runs basics.
+    name: "records",
+    files: ["public/js/records/", "public/js/crypto/records.js", "public/js/crypto/files.js", "src/records/", "src/files/"],
+    ui: ["basics"],
+  },
+  {
+    // Converting a format 1 journal to format 2 (phase 5).
+    name: "convert",
+    files: ["public/js/convert/", "public/js/store/convert.js", "public/js/views/convert.js", "src/convert/",
+      "scripts/release-cleanup.mjs", "scripts/release-cleanup-lib.mjs"],
+    ui: ["convert"],
+  },
+  {
+    // Identity keys, the acceptance, pair-key messages and safety numbers
+    // (the crypto Worker loads them too), and contacts in the store: the
+    // invite's offer, accepting, the mailboxes checked; profile updates and
+    // reviewing them (merged as adding an invite is).
+    name: "contacts",
+    files: ["public/js/crypto/identity.js", "public/js/crypto/pair.js", "public/js/crypto/safety-number.js", "src/identity/",
+      "src/mailboxes/", "public/js/contacts/", "public/js/store/v2/contacts.js", "public/js/profile-merge.js",
+      "public/js/profile-update.js", "public/js/contact-verify.js", "public/js/views/verify.js",
+      "public/js/share-back-dialog.js", "public/js/profile-choices.js"],
+    ui: ["basics", "shares", "share-items", "people", "contacts"],
   },
   {
     name: "backup",
@@ -298,7 +335,7 @@ export function matches(file, entries) {
  * @typedef {{
  *   areas: string[],
  *   ui: string[],
- *   generated: ("privacy" | "releases" | "welcome" | "vendor")[],
+ *   generated: ("privacy" | "releases" | "vendor")[],
  *   unmapped: string[],
  *   everything: string[],
  * }} CheckPlan
@@ -316,7 +353,7 @@ export function matches(file, entries) {
 export function planFor(files) {
   /** @type {Set<string>} */ const areas = new Set();
   /** @type {Set<string>} */ const ui = new Set();
-  /** @type {Set<"privacy" | "releases" | "welcome" | "vendor">} */ const generated = new Set();
+  /** @type {Set<"privacy" | "releases" | "vendor">} */ const generated = new Set();
   const unmapped = [], everything = [];
   let allUi = false;
 

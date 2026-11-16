@@ -3,26 +3,19 @@
 // banner. Pure, so it's easy to test. See considerations.md, "Sharing
 // between accounts": "Connecting accounts".
 
-import { formatDate } from "./format.js";
 
 /**
- * Shown when "Connect our accounts" is ticked on a profile invite: the first
- * sentence, and the rest behind a "?".
+ * Shown when "Connect our accounts" is ticked on a profile invite. "Keeps no
+ * record", not "can't see": while it's happening the server sees one
+ * account open the invite and a message arrive soon after, but nothing it
+ * stores links the two (format 2's contacts are in each journal, sealed).
  */
-export const CONNECT_DISCLOSURE_SHORT =
-  "Connecting your accounts lets NotoNawa's server see that the two accounts know each other.";
-export const CONNECT_DISCLOSURE_MORE =
-  "It still can't read anything in either journal. You can remove the connection at any time from Your data > " +
-  "Connections, and it's deleted if either of you deletes your account. Without it, some features won't be possible " +
-  "with this person: sending them ties, plans and workshops inside the app (sharing by link or QR code still works), " +
-  "shared plans with messages, offering them a copy of ties you log with them automatically, their profile card " +
-  "updating when they change it, and other similar future capabilities.";
-export const CONNECT_DISCLOSURE = `${CONNECT_DISCLOSURE_SHORT} ${CONNECT_DISCLOSURE_MORE}`;
+export const CONNECT_DISCLOSURE =
+  "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected.";
 
 /** Shown to whoever opens an invite that offers to connect. */
 export const ACCEPT_DISCLOSURE =
-  "Connecting lets NotoNawa's server see that your account and theirs know each other, never what's in either " +
-  "journal. Either of you can remove it at any time. If you don't connect, they're still added to your People.";
+  `${CONNECT_DISCLOSURE} Either of you can remove it at any time. If you don't connect, they're still added to your People.`;
 
 /** In the Remove dialog, under "Remove my About from their card". */
 export const REMOVE_ABOUT_NOTE =
@@ -32,38 +25,43 @@ export const REMOVE_ABOUT_NOTE =
 /**
  * My side of a connection, opened, with the name of the person it's on.
  * @typedef {{ id: string, invited: number | boolean, label: string | null, answered: number | boolean,
- *   created_at: string, person_id: string | null }} Connection
+ *   created_at: string, person_id: string | null, shared?: import("./profile-share.js").SharedProfile | null }} Connection
+ *   shared: format 2's: their profile, shared back on accepting my invite
  */
 
 /**
- * A connection's title in Your data's Connections.
- * @param {string | null} personName the name of the person it's on, if any
- */
-export function connectionTitle(personName) {
-  return personName ? `Linked to ${personName}` : "Not on any Person";
-}
-
-/**
- * What else Connections says about it: how it was made, and when.
+ * Whose invite a connection came through (Connections' "Via"): mine, by
+ * its tag, or theirs.
  * @param {Connection} connection
- * @param {string} [locale]
  */
-export function connectionDetail(connection, locale) {
-  const how = connection.invited
-    ? connection.label ? `through "${connection.label}"` : "through your profile invite"
-    : connection.label ? `shared as "${connection.label}"` : null;
-  return [how, formatDate(connection.created_at.slice(0, 10), locale)].filter(Boolean).join(" · ");
+export function connectionVia(connection) {
+  if (!connection.invited) return "Their invite";
+  return connection.label ? `Your "${connection.label}" invite` : "Your invite";
 }
 
 /**
- * The inviter's banner. It says "someone": with an invite anyone could use,
- * the inviter can't tell who it was.
- * @param {string | null} label the invite's name
+ * The inviter's banner: someone accepted my invite, connecting our
+ * accounts, and maybe shared their profile back.
+ * @param {string | null} label my invite's tag
+ * @param {string | null} [sharedName] the name on their profile, if they shared it back
  */
-export function bannerText(label) {
+export function bannerText(label, sharedName = null) {
+  if (sharedName) {
+    return `${label ? `Your "${label}" share` : "Your profile invite"} was accepted and ${sharedName} has connected and shared their `
+      + "profile. Add them to your People, or to someone you have?";
+  }
   const invite = label ? `your invite "${label}"` : "your profile invite";
-  return `Someone accepted ${invite}, and your accounts are now connected. NotoNawa's server can see that you know each ` +
-    "other, never what's in either journal. Which of your People is it?";
+  return `Someone accepted ${invite}, and your accounts are now connected. Which of your People is it?`;
+}
+
+/**
+ * A banner for a tie, plan or workshop a connection sent me.
+ * @param {string | null} from who it's from: my card's name for them, or the name they shared
+ * @param {string} kind tie, plan or workshop
+ */
+export function sentText(from, kind) {
+  const a = kind === "tie" ? "a tie" : kind === "plan" ? "a plan" : "a workshop";
+  return `${from ?? "One of your connections"} sent you ${a}.`;
 }
 
 /**

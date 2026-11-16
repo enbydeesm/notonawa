@@ -4,8 +4,7 @@
 // own, so it opens from elsewhere too (the poser on its own).
 
 import { h, $, opensOnTap } from "../dom.js";
-import { api, errorMessage } from "../api.js";
-import { open } from "../vault.js";
+import { errorMessage } from "../api.js";
 import { openPlanForm } from "../plan-form.js";
 import { PLAN_SAVED } from "../nav.js";
 import { ratingHanks } from "../rope-rating.js";
@@ -19,6 +18,7 @@ import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 import {
   PLAN_TYPE_NAMES, planKindText, EMPTY_SEARCH, filterPlans, hasPlanFilters,
 } from "../plans-view.js";
+import { listItems } from "../store/index.js";
 
 /** @typedef {import("../plans-view.js").PlanSearch} PlanSearch */
 
@@ -43,7 +43,7 @@ export function mount(_root, { signal }) {
   async function load() {
     const archived = archivedToggle.checked;
     try {
-      const loaded = await open("plan", await api(`/api/plans?archived=${archived}`));
+      const loaded = await listItems("plans", archived);
       if (signal.aborted) return;
       plans = loaded;
       draw();

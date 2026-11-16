@@ -98,3 +98,17 @@ export function filterPlans(plans, search) {
     return true;
   });
 }
+
+/**
+ * The plans that are variations of one, for its form's "Variations": the
+ * most recently updated first (then by title), archived ones included.
+ * @template {Record<string, any>} P
+ * @param {P[]} plans every plan, archived ones too (id, title, variation_of, updated_at)
+ * @param {string | null} id the plan's; none for a new plan
+ * @returns {P[]}
+ */
+export function variationsOf(plans, id) {
+  if (!id) return [];
+  return plans.filter((p) => p.variation_of === id && p.id !== id)
+    .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? "") || (a.title ?? "").localeCompare(b.title ?? ""));
+}

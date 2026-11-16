@@ -14,7 +14,8 @@
 // tie, plan or workshop, the visuals wait in the form and are saved, in
 // order, once it is (savePending), as they need its id.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
+import { setVisualOrder } from "./store/index.js";
 import { h, showMessage } from "./dom.js";
 import { moveItem } from "./drag-order.js";
 import { tileDrag } from "./tile-drag.js";
@@ -189,7 +190,7 @@ export function visualSection({ item, idPrefix }) {
    */
   async function saveOrder(order) {
     if (item && order.length > 0 && !order.some((v) => kinds[v.kind].waiting(v.ref))) {
-      await api("/api/visuals/order", { method: "PUT", body: { ...item, order: orderBody(order.map((v) => ({ kind: v.kind, id: v.ref.id }))) } });
+      await setVisualOrder(item, orderBody(order.map((v) => ({ kind: v.kind, id: v.ref.id }))));
     }
     visuals = order;
     draw();

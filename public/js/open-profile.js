@@ -7,17 +7,17 @@
 // card I choose is linked. What was shared comes from another account, so
 // it's read strictly (profile-share.js) and shown as text.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
-import { sealOne } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readProfile } from "./profile-share.js";
-import { fieldChoices, newAliases, mergedPerson, newPerson } from "./contact-merge.js";
-import { akaText } from "./aliases.js";
-import { roleName } from "./roles.js";
-import { capitalise, today } from "./format.js";
+import { newPerson } from "./contact-merge.js";
+import { mergeFields, profileCard } from "./profile-merge.js";
+import { today } from "./format.js";
+import { chooseShareBack } from "./share-back-dialog.js";
 import { linkablePeople, linkConnection, connectionsChanged } from "./connections.js";
 import { ACCEPT_DISCLOSURE } from "./connection-text.js";
+import { saveItem, listItems, acceptConnection, canConnect, canShareBack } from "./store/index.js";
 
 /** @typedef {import("./profile-share.js").SharedProfile} SharedProfile */
 /** @typedef {import("./pending-share.js").OpenedShare} OpenedShare */
@@ -48,22 +48,6 @@ export function showProfile(body, opened) {
   showChoice({ body, profile, preview, opened, connect: false });
 }
 
-/**
- * What they shared, as a card.
- * @param {SharedProfile} profile
- */
-function profileCard(profile) {
-  const aka = akaText(profile.aliases ?? []);
-  return h("div", { className: "item shared-profile", id: "open-profile" },
-    h("div", { className: "item-title name-title" },
-      h("span", { id: "open-name" }, profile.name),
-      profile.pronouns ? h("span", { className: "item-meta" }, profile.pronouns) : null,
-      profile.default_role ? h("span", { className: "tag outline role-tag" }, capitalise(roleName(profile.default_role))) : null,
-      profile.is_educator ? h("span", { className: "badge" }, "Educator") : null),
-    profile.based_in ? h("div", { className: "item-meta" }, `based in ${profile.based_in}`) : null,
-    aka ? h("div", { className: "item-meta" }, aka) : null,
-    profile.about ? h("p", { className: "item-notes shared-about" }, profile.about) : null);
-}
 
 /**
  * Connect our accounts, when the invite offers it: unticked, with what it
@@ -74,7 +58,7 @@ function connectChoice(adding) {
   if (adding.opened.connectionId) {
     return h("p", { className: "hint", id: "open-connected" }, "Your accounts are connected: the card you add them to will be linked to theirs.");
   }
-  if (!adding.opened.offer) return null;
+  if (!adding.opened.offer || !canConnect()) return null;
   const tick = h("input", { type: "checkbox", id: "open-connect", checked: adding.connect,
     onchange: () => { adding.connect = tick.checked; } });
   return h("div", { className: "open-connect" },
@@ -96,7 +80,7 @@ async function showChoice(adding) {
       addNew.disabled = true;
       showMessage(message, "Adding…");
       try {
-        const { id } = await api("/api/people", { method: "POST", body: await sealOne("person", newPerson(profile, today())) });
+        const id = await saveItem("people", null, newPerson(profile, today()));
         done(adding, profile.name, await connectTo(adding, id));
       } catch (err) {
         showMessage(message, "Couldn't add them: " + errorMessage(err), true);
@@ -173,34 +157,9 @@ async function pickPerson(adding) {
  * @param {any} person mine, opened
  */
 function showMerge(adding, person) {
-  const { body, profile, preview } = adding;
-  const choices = fieldChoices(person, profile, (role) => capitalise(roleName(role)));
+  const { body, preview } = adding;
   const message = h("p", { className: "message", id: "open-message" });
-  /**
-   * Two radio buttons: theirs or mine.
-   * @param {string} name
-   * @param {[string, string, boolean][]} options value, label, checked
-   */
-  const radios = (name, options) => options.map(([value, label, checked]) => h("label", { className: "inline" },
-    h("input", { type: "radio", name, value, checked }), label));
-  const rows = choices.map((c) => h("fieldset", { className: "merge-field", id: `open-merge-${c.field}` },
-    h("legend", {}, c.label),
-    radios(`open-${c.field}`, [
-      ["theirs", `Use theirs: ${c.theirs}`, c.choice === "theirs"],
-      ["mine", c.mine ? `Keep yours: ${c.mine}` : "Keep yours (empty)", c.choice === "mine"],
-    ])));
-  const extra = newAliases(person, profile);
-  const aliasRow = profile.aliases?.length
-    ? h("fieldset", { className: "merge-field", id: "open-merge-aliases" },
-      h("legend", {}, "Social & scene names"),
-      radios("open-aliases", [
-        ["add", extra.length ? `Add their ${extra.length} new one${extra.length === 1 ? "" : "s"} to yours` : "Add theirs (you have them all)", true],
-        ["replace", "Replace yours with theirs", false],
-        ["keep", "Keep yours only", false],
-      ]))
-    : null;
-  const chosen = (/** @type {string} */ name) =>
-    /** @type {HTMLInputElement | null} */ (body.querySelector(`input[name="${name}"]:checked`))?.value;
+  const merge = mergeFields({ root: body, person, profile: adding.profile, prefix: "open" });
   const save = h("button", {
     type: "submit", className: "primary", id: "open-save",
     onclick: async (/** @type {Event} */ event) => {
@@ -208,10 +167,8 @@ function showMerge(adding, person) {
       save.disabled = true;
       showMessage(message, "Saving…");
       try {
-        const picked = choices.map((c) => ({ ...c, choice: /** @type {"mine" | "theirs"} */ (chosen(`open-${c.field}`) ?? c.choice) }));
-        const aliases = /** @type {import("./contact-merge.js").AliasChoice} */ (chosen("open-aliases") ?? "keep");
-        const record = mergedPerson(person, profile, picked, aliases, today());
-        await api(`/api/people/${person.id}`, { method: "PUT", body: await sealOne("person", record) });
+        const record = merge.record();
+        await saveItem("people", person.id, record);
         done(adding, record.name, await connectTo(adding, person.id));
       } catch (err) {
         showMessage(message, "Couldn't save: " + errorMessage(err), true);
@@ -219,17 +176,12 @@ function showMerge(adding, person) {
       }
     },
   }, `Save to ${person.name}`);
-  body.replaceChildren(...[preview,
+  body.replaceChildren(preview,
     h("h2", {}, `Adding to ${person.name}`),
-    rows.length || aliasRow ? null : h("p", { className: "hint" }, "Nothing they shared differs from your card."),
-    ...rows,
-    aliasRow,
-    profile.about ? h("p", { className: "hint", id: "open-about-note" }, "Their About replaces what's in About them on the card.")
-      : h("p", { className: "hint", id: "open-about-note" }, "They didn't share an About: the card's stays as it is."),
-    h("p", { className: "hint" }, "Your private notes about them stay as they are."),
+    ...merge.elements,
     h("div", { className: "button-row" }, save,
       h("button", { type: "button", onclick: () => pickPerson(adding) }, "Back")),
-    message].filter((el) => el !== null));
+    message);
 }
 
 /**
@@ -248,13 +200,23 @@ async function connectTo(adding, personId) {
       return "linked";
     }
     if (!opened.offer || !adding.connect) return "not linked";
-    const { label } = await sealOne("connection", { label: profile.name });
-    await api("/api/connections", { method: "POST", body: { offer: opened.offer, person_id: personId, label } });
+    // Format 2: my profile can go back with the acceptance, through the connection.
+    const shareBack = canShareBack() ? await askShareBack(profile.name) : null;
+    await acceptConnection({ offer: opened.offer, personId, name: profile.name, shareId: opened.id, linkKey: opened.key, shareBack });
     connectionsChanged();
-    return "linked";
+    return shareBack ? "linked and shared" : "linked";
   } catch (err) {
     return errorMessage(err);
   }
+}
+
+/**
+ * Share your profile back? My own, as saved, and what of it to send.
+ * @param {string} name theirs
+ */
+async function askShareBack(name) {
+  const me = (await listItems("people", "false")).find((p) => p.is_self);
+  return me ? chooseShareBack(me, { name, accepting: true }) : null;
 }
 
 /**
@@ -266,6 +228,7 @@ async function connectTo(adding, personId) {
 function done(adding, name, connected) {
   forget();
   const note = connected === "linked" ? h("p", { id: "open-linked" }, "Their card is linked to their account.")
+    : connected === "linked and shared" ? h("p", { id: "open-linked" }, "Their card is linked to their account, and your profile is on its way to them.")
     : connected === "not linked" ? null
     : h("p", { className: "message error", id: "open-link-failed" }, `They're added, but your accounts couldn't be connected: ${connected}`);
   adding.body.replaceChildren(...[h("p", { id: "open-done" }, `${name} is in your People.`), note,

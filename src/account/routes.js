@@ -10,7 +10,7 @@ import {
   getAccount, renamePasskey, removePasskey, endSession, endOtherSessions, setRecoveryHash, setRecoveryEmail,
   deleteAccount, getSettings, updateSettings,
 } from "./db.js";
-import { parseSettings } from "./settings.js";
+import { parseSettings, settingsFor, checkFormat } from "./settings.js";
 import { parseRecoveryEmail } from "./parse.js";
 import { parseWrap } from "../keys/parse.js";
 import { hasKey, recoveryWrapStatements } from "../keys/db.js";
@@ -50,16 +50,20 @@ export async function handleAccount(request, env, user, url) {
   //   I ticked the welcome's "Don't show this again", and the body new poses
   //   start with (default_shape, null: the in-between body). Read by every
   //   page at start, so it's its own small request.
+  //   A format 2 account's role names and default body are in its sealed
+  //   settings record, so they're null here, and refused on a PUT.
   if (url.pathname === "/api/account/settings" && request.method === "GET") {
-    return json(await getSettings(db, user.id));
+    return json(settingsFor(await getSettings(db, user.id), user.format));
   }
 
   // PUT /api/account/settings  body { top_label?, bottom_label?, theme?, seen_release?, hide_welcome?, default_shape? }
   //   -> { top_label, bottom_label, theme, seen_release, hide_welcome, default_shape }: changes the ones sent. A role
   //   name that's empty, or the role's own name, goes back to the default.
   if (url.pathname === "/api/account/settings" && request.method === "PUT") {
-    const current = await getSettings(db, user.id);
-    const change = parseSettings(await readJson(request), current);
+    const body = await readJson(request);
+    checkFormat(body, user.format);
+    const current = settingsFor(await getSettings(db, user.id), user.format);
+    const change = parseSettings(body, current);
     await updateSettings(db, user.id, change);
     return json({ ...current, ...change });
   }

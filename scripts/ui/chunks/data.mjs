@@ -46,7 +46,7 @@ export default async function () {
   ], "Import 2 ties", ""]);
   check("importing it adds the ties", await run(`
     $("#import-go").click(); await calm(2000); const msg = $("#import-message").textContent;
-    const res = await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page_size: 100 }) })).json();
+    const res = await store.findTies({ page_size: 100 });
     return [msg, $("#import-go").hidden, res.ties.filter((t) => t.title?.startsWith("Imported"))
       .map((t) => [t.title, t.location_name, t.participants.map((p) => p.person_name + ":" + p.role).sort()])];`),
     ["Imported 2 ties.", true, [["Imported two", "Beach", []], ["Imported one", place, ["Alex:bottom", "Robin:top"]]]]);
@@ -59,12 +59,12 @@ export default async function () {
 
   // With photos (and a video), the export is a zip that imports back.
   const photoTie = await run(`
-    const id = await post("/api/ties", { title: "Zip test", tie_type: "floor", tie_date: "2026-11-05" });
+    const id = await store.saveTie(null, { title: "Zip test", tie_type: "floor", tie_date: "2026-11-05" });
     const canvas = document.createElement("canvas"); canvas.width = 300; canvas.height = 200;
     canvas.getContext("2d").fillRect(0, 0, 150, 100);
     const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.9));
     const prepared = await (await import("/js/photo-prep.js")).preparePhoto(new File([blob], "x.jpg", { type: "image/jpeg" }));
-    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
+    await (await import("/js/store/index.js")).uploadPhoto({ item: { tie_id: id }, prepared, caption: "Zip caption" });
     // A one-second clip, made here with the app's video library.
     const mb = await import("/js/vendor/mediabunny.js");
     const frames = new OffscreenCanvas(64, 48);
@@ -75,7 +75,7 @@ export default async function () {
     for (let i = 0; i < 10; i++) { frames.getContext("2d").fillRect(i * 4, 0, 8, 8); await source.add(i / 10, 0.1); }
     await output.finalize();
     const clip = await (await import("/js/video-prep.js")).prepareVideo(new File([output.target.buffer], "c.mp4", { type: "video/mp4" }));
-    await (await import("/js/photo-upload.js")).uploadPhoto({ item: { tie_id: id }, prepared: clip, caption: "Zip clip" });
+    await (await import("/js/store/index.js")).uploadPhoto({ item: { tie_id: id }, prepared: clip, caption: "Zip clip" });
     return id;`);
   const zipDownloads = path.join(workDir, "downloads-zip");
   await send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: zipDownloads });
@@ -97,7 +97,7 @@ export default async function () {
     videoBytes ? new TextDecoder("latin1").decode(videoBytes.subarray(4, 8)) : null,
   ], [true, "Zip caption", true, "RIFFWEBP", "Zip clip", "video", true, "ftyp"]);
   // The photo and video are deleted, then the zip imported: they come back on the tie.
-  await run(`for (const m of await (await fetch("/api/media?tie_id=${photoTie}")).json()) await fetch("/api/media/" + m.id, { method: "DELETE" });`);
+  await run(`for (const m of await store.listMedia({ tie_id: "${photoTie}" })) await store.deleteMedia(m.id);`);
   const chooseZip = () => run(`
     const bytes = Uint8Array.from(atob(${JSON.stringify(zipBytes.toString("base64"))}), (c) => c.charCodeAt(0));
     const dt = new DataTransfer(); dt.items.add(new File([bytes], ${JSON.stringify(zipped[0] ?? "x.zip")}, { type: "application/zip" }));
@@ -107,12 +107,11 @@ export default async function () {
     [["Photos | 2 in the file (added to ties, plans and workshops that don't already have photos)"], "Import"]);
   check("…and puts the photo and video back on their tie, with their captions", await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
-    const listed = await (await fetch("/api/media?tie_id=${photoTie}")).json();
-    const opened = await (await import("/js/vault.js")).openMedia(listed);
-    return [$("#import-message").textContent, opened.map((p) => [p.kind, p.caption])];`),
+    const listed = await store.listMedia({ tie_id: "${photoTie}" });
+    return [$("#import-message").textContent, listed.map((p) => [p.kind, p.caption])];`),
     ["Imported 0 ties. Skipped 4 ties already in your journal. Added 2 photos.", [["photo", "Zip caption"], ["video", "Zip clip"]]]);
   check("importing it again doesn't add the photo twice", (await chooseZip(), await run(`
     $("#import-go").click(); for (let i = 0; i < 80 && !/Imported|Couldn't/.test($("#import-message").textContent); i++) await wait(100);
-    return [$("#import-message").textContent, (await (await fetch("/api/media?tie_id=${photoTie}")).json()).length];`)),
+    return [$("#import-message").textContent, (await store.listMedia({ tie_id: "${photoTie}" })).length];`)),
     ["Imported 0 ties. Skipped 4 ties already in your journal. Skipped 2 photos on ties, plans or workshops that already have photos.", 2]);
 }

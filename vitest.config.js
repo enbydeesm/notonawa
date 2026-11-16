@@ -46,6 +46,11 @@ export default defineConfig({
                 RP_ID: "localhost",
                 ORIGIN: "http://localhost",
                 BACKUP_PUBLIC_KEY: TEST_BACKUP_PUBLIC_KEY,
+                // The API tests sign up format 1 accounts, as they were written
+                // for (format 1's routes), until phase 8 removes format 1;
+                // wrangler.jsonc makes new accounts format 2 (a unit test checks).
+                NEW_ACCOUNT_FORMAT: "1",
+                CONVERT_ON_UNLOCK: "0",
               },
             },
           })),

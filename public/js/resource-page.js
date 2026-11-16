@@ -3,22 +3,22 @@
 // Delete when showing archived), or, with actionsInDialog, those as icons on
 // the dialog's heading row.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, $, showMessage, opensOnTap } from "./dom.js";
-import { open, sealOne } from "./vault.js";
+import { listItems, saveItem, archiveItem, restoreItem, deleteItem } from "./store/index.js";
 import { listTools } from "./list-tools.js";
 import { orderList } from "./list-order.js";
 import { dialogIcon, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 
-// Each resource's kind of record, for sealing and opening its notes in the
-// crypto Worker. (Plans have a form of their own, plan-form.js.)
-/** @type {Record<"people" | "locations", import("./crypto/fields.js").RecordKind>} */
+// What one of each resource is called. (Plans have a form of their own,
+// plan-form.js.)
+/** @type {Record<"people" | "locations", string>} */
 const KINDS = { people: "person", locations: "location" };
 
 /**
  * @typedef {Record<string, any> & { id: string, archived_at: string | null }} Item
- * @typedef {{ archive: true } | { query: string } | null} DeleteChoice
+ * @typedef {{ archive: true } | { delete: true } | null} DeleteChoice
  * @typedef {{
  *   resource: "people" | "locations",
  *   form: HTMLFormElement,
@@ -56,8 +56,8 @@ const KINDS = { people: "person", locations: "location" };
  *   stay at the top (my own profile).
  * prepare: turns the form's fields into what's sent, before it's sealed;
  *   throws to refuse it.
- * confirmDelete: resolves to { query } to delete (query is appended to the
- *   DELETE URL), { archive: true } to archive instead, or null to cancel.
+ * confirmDelete: resolves to { delete: true } to delete, { archive: true }
+ *   to archive instead, or null to cancel.
  * dialog: the form is in this dialog, with its heading: add() and Edit
  *   open it, and saving or [data-cancel-edit] closes it. Like the tie form,
  *   a tap outside doesn't close it; Esc does, asking first if anything's
@@ -185,13 +185,13 @@ export function setupResourcePage(config) {
 
   /** @param {Item} item */
   async function archive(item) {
-    await act(() => api(`/api/${resource}/${item.id}/archive`, { method: "POST" }), "Couldn't archive");
+    await act(() => archiveItem(resource, item.id), "Couldn't archive");
     closeDialog();
   }
 
   /** @param {Item} item */
   async function restore(item) {
-    await act(() => api(`/api/${resource}/${item.id}/restore`, { method: "POST" }), "Couldn't restore");
+    await act(() => restoreItem(resource, item.id), "Couldn't restore");
     closeDialog();
   }
 
@@ -200,7 +200,7 @@ export function setupResourcePage(config) {
     const choice = await confirmDelete(item);
     if (!choice) return;
     if ("archive" in choice) return archive(item);
-    await act(() => api(`/api/${resource}/${item.id}${choice.query}`, { method: "DELETE" }), "Couldn't delete");
+    await act(() => deleteItem(resource, item.id), "Couldn't delete");
     closeDialog();
     if (editingId === item.id) setEditing(null);
   }
@@ -243,7 +243,7 @@ export function setupResourcePage(config) {
   async function load() {
     const archived = archivedToggle.checked;
     try {
-      items = await open(KINDS[resource], await api(`/api/${resource}?archived=${archived}`));
+      items = await listItems(resource, archived);
       config.onLoad?.(items, archived);
       draw();
     } catch (err) {
@@ -277,15 +277,8 @@ export function setupResourcePage(config) {
     changes.busy(true);
     showMessage(message, "Saving…");
     try {
-      // Notes are sealed here, on the device, before they're sent.
       const data = config.prepare ? config.prepare(formData()) : formData();
-      const body = await sealOne(KINDS[resource], data);
-      let id = editingId;
-      if (id) {
-        await api(`/api/${resource}/${id}`, { method: "PUT", body });
-      } else {
-        id = /** @type {string} */ ((await api(`/api/${resource}`, { method: "POST", body })).id);
-      }
+      await saveItem(resource, editingId, data);
       if (dialog) {
         dialog.close();
       } else {

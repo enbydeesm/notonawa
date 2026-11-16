@@ -161,7 +161,10 @@ describe("a cinch, in the room", () => {
     };
     const shorter = page.setCinchLength(wrapped, 2, gap - 20);
     const skeleton = measure(shorter);
-    expect(ropeRuns(skeleton, shorter, 0).map((run) => run.length)).toEqual([3, 2, 2]);
+    // Round the body: through its three points, and more between them to lie on the skin.
+    const [round, ...hanging] = ropeRuns(skeleton, shorter, 0);
+    expect(round.length).toBeGreaterThanOrEqual(3);
+    expect(hanging.map((run) => run.length)).toEqual([2, 2]);
     expect(ropeRuns(skeleton, shorter, 2).map((run) => run.length)).toEqual([2]);
     const seesaw = rope([["l_wrist", 0, 0, 0], RING, ["r_wrist", 0, 0, 0]]);
     expect(ropeRuns(skeleton, { ...shorter, ropes: [seesaw] }, 0).map((run) => run.length)).toEqual([2, 2]);

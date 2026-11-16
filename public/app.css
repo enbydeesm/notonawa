@@ -28,7 +28,7 @@
      as the paper is, so a pose's picture looks the same whichever is on.
      Ropes use the inks above. */
   --pose-figure: #cfc6b8; --pose-selected: #fec762; --pose-clash: #e0605a; --pose-warn: #f0962e; --pose-floor: #d9d3c8; --pose-backdrop: #f3f0ea;
-  --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
+  --pose-handle: #ffffff; --pose-ring: #8a857e; --pose-jute: #b0925c; --pose-bamboo: #c9b26b; --pose-wood: #8b6a4a;
 }
 /* Dark mode: the account's choice, dark unless light was picked in Settings
    (data-theme is set by theme-init.js before the page draws, then by
@@ -89,21 +89,21 @@ nav .nav-poser:disabled { opacity: 0.4; }
   nav .nav-add, nav .nav-icon { width: 28px; height: 28px; }
 }
 
-/* The app's logo: on Sign in, Unlock and Consent, which have no nav, and
-   as a banner (the name on the bamboo) at the top of the menu. Each comes
-   in a light and a dark version, picked by the mode (data-theme, set before
-   the page draws by theme-init.js). A background rather than an <img>: the
-   browser only downloads a background whose rule matches, so only the
-   mode's version is fetched (a hidden <img> still downloads). Sized for
-   2× screens; nav.js loads the menu's ahead of opening it. */
-.logo { display: block; max-width: 100%; margin: 0 auto; background: center / contain no-repeat; }
-/* High-contrast modes drop backgrounds; keep the logo. */
-@media (forced-colors: active) { .logo { forced-color-adjust: none; } }
+/* The app's logo, the knotted pencil over "nōtonawa": on Sign in, Unlock
+   and Consent, which have no nav, and at the top of the menu. Two black
+   drawings on the same canvas, /img/logo-mark.svg (the pencil) and
+   logo-word.svg (the name), cut from logo.svg, each a mask over a color:
+   both the text color in light mode; in dark mode the pencil in the accent. */
+.logo { display: block; position: relative; max-width: 100%; margin: 0 auto; aspect-ratio: 165.4 / 71; }
+.logo::before, .logo::after { content: ""; position: absolute; inset: 0; background-color: var(--text); }
+.logo::before { mask: url("/img/logo-mark.svg") center / contain no-repeat; }
+.logo::after { mask: url("/img/logo-word.svg") center / contain no-repeat; }
+:root[data-theme="dark"] .logo::before { background-color: var(--accent); }
+/* High-contrast modes replace background colors, which would hide it. */
+@media (forced-colors: active) { .logo::before, .logo::after { forced-color-adjust: none; background-color: CanvasText; } }
 .app-title { text-align: center; }
-.app-title .logo { width: 220px; aspect-ratio: 1; background-image: url("/img/logo-light.avif"); }
-:root[data-theme="dark"] .app-title .logo { background-image: url("/img/logo-dark.avif"); }
-.menu-title .logo { width: 240px; aspect-ratio: 480 / 116; background-image: url("/img/bamboo-logo-light.avif"); }
-:root[data-theme="dark"] .menu-title .logo { background-image: url("/img/bamboo-logo-dark.avif"); }
+.app-title .logo { width: 280px; }
+.menu-title .logo { width: 240px; }
 
 .card {
   background: var(--card); border: 1px solid var(--line);
@@ -314,14 +314,19 @@ dialog.pose-editor[open] { display: flex; flex-direction: column; gap: 8px; }
 .pose-marks.drawing { pointer-events: auto; cursor: crosshair; }
 .pose-marks.drawing.erasing { cursor: cell; }
 /* Over the view, on the floor's light (the 3D view's colors are the same
-   in both modes): undo, redo and the pencil top left, the cube top right,
-   the hint and "Allow collisions" along the foot. */
+   in both modes): undo, redo and the pencil top left, Wrap (Rope) in the
+   middle of the gap, the cube top right, the hint and "Allow collisions"
+   along the foot. The top row lets taps through between its groups. */
+.pose-view-top {
+  position: absolute; top: 8px; left: 8px; right: 8px; display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 6px; pointer-events: none;
+}
+.pose-view-top > * { pointer-events: auto; }
 .pose-view-tools, .pose-frame .pose-view-menu {
-  position: absolute; top: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
+  display: flex; align-items: center; gap: 2px; padding: 3px;
   background: color-mix(in srgb, var(--pose-backdrop) 90%, transparent); border: 1px solid var(--pose-floor); border-radius: 11px;
 }
-.pose-view-tools { left: 8px; }
-.pose-frame .pose-view-menu { right: 8px; gap: 0; padding: 3px 6px 3px 9px; height: 46px; box-sizing: border-box; color: var(--ink-black); }
+.pose-frame .pose-view-menu { gap: 0; padding: 3px 6px 3px 9px; height: 46px; box-sizing: border-box; color: var(--ink-black); }
 .pose-float-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink-black); }
 .pose-view-tools .tool-icon-under { stroke: var(--pose-backdrop); }
 .pose-float-button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
@@ -433,9 +438,32 @@ dialog.preset-picker.searchable[open] {
 .pose-actions button.primary { flex: 1.5; }
 /* The thickness row: its buttons, then (right) the hardpoint's chip for
    ropes or Done for the pencil, in the same place so nothing moves. */
-.pose-tools-row { display: flex; align-items: center; gap: 6px; }
+.pose-tools-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.pose-tools-row > .pose-rope-tools { flex-wrap: nowrap; }
 .pose-tools-row > :last-child { margin-left: auto; flex: none; }
-.pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 10px; text-transform: none; }
+/* Wrap, over the view top middle: its switch, + over −, and the turns.
+   Too narrow for it between undo and the views (under 360px), it drops
+   under undo and redo. */
+.pose-wrap-row[hidden] { display: none; }
+.pose-wrap-row .pose-wrap { width: auto; padding: 0 10px; font-size: 0.85rem; font-weight: 600; }
+.pose-wrap-steps { display: flex; flex-direction: column; gap: 2px; }
+.pose-wrap-step { width: 24px; height: 19px; padding: 0; border: 0; border-radius: 5px; background: transparent;
+  color: var(--ink-black); font-size: 0.9rem; line-height: 1; }
+.pose-wrap-step:disabled { opacity: 0.35; }
+.pose-wrap-count { min-width: 1.4em; padding-right: 4px; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--ink-black); }
+@media (max-width: 359px) {
+  .pose-view-top > .pose-wrap-row { position: absolute; top: 54px; left: 0; }
+}
+/* Dangle, between the eraser and the hardpoint's chip. */
+.pose-hang { min-height: 36px; padding: 0 8px; }
+.pose-hang[hidden] { display: none; }
+/* The hardpoint's chip, kept tight so the thickness row stays one line;
+   under 360px it's its icon and › (its name still in its aria-label). */
+.pose-hardpoint-chip { display: inline-flex; align-items: center; gap: 3px; min-height: 40px; padding: 0 2px 0 6px; text-transform: none; }
+.pose-hardpoint-chip .tool-icon:last-child { width: 14px; margin-left: -2px; }
+@media (max-width: 359px) {
+  .pose-hardpoint-name { display: none; }
+}
 .pose-hardpoint-chip.empty { padding: 0 12px; border-style: dashed; border-color: var(--accent); color: var(--accent-ink); }
 .pose-draw-done { display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
@@ -1100,7 +1128,14 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .name-row label { margin: 0; }
 /* The People dialog's "This is me", or a connection's link, under the
    heading row at the right. */
-.person-flags { display: flex; justify-content: flex-end; }
+/* Safety Number at the left, Account linked at the right (alone, still at the right); the warning under both. */
+.person-flags { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+.person-flags .linked-flag { margin-left: auto; }
+.person-flags .warning-note { flex-basis: 100%; }
+.verify-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+.verify-flag[hidden] { display: none; }
+.shield-icon { width: 18px; height: 18px; flex: none; }
+button.update-flag { border: 0; cursor: pointer; background: var(--accent); color: var(--accent-text); font: inherit; font-size: 0.75rem; font-weight: 600; }
 .person-flags:not(:has(> :not([hidden]))) { display: none; }
 .self-flag { display: inline-flex; align-items: center; gap: 6px; }
 .self-flag[hidden] { display: none; }
@@ -1108,7 +1143,7 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
    stops filling the row, and the badge pushes the icons to the right. */
 .self-badge { flex: none; margin: 0 auto 0 8px; }
 .self-badge[hidden] { display: none; }
-.dialog-header h2:has(+ .self-badge:not([hidden])) { flex: 0 1 auto; }
+.dialog-header h2:has(~ .self-badge:not([hidden])) { flex: 0 1 auto; }
 .alias-row input { flex: 1.4; min-width: 0; }
 /* Smaller, so "Scene name" fits once chosen. */
 .alias-row .alias-platform { font-size: 0.85rem; }
@@ -1202,11 +1237,76 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .linked-tie:last-child { border-bottom: none; }
 .linked-tie-title { min-width: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
 
-/* The welcome: a heading, a few lines and a list, then the checkbox and OK. */
-.welcome ul { margin: 0 0 16px; padding-left: 20px; }
-.welcome li { margin: 6px 0; }
-.welcome-footer { align-items: center; justify-content: space-between; gap: 12px; }
-.welcome-footer label.inline { margin: 0; }
+/* The welcome tour (tour.js): one dialog over the whole window, see-through,
+   holding the dim with its hole and the gold ring (SVG, under the card),
+   the card, and the pointer joining the card to its icon (SVG, over it).
+   A stop's card sits under the nav (66px: its tabs, padding and border),
+   lined up with the nav's content on the side nearer its icon (main's 640px
+   column less its 16px padding); the welcome, Account Recovery and the
+   wrap-up sit in the middle. */
+dialog.tour {
+  position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: none; max-height: none;
+  margin: 0; padding: 0; overflow: hidden; background: transparent; border: none; border-radius: 0;
+}
+dialog.tour::backdrop { background: transparent; }
+.tour-dim, .tour-pointer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tour-pointer { pointer-events: none; }
+.tour-dim[hidden], .tour-pointer[hidden], .tour-ring[hidden] { display: none; }
+.tour-shade { fill: rgb(0 0 0 / 0.66); }
+.tour-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.tour-pointer-fill { fill: var(--card); }
+.tour-pointer-edge { fill: none; stroke: var(--line); stroke-width: 1; }
+.tour-card {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 82px); overflow-y: auto;
+  padding: 16px 16px 12px; background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+.tour-card.at-nav { top: 66px; transform: none; }
+.tour-card.at-nav.start { left: max(16px, calc(50% - 304px)); }
+.tour-card.at-nav.end { left: auto; right: max(16px, calc(50% - 304px)); }
+.tour-card.centered { top: 50%; transform: translate(-50%, -50%); max-height: calc(100dvh - 32px); }
+.tour-card h2 { margin: 0; font-size: 1.2rem; line-height: 1.3; }
+.tour-card p { margin: 8px 0 0; line-height: 1.45; }
+.tour-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tour-count { margin: 0; white-space: nowrap; }
+.tour-body { margin-bottom: 12px; }
+.tour-body em { font-weight: 600; }
+/* The progress bar: a thin line in the accent along a line-colored track. */
+progress.tour-progress {
+  display: block; width: 100%; height: 3px; border: none; border-radius: 2px;
+  appearance: none; background: var(--line); color: var(--accent);
+}
+progress.tour-progress::-webkit-progress-bar { background: var(--line); border-radius: 2px; }
+progress.tour-progress::-webkit-progress-value { background: var(--accent); border-radius: 2px; }
+progress.tour-progress::-moz-progress-bar { background: var(--accent); border-radius: 2px; }
+.tour-buttons { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.tour-buttons .tour-back { margin-left: auto; }
+.tour-buttons button { min-height: 44px; padding: 0 18px; }
+.tour-buttons button.primary { width: auto; margin: 0; }
+/* Skip tour: small, muted and underlined, the same on every card. */
+button.link.tour-skip { min-height: 44px; padding: 0 4px; color: var(--muted); font-size: 0.9rem; text-decoration: underline; }
+/* The welcome, Account Recovery and the wrap-up: in the middle. */
+.tour-card.tour-welcome, .tour-card.tour-finish { width: min(364px, calc(100vw - 32px)); padding: 28px 24px 20px; text-align: center; }
+.tour-welcome h2, .tour-finish h2 { font-size: 1.5rem; line-height: 1.2; }
+.tour-card.tour-note { padding: 18px 16px 12px; }
+/* The logo's pencil and knot alone, in the accent, 44px tall. logo-mark.svg
+   shares its canvas with the name, so it's cropped to the mark: the canvas
+   drawn 159.25 × 68.36px, moved so the mark's own box (1.25px in from the
+   left, 0.96px down) fills this one. */
+.tour-mark {
+  display: block; width: 156.3px; height: 44px; margin: 0 auto 4px; background-color: var(--accent);
+  mask: url("/img/logo-mark.svg") -1.25px -0.96px / 159.25px 68.36px no-repeat;
+}
+@media (forced-colors: active) { .tour-mark { forced-color-adjust: none; background-color: CanvasText; } }
+.tour-welcome button.primary { margin-top: 16px; }
+/* Skip tour beside the note on replaying it, left-aligned under Start. */
+.tour-later { display: flex; align-items: center; gap: 12px; margin-top: 4px; text-align: left; }
+.tour-later .hint { margin: 0; line-height: 1.35; }
+.tour-finish button.link.tour-back { display: block; margin: 4px auto 0; min-height: 44px; color: var(--muted); text-decoration: underline; }
+/* Right under Back, whose own height (a 44px tap area) is gap enough. */
+.tour-finish .tour-coffee { margin-top: 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.tour-coffee a { display: block; margin-top: 6px; }
 
 /* Bug and feedback: the warning first, and the message's length under it. */
 .warning-note { padding: 8px 12px; border-left: 4px solid var(--error); background: var(--bg); border-radius: 6px; }
@@ -1243,6 +1343,33 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .qr-code { display: block; width: min(100%, 280px); height: auto; margin: 12px auto; border-radius: 8px; }
 .qr-dark { fill: var(--qr-dark); }
 .qr-light { fill: var(--qr-light); }
+/* A contact's safety number: 12 blocks of 5 digits, in rows of 4. */
+.safety-blocks {
+  display: grid; grid-template-columns: repeat(4, auto); justify-content: center; gap: 6px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem; letter-spacing: 0.05em;
+}
+.key-badge { background: var(--danger); color: var(--danger-text); }
+/* Lists of my things as compact grids (data-grid.js): Shared by me,
+   Connections, passkeys and devices. Column labels small and muted; each
+   row's details, then its icon buttons at the right. */
+.data-grid { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.data-grid th { text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 0 6px 6px; }
+.data-grid td { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
+.data-grid th:first-child, .data-grid td:first-child { padding-left: 0; }
+.data-grid .grid-actions { width: 1%; white-space: nowrap; text-align: right; padding-right: 0; }
+.data-grid .grid-actions .icon-button { width: 32px; height: 32px; margin-left: 4px; vertical-align: middle; }
+.data-grid .grid-actions .icon-button svg { width: 18px; height: 18px; }
+.data-grid .grid-title { font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.data-grid .grid-title .badge { margin-left: 0; }
+.data-grid .grid-meta { color: var(--muted); font-size: 0.8rem; }
+.data-grid .muted { color: var(--muted); font-weight: 400; }
+.data-grid .link-icon { width: 16px; height: 16px; flex: none; }
+/* The Share dialog's two ways: the one chosen filled in the accent. */
+.share-ways button { flex: 1; }
+.share-ways button.chosen { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.connection-choices { list-style: none; margin: 6px 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.connection-choices li { margin: 0 0 4px; }
+.connection-choice { width: 100%; text-align: left; }
 .share-code input[readonly] { font-size: 0.85rem; }
 .shared-profile { margin: 8px 0 12px; }
 .shared-about { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1258,7 +1385,8 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 .linked-flag { flex-wrap: wrap; justify-content: flex-end; font-size: 0.9rem; }
 .linked-flag .link-icon { width: 18px; height: 18px; }
 .linked-flag button.link { font-size: 0.85rem; }
-.notice.connection-notice { flex-wrap: wrap; }
+/* Any banner with a row of actions wraps, the actions under its words. */
+.notice:has(> .notice-actions) { flex-wrap: wrap; }
 .connection-title { display: flex; align-items: center; gap: 8px; }
 .share-connect, .open-connect { margin: 12px 0 4px; }
 .open-connect .hint, .connect-disclosure { margin-top: 4px; }

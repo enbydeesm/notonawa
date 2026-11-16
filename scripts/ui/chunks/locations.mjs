@@ -51,7 +51,7 @@ export default async function () {
     const state = [$("#location-form-heading").textContent, $("#location-name").value, $("#location-city").value, $("#location-state_province").value,
       $("#location-country").value, $("[data-add-only]").hidden, headerIcons("#location-dialog")];
     set("#location-city", "Tacoma"); await submit();
-    const stored = (await (await fetch("/api/locations?archived=false")).json()).find((l) => l.name === "Studio");
+    const stored = (await store.listItems("locations", "false")).find((l) => l.name === "Studio");
     return [cardButtons, state, !$("#location-dialog").open, [stored.city, stored.state_province, stored.country]];`),
     [[1, 1], ["Edit location", "Studio", "Seattle", "WA", "USA", true, ["Delete location", "Archive location", "Close"]], true, ["Tacoma", "WA", "USA"]]);
   check("one-off is in the archived list, and Restore is in its dialog", await run(`
@@ -77,7 +77,7 @@ export default async function () {
     const cancelled = $("#location-is_default").checked;
     $("#location-is_default").click(); await calm(400); dialogButton("Replace").click(); await calm(200);
     const kept = $("#location-is_default").checked; await submit();
-    const stored = (await (await fetch("/api/locations?archived=false")).json()).filter((l) => l.is_default).map((l) => l.name);
+    const stored = (await store.listItems("locations", "false")).filter((l) => l.is_default).map((l) => l.name);
     return [noPrompt, pinned, badge, prompt, cancelled, kept, personNames(), stored];`),
     [true, ["Studio", "Old flat"], true, "Replace Studio as your default location?", false, true, ["Old flat", "Studio"], ["Old flat"]]);
   check("locations: a search card (by name or where it is) and sorts too", await run(`

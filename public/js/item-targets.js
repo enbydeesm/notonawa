@@ -5,9 +5,8 @@
 // first; plans (not archived) and workshops are all loaded at once, and
 // searched by title on the page (add-to-choices.js).
 
-import { api } from "./api.js";
 import { formatDate } from "./format.js";
-import { searchTies } from "./vault.js";
+import { findTies, listItems, listWorkshops } from "./store/index.js";
 import { SHOWN } from "./add-to-choices.js";
 
 /** @typedef {import("./add-to-choices.js").Target} Target */
@@ -19,17 +18,13 @@ import { SHOWN } from "./add-to-choices.js";
  *   matched: the ids the keyword found (null without one)
  */
 export async function loadTies(query) {
-  const q = query.trim();
-  const matchIds = q ? await searchTies(q) : null;
-  const { ties } = await api("/api/ties/search", {
-    method: "POST", body: { match_ids: matchIds, page: 1, page_size: SHOWN, sort: "newest" },
-  });
+  const { ties, matched } = await findTies({ q: query, page_size: SHOWN });
   return {
     targets: ties.map((/** @type {any} */ t) => ({
       kind: /** @type {const} */ ("tie"), id: t.id, title: t.title || "Untitled tie", meta: formatDate(t.tie_date),
       recent: t.updated_at ?? t.created_at ?? "",
     })),
-    matched: matchIds ? new Set(matchIds) : null,
+    matched: matched ? new Set(matched) : null,
   };
 }
 
@@ -38,7 +33,7 @@ export async function loadTies(query) {
  * @returns {Promise<Target[]>}
  */
 export async function loadPlans() {
-  return (await api("/api/plans?archived=false")).map((/** @type {any} */ p) => ({
+  return (await listItems("plans", false)).map((/** @type {any} */ p) => ({
     kind: /** @type {const} */ ("plan"), id: p.id, title: p.title, meta: "", recent: p.updated_at ?? "",
   }));
 }
@@ -48,7 +43,7 @@ export async function loadPlans() {
  * @returns {Promise<Target[]>}
  */
 export async function loadWorkshops() {
-  return (await api("/api/workshops")).map((/** @type {any} */ w) => ({
+  return (await listWorkshops()).map((/** @type {any} */ w) => ({
     kind: /** @type {const} */ ("workshop"), id: w.id, title: w.title, meta: formatDate(w.start_date), recent: w.updated_at ?? "",
   }));
 }

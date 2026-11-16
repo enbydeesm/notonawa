@@ -1,13 +1,13 @@
 // The account's settings on the page: role names (roles.js) and light/dark
 // mode (theme.js), read once the journal is unlocked and saved from the
 // Settings dialog (settings-dialog.js), the last release notes seen
-// (whats-new.js), whether to show the welcome (welcome.js) and the body new
+// (whats-new.js), whether the welcome tour has been seen (tour.js) and the body new
 // poses start with (pose-editor.js). See src/account/settings.js.
 
-import { api } from "./api.js";
 import { setRoleNames, namesToAdopt } from "./roles.js";
 import { THEME_KEY, parseChoice, shownTheme } from "./theme.js";
 import { onWipe } from "./vault.js";
+import { getSettings, saveSettings } from "./store/index.js";
 
 /**
  * @typedef {{
@@ -30,7 +30,7 @@ let loaded = null;
  */
 export async function loadSettings() {
   if (loaded) return loaded;
-  const settings = /** @type {Settings} */ (await api("/api/account/settings"));
+  const settings = /** @type {Settings} */ (await getSettings());
   loaded = settings;
   setRoleNames(settings);
   const theme = parseChoice(settings.theme);
@@ -53,9 +53,7 @@ export function currentSettings() {
  * @param {{ redraw?: boolean }} [options]
  */
 export async function saveRoleNames(top, bottom, { redraw = true } = {}) {
-  const settings = /** @type {Settings} */ (await api("/api/account/settings", {
-    method: "PUT", body: { top_label: top, bottom_label: bottom },
-  }));
+  const settings = /** @type {Settings} */ (await saveSettings({ top_label: top, bottom_label: bottom }));
   loaded = settings;
   setRoleNames(settings);
   if (redraw) document.dispatchEvent(new CustomEvent(SETTINGS_SAVED));
@@ -79,7 +77,7 @@ export async function adoptRoleNames(fromFile) {
  * @param {import("./figure-body.js").Shape} shape
  */
 export async function saveDefaultShape(shape) {
-  const settings = await api("/api/account/settings", { method: "PUT", body: { default_shape: shape } });
+  const settings = await saveSettings({ default_shape: shape });
   if (loaded) loaded = { ...loaded, default_shape: settings.default_shape };
 }
 
@@ -99,15 +97,17 @@ export async function adoptDefaultShape(fromFile) {
  * @param {string} version
  */
 export async function saveSeenRelease(version) {
-  const settings = await api("/api/account/settings", { method: "PUT", body: { seen_release: version } });
+  const settings = await saveSettings({ seen_release: version });
   if (loaded) loaded = { ...loaded, seen_release: settings.seen_release };
 }
 
 /**
- * Remembers on my account that the welcome shouldn't be shown again.
+ * Remembers on my account that I've finished or skipped the welcome tour,
+ * so it isn't shown again after unlocking. Kept in hide_welcome, the
+ * setting of the welcome the tour replaced.
  */
-export async function saveHideWelcome() {
-  const settings = await api("/api/account/settings", { method: "PUT", body: { hide_welcome: true } });
+export async function saveTourSeen() {
+  const settings = await saveSettings({ hide_welcome: true });
   if (loaded) loaded = { ...loaded, hide_welcome: settings.hide_welcome };
 }
 
@@ -123,7 +123,7 @@ export function currentTheme() {
  */
 export async function saveTheme(theme) {
   showTheme(theme);
-  const settings = await api("/api/account/settings", { method: "PUT", body: { theme } });
+  const settings = await saveSettings({ theme });
   if (loaded) loaded = { ...loaded, theme: settings.theme };
 }
 

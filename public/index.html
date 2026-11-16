@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NotoNawa</title>
   <link rel="stylesheet" href="/app.css">
-  <link rel="icon" type="image/png" href="/img/favicon.png">
-  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/img/favicon-v2.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon-v2.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <script src="/js/theme-init.js"></script>
 </head>
@@ -169,15 +169,21 @@
       <div class="dialog-header">
         <h2 id="person-form-heading">Add a person</h2>
         <span class="badge self-badge" id="person-self-badge" hidden>This is me</span>
+        <!-- Their connected account sent its profile again (format 2): reviewing it (profile-update.js). -->
+        <button type="button" class="badge self-badge update-flag" id="person-update-badge" hidden>Updates available</button>
         <span class="dialog-icons" data-item-actions></span>
         <button type="button" class="icon-button" id="person-close" data-cancel-edit aria-label="Close" title="Close"></button>
       </div>
-      <!-- On someone linked to their account (connections.js): the link
-           icon, "Linked to their account" and Remove link. ("This is me" is
-           a badge after the heading, on my own profile only: people.js.) -->
+      <!-- On someone linked to their account (connections.js): at the left,
+           their safety number (format 2, contact-verify.js); at the right,
+           the link icon, "Account linked" and Unlink. ("This is me" is a
+           badge after the heading, on my own profile only: people.js.) -->
       <div class="person-flags">
-        <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Linked to their account
-          <button type="button" class="link" id="person-unlink">Remove link</button></span>
+        <button type="button" class="link verify-flag" id="person-verify" hidden><span id="person-verify-icon"></span>
+          <span id="person-verify-label">Safety Number</span></button>
+        <span class="self-flag linked-flag" id="person-linked" hidden><span id="person-linked-icon"></span> Account linked
+          <button type="button" class="link" id="person-unlink">Unlink</button></span>
+        <p class="warning-note" id="person-key-changed" hidden>Their account's key has changed. Open Safety Number and check it with them in person.</p>
       </div>
       <form id="form">
         <div class="name-row">
@@ -602,7 +608,7 @@
     <!-- My connections to other accounts: shared-by-me.js. -->
     <section class="card">
       <h2>Connections</h2>
-      <p class="hint">Accounts connected to yours. NotoNawa's server can see that you know each other, never what's in either journal. Removing one ends it for both of you.</p>
+      <p class="hint" id="connections-hint">Accounts connected to yours. Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you.</p>
       <div id="connections"><p class="empty">Loading…</p></div>
       <p class="message" id="connections-message"></p>
     </section>
@@ -612,6 +618,11 @@
   <template id="view-open">
     <h1>Shared with you</h1>
     <section class="card" id="open-body"></section>
+  </template>
+
+  <template id="view-verify">
+    <h1>Verify a connection</h1>
+    <section class="card" id="verify-body"></section>
   </template>
 
   <!-- Sign in (/signin) -->
@@ -746,6 +757,31 @@
         <li><a href="/account">Delete your account</a> (at the bottom of the page)</li>
       </ul>
       <button type="button" class="link" id="consent-sign-out">Sign out</button>
+    </section>
+  </template>
+
+  <template id="view-convert">
+    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+
+    <section class="card">
+      <h2>Updating your journal's encryption</h2>
+      <p>To improve your privacy, NōtoNawa now encrypts all your journal data. Now each tie, plan, person, etc is
+         sealed individually, so even what used to be readable to our server (titles, dates, tags) is now only readable on your devices.</p>
+      <p>This happens once, on this device, and takes a minute or so (longer with many photos and videos). Your journal is just as it was afterwards.
+         Going forward, NōtoNawa will keep an encrypted copy cached on your device to maintain searchability and enable offline use.</p>
+      <p>Keep this page open until it's done.</p>
+      <p class="hint" id="convert-started" hidden>It was started before, here or on another device. If it isn't still
+        going there, carry on here: nothing is done twice, and nothing is lost.</p>
+      <button type="button" class="primary" id="convert-go">Update now</button>
+      <p class="message" id="convert-message" role="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>First, if you like</h2>
+      <ul class="consent-ways">
+        <li><a href="/data">Export your data</a></li>
+        <li><a href="/account">Your account</a></li>
+      </ul>
     </section>
   </template>
 

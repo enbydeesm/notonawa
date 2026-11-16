@@ -3142,6 +3142,661 @@ time. Mocked up first, then built (`pose-editor.js`, with
   spanning the title's and the teachers' rows, rather than a line in
   each: a title wrapping to two lines pushed the year away from its days.
 
+## Encrypt everything: the post-quantum library (November 2026)
+
+The first step of the encrypt-everything migration (one sealed record per
+item, item keys, a sealed cache on the device, contacts on post-quantum
+identity keys). The plan, the brief and the architecture's decisions are
+in Claude Docs; this file records each part as it's built.
+
+- **hpke 1.1.8 and @panva/hpke-noble 1.1.8** (both MIT, by Filip Skokan),
+  pinned dev dependencies vendored like three.js: `scripts/vendor.mjs`
+  bundles only what `scripts/vendor/hpke-entry.mjs` names into
+  `public/js/vendor/hpke.js`, typed by our own `scripts/vendor/hpke.d.ts`.
+  They bring `@noble/hashes`, `@noble/ciphers`, `@noble/curves` (2.4.0) and
+  `@noble/post-quantum` (0.7.1), all MIT, by Paul Miller. hpke follows
+  draft-ietf-hpke-hpke-06 and draft-ietf-hpke-pq-05, has no dependencies
+  of its own, and lets the KEM, KDF and AEAD be swapped one at a time.
+- **The suite**: MLKEM768-X25519 (X-Wing, KEM id 0x647a) from
+  @panva/hpke-noble, pure JavaScript, in every browser; HKDF-SHA256 and
+  AES-256-GCM from hpke, on Web Crypto. Chrome 154+ has X-Wing natively
+  (hpke has a Web Crypto version too), but one path everywhere is simpler
+  to trust and test; we switch once every major browser ships it, behind
+  one module, so no format changes. Not independently audited, and
+  noble's code doesn't claim constant time: pending the security
+  reviewer's sign-off (decapsulation only runs on the user's own device).
+- **Size**: 61 KB minified, 22 KB gzipped, loaded only by what needs it
+  (the crypto Worker, from the contacts work on).
+- **Licences in the bundle**: hpke's and two of the @noble libraries'
+  files carry no notice of their own, so `vendor.mjs` starts the bundle
+  with one naming them all and their versions (noble-curves and
+  noble-post-quantum keep their own too).
+- **Tested** (`test/unit/hpke.test.js`): the pinned packages derive the
+  published key pair and open the published message of draft-ietf-hpke-pq-05's
+  X-Wing vector (`hpke-xwing-vector.js`; its only HKDF-SHA256 vector uses
+  ChaCha20Poly1305, so it checks the KEM rather than our exact suite), and
+  our suite, through the vendored bundle, round trips, rebuilds a key pair
+  from its 32-byte seed, and refuses the wrong key, a changed ciphertext or
+  either half of the encapsulated secret, and other additional data or info.
+- **IndexedDB in the crypto Worker works everywhere** (a spike, not kept,
+  Nov 13 on macOS: Safari 27.2, Chrome 157, Firefox 160). From a module
+  Worker each opened IndexedDB, stored a non-extractable `CryptoKey` that
+  still opened what it sealed after a reload, wrote 2,000 sealed records
+  in one transaction (47–66 ms; all read back in 5–11 ms) and 25 MB of
+  files as Blobs (19–29 ms) or ArrayBuffers (25–69 ms), all read back
+  intact after a reload; `storage.estimate()` and `BroadcastChannel` work
+  there, `persist()` is the page's only (granted on localhost by Firefox
+  alone, so the cache must cope with being cleared). X-Wing from the
+  vendored bundle: a key pair from its seed in 7–11 ms, sealing and
+  opening 4 KB in 2–5 ms.
+- **Never await anything but a transaction's own requests inside it.**
+  The spike's first version hashed a file between puts: Safari and Firefox
+  ended the transaction there (`TransactionInactiveError`), as the spec
+  says; Chrome let it pass. The cache seals and hashes everything first,
+  then opens the transaction and puts without awaiting.
+
+## Encrypt everything: the store (November 2026)
+
+Phase 1 of the migration: every read and write of journal data goes
+through one facade, `public/js/store/index.js`, so the encrypted version
+can be put underneath it without touching the pages. It changes nothing
+anyone sees.
+
+- **Plain text in, opened rows out.** The store seals before sending,
+  opens what it returns, and searches a keyword on the device itself
+  (`findTies({ q })`); pages no longer call `seal`, `sealOne` or `open`
+  for journal rows. The encrypted version does all three differently
+  (whole records from the cache), so this is the line it slots in behind.
+- **One file per feature under `v1/`**, today's API calls moved as they
+  were, each in its feature's area so `check:changed` runs only the
+  chunks that matter; `index.js` is shared. Some functions take a kind
+  where the routes do (`listItems("people", "all")`); drawings and poses
+  share one set.
+- **Export and import pass today's sealed shapes through** for now
+  (`exportSealed`, `importTies` and so on): they mix sealed and plain data
+  throughout `views/data.js`, `open-item.js` and `journal-fields.js`, and
+  are rebuilt over the cache in phase 4 rather than reshaped twice.
+- **Types**: rows are `any` as `api()` gave them; per-kind types come with
+  the record schema (phase 2).
+- **The guard is an ESLint rule**, not a unit test: lint catches it as
+  the code is written, before any test runs. (A unit test could read the
+  files through Vite's `import.meta.glob`, as `areas.test.js` does.) It refuses
+  `api()` with a journal path, or `/api/` followed by a variable, outside
+  `public/js/store/`. Left outside on purpose: sign-in, keys, the account
+  (but its settings), consent, notices, feedback, shares, the version,
+  and `seal-leftovers.js` (retired with the migration). The crypto
+  Worker's own fetches (the search index, photos) are rewritten in phase 4.
+- **Small changes on the way**: lists that came sealed to a few views
+  (Analytics, the share dialogs, the workshop picker) now come opened; a
+  delete choice is `{ delete: true }` rather than an empty URL fragment.
+
+## Encrypt everything: the formats (November 2026)
+
+Phase 2: the formats records, files and contacts use, and the crypto
+Worker's operations on them. Built and tested, not used yet (the pages
+reach them from phase 4); the Worker loads them, and the 61 KB HPKE
+bundle with them, at unlock. Everything is AES-256-GCM with a random
+12-byte IV unless it says otherwise, bound by its additional data.
+
+- **Records** (`crypto/records.js`): a random 32-byte item key per record,
+  sealed under the data key as `k2.<iv>.<ct>` (bound to
+  `notonawa|itemkey|v2|<user>|<kind>|<id>`), opened straight into a
+  non-extractable key. The body is `{ v: 2, … }` as JSON, padded with
+  spaces to a multiple of 256 bytes (JSON ignores them, so nothing comes
+  off; the reviewer may prefer ISO 7816-4, a one-line change), sealed as
+  `e2.<iv>.<ct>` and bound to `notonawa|record|v2|<user>|<kind>|<id>|<version>`.
+  The page gives the version being written (1 more than it read); the
+  server only checks it. A body over 1 MiB padded is refused (`TooBig`):
+  sealed and in base64url that's about 1.4 MB, under the server's cap.
+- **Ids** (`records/ids.js`): conversion and "this is me" ids are
+  HMAC-SHA256 under an id key, as version 8 UUIDs. The id key is HKDF-SHA256
+  (salt 32 zero bytes, info `notonawa ids v1|<user>`) of the data key's
+  bytes: the Worker unwraps the same wrap a second time as an HKDF key
+  (`unwrapKeyMaterial`), since the data key itself never exists as bytes
+  in JavaScript. Weighed: a separate random id key, sealed and stored, is
+  cleaner (no key used both as AES and as HKDF input) but needs storage
+  and a rule for two devices making one at once; a fixed-IV encryption of
+  a label works but is a misuse pattern. Chosen: the HKDF unwrap, pending
+  the reviewer. The vectors were worked out again with Python's `hmac`
+  and `hashlib`.
+- **Files** (`crypto/files.js`, v3): a random 32-byte key per file, kept in
+  its item's record. Thumbnail, full size and a reserved cover part, every
+  part of photos and videos alike in 1 MB pieces bound to
+  `notonawa|file|v3|<user>|<file>|<part>|<n>|last|more`, so the server
+  can't reorder, swap or cut short a part.
+- **Identity keys** (`crypto/identity.js`): X-Wing through hpke and
+  @panva/hpke-noble; HPKE base mode, info `notonawa msg v1`; a sealed
+  message is the 1,120-byte encapsulated secret then the ciphertext. The
+  32-byte seed is sealed under the data key as `i1.<iv>.<ct>`, bound to
+  the user and the SHA-256 of its public key, so the server can't pair the
+  seed with a public key of its own.
+- **The acceptance and messages** (`crypto/pair.js`): the acceptance is
+  HPKE-sealed to the inviter (bound to `notonawa|accept|v1|<share>`) and
+  carries an HMAC-SHA256 under a key from the link's key (HKDF, info
+  `notonawa accept v1 <share>`), so the server, which has the inviter's
+  public key but not the link, can't forge one. Later messages are
+  `m1.<counter>.<iv>.<ct>` under the pair key, bound to
+  `notonawa|msg|v1|<mailbox>|<counter>`; a counter must be above the last
+  taken (`acceptCounter`).
+- **Safety numbers** (`crypto/safety-number.js`): Signal's numeric
+  fingerprint exactly (libsignal's `fingerprint.rs`): it reproduces their
+  published vector, and Python's `hashlib` gives the same on X-Wing-sized
+  keys.
+- **Schema** (`records/schema.js`): each kind's fields and the checks on
+  one record, the server's and the database's rules today (kept in step
+  with `src/` by a unit test). Fields a record has that its kind doesn't
+  list are kept, so a device on an older version doesn't drop them. Rules
+  across records (one "this is me", one default location, deleted links)
+  wait for the cache (phase 4), where the whole journal is to hand; so do
+  a drawing's and pose's own checks, which today are only the server's.
+- **The Worker** (`vault-core.js`): `recordIds`, `sealRecords` (checked
+  first), `openRecords` (one that won't open comes back unreadable, not
+  failing the rest), `sealFile`, `openFile`, `copyFile`, `makeIdentity`,
+  `openIdentity`, `sealAcceptance`, `openAcceptance`, `sealMessage`,
+  `openMessage`. Item keys leave only sealed; file and pair keys only
+  inside records; the seed only sealed, and it's forgotten on lock.
+
+## Encrypt everything: server v2 as built (November 2026)
+
+Phase 3: the server's side of format 2, in migration 0032 and `src/records/`,
+`src/files/`, `src/identity/`, `src/mailboxes/`, `src/convert/` and
+`src/format.js`. Built and tested; no account uses it yet
+(`NEW_ACCOUNT_FORMAT` is 1 in both environments until phase 4's store).
+
+- **Records**: one D1 batch per `POST /api/records`, all or nothing. A
+  stale write, a reused or deleted id, or going over the 1 GB is caught by
+  an INSERT into an always-empty table (`version_checks`, `quota_checks`)
+  whose NOT NULL column fails the batch, as D1 has no way to abort a batch
+  on a condition otherwise. The page seals the version it writes (one more
+  than it read) and the server only checks it, with triggers so the version
+  only rises by one and a deleted id never comes back. Sequence numbers come
+  from raising `users.sync_seq` by the batch's size, each op taking its
+  place below the new value. Deletion markers are kept for good, so a
+  device away for months still syncs.
+- **Files**: `<owner>/files/<id>` in the photos bucket; the row has sizes
+  only. The quota is checked in the insert. While converting, format 1
+  media doesn't count against the 1 GB (`roomLeft`), since the conversion
+  holds two copies for a while.
+- **Mailboxes**: the plan had a daily cap per mailbox; built instead as at
+  most 100 messages waiting in a mailbox (the next send gets 429). Read
+  messages are deleted, so this stops a flood just as well, and nothing has
+  to count per day. Only the token's hash is stored; a wrong token and no
+  such mailbox are the same 404. D1's `meta.changes` on a DELETE counts
+  rows removed by cascade, so a delete checks `> 0`, not `=== 1`.
+- **The gate** (`src/format.js`): one pure function for every signed-in
+  request, rather than a check in each route, so a route can't forget it.
+  410 with `reload: true` is "this page is the wrong version for your
+  account". While converting, the format 1 journal answers reads (the
+  conversion reads everything through the export) but refuses changes with
+  409, so an old open page can't write after the conversion has read. Two
+  POSTs only read (the tie search and the stats) and stay open. Mailboxes
+  wait for format 2: nothing during the conversion needs them.
+- **Conversion** (`src/convert/`): start marks the account converting once
+  (starting again keeps the first time, which another device reads as when
+  it began). Finish is one batch: refused unless converting and with at
+  least one record (a conversion always writes "Me", so a page gone wrong
+  can't delete a journal that has no copy), the format 1 photos' ids read,
+  the account made format 2, and every format 1 journal table's rows of
+  mine deleted, items that link to others first, children by cascade; the
+  old R2 objects after it (the daily sweep catches any missed). A second
+  finish is refused. Connections and shares stay: a connection has another
+  account's side (phase 6 decides), and a share is sealed with its link's
+  key. The settings columns on `users` stay too, until the settings record
+  replaces them.
+- **Sign-up**: `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`) picks a new account's
+  format; a format 2 account gets no plain "Me" row, as its device writes
+  "Me" as a record.
+
+## Encrypt everything: the cache as built (November 2026)
+
+Phase 4, slice 1: the cache, syncing and the journal in memory, for
+format 2 accounts (none yet: `NEW_ACCOUNT_FORMAT` is still 1). Format 1
+is untouched, and opens no IndexedDB (the lock walkthrough checks).
+
+- **Where things live**: the crypto Worker opens the cache, syncs it and
+  saves records itself (fetching `/api/sync` and posting `/api/records`,
+  as it already fetches photos), so the cache and the server stay in step
+  in one place. The page gets records opened, whole, and holds them in
+  memory (`store/v2/journal.js`) while unlocked; the queries run there.
+- **Saving needs a connection**, as before: the cache is for reading
+  and searching. Weighed: a queue of offline saves; left for later
+  (roadmap.md, "Saving while offline"), as it brings its own conflicts.
+- **A save another device beat** (409 stale): the store syncs, carries
+  each edit onto the newer version field by field (`mergeEdit`: the
+  fields I changed take mine, the rest theirs; mine wins a clash, as I'm
+  the one saving and can see what I typed), and tries once more. A new
+  record whose id another device took first (both making "Me") is left
+  as theirs. Weighed: refusing ("changed on another device", the edit
+  lost) and last write wins (the other device's change silently lost).
+- **Tabs**: one syncs or saves at a time per account, with the browser's
+  Web Locks (simpler than choosing a leader tab, and nothing to hand over
+  when a tab closes); a BroadcastChannel tells the others which ids
+  changed, so each reads them again from the shared cache, and locking
+  one locks all.
+- **The settings record has a worked-out id**, like "Me"'s (`settingsId`:
+  HMAC of `notonawa settings v1|<user>` under the id key), so two devices
+  making it at once write the same record. Every unlock makes "Me", the
+  settings record and the identity key if they're missing, so an account
+  whose sign-up stopped half-way catches up.
+- **Wiping**: signing out and deleting the account delete every
+  `notonawa-*` database on the device. A session that just ends (a 401)
+  doesn't: the cache is sealed, and named for its account.
+
+## Encrypt everything: people and locations as built (November 2026)
+
+Phase 4, slice 2: people and locations in format 2 (`store/v2/resources.js`).
+
+- **The pages don't change**: the v2 store gives the same rows as format
+  1's API (`store/queries/resources.js`; a unit test compares the columns
+  with `src/resources/config.js`), in the same order, and takes the same
+  fields. `store/index.js` picks v1 or v2 when each function is called.
+- **The rules the database kept** are `records/edits.js`'s, given the
+  whole journal: one default location (making one clears the other in the
+  same batch), "Me" never archived or deleted, a deleted person or
+  location left on its ties and workshops. A form's fields keep what the
+  form hasn't (profile notes, fields a newer version added). The server's
+  parsers are copied with their messages (`records/parse.js`), so the
+  same mistake reads the same in both formats.
+- **Big edits**: the server takes 50 changes a batch. Deleting someone
+  who's on more ties than that goes in several batches, the ties first and
+  the delete last, so one that fails leaves nothing pointing at a record
+  that's gone (the person is just still there).
+- **Maps links, both formats**: a full Google Maps link is read on the
+  device now, never sent; only a short link, which has to be followed, goes
+  to `POST /api/locations/coords`. PRIVACY.md still says full links are
+  read on our server, which now overstates what's sent; it's corrected in
+  phase 7's rewrite rather than with a policy version of its own.
+
+## Encrypt everything: plans and tags as built (November 2026)
+
+Phase 4, slice 3: plans and tags in format 2.
+
+- **Tags are records** (`{ name }`), and a tie, plan or workshop lists its
+  tags' ids. Saving an item with tag names matches them to my tags
+  ignoring capitals and makes records for new ones in the same batch;
+  deleting a tag takes it off everything, then deletes it.
+- **Two devices can make the same new tag at once** (random ids, so
+  neither save is stale), leaving two tags of one name. Weighed: ids worked
+  out from the name, as "Me"'s are; refused, as a deleted id can never
+  come back, so a tag once deleted could never be made again. Rare, and
+  visible (both show in the tag list, each deletable); merging them can
+  come later if it happens.
+- **Deleting a plan** changes its ties as the person chose (off them, or
+  "(plan deleted)"), stops other plans being variations of it, deletes its
+  drawings and poses, and frees its photos' and videos' files, in one
+  save (several batches if over 50, the plan's delete last).
+- **A plan's `version`** stays 1, as format 1's never rose either; ties
+  keep the version they were logged against.
+
+## Encrypt everything: ties and Analytics as built (November 2026)
+
+Phase 4, slice 4: ties, the Ties search, the recent pickers and Analytics'
+ties in format 2.
+
+- **The search runs in memory** (`store/queries/ties.js`), with format 1's
+  filters (people: all of them; locations: any; tags: any or all; dates
+  inclusive), order (date, then when logged, then id, so pages never
+  shift; oldest first exactly reversed) and paging. The keyword is matched
+  in memory too, over titles, notes and linked plans' titles, the same
+  `search-match.js` the crypto Worker uses for format 1: format 2's notes
+  are already open in the page, so nothing more is exposed.
+- **Rows match format 1's**: `src/ties/db.js` exports `TIE_COLUMNS` so a
+  unit test can check the columns. People and plans with no name (deleted)
+  sort first, as SQLite sorts NULL.
+- **Link ids**: format 1's link rows had ids, which the edit form sends
+  back to keep a deleted person or plan. Format 2's entries have none, so
+  a row's link id is its place in the record's list (`p0`, `l1`), stable
+  for as long as the form is open; a conflicting edit from another device
+  is carried over field by field (the whole list as one field).
+- **A person kept in the same role keeps their entry** (an import's ratings
+  and notes on it), and a plan kept its recorded version, as in format 1.
+
+## Encrypt everything: workshops as built (November 2026)
+
+Phase 4, slice 5: workshops and the Education view in format 2
+(`store/v2/workshops.js`).
+
+- **A workshop's record** holds its educators and participants as one
+  list, each with its kind and role, a person once, as format 1's
+  `workshop_people`; deleted people and a deleted location are kept on an
+  edit only as the form says (link ids `w<n>`, as ties' `p<n>`).
+- **Links stay on the tie or plan** (`workshop_id`), as format 1 has them:
+  a tie or plan has one workshop, and the workshop's linked list is worked
+  out from them (plans A–Z, then ties oldest first). Deleting a workshop
+  unlinks them in the same save.
+- **Rows match format 1's**: `src/workshops/db.js` exports
+  `WORKSHOP_COLUMNS` for the unit test.
+
+## Encrypt everything: visuals as built (November 2026)
+
+Phase 4, slice 6: photos and videos, drawings, poses, their order and poser
+presets in format 2.
+
+- **One list on the item**: a tie's, plan's or workshop's record lists its
+  visuals in order. A photo's or video's entry holds its file's key, kind,
+  type and caption (the file itself, `<owner>/files/<id>` in R2, says
+  nothing of its item); a drawing or pose is a record of its own, listed
+  there. Ordering is rewriting the list, refused unless every visual is in
+  it once, as format 1's route refused.
+- **Files before records, records before deletes**: a photo is uploaded,
+  then its item saved listing it; removing one saves the item, then deletes
+  the file. A step that fails leaves a file nothing lists, never a record
+  listing a missing file; the journal finds those after syncing
+  (`cache/orphans.js`) and deletes them, once a day old (an upload may still
+  be on its way from another device), and never while a record won't open
+  (its files can't be told from orphans).
+- **File keys are in page memory** with the rest of the opened records (the
+  agreed design: the page holds the journal), and the page gives a file's
+  key to the Worker to open or copy it. The Worker still does all the
+  opening and sealing, and keys go to the server only sealed in records.
+- **Pages ask the store, not the vault**, to open a part or copy a photo
+  (`openMediaPart`, `copyMediaTo`), so photos-ui.js works for both formats.
+  Adding a share's photos (`uploadSealed`) comes with shares, next.
+
+## Encrypt everything: settings and export as built (November 2026)
+
+Phase 4, slice 7a. (Slice 7 is split: 7a settings and export, 7b import,
+7c shares, 7d the walkthrough on format 2 accounts and dev's sign-ups.)
+
+- **Settings, split**: a format 2 account's role names and the poser's
+  default body are in its sealed settings record; light or dark mode, the
+  release notes and welcome seen stay on the server, as the page needs them
+  before the journal is open. `GET /api/account/settings` gives a format 2
+  account nulls for the record's three, and a `PUT` with any of them is
+  refused (`src/account/settings.js`, `settingsFor`, `checkFormat`); the
+  store gives the two halves as one, so the pages don't change.
+- **The export, both formats through the store**: `exportJournal` gives the
+  whole journal opened (captions too) with how many things wouldn't open;
+  the Your data view no longer opens anything itself. For format 2,
+  `GET /api/data/export` is now open to it (the gate's `BOTH`): with no
+  rows of the format 1 journal, it gives the account part (passkeys,
+  notices, feedback, shares), and the journal is added from the records
+  in format 1's shape. A unit test builds one journal as format 1's rows
+  and format 2's records and checks the two exports are the same, so a
+  file from either imports into either.
+- **Presets saved together** (an import's) share a time; each has its place
+  in the save (`order`), as the cache gives records back in id order.
+
+## Encrypt everything: import as built (November 2026)
+
+Phase 4, slice 7b: importing into a format 2 journal.
+
+- **The same steps for both formats**: the Your data view still sends
+  items, then ties and workshops in batches, previewing each batch for
+  duplicates first. For format 2 the store answers those requests itself
+  (`records/import.js`, a port of `src/data/import-*.js`: the parsing and
+  messages, matching by name, one default location, new tags, a plan's
+  variation, duplicates the same but for their notes) and saves records.
+  Nothing is sealed first (`sealImport`): records are sealed whole when
+  saved. Connections come with contacts, so a person's `connection_id` is
+  dropped and counted.
+- **Not all or nothing per batch**: format 1 saved a batch of 200 ties in
+  one transaction; format 2's saves go 50 at a time. A batch that fails
+  part-way leaves some ties added, and importing again finishes the job, as
+  every batch is checked for duplicates just before it's saved (as format 1
+  already did for a failure between batches).
+- **Exactly back**: a unit test exports a journal with something of every
+  kind (deleted links, a variation, a workshop with linked ties and plans)
+  and imports it through the page's own steps into an empty journal (the
+  same export again) and into the same journal (nothing added, every tie
+  and workshop a duplicate). As 7a showed both formats' exports are the
+  same, a format 1 export imports into format 2 the same way. Linking a tie
+  or plan to an imported workshop leaves its `updated_at`, as format 1's
+  import did.
+
+## Encrypt everything: shares as built (November 2026)
+
+Phase 4, slice 7c: shares made from and opened into a format 2 journal.
+
+- **The share stays as it is**: a snapshot and its files sealed with the
+  link's key, the same format whichever format the sender's or the
+  opener's journal is, so a format 1 account can open a format 2 one's
+  share and the other way round.
+- **Photos move through the crypto Worker**: sharing one of my v3 files
+  opens it there with the key from its item's record and seals it again
+  with the link's key (`reshareFile`); adding a share's file into a format
+  2 journal opens it with the link's key and seals it as a new v3 file
+  under a key of its own (`adoptShareAsFile`). The pages ask the store
+  (`shareFileObject`, `adoptSharedMedia`), which picks the format 1 or 2
+  way, so share-save.js and open-item.js don't change between them.
+- **A file's size** is kept in its entry (`bytes`), as the Share dialog
+  says how big a share's photos are.
+- **No connections yet for format 2**: they become contact records in
+  phase 6. Until then a format 2 account lists none, Share my profile
+  doesn't offer Connect our accounts, and an invite's offer isn't shown.
+
+## Encrypt everything: phase 4 finished (November 2026)
+
+Slice 7d: the walkthrough on format 2 accounts, and dev's new sign-ups
+format 2. Phase 4's gate, the whole walkthrough passing on a format 2
+account, is met: every chunk passes on both formats.
+
+- **The walkthrough goes through the store**: its checks and seeds used
+  format 1's routes directly; they now use the app's own store module in
+  the page, so each runs on either format. The few that check what the
+  server keeps (notes and captions only sealed) ask whether the text is
+  anywhere the server keeps the journal in plain text (`plainOnServer`:
+  format 1's export, format 2's records), and format 1's own checks (older
+  plain text sealed at unlock, the search index) run on format 1 only.
+  Connections are checked on format 1 only, until contacts.
+- **Both formats in every check**: `check:changed -- --ui` runs the changed
+  chunks on format 1, then format 2; `npm run test:ui -- --format 2` runs
+  them all on format 2. Until phase 8 both are live.
+- **What it found**, beyond the walkthrough's own assumptions: an import
+  preview checked links to people and places that only exist once the
+  items are saved (format 1's never did), and its list of new tags was
+  read before the batch's tags were; a pose saved with only some joints
+  wasn't filled in as format 1's server filled it (`records/pose-data.js`);
+  the Unlock view could log an error when signing out raced it; and a
+  pose check that read before the save it waited for had finished.
+- **Dev sign-ups are format 2** (`NEW_ACCOUNT_FORMAT` in `env.dev`); dev's
+  existing accounts stay format 1, for converting in phase 5. Production
+  stays format 1 until the release.
+
+## Encrypt everything: conversion as built (November 2026)
+
+Phase 5, slice 1: converting a format 1 journal on the device
+(`convert/plan.js`, `store/convert.js`, the Worker's `convertMedia`). The
+dialog, the on/off switch and the walkthrough come next.
+
+- **Read through the store**: format 1's `exportJournal` already opens
+  everything (notes, captions), so the conversion plans from what the
+  export would hold, and a unit test checks a converted journal exports
+  exactly as it did before. The export has no ids for saved presets, so
+  their ids come from the presets list (same order).
+- **Ids**: every record's is worked out in the crypto Worker from its
+  format 1 table and old id; tags (listed by name) from their name
+  ignoring capitals; profile notes from their person and place; "Me" and
+  the settings record their fixed ids. A run started again writes the same
+  records.
+- **Files first, then records, then a read-back, then the finish**: every
+  converted file is read back and opened before going on; a file an
+  interrupted run uploaded before its record was saved is made again
+  (its key went with that run). Records already saved are skipped. Only
+  when every planned record reads back does the finish make the account
+  format 2 and delete the old rows.
+- **Found converting**: the schema read the settings record's default body
+  as an object; it's the poser's four sliders, a list. Saving a default
+  body in format 2 would have been refused (fixed, with a test).
+
+## Encrypt everything: converting at unlock as built (November 2026)
+
+Phase 5, slice 2: the Convert view and the switch.
+
+- **A switch, not a deploy**: `CONVERT_ON_UNLOCK` decides whether a format 1
+  account converts at its next unlock: on in dev, off in production until
+  the release, so phase 5 can ship without anyone converting before the
+  reviewer has signed off. An account that has started converting carries
+  on whatever the switch says: its format 1 journal no longer takes changes.
+- **A view in place of the journal, as Consent is**, not a dialog over it:
+  the views that need the journal wait, but Your data and Account still
+  open, so someone can export first. "Continue on this device" is offered
+  at once for one already started, rather than after the plan's 10 minutes
+  of no progress: the usual case is this same device after a tab closed,
+  and a second device carrying on is safe (the same ids, every save
+  checked).
+- **Not locking part-way**: each step of progress counts as using the app
+  (`lock.js`'s `noteActivity`), so a long conversion isn't locked for want
+  of a tap; a lock would only stop it, to carry on at the next unlock.
+- **The walkthrough's convert chunk** does it for real on a format 1
+  account with something of every kind and a photo and a video: stopped
+  after its files, half-way through its entries and just before the
+  finish, each time still format 1 with nothing old touched, then finished
+  from the view. Its export afterwards matches the one before (order aside
+  among items made in the same second, listed by their new ids), its photo
+  and video are the same bytes, and the format 1 rows are gone.
+
+## Encrypt everything: empty accounts as built (November 2026)
+
+Phase 5, slice 3: `scripts/mark-empty-accounts.mjs` (since phase 7,
+`scripts/release-cleanup.mjs`), run after the release's deploy, makes
+accounts with nothing in their journal format 2 straight away, so they
+never see the conversion.
+
+- **Empty** is: format 1, not converting; no ties, plans, workshops,
+  locations, tags, photos, drawings, poses, presets, connections or offers
+  to connect; its "Me" with nothing filled in, not even renamed (a renamed
+  Me is the person's name, worth converting); no role names of its own and
+  no saved default body.
+- **No window to slip through**: the check is part of the UPDATE, so an
+  account that gains a tie while the script runs is either seen with it
+  and left to convert, or made format 2 first, after which format 1's
+  routes refuse the tie (an old open page is told to reload). The plain
+  "Me" rows are deleted after; that's safe to run again, as a format 2
+  account has no format 1 rows.
+- **Its first unlock** as format 2 makes the sealed "Me", the settings
+  record and the identity key, as a sign-up does.
+- **Phase 5 is finished**: the conversion, its view and switch, the
+  walkthrough's convert chunk on real format 1 accounts, and this script.
+  What's left before release (phase 7): contacts (phase 6), then the
+  privacy policy, reviewer sign-off and turning `NEW_ACCOUNT_FORMAT` and
+  `CONVERT_ON_UNLOCK` on in production.
+
+## Encrypt everything: contacts as built (November 2026)
+
+Phase 6, slice 1: the pure parts (`contacts/messages.js`,
+`contacts/rules.js`, the contact record's fields in `records/schema.js`)
+and the crypto Worker's acceptance and message operations reachable from
+the page.
+
+- **A contact is a record** in my own sealed journal: "invited" (an invite
+  of mine offering to connect: its share and intro mailbox, and what my
+  profile shares), "active" (their pinned key and account id, our two
+  mailboxes, the pair key, a counter each way, the person it's on) or
+  "removed" (kept, so a late message isn't taken for a new contact).
+- **An invite offers to connect for as long as it lasts**: its intro
+  mailbox takes the invite's own expiry (the same choices: 10 minutes to
+  30 days, or until revoked), and profile invites now default to 7 days
+  (item shares keep 1 day). "Until I revoke it" keeps the intro until the
+  invite is revoked (the device deletes it then), stored as a far-off end
+  (`NEVER`, 9999), as migration 0032's CHECK has every intro end and that
+  migration is applied: no new migration needed.
+- **Being removed is silent**: a "removed" message ends the contact and,
+  if they asked, takes their About off my card of them; no banner or
+  notice says so, the link icon just goes.
+- **Profile updates go out by themselves** when I save my "Me", the same
+  fields I shared with each contact; on their side nothing changes until
+  they choose "Updated info available".
+- **Counters are reserved before sending** (the contact record saved with
+  the next one), so two of my devices never send the same one, which the
+  other side would refuse as a replay.
+- **Only the same format connects**: a format 1 account opening a format 2
+  invite (or the other way round) sees the profile, without Connect.
+
+Slice 2a: connecting and removing (`store/v2/contacts.js`).
+
+- **The invite record keeps what an acceptance needs**: the share's link
+  key (the acceptance is bound to it), its tag and whether it's for one
+  person. Reading them from `GET /api/shares` doesn't work: a one-person
+  invite is deleted from the server as soon as it's opened, before the
+  acceptance arrives. The contact then keeps the tag, for the banner and
+  Connections ("through "Munch"").
+- **An acceptance's contact id is worked out, not random**
+  (`recordIds`'s converted ids, from the share and the pair key), so two
+  of my devices checking at once make one contact; the one that loses
+  deletes the mailbox it made.
+- **A message is acknowledged only once what it says is saved.** One that
+  won't open, isn't for anything I have, or repeats a counter is dropped;
+  one that couldn't be fetched or saved waits for the next check.
+- **Reserving a counter compares the saved body itself**: the journal
+  keeps the body it was given, so the record holding mine means my save
+  won; otherwise another device's did, and it tries again on theirs.
+- **Checking is every 2 minutes while the page is in view**, and on coming
+  back to it: no push, as the server mustn't know which account to wake.
+
+Slice 2b: profile updates.
+
+- **Only what changed for that contact is sent**: each contact keeps the
+  profile it last got (`sent_profile`, starting as the invite's), and an
+  update goes only when the profile built from its fields differs. Saving
+  "Me" for a note of my own sends nothing.
+- **The aliases shared are kept as themselves**, not their places in my
+  list, so reordering doesn't change what's shared; one renamed or removed
+  stops being shared (a new one isn't added either: I didn't choose it).
+- **`sent_profile` is saved after the send, not before** (the counter is
+  saved before, as always): one that couldn't go is tried again at the
+  next check rather than thought sent. Their side keeps only the latest
+  (the `profile` slot replaces one waiting).
+- **The accepter shares nothing back** (as format 1's connections): only
+  the inviter's fields are kept, so only the inviter sends updates.
+- **Nothing changes on my card until I review it**: Save takes the fields
+  I choose, as adding an invite to someone does (the same form,
+  `profile-merge.js`); Ignore keeps my card. Either way it stops waiting.
+
+Slice 3: verifying.
+
+- **The safety number is worked out on the page**, not in the crypto
+  Worker: it's made from public keys and account ids only (5,200 rounds
+  of SHA-512 a side, kept per contact until lock).
+- **Scanning verifies the scanner's side only**: Jude scanning Alex's code
+  marks Alex verified on Jude's phone. Alex marks Jude after seeing the
+  numbers match ("They match: mark as verified"), or by scanning Jude's.
+  A scan proves the two phones show the same number; the server can't
+  make that happen with a key of its own.
+- **`/verify#<number>` keeps the number after #** (never sent to the
+  server) and takes it out of the address at once. A safety number isn't
+  a secret, but it needn't sit in the browser's history. Opened signed
+  out, sign-in drops it: scan again once signed in.
+- **No safety number until their account has answered**: it needs their
+  account id, which the inviter has from the acceptance and the accepter
+  from "accepted".
+- **A changed key warns on the card and in its dialog** ("Key changed"),
+  until checked again. An identity key is set once, so a change means
+  their account started over, or someone came between us.
+- **Sharing back rides in the acceptance** (format 2): the acceptance
+  always had room for a profile, so "Share your profile back?" is asked
+  before it's sent, and the inviter gets the connection and the profile in
+  one message, one banner ("Your "Munch" share was accepted and Jude has
+  connected and shared their profile"). New Person makes the card from it
+  (the name suggested from it); Add to a Person merges it into the one
+  chosen, as an update is reviewed. Sharing it after accepting goes from
+  the linked card's share icon, and arrives as an update. Either way, the
+  fields chosen are kept, so later changes to my profile go to them too.
+  Format 1's connections carry no messages, so it isn't offered there.
+  The privacy policy's rewrite for format 2 (phase 7) needs to say this.
+- **Sending a tie, plan or workshop to a connection is a share** whose
+  link goes through the connection instead of being passed on: one use,
+  30 days (they may not be online), its photos and videos in it as a
+  link's are, as a mailbox message (200,000 characters) couldn't hold
+  them. The "share" message has only the share's id and key, sealed with
+  the pair key; nothing on the server says who it was for. It waits on
+  their contact record (at most 50 a contact) until opened from the
+  banner, which then opens it as a link would; Not now hides it until the
+  journal locks. If it can't be sent, the share is revoked.
+- **One set of words for both formats.** The disclosure says "Profile
+  connections are private. NōtoNawa's server keeps no record that the two
+  accounts are connected." ("keeps no record", not "can't see": it sees
+  an invite opened and a message arriving soon after, and stores
+  neither). That's format 2's truth; format 1 accounts convert before
+  they share anything, so no format 1 wording is kept (a format 1 account
+  accepting an invite before then sees it too). Send to connection on
+  format 1 says it comes with the update. Item shares now last 7 days by
+  default, as profile invites do.
+- **The walkthrough runs two accounts at once** as two browser contexts of
+  one Chrome (`useTab`), each with its own passkey device, rather than
+  signing out and in: a chunk can't sign back in to an account whose
+  passkey went with the last `freshAccount`.
+
 ## Poser: a bigger ring, cinches round the body (November 2026)
 
 **Status:** built (2026-11-05)
@@ -3178,4 +3833,194 @@ time. Mocked up first, then built (`pose-editor.js`, with
   length, which only shortens: a longer, sagging cinch was offered and
   not wanted for now. Slack went from 100 cm to 300 cm, so twice a long
   upline's length fits.
+
+## Poser: the pelvis pivots under the trunk (November 2026)
+
+**Status:** built (2026-11-14)
+
+- **The Hips sliders keep the trunk as well as the legs** (`HIPS_KEEP` in
+  `pose-skeleton.js`): before, Tilt, Hike and Turn tipped everything above
+  the pelvis rigidly, so tilting it leaned the whole body. Now the waist
+  takes the opposite turn (it's the pelvis's own child, as the thighs
+  are, so `withHips` makes up for it the same way), spread over the
+  lumbar bones as any waist bend is. The waist's own limits still hold:
+  past them the trunk follows the pelvis, which is how a real back runs
+  out. A leg drag that turns the pelvis keeps the trunk too.
+- **No new joint or stored number**: the pose format and the server's
+  limits are unchanged, and saved poses open as they were. Weighed: a
+  separate "keep trunk" tick box; left out until someone wants the old
+  rigid tip (bend the waist, or the whole body's Tip, for that).
+- **Not built yet**: deep hip bends rolling the pelvis back and wide
+  spreads hiking it (roadmap.md).
+
+## Poser: raising and lowering uplines (November 2026)
+
+**Status:** built (2026-11-14)
+
+- **Every upline's hanging stretch has a Length** (`pose-uplines.js`,
+  `setUplineLength`), in place of Slack (a see-saw, which keeps its own
+  length over the hardpoint, still has Slack). Before, only a two-point
+  rope had one, shortening moved the body with nothing else held, and
+  lengthening was only ever slack.
+- **Shorter raises**: a limb turns to it, as a drag would, and the whole
+  body (its tip, roll and height) follows once the limb can't reach, or
+  at once on the trunk. **Longer lowers**: down to the floor (the skin's
+  lowest point, from the body's capsules), the rest slack; a body already
+  on the floor only gets slack.
+- **The other uplines hold on**: each taut one keeps its length, the limb
+  it's tied to turning to allow it, so the solver takes any number of
+  lengths at once (`dampedSolveMany`). One with slack takes it up or lets
+  it out first. Whole degrees shared over several lines leave each within
+  a couple of centimetres.
+- **No stored length**: a taut upline's length is still just the distance
+  between its ends, so the pose format and the server are unchanged. We
+  weighed storing each line's length (so a line could go slack by itself
+  when the body's moved another way); not needed for this.
+- **Two rules stand in for gravity**, as nothing weighs anything: a line
+  let out lowers what hangs from it, and a limb's line carries the whole
+  body only when the body is off the floor with no taut line on its
+  trunk. Nothing swings to hang under its line, and the figure never
+  moves sideways. Real physics (weights, a centre of mass) was the other
+  way: much more to build, and slow to solve on a phone.
+- **A limb stuck at a joint's limit starts again** swung forward, then
+  out (`limbTo`): from hanging straight down, the steepest way up for an
+  arm is backward, into the shoulder's limit.
+
+## Poser: a body hanging under its lines (November 2026)
+
+**Status:** built (2026-11-14)
+
+The first of three levels of physics we weighed. This one: the body, as
+one rigid piece, comes to rest where its weight is lowest (`pose-hang.js`,
+`hang`). Not built: limbs drooping under their own weight (each joint
+needs a stiffness, and a "held" or "relaxed" state so they don't fight
+posing), and a full simulation over time (rope tension, swinging, friction:
+a new engine, and slow on a phone).
+
+- **Weight from the capsules**: each of the body's capsules' volume at
+  its middle (`weightMiddle`), so it follows the body shape sliders. One
+  density throughout.
+- **The body moves as one piece**: its tip, turn, roll, height and where
+  it stands (`shift`, which the pose already had), so the format and the
+  server are unchanged. The solver's angles gained the figure's place.
+- **Lowest weight, lines at their lengths**: the weight's middle is
+  lowered a few centimetres at a time, in fractions (`settle`'s `exact`),
+  each taut upline held, and rounded to whole degrees once at the end. A
+  line's give doesn't count as a gain, so hanging twice changes nothing
+  the second time. Height changes little near rest (10 cm off plumb on an
+  80 cm line is under a centimetre), so it ends within a few centimetres
+  of plumb, not exactly on it.
+- **A slack line is free until drawn tight**, then holds; its whole
+  length is kept. See-saws hold nothing (they run free).
+- **The floor**: a body touching it is left alone, as the floor carries
+  some of it and we don't work out how much (so partial suspensions don't
+  settle), and settling stops at the floor.
+- **When it settles** (the user's choice of three): on an upline's
+  Length changing (let go, not while sliding), and on "Dangle" in
+  the Rope tab, shown for a body in the air on an upline. Posing never
+  moves it. The others: settling on every joint change (most lifelike,
+  but the body shifts under each adjustment), or the button only.
+
+## Poser: rope on the skin, wraps, and moving points (November 2026)
+
+**Status:** built (2026-11-15)
+
+- **Between two points, a rope goes round the part** (`pose-surface.js`,
+  `alongSkin`, used by `ropeRuns`): both on one part, or both on the
+  trunk, it turns round the part's middle line the short way, as far out
+  as its two points are, and never inside the body's capsules. Before, it
+  curved straight through an arm from front to back. Between different
+  limbs it runs straight, lifted out of any capsule in the way. Nothing
+  is stored: the points are where they were tapped, and only the drawing
+  changed, so saved poses simply look better. The rope being laid is drawn
+  the same way.
+- **Capsules for drawing, the real skin for wraps.** Drawing runs on every
+  frame, so it uses the capsules: quick, pure and tested, but rounder than
+  a chest, so a rope between two far-apart taps can still dip under the
+  skin there. A wrap is laid once, so it measures the real skin
+  (`skinMeasure` in `pose-scene.js`: the part's vertices skinned on the
+  CPU once, then a ray out from the middle line for each point), twelve
+  points a turn, close enough together that the drawing between them
+  stays on the skin. We tried six points a turn on the capsules alone
+  first: on the chest the rope sank out of sight between them.
+- **A wrap round the trunk goes under the arms**: only the trunk's own
+  skin counts, so an arm hanging beside the chest isn't wrapped in. Tying
+  the arms in is laid by hand, point by point, for now.
+- **Wrap floats over the view**, under undo and redo, not in the Rope
+  tab's rows: the pencil's rows take their exact places, which another
+  row there would have moved.
+- **Undo takes back a tap's worth** while laying: one point, or the whole
+  wrap a tap laid.
+- **A chosen rope's points are white dots**: dragged, a point moves over
+  the skin (its place along the rope is the same, so cinches stay);
+  tapped, it's taken out. With a point gone the rope's stretches are
+  counted differently, so cinches and ropes added on it go too, as they do
+  whenever a rope's points change in number (`relink`); it says how many
+  went, and Undo brings them back. Weighed: moving their places along the
+  rope to match. Left for when it's missed. Hardpoint points and spots on
+  other ropes have no dot: Slide and the cinch's own settings move those.
+
+
+## Encrypt everything: release prep (November 2026)
+
+Phase 7's code, ahead of the reviewer's sign-off and the release deploy.
+
+- **Production switched in config**: `NEW_ACCOUNT_FORMAT` "2" and
+  `CONVERT_ON_UNLOCK` "1" at the top level of `wrangler.jsonc`, so the
+  next production deploy from this branch is the release. A unit test
+  (`release-config.test.js`) keeps both environments there; the API tests
+  pin format 1 sign-ups for the routes they test, and the walkthrough's
+  format 1 runs keep their accounts format 1 (no conversion at unlock),
+  both until phase 8.
+- **Old connections go at release, by script, not migration**:
+  `scripts/release-cleanup.mjs` (was `mark-empty-accounts.mjs`) marks
+  empty accounts, then deletes `connections` and `connection_offers` and
+  turns off `shares.connect` (or opening an old invite would make a new
+  offer). A migration takes effect whenever it's applied, and applied
+  early it would break connections on a production still on format 1.
+  An old connection can't become a contact (no keys), so people connect
+  again; their cards stay, unlinked. The tables go in phase 8.
+- **Kept until phase 8, against the plan**: the plan removed
+  `seal-leftovers.js` and the old keyword search index at release. After
+  release neither runs for anyone (a format 1 account sees only the
+  Convert view, and sealing leftovers already skips one due to convert),
+  but the format 1 walkthrough still uses both until format 1 goes, so
+  they go then, with the rest of it.
+- **The policy** adds that backups and the database history held the
+  older, partly readable journal for 30 days after an account's update;
+  rebuilt with `--require-consent`.
+
+
+## The welcome tour (November 2026)
+
+The menu's Tutorial and the welcome after unlocking are now a click-through
+tour (`tour.js`), mocked up first on a design canvas. Built on the
+encryption branch, to ship with it.
+
+- **It replaces the welcome, which is gone** (`welcome.js`, WELCOME.md and
+  its generator and check). The tour carries what mattered of it: what
+  each part of the app is for, and Account Recovery's warning about losing
+  every passkey and the recovery code. The welcome's "install the app"
+  line isn't carried over: the install banner already offers it.
+- **One stop for the whole menu**, on its ☰ button, rather than a stop for
+  each row: eighteen stops was too many on a phone. The menu isn't opened
+  during the tour.
+- **Shown once, the same setting**: after unlocking until finished or
+  skipped (Done, Skip tour or Esc), kept in `users.hide_welcome`, the
+  welcome's own setting, rather than a new one (a column, export and
+  import changes). Closed any other way (the view changing under it), it
+  isn't remembered, and shows after the next unlock. To show it to
+  everyone, those who'd hidden the welcome included, migration 0033 sets
+  the setting back to 0 for every account: a data change only. Applied
+  before the tour is deployed, the old welcome would show once more.
+- **Drawn as SVG, not positioned with styles**: the dim, its hole round
+  the icon, the gold ring and the pointer are SVG elements placed with
+  attributes from the icon's `getBoundingClientRect()` (`tour-layout.js`),
+  so the CSP's ban on style attributes holds without an exception. The
+  card goes under the nav at a fixed 66px (the nav's own height) or in the
+  middle, by class; the progress bar is a `<progress>`. The pointer is a
+  second SVG over the card, so it covers the card's border where they join.
+- **The welcome card's logo** is `logo-mark.svg`, the pencil and knot, as a
+  mask in `--accent` in both modes, 44px tall; the file shares its canvas
+  with the name, so the mask is sized and moved to crop to the mark.
 

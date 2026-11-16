@@ -19,7 +19,7 @@
 // account part, names opened; importing adds the ones not already there by
 // name (import-presets.js).
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $, showMessage } from "../dom.js";
 import { saveFile } from "../download.js";
 import { parseCsv } from "../csv.js";
@@ -28,7 +28,6 @@ import {
   readExport, exportRoleNames, exportDefaultShape, itemsBody, remapTies, remapWorkshops, checkLinks, batches, describeItems, TIE_BATCH,
 } from "../import-steps.js";
 import { adoptRoleNames, adoptDefaultShape } from "../settings.js";
-import { convertJournal, withoutUnreadableMarks } from "../journal-fields.js";
 import { duplicateMatches } from "../import-dedupe.js";
 import { takePhotos, typeFromName, journalEntry } from "../import-photos.js";
 import { takeDrawings } from "../import-drawings.js";
@@ -41,10 +40,13 @@ import { svgFile } from "../drawing-format.js";
 import { drawingColors } from "../drawing-svg.js";
 import { makeZip, readZip, looksLikeZip } from "../zip.js";
 import { preparePhoto } from "../photo-prep.js";
-import { uploadPhoto } from "../photo-upload.js";
+import {
+  uploadPhoto, listMedia, setVisualOrder, listPosePresets, addPosePresets, listDrawings, listPoses,
+  exportJournal, openMediaPart, sealImport, importItems, importTies, importWorkshops,
+} from "../store/index.js";
 import { mergeVisuals, orderBody } from "../visual-order.js";
 import { askWithoutSound } from "../photos-ui.js";
-import { seal, open, openMedia, openPhoto, forgetSearch } from "../vault.js";
+import { open, forgetSearch } from "../vault.js";
 import { showSharedByMe, showConnections } from "../shared-by-me.js";
 import { linksDroppedText } from "../connection-text.js";
 
@@ -99,7 +101,7 @@ import { linksDroppedText } from "../connection-text.js";
  * @returns {Promise<{ skip: number[], matches: Map<number, string>, newTags: string[] }>}
  */
 async function findDuplicates(sealedBatch, plainBatch) {
-  const result = await api("/api/data/import/ties", { method: "POST", body: { preview: true, ties: sealedBatch } });
+  const result = await importTies({ preview: true, ties: sealedBatch });
   const candidates = /** @type {{ i: number, id: string, notes: string | null }[]} */ (await open("tie", result.candidates));
   const matches = duplicateMatches(plainBatch, candidates);
   return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
@@ -113,7 +115,7 @@ async function findDuplicates(sealedBatch, plainBatch) {
  * @returns {Promise<{ skip: number[], matches: Map<number, string>, newTags: string[] }>}
  */
 async function findWorkshopDuplicates(sealedBatch, plainBatch) {
-  const result = await api("/api/data/import/workshops", { method: "POST", body: { preview: true, workshops: sealedBatch } });
+  const result = await importWorkshops({ preview: true, workshops: sealedBatch });
   const candidates = /** @type {any[]} */ (await open("workshop", result.candidates));
   const matches = duplicateMatches(plainBatch, candidates, ["description", "notes"]);
   return { skip: [...matches.keys()].sort((a, b) => a - b), matches, newTags: result.new_tags };
@@ -126,46 +128,25 @@ async function findWorkshopDuplicates(sealedBatch, plainBatch) {
  * @returns {Promise<{ name: string, content: string | Blob, type: string, unreadable: number, missing: number }>}
  */
 async function buildExport(progress) {
-  const sealed = await api("/api/data/export");
-  // Opened here, on the device: the file has the notes in plain text.
-  const { doc, unreadable } = withoutUnreadableMarks(await convertJournal(sealed, open));
+  // Opened on the device: the file has the notes and captions in plain text.
+  const { doc, unreadable } = await exportJournal();
   const name = `notonawa-${doc.exported_at.slice(0, 10)}`;
   const items = [...doc.ties, ...doc.plans, ...doc.workshops];
   /** @type {any[]} */
   const entries = items.flatMap((x) => x.photos ?? []);
   /** @type {any[]} */
   const drawings = items.flatMap((x) => x.drawings ?? []);
-  /** @type {any[]} */
-  const poses = items.flatMap((x) => x.poses ?? []);
-
-  let unreadableCaptions = 0;
-  // Drawings' and poses' captions are sealed like notes; a caption that won't open is left out.
-  for (const [kind, list] of /** @type {const} */ ([["drawing", drawings], ["pose", poses]])) {
-    const opened = await open(kind, list.map((d) => ({ caption: d.caption })));
-    opened.forEach((c, i) => {
-      list[i].caption = c.caption;
-      if (c.unreadable?.length) unreadableCaptions++;
-    });
-  }
   if (entries.length === 0 && drawings.length === 0) {
-    return {
-      name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json",
-      unreadable: unreadable + unreadableCaptions, missing: 0,
-    };
+    return { name: `${name}.json`, content: JSON.stringify(doc, null, 2), type: "application/json", unreadable, missing: 0 };
   }
 
-  const captions = await openMedia(entries.map((e) => ({ id: e.id, caption: e.caption })));
-  captions.forEach((c, i) => {
-    entries[i].caption = c.caption;
-    if (c.unreadable) unreadableCaptions++;
-  });
   /** @type {{ name: string, data: Uint8Array<ArrayBuffer> }[]} */
   const files = [];
   let missing = 0;
   for (const [i, entry] of entries.entries()) {
     progress(`Decrypting photos and videos… ${i + 1} of ${entries.length}`);
     try {
-      files.push({ name: entry.file, data: new Uint8Array(await openPhoto(entry.id, "full", entry.kind === "video" ? "video" : "photo")) });
+      files.push({ name: entry.file, data: new Uint8Array(await openMediaPart({ id: entry.id, kind: entry.kind === "video" ? "video" : "photo" }, "full")) });
     } catch {
       // Can't be decrypted (or fetched): listed without a file.
       entry.file = null;
@@ -178,7 +159,7 @@ async function buildExport(progress) {
   }
   const json = /** @type {Uint8Array<ArrayBuffer>} */ (new TextEncoder().encode(JSON.stringify(doc, null, 2)));
   const zip = new Blob(makeZip([{ name: "notonawa.json", data: json }, ...files], new Date(doc.exported_at)), { type: "application/zip" });
-  return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable: unreadable + unreadableCaptions, missing };
+  return { name: `${name}.zip`, content: zip, type: "application/zip", unreadable, missing };
 }
 
 /**
@@ -237,7 +218,7 @@ export function mount(_root, { signal }) {
       const doc = poses.doc;
       checkLinks(doc);
       // Sealed once, on the device; only the sealed copy is sent.
-      const sealed = await convertJournal(doc, seal);
+      const sealed = await sealImport(doc);
       // Sets the message itself (e.g. when there's nothing new).
       await showPreview({ plain: doc, sealed, photos, drawings, poses, files });
     } catch (err) {
@@ -256,7 +237,7 @@ export function mount(_root, { signal }) {
     let workshopsSkipped = 0;
     try {
       showMessage(importMessage, "Importing…");
-      const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) });
+      const items = await importItems(itemsBody(sealed, false));
       /** @type {PhotoTarget[]} */
       const targets = [];
       /** @type {DrawingTarget[]} */
@@ -280,7 +261,7 @@ export function mount(_root, { signal }) {
         // Duplicates are checked again for each batch, just before it's
         // saved, so importing again after a failure finishes the job.
         const { skip, matches } = await findDuplicates(batch, plainBatches[n]);
-        const result = await api("/api/data/import/ties", { method: "POST", body: { ties: batch, skip } });
+        const result = await importTies({ ties: batch, skip });
         added += result.added;
         skipped += result.skipped;
         batch.forEach((_, i) => {
@@ -298,7 +279,7 @@ export function mount(_root, { signal }) {
       for (const [n, batch] of batches(remapWorkshops(sealed.workshops, items, tieIds)).entries()) {
         showMessage(importMessage, `Importing workshops… ${(workshopsAdded + workshopsSkipped).toLocaleString()} of ${workshops(plain.workshops.length)}`);
         const { skip, matches } = await findWorkshopDuplicates(batch, plainWorkshops[n]);
-        const result = await api("/api/data/import/workshops", { method: "POST", body: { workshops: batch, skip } });
+        const result = await importWorkshops({ workshops: batch, skip });
         workshopsAdded += result.added;
         workshopsSkipped += result.skipped;
         batch.forEach((_, i) => {
@@ -315,9 +296,9 @@ export function mount(_root, { signal }) {
       /** @type {Map<string, Placed>} */
       const placed = new Map();
       const drawingResult = drawingTargets.length
-        ? await importSaved(drawingTargets, { path: "/api/drawings", save: saveDrawing, one: "drawing", many: "drawings", kind: "drawing" }, placed) : null;
+        ? await importSaved(drawingTargets, { list: listDrawings, save: saveDrawing, one: "drawing", many: "drawings", kind: "drawing" }, placed) : null;
       const poseResult = poseTargets.length
-        ? await importSaved(poseTargets, { path: "/api/poses", save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
+        ? await importSaved(poseTargets, { list: listPoses, save: savePose, one: "pose", many: "poses", kind: "pose" }, placed) : null;
       const photoResult = files && targets.length ? await importPhotos(targets, files, placed) : null;
       await putBackOrder(placed);
       const presetResult = filePresets.length ? await importPresets(filePresets) : null;
@@ -370,7 +351,7 @@ export function mount(_root, { signal }) {
     /** @type {string[]} */
     const problems = [];
     for (const target of targets) {
-      if (target.onlyIfEmpty && (await api(`/api/media?${new URLSearchParams(target.item)}`)).length > 0) {
+      if (target.onlyIfEmpty && (await listMedia(target.item)).length > 0) {
         done += target.entries.length;
         kept += target.entries.length;
         continue;
@@ -417,13 +398,13 @@ export function mount(_root, { signal }) {
    * @template E
    * @param {DrawingTarget<E>[]} targets
    * @param {{
-   *   path: string, save: (item: PhotoTarget["item"], entry: E) => Promise<string>, one: string, many: string,
+   *   list: (item: PhotoTarget["item"]) => Promise<unknown[]>, save: (item: PhotoTarget["item"], entry: E) => Promise<string>, one: string, many: string,
    *   kind: "drawing" | "pose",
    * }} kind where they're listed, how one is saved, and what they're called
    * @param {Map<string, Placed>} placed where each one added is noted
    * @returns {Promise<string>} what happened, in words
    */
-  async function importSaved(targets, { path, save, one, many, kind }, placed) {
+  async function importSaved(targets, { list, save, one, many, kind }, placed) {
     const total = targets.reduce((sum, t) => sum + t.entries.length, 0);
     let done = 0;
     let added = 0;
@@ -431,7 +412,7 @@ export function mount(_root, { signal }) {
     /** @type {string[]} */
     const problems = [];
     for (const target of targets) {
-      if (target.onlyIfEmpty && (await api(`${path}?${new URLSearchParams(target.item)}`)).length > 0) {
+      if (target.onlyIfEmpty && (await list(target.item)).length > 0) {
         done += target.entries.length;
         kept += target.entries.length;
         continue;
@@ -483,7 +464,7 @@ export function mount(_root, { signal }) {
       const order = orderBody(mergeVisuals(lists).map(({ kind, item: v }) => ({ kind, id: v.id })));
       if (order.length < 2) continue;
       try {
-        await api("/api/visuals/order", { method: "PUT", body: { ...item, order } });
+        await setVisualOrder(item, order);
       } catch {
         // As it was saved: each kind in the file's order.
       }
@@ -546,7 +527,7 @@ export function mount(_root, { signal }) {
    */
   async function showPreview(file) {
     const { plain, sealed, photos, drawings, poses, files } = file;
-    const items = await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, true) });
+    const items = await importItems(itemsBody(sealed, true));
     let duplicates = 0;
     const newTags = new Set(items.new_tags);
     const plainBatches = batches(plain.ties);
@@ -630,7 +611,7 @@ export function mount(_root, { signal }) {
    */
   async function myPresets() {
     /** @type {{ kind: string, name: string | null }[]} */
-    const mine = await open("posePreset", await api("/api/pose-presets"));
+    const mine = await listPosePresets();
     return [mine, MAX_PRESETS - mine.length];
   }
 
@@ -644,10 +625,7 @@ export function mount(_root, { signal }) {
     try {
       const { add, full } = presetsToAdd(list, ...(await myPresets()));
       if (!add.length && !full) return null;
-      const names = await seal("posePreset", add.map((p) => ({ name: p.name })));
-      for (const [i, p] of add.entries()) {
-        await api("/api/pose-presets", { method: "POST", body: { kind: p.kind, name: names[i].name, data: p.data } });
-      }
+      await addPosePresets(add);
       return `Added ${add.length.toLocaleString()} poser ${add.length === 1 ? "preset" : "presets"}.` +
         (full ? ` ${full.toLocaleString()} more didn't fit: you can keep up to ${MAX_PRESETS}.` : "");
     } catch (err) {

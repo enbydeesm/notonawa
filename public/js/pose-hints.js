@@ -29,20 +29,23 @@ export function viewHint({ tab, drawing, laying, chosen }) {
  *   chosen: "none" | "rope" | "cinch" | "body cinch",
  *   sliding: boolean,
  *   hardpoint: "ring" | "bamboo" | "hashira" | null,
- * }} state points: how many points the rope being laid has (0 when nothing is);
+ *   wrapping?: boolean,
+ * }} state wrapping: Wrap is on (a tap lays a turn round the part); points: how many points the rope being laid has (0 when nothing is);
  *   chosen "cinch" pulls uplines aside, "body cinch" draws the parts of the body it's tied to together
  * @returns {string}
  */
-export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoint }) {
+export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoint, wrapping = false }) {
   const count = `${points} ${points === 1 ? "point" : "points"}`;
   if (erasing) return "Tap a rope to take it out.";
   if (layingKind === "cinch") return `Cinch: ${count}. Tap uplines, ropes or the body to tie it through, then Finish.`;
-  if (layingKind === "added") return `Added rope: ${count}. Keep tapping, then Finish.`;
-  if (points) return `Rope: ${count}. Keep tapping, then Finish.`;
+  const more = wrapping ? "Tap a part to wrap it" : "Keep tapping";
+  if (layingKind === "added") return `Added rope: ${count}. ${more}, then Finish.`;
+  if (points) return `Rope: ${count}. ${more}, then Finish.`;
   if (chosen === "cinch") return "Shorten the cinch to pull the upline aside. Tap Cinch again when you're done.";
   if (chosen === "body cinch") return "Shorten the cinch to draw them together. Tap Cinch again when you're done.";
   if (chosen === "rope" && sliding) return "Tap Slide again when it's in place.";
-  if (chosen === "rope") return "Cinch and Add rope start from the dot.";
+  if (chosen === "rope") return "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.";
+  if (wrapping) return "Wrap: tap an arm, a leg or the body to lay a turn of rope round it there.";
   if (hardpoint === "hashira") return "Tap the body to lay a rope. Tap the hashira to tie to it, or a rope to choose it.";
   if (hardpoint) return `Tap the body to lay a rope. Tap the ${hardpoint} for an upline, or a rope to choose it.`;
   // No hardpoint: the chip beside the thickness says + Hardpoint.
@@ -59,4 +62,17 @@ export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoi
 export function hardpointLostNote(hardpoint, lost) {
   if (lost <= 0) return "";
   return `${lost} rope ${lost === 1 ? "point" : "points"} on the ${hardpoint} went with it. Undo brings ${lost === 1 ? "it" : "them"} back.`;
+}
+
+/**
+ * What to say once a rope's point is taken out by its dot.
+ * @param {number} others cinches and added ropes that went with it (their
+ *   places along the rope are counted in its points)
+ * @param {boolean} whole the rope itself went (it had two points)
+ * @returns {string}
+ */
+export function pointGoneNote(others, whole) {
+  const tied = others <= 0 ? "" : ` ${others} ${others === 1 ? "rope" : "ropes"} tied on it went too.`;
+  if (whole) return `That left it one point, so the rope went.${tied} Undo brings ${others > 0 ? "them" : "it"} back.`;
+  return others > 0 ? `Point taken out.${tied} Undo brings ${others === 1 ? "it" : "them"} back.` : "Point taken out.";
 }

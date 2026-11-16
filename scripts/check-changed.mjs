@@ -5,7 +5,7 @@
 // the last commit, including new files.
 //
 //   npm run check:changed                 what's changed
-//   npm run check:changed -- --ui         …and its walkthrough chunks
+//   npm run check:changed -- --ui         …and its walkthrough chunks, on format 1 and format 2 accounts
 //                                         (3 at a time; --jobs 1 for one at a time)
 //   npm run check:changed -- people plans those areas, whatever changed
 //   npm run check:changed -- --list       what it would run, without running it
@@ -44,7 +44,6 @@ try {
 const GENERATED = {
   privacy: ["node", "scripts/privacy-html.mjs", "--check"],
   releases: ["node", "scripts/releases.mjs", "--check"],
-  welcome: ["node", "scripts/welcome.mjs", "--check"],
   vendor: ["node", "scripts/vendor.mjs", "--check"],
 };
 
@@ -55,7 +54,14 @@ const steps = [
   ["every test", ["npx", "vitest", "run"]],
 ];
 for (const check of plan.generated) steps.push([`${check} file check`, GENERATED[check]]);
-if (withUi && plan.ui.length) steps.push([`walkthrough: ${plan.ui.join(", ")}`, ["node", "scripts/ui-smoke.mjs", "--only", plan.ui.join(","), ...(jobs ? ["--jobs", jobs] : [])]]);
+// Both formats until format 1 is gone (phase 8 of encrypting everything):
+// each is live, for accounts not yet converted and for converted ones.
+for (const format of ["1", "2"]) {
+  if (withUi && plan.ui.length) {
+    steps.push([`walkthrough (format ${format}): ${plan.ui.join(", ")}`,
+      ["node", "scripts/ui-smoke.mjs", "--only", plan.ui.join(","), "--format", format, ...(jobs ? ["--jobs", jobs] : [])]]);
+  }
+}
 
 console.log(names.length ? `Areas: ${plan.areas.join(", ")}` : `Changed areas: ${plan.areas.join(", ") || "none"}`);
 if (plan.everything.length) console.log(`Everything runs, for: ${plan.everything.join(", ")}`);

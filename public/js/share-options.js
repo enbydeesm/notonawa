@@ -11,7 +11,9 @@ export const EXPIRY_CHOICES = /** @type {const} */ ([
   { value: "30d", label: "30 days" },
   { value: "never", label: "Until I revoke it" },
 ]);
-export const DEFAULT_EXPIRY = "1d";
+export const DEFAULT_EXPIRY = "7d";
+/** A profile invite's: long enough to pass on and be accepted (its intro mailbox lasts as long). */
+export const DEFAULT_INVITE_EXPIRY = "7d";
 
 /** Who can use it: one person, or anyone with the code. */
 export const USE_CHOICES = /** @type {const} */ ([
@@ -48,18 +50,19 @@ export function shareWarning(expires, uses, connect = false) {
 }
 
 /**
- * When a share ends, in words.
+ * How long until a share ends, shortly (Shared by me's "Expires in"):
+ * "Never" for one that lasts until revoked.
  * @param {string | null} expiresAt ISO timestamp, or null: until revoked
  * @param {number} [now]
  * @returns {string}
  */
-export function endsText(expiresAt, now = Date.now()) {
-  if (expiresAt === null) return "until you revoke it";
+export function expiresIn(expiresAt, now = Date.now()) {
+  if (expiresAt === null) return "Never";
   const minutes = Math.max(0, Math.round((Date.parse(expiresAt) - now) / 60_000));
-  if (minutes < 60) return `ends in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  if (minutes < 60) return `${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 48) return `ends in ${hours} hour${hours === 1 ? "" : "s"}`;
-  return `ends in ${Math.round(hours / 24)} days`;
+  if (hours < 48) return `${hours} hr${hours === 1 ? "" : "s"}`;
+  return `${Math.round(hours / 24)} days`;
 }
 
 /**

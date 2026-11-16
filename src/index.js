@@ -31,6 +31,13 @@ import { handleStats } from "./stats/routes.js";
 import { handleFeedback } from "./feedback/routes.js";
 import { handleShares } from "./shares/routes.js";
 import { handleConnections } from "./connections/routes.js";
+import { handleRecords } from "./records/routes.js";
+import { handleFiles } from "./files/routes.js";
+import { handleIdentity } from "./identity/routes.js";
+import { handleMailboxSend, handleMailboxes } from "./mailboxes/routes.js";
+import { handleConvert } from "./convert/routes.js";
+import { formatRefusal } from "./format.js";
+import { cleanUpMailboxes } from "./mailboxes/cleanup.js";
 import { cleanUpShares } from "./shares/cleanup.js";
 import { sweepOrphans } from "./media/storage.js";
 import { cleanUp } from "./cleanup.js";
@@ -57,7 +64,8 @@ export default {
   /**
    * The daily cron trigger (wrangler.jsonc): backs up the database (keeping
    * 30 days), then clears ended sessions and expired sign-in challenges,
-   * shares and offers to connect that have ended, and photo and share files left without a row.
+   * shares and offers to connect that have ended, photo and share files left without a row,
+   * and expired intro mailboxes and messages left unfetched for 90 days.
    * Each runs even if one before it fails.
    * @param {ScheduledController} _controller
    * @param {Env} env
@@ -71,6 +79,7 @@ export default {
       ["clean-up", () => cleanUp(env.DB)],
       ["share clean-up", () => cleanUpShares(env.DB, env.PHOTOS)],
       ["photo sweep", () => sweepOrphans(env.DB, env.PHOTOS)],
+      ["mailbox clean-up", () => cleanUpMailboxes(env.DB)],
     ];
     let failed = false;
     for (const [name, job] of /** @type {[string, () => Promise<unknown>][]} */ (jobs)) {
@@ -107,6 +116,11 @@ async function respond(request, env) {
   const version = handleVersion(request, url);
   if (version) return version;
 
+  // Leaving a message in a contact's mailbox: its token, no session, so it
+  // isn't tied to the sender's account; a limit per address.
+  const sent = await handleMailboxSend(request, env, url);
+  if (sent) return sent;
+
   // Signing up, in and out: no session needed, but a limit on attempts.
   if (url.pathname.startsWith("/api/auth/")) {
     const { success } = await env.AUTH_RATE_LIMIT.limit({ key: rateLimitKey(request) });
@@ -127,6 +141,10 @@ async function respond(request, env) {
   if (needsConsent(user.termsVersion, CONSENT_VERSION) && !allowedWithoutConsent(request.method, url.pathname)) {
     return json({ error: "Please agree to the updated privacy policy first.", consent: true }, 403);
   }
+  // Each format has its own journal routes, and a format 1 journal being
+  // converted can't change (src/format.js).
+  const refused = formatRefusal(user, request.method, url.pathname);
+  if (refused) return json({ error: refused.error, reload: refused.reload }, refused.status);
 
   return (
     (await handleConsent(request, env, user, url)) ??
@@ -150,6 +168,11 @@ async function respond(request, env) {
     (await handleFeedback(request, env, user, url)) ??
     (await handleShares(request, env, user, url)) ??
     (await handleConnections(request, env, user, url)) ??
+    (await handleRecords(request, env, user, url)) ??
+    (await handleFiles(request, env, user, url)) ??
+    (await handleIdentity(request, env, user, url)) ??
+    (await handleMailboxes(request, env, user, url)) ??
+    (await handleConvert(request, env, user, url)) ??
     notFound()
   );
 }

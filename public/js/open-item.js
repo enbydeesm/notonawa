@@ -14,17 +14,15 @@
 // sealed there again as mine (adoptShareFile): only their thumbnails come
 // out, for the preview.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { seal, open, forgetSearch, openShareThumb, adoptShareFile } from "./vault.js";
+import { open, forgetSearch, openShareThumb } from "./vault.js";
 import { forget } from "./pending-share.js";
 import { readItemShare, isMedia, visualCounts } from "./share-item.js";
-import { uploadSealed } from "./photo-upload.js";
 import { photoUrl } from "./photo-urls.js";
 import { suggestPeople, peopleProblem, suggestItem, plansProblem } from "./share-people.js";
 import { shareToImport, addsItems, withKnown, duplicatePlan } from "./share-to-import.js";
 import { itemsBody, remapTies, remapWorkshops } from "./import-steps.js";
-import { convertJournal } from "./journal-fields.js";
 import { duplicateMatches } from "./import-dedupe.js";
 import { saveDrawing } from "./drawings-ui.js";
 import { savePose } from "./poses-ui.js";
@@ -37,6 +35,7 @@ import { capitalise, formatDate } from "./format.js";
 import { placeText } from "./list-order.js";
 import { dateRangeText } from "./workshops-view.js";
 import { PLAN_TYPE_NAMES } from "./plans-view.js";
+import { listItems, adoptSharedMedia, sealImport, importItems, importTies, importWorkshops } from "./store/index.js";
 
 /** @typedef {import("./share-item.js").ItemKind} ItemKind */
 /** @typedef {import("./share-item.js").SharedItem} SharedItem */
@@ -128,7 +127,7 @@ export async function showItem(body, opened, signal) {
     showMessage(message, "Adding…");
     try {
       const { doc, known } = shareToImport(kind, item, choices, selfId ?? "");
-      const sealed = await convertJournal(doc, seal);
+      const sealed = await sealImport(doc);
       if (!anotherCopy && await alreadyThere(kind, item, doc, sealed, known)) {
         showMessage(message, `This ${noun} looks like one already in your journal.`);
         add.disabled = false;
@@ -153,9 +152,9 @@ export async function showItem(body, opened, signal) {
  */
 async function loadMine(kind, item) {
   const [people, locations, plans] = await Promise.all([
-    item.people.length ? api("/api/people?archived=false") : [],
-    item.location ? api("/api/locations?archived=false") : [],
-    kind === "tie" && item.plans.length ? api("/api/plans?archived=false") : [],
+    item.people.length ? listItems("people", false) : [],
+    item.location ? listItems("locations", false) : [],
+    kind === "tie" && item.plans.length ? listItems("plans", false) : [],
   ]);
   return {
     people: /** @type {import("./share-people.js").MyPerson[]} */ (people),
@@ -232,16 +231,14 @@ function itemChoice(id, shared, newWord, suggested, mine) {
  * @param {import("./share-to-import.js").Known} known
  */
 async function alreadyThere(kind, item, doc, sealed, known) {
-  if (kind === "plan") return duplicatePlan(item, await open("plan", await api("/api/plans?archived=all"))) !== null;
+  if (kind === "plan") return duplicatePlan(item, await listItems("plans", "all")) !== null;
   if (addsItems(doc)) return false;
   const items = withKnown({ people: [], locations: [], plans: [] }, known);
   if (kind === "tie") {
-    const result = await api("/api/data/import/ties", { method: "POST", body: { preview: true, ties: remapTies(sealed.ties, items) } });
+    const result = await importTies({ preview: true, ties: remapTies(sealed.ties, items) });
     return duplicateMatches(doc.ties, await open("tie", result.candidates)).size > 0;
   }
-  const result = await api("/api/data/import/workshops", {
-    method: "POST", body: { preview: true, workshops: remapWorkshops(sealed.workshops, items) },
-  });
+  const result = await importWorkshops({ preview: true, workshops: remapWorkshops(sealed.workshops, items) });
   return duplicateMatches(doc.workshops, await open("workshop", result.candidates), ["description", "notes"]).size > 0;
 }
 
@@ -256,17 +253,15 @@ async function alreadyThere(kind, item, doc, sealed, known) {
  */
 async function save(kind, doc, sealed, known) {
   const added = addsItems(doc)
-    ? await api("/api/data/import/items", { method: "POST", body: itemsBody(sealed, false) })
+    ? await importItems(itemsBody(sealed, false))
     : { people: [], locations: [], plans: [] };
   if (kind === "plan") return { plan_id: added.plans[0].id };
   const items = withKnown(added, known);
   if (kind === "tie") {
-    const result = await api("/api/data/import/ties", { method: "POST", body: { ties: remapTies(sealed.ties, items), skip: [] } });
+    const result = await importTies({ ties: remapTies(sealed.ties, items), skip: [] });
     return { tie_id: result.ids[0] };
   }
-  const result = await api("/api/data/import/workshops", {
-    method: "POST", body: { workshops: remapWorkshops(sealed.workshops, items), skip: [] },
-  });
+  const result = await importWorkshops({ workshops: remapWorkshops(sealed.workshops, items), skip: [] });
   return { workshop_id: result.ids[0] };
 }
 
@@ -287,9 +282,7 @@ async function saveVisuals(target, visuals, opened, progress) {
     progress(`Adding its visuals… ${i + 1} of ${visuals.length}`);
     try {
       if (isMedia(visual)) {
-        const id = crypto.randomUUID();
-        const sealed = await adoptShareFile({ shareId: opened.id, key: opened.key, fileId: visual.file, kind: visual.kind, mediaId: id });
-        await uploadSealed({ item: target, id, kind: visual.kind, mime: visual.mime, ...sealed, caption: visual.caption });
+        await adoptSharedMedia({ target, shareId: opened.id, linkKey: opened.key, visual });
       } else {
         const entry = { data: /** @type {any} */ (visual.data), caption: visual.caption };
         await (visual.kind === "drawing" ? saveDrawing(target, entry) : savePose(target, entry));

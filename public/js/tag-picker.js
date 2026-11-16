@@ -4,10 +4,11 @@
 // open it too (forSearch), only to pick tags already on a tie (or a plan):
 // any other can't match one, and deleting tags isn't what a search is for.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
 import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from "./tags.js";
+import { listTags, deleteTag } from "./store/index.js";
 
 /** @typedef {import("./tags.js").Tag} Tag */
 
@@ -167,7 +168,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       });
       if (choice !== "delete") return;
       try {
-        if (tag.id) await api(`/api/tags/${encodeURIComponent(tag.id)}`, { method: "DELETE" });
+        if (tag.id) await deleteTag(tag.id);
         tags = tags.filter((t) => t !== tag);
         showMessage(message, "");
         renderList();
@@ -179,7 +180,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
     async function loadTags() {
       try {
         /** @type {Tag[]} */
-        const mine = await api("/api/tags");
+        const mine = await listTags();
         tags = forSearch ? mine.filter((t) => t[`${noun}_count`] > 0) : mine;
       } catch (err) {
         showMessage(message, "Couldn't load tags: " + errorMessage(err), true);

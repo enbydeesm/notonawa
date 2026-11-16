@@ -9,7 +9,9 @@ import { isActive, needsTouch, sha256Hex } from "./session.js";
 /** @typedef {import("./session.js").Session} Session */
 /**
  * termsVersion: the privacy policy version they last agreed to.
- * @typedef {{ id: string, session: Session, termsVersion: string | null }} User
+ * format: 1 (the format 1 tables) or 2 (sealed records); converting: the
+ * account's device is converting it from 1 to 2 (migration 0032).
+ * @typedef {{ id: string, session: Session, termsVersion: string | null, format: 1 | 2, converting: boolean }} User
  */
 
 /**
@@ -29,6 +31,8 @@ export async function getUser(request, env) {
     return null;
   }
   if (needsTouch(session, now)) await touchSession(env.DB, session.id);
-  const { terms_version: termsVersion = null, ...rest } = /** @type {Session & { terms_version?: string | null }} */ (session);
-  return { id: session.user_id, session: rest, termsVersion };
+  const {
+    terms_version: termsVersion = null, format = 1, converting_since: convertingSince = null, ...rest
+  } = /** @type {Session & { terms_version?: string | null, format?: number, converting_since?: string | null }} */ (session);
+  return { id: session.user_id, session: rest, termsVersion, format: format === 2 ? 2 : 1, converting: convertingSince !== null };
 }

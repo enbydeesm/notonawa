@@ -120,6 +120,42 @@ export async function unwrapDataKey(wrap, { userId, secret }, { extractable = fa
   }
 }
 
+/**
+ * The data key's bytes as an HKDF key, from the same wrap, for deriving
+ * keys that must be the same on every device without being stored (the id
+ * key, records/ids.js). Its info strings keep what's derived apart from the
+ * data key's own use as an AES key. Throws WrongSecret as unwrapDataKey does.
+ * @param {Wrap} wrap
+ * @param {{ userId: string, secret: Uint8Array<ArrayBuffer> }} with
+ * @returns {Promise<CryptoKey>} non-extractable, for deriveKey only
+ */
+export async function unwrapKeyMaterial(wrap, { userId, secret }) {
+  if (wrap.version !== WRAP_VERSION) throw new WrongSecret();
+  try {
+    const key = await wrappingKey(wrap.kind, secret, fromBase64url(wrap.salt), userId);
+    return await crypto.subtle.unwrapKey(
+      "raw", fromBase64url(wrap.wrapped), key,
+      { name: "AES-GCM", iv: fromBase64url(wrap.iv), additionalData: additionalData(userId, wrap.id, wrap.kind, wrap.version) },
+      "HKDF", false, ["deriveKey"]
+    );
+  } catch {
+    throw new WrongSecret();
+  }
+}
+
+/**
+ * A new data key's bytes as an HKDF key, as unwrapKeyMaterial gives them
+ * once it's wrapped (setup: the new key is still extractable).
+ * @param {CryptoKey} dataKey extractable
+ * @returns {Promise<CryptoKey>}
+ */
+export async function keyMaterialOf(dataKey) {
+  const raw = new Uint8Array(/** @type {ArrayBuffer} */ (await crypto.subtle.exportKey("raw", dataKey)));
+  const material = await crypto.subtle.importKey("raw", raw, "HKDF", false, ["deriveKey"]);
+  raw.fill(0);
+  return material;
+}
+
 /** The secret doesn't unlock this wrap. */
 export class WrongSecret extends Error {
   constructor() {

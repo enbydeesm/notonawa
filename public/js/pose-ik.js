@@ -50,6 +50,14 @@ export const DRAG_CHAINS = Object.freeze(Object.fromEntries(["l", "r"].flatMap((
   ];
 })));
 
+/**
+ * A joint's fractional angles kept within each movement's own range
+ * (while solving: clampJoint would round them).
+ * @param {string} name @param {readonly number[]} angles
+ */
+const clampExact = (name, angles) =>
+  /** @type {import("./figure-rig.js").Joint} */ (jointNamed(name)).moves.map((m, i) => Math.min(m.max, Math.max(m.min, angles[i] ?? 0)));
+
 /** @param {string} bone @returns {boolean} whether holding this part drags it */
 export const canDrag = (bone) => bone in DRAG_CHAINS;
 
@@ -77,7 +85,7 @@ const otherHip = (bone) => (/_(hip|knee|ankle|toes)$/.test(bone) ? `${bone[0] ==
  */
 export function dragJoints(bone) {
   const other = otherHip(bone);
-  return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other] : []))];
+  return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other, "spine"] : []))];
 }
 
 /** How far off the target (cm) the limb alone must stay before the trunk joins in. */
@@ -166,8 +174,12 @@ export function dragTo(pose, bone, cm, target, { from = pose } = {}) {
         // the pelvis stays put rather than twisting that leg.
         const kept = withHips(keptLeg, joints.hips, [other], { exact: true }).joints[other];
         const allowed = clampJoint(other, kept, undefined, joints);
-        if (kept.every((a, n) => Math.abs(a - allowed[n]) <= 1)) joints[other] = kept;
-        else joints[name][i] = was;
+        if (kept.every((a, n) => Math.abs(a - allowed[n]) <= 1)) {
+          joints[other] = kept;
+          // The trunk stays upright too, the lower back bending to meet the
+          // pelvis as far as the waist can (past that, it tips with it).
+          joints.spine = clampExact("spine", withHips(keptLeg, joints.hips, ["spine"], { exact: true }).joints.spine);
+        } else joints[name][i] = was;
       }
     };
     const get = (/** @type {number} */ k) => joints[chain[k][0]][chain[k][1]];
@@ -210,7 +222,7 @@ export function dragTo(pose, bone, cm, target, { from = pose } = {}) {
     solve(used, [...limb.map(() => 1), ...trunk.map(([, weight]) => weight)]);
   }
   const rounded = { ...pose.joints };
-  for (const name of new Set([...used.map(([n]) => n), ...(other && used !== limb ? [other] : [])])) {
+  for (const name of new Set([...used.map(([n]) => n), ...(other && used !== limb ? [other, "spine"] : [])])) {
     rounded[name] = clampJoint(name, joints[name], pose.joints[name], rounded);
   }
   const done = { ...pose, joints: rounded };
@@ -252,6 +264,38 @@ export function dampedSolve(columns, error) {
     columns.reduce((sum, col) => sum + col[r] * col[c], 0) + (r === c ? DAMPING * DAMPING : 0)));
   const y = solve3(m, error);
   return columns.map((col) => col[0] * y[0] + col[1] * y[1] + col[2] * y[2]);
+}
+
+/**
+ * dampedSolve for any number of errors at once (several ropes' lengths):
+ * the change in each angle that best brings every error to 0, damped the
+ * same way.
+ * @param {number[][]} columns each angle's effect on each error, per degree
+ * @param {number[]} error what's wanted of each
+ * @returns {number[]} degrees
+ */
+export function dampedSolveMany(columns, error) {
+  const n = error.length;
+  // J Jᵀ + λ² I with the error beside it, solved by elimination (the
+  // damping keeps it from being singular).
+  const m = error.map((e, r) => [...error.map((_, c) =>
+    columns.reduce((sum, col) => sum + col[r] * col[c], 0) + (r === c ? DAMPING * DAMPING : 0)), e]);
+  for (let c = 0; c < n; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(m[r][c]) > Math.abs(m[pivot][c])) pivot = r;
+    [m[c], m[pivot]] = [m[pivot], m[c]];
+    for (let r = c + 1; r < n; r++) {
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k <= n; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  const y = new Array(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) {
+    let sum = m[r][n];
+    for (let k = r + 1; k < n; k++) sum -= m[r][k] * y[k];
+    y[r] = sum / m[r][r];
+  }
+  return columns.map((col) => col.reduce((sum, v, r) => sum + v * y[r], 0));
 }
 
 /**

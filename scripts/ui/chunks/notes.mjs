@@ -1,6 +1,6 @@
 // The walkthrough's notes chunk. Encrypted notes: searched on the device, stored sealed, older plain text sealed at unlock.
 
-import { check, freshAccount, go, run, sleep, sql } from "../harness.mjs";
+import { FORMAT, check, freshAccount, go, run, sleep, sql } from "../harness.mjs";
 import { seedJournal, seedTie } from "../seed.mjs";
 
 export default async function () {
@@ -17,7 +17,7 @@ export default async function () {
     await type("#q", "öse"); const lower = titles(); await type("#q", "ÖSE KNOT"); const upper = titles();
     $("#clear").click(); await calm(800); return [lower, upper];`),
     [["Knot test"], ["Knot test"]]);
-  check("the server only ever has notes encrypted; the page shows them opened", await run(`
+  check("the server only ever has notes encrypted; the page shows them opened", await run(FORMAT === 1 ? `
     const index = await (await fetch("/api/ties/search-index")).json();
     const people = await (await fetch("/api/people?archived=all")).json();
     const plans = await (await fetch("/api/plans?archived=all")).json();
@@ -26,7 +26,14 @@ export default async function () {
     const knot = index.find((t) => t.title === "Knot test");
     [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Knot test").click(); await calm(1000);
     const shown = $("#tie-notes").value;
-    return [stored.length > 0, stored.every((v) => /^e1\\./.test(v)), knot.notes.includes("knot"), shown];`),
+    return [stored.length > 0, stored.every((v) => /^e1\\./.test(v)), knot.notes.includes("knot"), shown];` : `
+    // Format 2: the server has whole records, sealed, nothing else.
+    const { changes } = await (await fetch("/api/sync?since=0")).json();
+    const sealed = changes.filter((c) => !c.deleted);
+    [...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Knot test").click(); await calm(1000);
+    const shown = $("#tie-notes").value;
+    return [sealed.length > 0, sealed.every((c) => /^e2\\./.test(c.body) && /^k2\\./.test(c.key)),
+      changes.some((c) => JSON.stringify(c).toLowerCase().includes("knot")), shown];`),
     [true, true, false, "Öse knot, tied twice"]);
   check("…and the test tie is deleted again", await run(`
     // The confirmation's "Delete tie" (opened last), not the form's own.
@@ -34,7 +41,9 @@ export default async function () {
     [...document.querySelectorAll("dialog[open] button")].filter((b) => b.textContent === "Delete tie").pop().click(); await calm(1000);
     return [titles().includes("Knot test"), $("#tie-count").textContent];`), [false, "Showing 1 of 1"]);
 
-  // Notes written before encryption: plain text in the database.
+  // Notes written before encryption: plain text in the database (format 1
+  // only: format 2 has no plain text to find).
+  if (FORMAT === 2) return;
   sql("UPDATE people SET notes = 'Written before encryption' WHERE name = 'Sam'");
   await go("/people");
   await sleep(1500);

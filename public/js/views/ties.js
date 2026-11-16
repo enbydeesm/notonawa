@@ -2,7 +2,7 @@
 // the "Add a Tie" card's + or the nav's (tie-form.js); tapping a tie's title opens it in the same form
 // to edit or delete.
 
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $ } from "../dom.js";
 import { TIE_SAVED } from "../nav.js";
 import { multiSelect } from "../multi-select.js";
@@ -12,8 +12,8 @@ import { findTag } from "../tags.js";
 import { showingText } from "../ties-view.js";
 import { tieCard, fitPeople, editTie } from "../tie-card.js";
 import { openTieForm } from "../tie-form.js";
-import { readSearch, pageQuery, searchBody, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
-import { searchTies, open } from "../vault.js";
+import { readSearch, pageQuery, hasKeywordInUrl, hasFilters, pageList } from "../tie-search.js";
+import { findTies, listItems, listTags } from "../store/index.js";
 import { MAX_KEYWORD_LENGTH } from "../search-match.js";
 
 /** @typedef {import("../tie-search.js").SearchState} SearchState */
@@ -185,7 +185,7 @@ export function mount(_root, { signal }) {
     try {
       // People are opened, for their aliases (searched too).
       const [people, locations] = await Promise.all([
-        api("/api/people?archived=all").then((rows) => open("person", rows)), api("/api/locations?archived=all"),
+        listItems("people", "all"), listItems("locations", "all"),
       ]);
       /** @param {Record<string, any>} item */
       const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });
@@ -198,7 +198,7 @@ export function mount(_root, { signal }) {
 
   async function loadTags() {
     try {
-      allTags = await api("/api/tags");
+      allTags = await listTags();
     } catch (err) {
       count.textContent = "Couldn't load tags: " + errorMessage(err);
       return;
@@ -267,16 +267,9 @@ export function mount(_root, { signal }) {
   async function loadTies() {
     const request = ++latestRequest;
     try {
-      // The keyword is searched for here, on the device; only the ids of the
-      // ties it matched go to the server, which filters, sorts and pages.
-      const keywordText = state.q.trim();
-      if (keywordText.length > MAX_KEYWORD_LENGTH) throw new Error(`Search for ${MAX_KEYWORD_LENGTH} characters or fewer.`);
-      const matchIds = keywordText ? await searchTies(keywordText) : null;
-      if (request !== latestRequest) return;
-      const found = await api("/api/ties/search", { method: "POST", body: searchBody(state, matchIds) });
-      const { total, all_total, page, page_size } = found;
-      // Opened on the device for the cards' album links.
-      const ties = await open("tie", found.ties);
+      // The keyword is searched for on the device (the store), never sent.
+      if (state.q.trim().length > MAX_KEYWORD_LENGTH) throw new Error(`Search for ${MAX_KEYWORD_LENGTH} characters or fewer.`);
+      const { ties, total, all_total, page, page_size } = await findTies(state);
       if (request !== latestRequest) return;
       const totalPages = Math.ceil(total / page_size);
       count.textContent = showingText(total, all_total);

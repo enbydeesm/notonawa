@@ -10,11 +10,17 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
-- The poser's ring is 50% bigger (15 cm across). Saved poses keep their bodies where they were; their uplines are just a little shorter.
-- Cinch any rope, not just uplines: tap a rope round the body, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together, the ropes staying where they're tied.
-- A rope with just two points (body to body, body to the ring or bamboo, or body to a spot on another rope) has a Length in place of Slack. It starts in the middle: lower it to pull the body in, raise it for slack. Body-to-body ropes can sag now too.
-- Slack goes up to 300 cm.
+## 2026.11.16.0758
+Now with more encryption flavor!
+- Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.
+- Connected accounts now talk privately: our server keeps no record of who is connected to whom.
+- Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.
+- Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.
+- Raise and lower uplines: tap an upline and its Length lifts or lowers what it's tied to. The body will swing, tip and turn until its weight sits as low as its taut uplines allow. You can still freely pose or draw uplines. Tap Dangle in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone. It's not a physics engine, just a constraint solver.
+- Rope now lies on the body better, rather than clipping through. Turn on Wrap at the top of the 3D view, set how many turns with + and −, and tap an arm, a leg or the body to lay turns of rope round it there.
+- The Hips sliders now pivot just the pelvis.
+- The poser's ring is 50% bigger.
+- A new welcome tour walks you through the app. Replay it any time from Menu > Tutorial.
 
 ## 2026.11.09.0624
 Workshop updates and visual viewer improvements

@@ -80,24 +80,29 @@ export function insertPasskeyStatement(db, userId, p) {
 
 /**
  * Creates a new user, using up their invite (the trigger on invites refuses
- * a used or expired one, which fails the whole batch).
+ * a used or expired one, which fails the whole batch). A format 1 account
+ * starts with its "Me" row; a format 2 one has no journal rows at all (its
+ * device writes "Me" as a sealed record).
  * @param {D1Database} db
  * @param {string} userId
  * @param {string} inviteHash
  * @param {string} recoveryHash
+ * @param {1 | 2} [format] NEW_ACCOUNT_FORMAT (src/format.js)
  */
-export function newUserStatements(db, userId, inviteHash, recoveryHash) {
+export function newUserStatements(db, userId, inviteHash, recoveryHash, format = 1) {
   return [
     db.prepare(
       // New accounts start in dark mode (users.theme; see src/account/settings.js),
       // and as having seen this version's release notes: they're new to all of it.
-      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version, theme, seen_release)
-       VALUES (?, ?, ?, ${NOW}, ?, 'dark', ?)`
-    ).bind(userId, userId, recoveryHash, POLICY_VERSION, APP_VERSION),
+      `INSERT INTO users (id, email, recovery_secret_hash, accepted_at, terms_version, theme, seen_release, format)
+       VALUES (?, ?, ?, ${NOW}, ?, 'dark', ?, ?)`
+    ).bind(userId, userId, recoveryHash, POLICY_VERSION, APP_VERSION, format),
     db.prepare(`UPDATE invites SET used_at = ${NOW}, used_by = ? WHERE code_hash = ?`).bind(userId, inviteHash),
-    // Every journal starts with its owner's own profile, renamable on the
-    // People page, so ties can list "Me" from the first one.
-    db.prepare("INSERT INTO people (id, owner_id, name, is_self) VALUES (?, ?, 'Me', 1)").bind(crypto.randomUUID(), userId),
+    // Every format 1 journal starts with its owner's own profile, renamable
+    // on the People page, so ties can list "Me" from the first one.
+    ...(format === 1
+      ? [db.prepare("INSERT INTO people (id, owner_id, name, is_self) VALUES (?, ?, 'Me', 1)").bind(crypto.randomUUID(), userId)]
+      : []),
   ];
 }
 
@@ -167,7 +172,8 @@ export async function newSessionStatements(db, userId, { kind, passkeyId }) {
  */
 export function findSession(db, tokenHash) {
   return db.prepare(
-    `SELECT s.id, s.user_id, s.kind, s.passkey_id, s.created_at, s.last_used_at, s.expires_at, u.terms_version
+    `SELECT s.id, s.user_id, s.kind, s.passkey_id, s.created_at, s.last_used_at, s.expires_at, u.terms_version,
+            u.format, u.converting_since
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`
   ).bind(tokenHash).first();
 }

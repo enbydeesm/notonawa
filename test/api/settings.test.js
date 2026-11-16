@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { call, createOtherUser, sessionCookieFor, signedInUser } from "../helpers.js";
+import { call, createOtherUser, sessionCookieFor, signedInUser, sql } from "../helpers.js";
 
 describe("account settings", () => {
   it("starts on the defaults, and saves only what's sent", async () => {
@@ -75,5 +75,16 @@ describe("account settings", () => {
     const cookie = await sessionCookieFor(me.id, { kind: "recovery" });
     expect((await call("/api/account/settings", { cookie })).status).toBe(200);
     expect((await call("/api/account/settings", { method: "PUT", body: { theme: "dark" }, cookie })).status).toBe(403);
+  });
+
+  it("keeps a format 2 account's role names and default body out: they're in its sealed settings record", async () => {
+    const id = await createOtherUser();
+    await sql("UPDATE users SET format = 2, top_label = 'Old' WHERE id = ?", id).run();
+    const cookie = await sessionCookieFor(id);
+    expect((await call("/api/account/settings", { cookie })).body).toMatchObject({ top_label: null, bottom_label: null, default_shape: null });
+    for (const body of [{ top_label: "Rigger" }, { default_shape: [50, 50, 50, 170] }, { theme: "light", bottom_label: "x" }]) {
+      expect((await call("/api/account/settings", { method: "PUT", body, cookie })).status).toBe(400);
+    }
+    expect((await call("/api/account/settings", { method: "PUT", body: { theme: "light" }, cookie })).body).toMatchObject({ theme: "light", top_label: null });
   });
 });

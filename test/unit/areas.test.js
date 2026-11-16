@@ -73,7 +73,7 @@ describe("planFor", () => {
     const plan = planFor(["public/js/api.js", "src/tags/db.js"]);
     expect(plan.ui).toEqual(UI_CHUNKS);
     expect(plan.everything).toEqual(["public/js/api.js"]);
-    expect(plan.generated).toEqual(["privacy", "releases", "vendor", "welcome"]);
+    expect(plan.generated).toEqual(["privacy", "releases", "vendor"]);
   });
 
   it("runs everything for a file in no area, and says which", () => {
@@ -99,7 +99,6 @@ describe("planFor", () => {
   it("runs a generated file's check when its source changes", () => {
     expect(planFor(["PRIVACY.md"]).generated).toEqual(["privacy"]);
     expect(planFor(["RELEASES.md"]).generated).toEqual(["releases"]);
-    expect(planFor(["WELCOME.md"]).generated).toEqual(["welcome"]);
   });
 
   it("runs nothing for notes and docs", () => {
@@ -110,10 +109,10 @@ describe("planFor", () => {
 
 describe("planForAreas", () => {
   it("runs the named areas' checks", () => {
-    const plan = planForAreas(["plans", "welcome"]);
-    expect(plan.areas).toEqual(["plans", "welcome"]);
-    expect(plan.ui).toEqual(["basics", "plans"]);
-    expect(plan.generated).toEqual(["welcome"]);
+    const plan = planForAreas(["plans", "tour", "releases"]);
+    expect(plan.areas).toEqual(["plans", "releases", "tour"]);
+    expect(plan.ui).toEqual(["basics", "settings", "plans"]);
+    expect(plan.generated).toEqual(["releases"]);
   });
 
   it("refuses a name that isn't an area", () => {

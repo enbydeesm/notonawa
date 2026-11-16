@@ -9,7 +9,7 @@
 // scroll into view, so they cost nothing to anyone who doesn't scroll down.
 
 import { roleName, roleOptions } from "../roles.js";
-import { api, errorMessage } from "../api.js";
+import { errorMessage } from "../api.js";
 import { h, $, infoTip } from "../dom.js";
 import { today as todayIn } from "../format.js";
 import { multiSelect } from "../multi-select.js";
@@ -18,7 +18,6 @@ import { barChart, partnerBars, pieChart, rankBars, roleKey, stat, TYPE_COLORS }
 import { tiesWord } from "../chart-parts.js";
 import { openTieList } from "../tie-list-dialog.js";
 import { mapPlaces } from "../map-geo.js";
-import { open } from "../vault.js";
 import { formatMoney } from "../currency.js";
 import { dateRangeText } from "../workshops-view.js";
 import { workshopsIn, followUps, workshopNumbers, practisedMost, workshopsByBar, workshopPlaces } from "../workshop-stats.js";
@@ -29,6 +28,7 @@ import {
 import {
   PERIODS, initialPeriod, periodRange, canStep, stepPeriod, periodTitle, bucketUnit, chartSpan, buckets,
 } from "../stats-period.js";
+import { listItems, listWorkshops, listTags, statsTies } from "../store/index.js";
 
 /**
  * @typedef {import("../stats.js").StatsTie} StatsTie
@@ -57,7 +57,7 @@ const NO_FILTERS = { person_ids: [], location_ids: [], tag_ids: [] };
  * @returns {Promise<StatsTie[]>}
  */
 async function fetchTies(body) {
-  return (await api("/api/stats/ties", { method: "POST", body })).ties;
+  return statsTies(body);
 }
 
 /**
@@ -105,10 +105,10 @@ export function mount(_root, { signal }) {
   let learning = null;
   // Workshops are extras here: if they can't load, the ties still show.
   const loadLearning = () => Promise.all([
-    api("/api/workshops").then((rows) => open("workshop", rows)),
-    api("/api/plans?archived=all"),
-    api("/api/locations?archived=all"),
-    api("/api/people?archived=false"),
+    listWorkshops(),
+    listItems("plans", "all"),
+    listItems("locations", "all"),
+    listItems("people", false),
   ]).then(([workshops, plans, locations, people]) => {
     learning = { workshops, plans, locations, selfId: people.find((/** @type {any} */ p) => p.is_self)?.id ?? null };
   }, () => { learning = null; });
@@ -434,7 +434,7 @@ function openMoreFilters(current, preview) {
     (async () => {
       try {
         const [peopleList, locationList, tagList] = await Promise.all([
-          api("/api/people?archived=all"), api("/api/locations?archived=all"), api("/api/tags"),
+          listItems("people", "all"), listItems("locations", "all"), listTags(),
         ]);
         /** @param {Record<string, any>} item */
         const option = (item) => ({ id: item.id, name: item.name, archived: !!item.archived_at });

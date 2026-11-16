@@ -18,6 +18,7 @@ async function openLink(/** @type {string} */ link) {
 // path from /open on) in \`link\`.
 const MAKE = (/** @type {Record<string, string | boolean>} */ choices) => `
   for (let i = 0; i < 50 && !$("#share-item-make"); i++) await wait(100);
+  if ($("#share-item-link-part").hidden) $("#share-item-to-link").click();
   ${Object.entries(choices).map(([sel, v]) => `set(${JSON.stringify(sel)}, ${JSON.stringify(v)});`).join(" ")}
   $("#share-item-make").click();
   for (let i = 0; i < 50 && !$("#share-code-link"); i++) await wait(100);
@@ -37,22 +38,20 @@ export default async function () {
   const ids = await seedJournal();
   const tieId = await seedTie(ids);
   await run(`
-    const { sealOne } = await import("/js/vault.js");
-    const { caption } = await sealOne("drawing", { caption: "The wrap" });
-    await post("/api/drawings", { tie_id: ${JSON.stringify(tieId)}, data: { v: 1, strokes: [{ c: "red", w: 2, p: [10, 20, 30, 40] }] }, caption });
+    await store.addDrawing({ tie_id: ${JSON.stringify(tieId)} }, { data: { v: 1, strokes: [{ c: "red", w: 2, p: [10, 20, 30, 40] }] }, caption: "The wrap" });
     // A photo, drawn here (as photo-prep.js would leave one) and uploaded.
     const canvas = new OffscreenCanvas(40, 30);
     const g = canvas.getContext("2d"); g.fillStyle = "#c33"; g.fillRect(0, 0, 40, 30);
     const full = await (await canvas.convertToBlob({ type: "image/jpeg" })).arrayBuffer();
-    const { uploadPhoto } = await import("/js/photo-upload.js");
+    const { uploadPhoto } = await import("/js/store/index.js");
     await uploadPhoto({ item: { tie_id: ${JSON.stringify(tieId)} }, prepared: { thumb: full.slice(0), full, mime: "image/jpeg" }, caption: "Front" });
     // Its cost and event link are sealed, as the form seals them.
-    await post("/api/workshops", await sealOne("workshop", { title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",
+    await store.saveWorkshop(null, ({ title: "Floor intensive", start_date: "2026-03-01", end_date: "2026-03-02",
       cost: "EUR 180.00", event_url: "https://example.com/floor-intensive",
       educators: [{ person_id: ${JSON.stringify(ids.sam)}, role: "top" }], participants: [{ person_id: ${JSON.stringify(ids.me)}, role: "bottom" }] }));`);
 
   await go("/");
-  check("a saved tie has Share; its dialog ticks everything it has, photos too with what they take of my 1 GB, asks the name to show for me, and explains behind ?s", await run(`
+  check("a saved tie has Share; its dialog ticks everything it has, photos too (saying nothing of my 1 GB), asks the name to show for me, and explains behind ?s", await run(`
     for (let i = 0; i < 50 && !$(".tie-card"); i++) await wait(100);
     $(".tie-card .tie-date").click();
     for (let i = 0; i < 50 && !$("#tie-share"); i++) await wait(100);
@@ -63,15 +62,23 @@ export default async function () {
     $("[aria-controls=share-item-my-name-info]").click();
     const nameTip = $("#share-item-my-name-info").hidden ? null : $("#share-item-my-name-info").textContent;
     return [fields, $("#share-item-my-name").value, $("label[for=share-item-my-name]").textContent, $("#share-item-always").textContent,
-      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, $("#share-item-media-size")?.textContent,
-      $("#share-item-expires").value, $("#share-item-uses").value, leakyFields()];`),
+      tips, nameTip, document.querySelectorAll(".share-item p.hint").length, document.querySelector(".share-item").innerText.includes("1 GB"),
+      $("#share-item-expires").value, $("#share-item-uses").value, leakyFields(), ways()];
+    function ways() {
+      // How to share it, below what to share: the link's choices only once Share with link is chosen.
+      const before = [[...document.querySelectorAll(".share-ways button")].map((b) => b.textContent), $("#share-item-link-part").hidden,
+        $("#share-item-connection-part").hidden];
+      $("#share-item-to-link").click();
+      return [...before, $("#share-item-link-part").hidden, $("#share-item-to-link").getAttribute("aria-pressed")];
+    }`),
   [[["Title: Floor session", true], ["Mins: 45", true], ["Location: Studio", true], ["Plans: Hip harness", true],
     ["People and their roles: you (top), Sam (bottom)", true], ["How did it go?: 4/5", true], ["Notes", true],
     ["Album link", true], ["Drawings and poses: 1 drawing", true], ["Photos and videos: 1 photo", true], ["Tags: Futomomo", true]],
   "", "Your profile name", "Share date and type and…",
   [["share-item-intro", true], ["share-item-my-name-info", true], ["share-item-label-info", true]],
-  "The name shared for the 'Me' rows on this tie.", 1,
-  "Photos and videos are copied into the share, taking under 0.1 MB of your 1 GB until it ends.", "1d", "one", []]);
+  "The name shared for the 'Me' rows on this tie.", 0,
+  false, "7d", "one", [],
+  [["Send to connection", "Share with link"], true, true, false, "true"]]);
   check("it needs a name for me while people are shared", await run(`
     set("#share-item-label", "For Sam"); $("#share-item-make").click(); await calm(500);
     return $("#share-item-status").textContent;`), "Couldn't share it: Type the name to show for you.");
@@ -110,16 +117,15 @@ export default async function () {
     [["Event link", true], ["Cost: €180", true]]);
   await go("/data");
   check("Shared by me lists them by kind", await run(`
-    for (let i = 0; i < 30 && document.querySelectorAll(".share-item").length < 3; i++) await wait(100);
-    return [...document.querySelectorAll(".share-item .item-meta")].map((m) => m.textContent.split(" · ")[0]);`),
+    for (let i = 0; i < 30 && document.querySelectorAll(".share-row").length < 3; i++) await wait(100);
+    return [...document.querySelectorAll(".share-row .share-type")].map((m) => m.textContent);`),
   ["Workshop", "Plan", "Tie"]);
 
   // Someone else adds them: Sam, who has a different Jude, and a Studio.
   await freshAccount();
   const mine = await run(`
-    const { sealOne } = await import("/js/vault.js");
-    const jude = await post("/api/people", await sealOne("person", { name: "Jude" }));
-    const studio = await post("/api/locations", await sealOne("location", { name: "Studio" }));
+    const jude = await store.saveItem("people", null, { name: "Jude" });
+    const studio = await store.saveItem("locations", null, { name: "Studio" });
     return { jude, studio };`);
   await openLink(tieLink);
   check("the tie's preview shows what was ticked (not the album link) with its photo's thumbnail, and the key gone from the address", await run(`
@@ -143,13 +149,11 @@ export default async function () {
     set("#open-person-0", "new"); set("#open-person-1", "me");
     ${ADD}
     const said = [$("#open-done")?.textContent, $("#open-to-view")?.getAttribute("href")];
-    const { open } = await import("/js/vault.js");
-    const [tie] = await open("tie", (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).ties);
-    const people = await (await fetch("/api/people?archived=false")).json();
-    const drawings = await open("drawing", await (await fetch("/api/drawings?tie_id=" + tie.id)).json());
-    const { openMedia, openPhoto } = await import("/js/vault.js");
-    const media = await openMedia(await (await fetch("/api/media?tie_id=" + tie.id)).json());
-    const photo = media[0] && new Uint8Array(await openPhoto(media[0].id, "full"));
+    const [tie] = (await store.findTies({})).ties;
+    const people = await store.listItems("people", "false");
+    const drawings = await store.listDrawings({ tie_id: tie.id });
+    const media = await store.listMedia({ tie_id: tie.id });
+    const photo = media[0] && new Uint8Array(await store.openMediaPart(media[0], "full"));
     const photos = media.map((m) => [m.kind, m.mime, m.caption, m.position < drawings[0].position]);
     const roleOf = (p) => (p.is_self ? "Me" : p.id === ${JSON.stringify(mine.jude)} ? "my Jude" : p.name) + " " ;
     return [said, tie.title, tie.tie_type, tie.duration_minutes, tie.success_rating, tie.notes, tie.album_url, tie.location_id, tie.tags,
@@ -161,7 +165,7 @@ export default async function () {
     ["Jude top", "Me bottom"], 2, [[1, "The wrap"]], [["photo", "image/jpeg", "Front", false]], true]);
 
   // The same tie again, all from my journal now: it looks like it's there already.
-  const newJude = await run(`return (await (await fetch("/api/people?archived=false")).json()).find((p) => p.name === "Jude" && p.id !== ${JSON.stringify(mine.jude)}).id;`);
+  const newJude = await run(`return (await store.listItems("people", "false")).find((p) => p.name === "Jude" && p.id !== ${JSON.stringify(mine.jude)}).id;`);
   await openLink(tieLink);
   check("adding the same tie again says it looks like it's already there, and Add another copy adds it", await run(`
     ${OPENED}
@@ -170,7 +174,7 @@ export default async function () {
     ${ADD}
     const said = [$("#open-message").textContent, !!$("#open-add-copy"), plan];
     $("#open-add-copy").click(); for (let i = 0; i < 80 && !$("#open-done"); i++) await wait(100);
-    const total = (await (await fetch("/api/ties/search", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json()).total;
+    const total = (await store.findTies({})).total;
     return [said, $("#open-done")?.textContent, total];`),
   [["This tie looks like one already in your journal.", true, "Hip harness"], "The tie is in your journal.", 2]);
 
@@ -181,7 +185,7 @@ export default async function () {
     ${ADD}
     const asked = $("#open-message").textContent;
     $("#open-add-copy").click(); for (let i = 0; i < 80 && !$("#open-done"); i++) await wait(100);
-    const plans = (await (await fetch("/api/plans?archived=false")).json()).filter((p) => p.title === "Hip harness");
+    const plans = (await store.listItems("plans", "false")).filter((p) => p.title === "Hip harness");
     return [shown, asked, $("#open-done")?.textContent, plans.map((p) => [p.plan_type, p.est_difficulty]).sort()];`),
   [["Hip harness", "Harness"], "This plan looks like one already in your journal.", "The plan is in your journal.",
     [["harness", 3], ["idea", null]]]);
@@ -194,12 +198,13 @@ export default async function () {
       $("#open-cost").textContent, $("#open-event a").getAttribute("href")];
     set("#open-person-0", "me"); set("#open-person-1", "person:${newJude}");
     ${ADD}
-    const [w] = await (await fetch("/api/workshops")).json();
-    const [opened] = await (await import("/js/vault.js")).open("workshop", [w]);
-    const me = (await (await fetch("/api/people?archived=false")).json()).find((p) => p.is_self).id;
+    const [w] = await store.listWorkshops();
+    // Opened already (format 1's store opens them; format 2's never sealed them apart).
+    const opened = w;
+    const me = (await store.listItems("people", "false")).find((p) => p.is_self).id;
     return [shown, $("#open-done")?.textContent, w.title,
       w.educators.map((p) => [p.person_id === me ? "me" : p.person_name, p.role]), w.participants.map((p) => [p.person_name, p.role]),
-      [/^e1\\./.test(w.cost), /^e1\\./.test(w.event_url), opened.cost, opened.event_url]];`),
+      [!(await plainOnServer("EUR 180")), !(await plainOnServer("floor-intensive")), opened.cost, opened.event_url]];`),
   [["Mar 1 – 2, 2026", "Educators: Sam (top)", "People: Jude (bottom)",
     "Sam Top · educator", "Jude Bottom · participant · shared this", "Cost: €180", "https://example.com/floor-intensive"],
   "The workshop is in your journal.", "Floor intensive", [["me", "top"]], [["Jude", "bottom"]],

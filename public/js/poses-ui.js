@@ -14,10 +14,10 @@
 // tie, plan or workshop, the poses wait in the form and are saved once it
 // is, as they need its id.
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
-import { open, sealOne } from "./vault.js";
+import { listPoses, addPose, updatePose, deletePose } from "./store/index.js";
 import { MAX_POSES } from "./pose-format.js";
 import { jointsInRange } from "./figure-rig.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
@@ -48,10 +48,9 @@ const FULL = { width: 900, height: 1200, type: "image/png" };
  * @returns {Promise<string>} its id
  */
 export async function savePose(item, { data, caption }) {
-  const { caption: sealed } = await sealOne("pose", { caption });
   // A pose saved when the joints went further (Duplicate, Copy to…) is
   // brought within today's ranges first, as the server refuses one past them.
-  return (await api("/api/poses", { method: "POST", body: { ...item, data: jointsInRange(data), caption: sealed } })).id;
+  return addPose(item, { data: jointsInRange(data), caption });
 }
 
 /** The 3D code, fetched the first time it's needed. */
@@ -83,9 +82,7 @@ export function poseKind(ctx) {
    * @returns {Promise<Entry[]>}
    */
   async function load(item) {
-    /** @type {{ id: string, data: Pose, caption: string | null, position: number, created_at: string }[]} */
-    const listed = await api(`/api/poses?${new URLSearchParams(item)}`);
-    const opened = await open("pose", listed);
+    const opened = await listPoses(item);
     poses = opened.map((d) => ({
       id: d.id, data: d.data, caption: d.caption, unreadable: !!d.unreadable?.length, position: d.position, created_at: d.created_at,
     }));
@@ -207,8 +204,7 @@ export function poseKind(ctx) {
       nav: ctx.nav(entry), tell,
       save: async (text) => {
         if (entry.id) {
-          const { caption } = await sealOne("pose", { caption: text });
-          await api(`/api/poses/${entry.id}`, { method: "PUT", body: { caption } });
+          await updatePose(entry.id, { caption: text });
         }
         entry.caption = text;
         entry.unreadable = false;
@@ -263,7 +259,7 @@ export function poseKind(ctx) {
       try {
         if (entry.id) {
           tell("Saving…");
-          await api(`/api/poses/${entry.id}`, { method: "PUT", body: { data } });
+          await updatePose(entry.id, { data });
         }
         entry.data = data;
         forgetPicture(entry);
@@ -309,7 +305,7 @@ export function poseKind(ctx) {
       });
       if (choice !== "delete") return;
       try {
-        if (entry.id) await api(`/api/poses/${entry.id}`, { method: "DELETE" });
+        if (entry.id) await deletePose(entry.id);
         forgetPicture(entry);
         poses = poses.filter((d) => d !== entry);
         ctx.remove(entry);

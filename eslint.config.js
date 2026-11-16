@@ -4,6 +4,9 @@ import js from "@eslint/js";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
 
+// The API paths of journal data (and "/api/" followed by a variable).
+const JOURNAL = "/^\\/api\\/(ties|plans|people|locations|workshops|tags|stats|media|drawings|poses|pose-presets|visuals|connections|data|account\\/settings|sync|records|files|identity|convert)\\b|^\\/api\\/$/";
+
 export default defineConfig([
   { ignores: ["node_modules/", ".wrangler/", "backups/", "worker-configuration.d.ts", "public/js/vendor/"] },
   js.configs.recommended,
@@ -19,6 +22,20 @@ export default defineConfig([
   { files: ["src/**/*.js"], languageOptions: { globals: { ...globals.serviceworker, FixedLengthStream: "readonly" } } },
   // Pages run in the browser.
   { files: ["public/**/*.js"], languageOptions: { globals: globals.browser } },
+  // Every read and write of journal data goes through the store
+  // (public/js/store/), never api() directly, so the encrypted version can
+  // replace it underneath without the pages changing. A path built from a
+  // variable ("/api/${kind}") is refused too, as it can't be checked.
+  {
+    files: ["public/js/**/*.js"],
+    ignores: ["public/js/store/**"],
+    rules: {
+      "no-restricted-syntax": ["error",
+        ...[`CallExpression[callee.name="api"] > Literal.arguments[value=${JOURNAL}]`,
+          `CallExpression[callee.name="api"] > TemplateLiteral.arguments > TemplateElement:first-child[value.raw=${JOURNAL}]`]
+          .map((selector) => ({ selector, message: "Journal data goes through the store (public/js/store/index.js), not api()." }))],
+    },
+  },
   // Worker tests run inside the Workers runtime too.
   { files: ["test/**/*.js"], languageOptions: { globals: globals.serviceworker } },
   // Config files and scripts run in Node.

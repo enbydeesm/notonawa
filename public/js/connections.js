@@ -4,12 +4,16 @@
 // inviter's banner and People. See considerations.md, "Sharing between
 // accounts": "Connecting accounts".
 
-import { api, errorMessage } from "./api.js";
+import { errorMessage } from "./api.js";
 import { h, showMessage, privateField } from "./dom.js";
-import { open, sealOne } from "./vault.js";
 import { choose } from "./dialog.js";
-import { convertConnections } from "./journal-fields.js";
 import { REMOVE_ABOUT_NOTE } from "./connection-text.js";
+import {
+  listItems, saveItem, listConnections, setConnectionPerson, markConnectionAnswered, deleteConnection, profileUpdateDone,
+} from "./store/index.js";
+import { newPerson as personFrom } from "./contact-merge.js";
+import { today } from "./format.js";
+import { reviewProfileUpdate } from "./profile-update.js";
 
 /** @typedef {import("./connection-text.js").Connection} Connection */
 
@@ -24,8 +28,7 @@ const SVG = "http://www.w3.org/2000/svg";
  * @returns {Promise<Connection[]>}
  */
 export async function loadConnections() {
-  const list = await api("/api/connections");
-  return convertConnections(list, (kind, records) => open(kind, records));
+  return listConnections();
 }
 
 /** Tells the page a connection changed. */
@@ -39,7 +42,7 @@ export function connectionsChanged() {
  * @param {string} personId
  */
 export async function linkConnection(id, personId) {
-  await api(`/api/connections/${id}/person`, { method: "PUT", body: { person_id: personId } });
+  await setConnectionPerson(id, personId);
   connectionsChanged();
 }
 
@@ -48,7 +51,7 @@ export async function linkConnection(id, personId) {
  * @param {string} id
  */
 export async function answerLater(id) {
-  await api(`/api/connections/${id}/answered`, { method: "POST", body: {} });
+  await markConnectionAnswered(id);
 }
 
 /**
@@ -70,7 +73,7 @@ export async function removeConnection(id, name) {
     choices: [{ label: "Remove connection", value: "remove", style: "solid-danger" }],
   });
   if (choice !== "remove") return false;
-  await api(`/api/connections/${id}?about=${about.checked ? "remove" : "keep"}`, { method: "DELETE" });
+  await deleteConnection(id, about.checked ? "remove" : "keep");
   connectionsChanged();
   return true;
 }
@@ -80,18 +83,22 @@ export async function removeConnection(id, name) {
  * @returns {Promise<any[]>}
  */
 export async function linkablePeople() {
-  return (await open("person", await api("/api/people?archived=false"))).filter((p) => !p.is_self);
+  return (await listItems("people", false)).filter((p) => !p.is_self);
 }
 
 /**
  * Asks which of my people a connection is, or for a new one's name, and
  * puts it there. Resolves with the person's name once it's done, or null
  * if cancelled.
+ * With a profile they shared back (format 2), a new person's card is made
+ * from it, and one I have gets it merged in, field by field, once linked.
  * @param {string} id my side of the connection
- * @param {{ newPerson?: boolean, suggested?: string | null }} [options] newPerson: ask for a new person's name
+ * @param {{ newPerson?: boolean, suggested?: string | null, shared?: import("./profile-share.js").SharedProfile | null }} [options]
+ *   newPerson: ask for a new person's name; shared: their profile, if they shared it on connecting
  * @returns {Promise<string | null>}
  */
-export function chooseConnectionPerson(id, { newPerson = false, suggested = null } = {}) {
+export function chooseConnectionPerson(id, { newPerson = false, suggested = null, shared = null } = {}) {
+  suggested ??= shared?.name ?? null;
   return new Promise((resolve) => {
     /** @type {string | null} */
     let result = null;
@@ -102,7 +109,9 @@ export function chooseConnectionPerson(id, { newPerson = false, suggested = null
     const form = h("form", { onsubmit: submit },
       newPerson
         ? [h("label", { htmlFor: "connect-name" }, "Their name"), name,
-          h("p", { className: "hint" }, "Nothing about them came with the connection: add what you know on their card.")]
+          h("p", { className: "hint" }, shared
+            ? "Their card is made from the profile they shared. Your own notes about them are yours alone."
+            : "Nothing about them came with the connection: add what you know on their card.")]
         : [h("label", { htmlFor: "connect-person" }, "Who is this?"), select],
       save,
       h("button", { type: "button", className: "dialog-cancel", onclick: () => dialog.close() }, "Cancel"),
@@ -137,11 +146,19 @@ export function chooseConnectionPerson(id, { newPerson = false, suggested = null
         let personName = people.find((p) => p.id === personId)?.name ?? "";
         if (newPerson) {
           personName = name.value.trim();
-          personId = (await api("/api/people", { method: "POST", body: await sealOne("person", { name: personName }) })).id;
+          personId = await saveItem("people", null, shared ? { ...personFrom(shared, today()), name: personName } : { name: personName });
         }
         await linkConnection(id, personId);
+        if (shared && newPerson) await profileUpdateDone(id);
         result = personName;
         dialog.close();
+        // One I have: what they shared, merged in as I choose.
+        if (shared && !newPerson) {
+          const person = people.find((p) => p.id === personId);
+          if (person && await reviewProfileUpdate(person, { title: `Add ${shared.name}'s profile`, intro: "What they shared with you:" })) {
+            connectionsChanged();
+          }
+        }
       } catch (err) {
         showMessage(message, "Couldn't link it: " + errorMessage(err), true);
         save.disabled = false;

@@ -3,7 +3,8 @@
 // its own, over the view: it asks where to save what it makes), then the + button
 // and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
-// their own dialog), the account and "Your data" links, Bug and feedback,
+// their own dialog), the account and "Your data" links, Tutorial (the
+// welcome tour), Bug and feedback,
 // What's new (the release notes), the privacy policy, Sign Out and the
 // app's version.
 // Drawn once by app.js; setCurrent() marks the view being shown.
@@ -14,12 +15,12 @@ import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
 import { openFeedback } from "./feedback-dialog.js";
-import { openWelcome } from "./welcome.js";
+import { openTour } from "./tour.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
+import { wipeCaches } from "./cache/db.js";
 import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
-import { currentTheme } from "./settings.js";
 import { HANK_PATH } from "./rope-rating.js";
 
 /** The tabs: address, name and icon, in order. */
@@ -52,17 +53,17 @@ export const TIE_SAVED = "tie-saved";
 export const PLAN_SAVED = "plan-saved";
 export const WORKSHOP_SAVED = "workshop-saved";
 
-// The menu's logo for each mode, as in app.css (.menu-title .logo).
-const MENU_LOGOS = { light: "/img/bamboo-logo-light.avif", dark: "/img/bamboo-logo-dark.avif" };
+// The logo's two parts, as in app.css (.logo), the same in both modes.
+const LOGO = ["/img/logo-mark.svg", "/img/logo-word.svg"];
 
 /**
- * Fetches the menu's logo for the mode on screen, so it's there as soon as
- * the menu first opens rather than loading as it slides in. app.js calls it
- * once the journal is unlocked; images are cached (public/_headers), so the
- * menu's background then comes from the cache.
+ * Fetches the logo, so it's there as soon as the menu first opens rather
+ * than loading as it slides in. app.js calls it once the journal is
+ * unlocked; images are cached (public/_headers), so the menu's mask then
+ * comes from the cache.
  */
 export function preloadMenuLogo() {
-  new Image().src = MENU_LOGOS[currentTheme()];
+  for (const src of LOGO) new Image().src = src;
 }
 
 /** The path of the view being shown (null: not one of the app's views). @type {string | null} */
@@ -149,8 +150,7 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's logo as a banner (the name on the bamboo), app.css's
-      // background for the mode. Search for "NotoNawa" when it's renamed.
+      // The app's logo, app.css's mask in the text color. Search for "NotoNawa" when it's renamed.
       h("h2", { className: "menu-title" }, h("span", { className: "logo", role: "img", "aria-label": "NotoNawa" })),
       h("button", {
         type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",
@@ -166,11 +166,10 @@ function openMenu() {
       }, dataIcon(), h("span", {}, "Your data")),
       // The tutorial, feedback, What's new, the privacy policy and signing
       // out are pinned to the bottom of the panel. The tutorial is the
-      // welcome for now; a click-through tour will take its place
-      // (roadmap.md).
+      // welcome tour (tour.js), from its start.
       h("button", {
         type: "button", className: "menu-item menu-tutorial", "aria-haspopup": "dialog",
-        onclick: () => { dialog.close(); openWelcome(); },
+        onclick: () => { dialog.close(); openTour(); },
       }, tutorialIcon(), h("span", {}, "Tutorial")),
       h("button", {
         type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",
@@ -197,6 +196,8 @@ function openMenu() {
     try {
       await api("/api/auth/logout", { method: "POST", body: {} });
       lock();
+      // The journal's sealed copy on this device goes too: someone else may use it next.
+      await wipeCaches();
       dialog.close();
       navigate("/signin", { replace: true });
     } catch (err) {

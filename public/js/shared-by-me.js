@@ -7,10 +7,13 @@ import { api, errorMessage } from "./api.js";
 import { h, showMessage } from "./dom.js";
 import { open } from "./vault.js";
 import { choose } from "./dialog.js";
-import { KIND_NAMES, endsText, usesText } from "./share-options.js";
+import { KIND_NAMES, expiresIn, usesText } from "./share-options.js";
+import { dataGrid } from "./data-grid.js";
 import { showShareCode } from "./share-code.js";
 import { loadConnections, chooseConnectionPerson, removeConnection, linkIcon, CONNECTIONS_CHANGED } from "./connections.js";
-import { connectionTitle, connectionDetail } from "./connection-text.js";
+import { connectionVia } from "./connection-text.js";
+import { formatDate } from "./format.js";
+import { listItems, connectingShares, inviteRevoked } from "./store/index.js";
 
 /**
  * Fills the "Shared by me" card's list, and again after a revoke.
@@ -20,47 +23,62 @@ import { connectionTitle, connectionDetail } from "./connection-text.js";
 export async function showSharedByMe(list, message) {
   try {
     const shares = await open("share", await api("/api/shares"));
-    list.replaceChildren(...(shares.length
-      ? shares.map((share) => shareItem(share, () => showSharedByMe(list, message), message))
-      : [h("p", { className: "empty" }, "Nothing shared right now.")]));
+    const connecting = connectingShares();
+    list.replaceChildren(shares.length
+      ? dataGrid({
+        className: "shares-grid", label: "Shared by me", columns: ["Tag", "Type", "Expires in"],
+        rows: shares.map((share) => shareRow(share, connecting, () => showSharedByMe(list, message), message)),
+      })
+      : h("p", { className: "empty" }, "Nothing shared right now."));
   } catch (err) {
     showMessage(message, "Couldn't load your shares: " + errorMessage(err), true);
   }
 }
 
 /**
+ * A share's row: its tag (with how much it's been used, and whether it
+ * connects accounts, under it), its type and how long it has left; Show
+ * code (an eye) and Revoke (a red trash can).
  * @param {any} share as GET /api/shares lists it, opened
+ * @param {Set<string>} connecting format 2's invites that offer to connect (format 1's say so themselves)
  * @param {() => void} reload
  * @param {HTMLElement} message
+ * @returns {import("./data-grid.js").GridRow}
  */
-function shareItem(share, reload, message) {
+function shareRow(share, connecting, reload, message) {
   const kind = KIND_NAMES[/** @type {keyof typeof KIND_NAMES} */ (share.kind)] ?? "Share";
   const title = share.label || (share.kind === "profile" ? "Profile invite" : kind);
-  return h("div", { className: "item share-item" },
-    h("div", { className: "item-title" }, title),
-    h("div", { className: "item-meta" }, [kind, endsText(share.expires_at), usesText(share.use_count, share.max_uses)].join(" · ")),
-    share.connect ? h("div", { className: "item-meta share-connects" }, "Connects accounts") : null,
-    h("div", { className: "item-actions" },
+  const connects = share.connect || connecting.has(share.id);
+  const revoke = async () => {
+    const choice = await choose({
+      title: `Revoke "${title}"?`,
+      message: "Its code and link stop working at once. Anyone who already added it keeps what they added.",
+      choices: [{ label: "Revoke", value: "revoke", style: "solid-danger" }],
+    });
+    if (choice !== "revoke") return;
+    try {
+      await api(`/api/shares/${share.id}`, { method: "DELETE" });
+      await inviteRevoked(share.id);
+      reload();
+    } catch (err) {
+      showMessage(message, "Couldn't revoke it: " + errorMessage(err), true);
+    }
+  };
+  return {
+    className: "share-row",
+    cells: [
+      h("div", {}, h("div", { className: "grid-title share-tag" }, title),
+        h("div", { className: "grid-meta share-uses" }, usesText(share.use_count, share.max_uses) + (connects ? " · connects accounts" : ""))),
+      h("span", { className: "share-type" }, kind),
+      h("span", { className: "share-expires" }, expiresIn(share.expires_at)),
+    ],
+    actions: [
       share.link_key
-        ? h("button", { type: "button", className: "share-show", onclick: () => showShareCode({ id: share.id, key: share.link_key, title }) }, "Show code")
+        ? { icon: "show", label: `Show the code for "${title}"`, className: "share-show", onclick: () => showShareCode({ id: share.id, key: share.link_key, title }) }
         : null,
-      h("button", {
-        type: "button", className: "danger share-revoke",
-        onclick: async () => {
-          const choice = await choose({
-            title: `Revoke "${title}"?`,
-            message: "Its code and link stop working at once. Anyone who already added it keeps what they added.",
-            choices: [{ label: "Revoke", value: "revoke", style: "solid-danger" }],
-          });
-          if (choice !== "revoke") return;
-          try {
-            await api(`/api/shares/${share.id}`, { method: "DELETE" });
-            reload();
-          } catch (err) {
-            showMessage(message, "Couldn't revoke it: " + errorMessage(err), true);
-          }
-        },
-      }, "Revoke")));
+      { icon: "delete", label: `Revoke "${title}"`, className: "share-revoke", onclick: revoke },
+    ],
+  };
 }
 
 /**
@@ -77,22 +95,29 @@ export async function showConnections(list, message, signal) {
   }
   try {
     // Archived people too (a connection can be on one); names aren't sealed.
-    const [connections, people] = await Promise.all([loadConnections(), api("/api/people?archived=all")]);
+    const [connections, people] = await Promise.all([loadConnections(), listItems("people", "all")]);
     const names = new Map(people.map((/** @type {any} */ p) => [p.id, p.name]));
-    list.replaceChildren(...(connections.length
-      ? connections.map((c) => connectionItem(c, c.person_id ? names.get(c.person_id) ?? null : null, message))
-      : [h("p", { className: "empty" }, "No connections. You can offer one when you share your profile, from your own card in People.")]));
+    list.replaceChildren(connections.length
+      ? dataGrid({
+        className: "connections-grid", label: "Connections", columns: ["Person", "Via", "Since"],
+        rows: connections.map((c) => connectionRow(c, c.person_id ? names.get(c.person_id) ?? null : null, message)),
+      })
+      : h("p", { className: "empty" }, "No connections. You can offer one when you share your profile, from your own card in People."));
   } catch (err) {
     showMessage(message, "Couldn't load your connections: " + errorMessage(err), true);
   }
 }
 
 /**
+ * A connection's row: who it's on (or "Not on any Person"), how it was
+ * made and when; Add to Person (a person with a +) if it's on no one, and
+ * Remove (a red trash can).
  * @param {import("./connection-text.js").Connection} connection opened
  * @param {string | null} name who it's on
  * @param {HTMLElement} message
+ * @returns {import("./data-grid.js").GridRow}
  */
-function connectionItem(connection, name, message) {
+function connectionRow(connection, name, message) {
   /** @param {() => Promise<unknown>} action @param {string} failed */
   const run = async (action, failed) => {
     try {
@@ -101,17 +126,23 @@ function connectionItem(connection, name, message) {
       showMessage(message, `${failed}: ${errorMessage(err)}`, true);
     }
   };
-  return h("div", { className: "item connection-item" },
-    h("div", { className: "item-title connection-title" }, linkIcon(null), connectionTitle(name)),
-    h("div", { className: "item-meta" }, connectionDetail(connection)),
-    h("div", { className: "item-actions" },
-      name ? null : h("button", {
-        type: "button", className: "connection-add",
+  return {
+    className: "connection-row",
+    cells: [
+      h("div", { className: "grid-title connection-title" }, linkIcon(null), name ?? h("span", { className: "muted" }, "Not on any Person")),
+      h("span", { className: "connection-via" }, connectionVia(connection)),
+      h("span", { className: "connection-since" }, formatDate(connection.created_at.slice(0, 10))),
+    ],
+    actions: [
+      name ? null : {
+        icon: "addperson", label: "Add to a Person", className: "connection-add",
         onclick: () => run(() => chooseConnectionPerson(connection.id, { suggested: connection.invited ? null : connection.label }),
           "Couldn't link it"),
-      }, "Add to Person"),
-      h("button", {
-        type: "button", className: "danger connection-remove",
+      },
+      {
+        icon: "delete", label: name ? `Remove your connection with ${name}` : "Remove this connection", className: "connection-remove",
         onclick: () => run(() => removeConnection(connection.id, name ?? undefined), "Couldn't remove it"),
-      }, "Remove")));
+      },
+    ],
+  };
 }
