@@ -11,16 +11,15 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
-- The poser's ring is 50% bigger (15 cm across). Saved poses keep their bodies where they were; their uplines are just a little shorter.
-- Cinch any rope, not just uplines: tap a rope round the body, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together, the ropes staying where they're tied.
-- A rope with just two points (body to body, body to the ring or bamboo, or body to a spot on another rope) has a Length in place of Slack. It starts in the middle: lower it to pull the body in, raise it for slack. Body-to-body ropes can sag now too.
-- Slack goes up to 300 cm.
-- Raise and lower uplines: tap an upline and its Length (with ▲▼) lifts or lowers what it's tied to. Shorter turns an arm or leg up to it, and past its reach, or on the chest or hips, raises the whole body; longer lowers it to the floor, and the rest is slack. The other uplines keep their lengths while one changes, so raising a chest line tips the body up about its hip line. It isn't physics: nothing swings to hang under its line.
-- Rope lies on the body: between two points on the same part, or both on the trunk, a rope now goes round it the short way instead of cutting through, and the rope you're laying is drawn the same way as you tap.
-- Wrap: turn on Wrap over the 3D view and tap an arm, a leg or the body to lay a full turn of rope round it there, on the skin. − and + set one to four turns, each a rope's width along from the last. Undo takes a whole wrap back at once.
-- Move and take out points: a chosen rope shows its points on the body as white dots. Drag one to move that point over the skin, or tap it to take it out (cinches and ropes added on that rope go with it; Undo brings them back).
-- A body in the air hangs under its lines: after an upline's Length changes, the whole body swings, tips and turns until its weight sits as low as its taut uplines allow (plumb under one line, balanced between several). Its weight follows the body shape. Posing never moves it: tap Let it hang in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone.
-- The Hips sliders now pivot just the pelvis: the lower back bends to meet it, so the chest and head stay where they were, as the legs do. Once the waist has no more bend to give, the trunk follows. Dragging a leg far enough to turn the pelvis keeps the trunk upright the same way.
+Now with more encryption flavor!
+- Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.
+- Connected accounts now talk privately: our server keeps no record of who is connected to whom.
+- Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.
+- Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.
+- Raise and lower uplines: tap an upline and its Length lifts or lowers what it's tied to. The body will swing, tip and turn until its weight sits as low as its taut uplines allow. You can still freely pose or draw uplines. Tap 'Let it hang' in the Rope tab when you want it to settle. Limbs stay as posed, and a body touching the floor is left alone. It's not a physics engine, just a constraint solver.
+- Rope now lies on the body better, rather than clipping through. Turn on Wrap over the 3D view and tap an arm, a leg or the body to lay a full turn of rope round it there.
+- The Hips sliders now pivot just the pelvis.
+- The poser's ring is 50% bigger.
 
 ## 2026.11.09.0624
 Workshop updates and visual viewer improvements

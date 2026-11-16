@@ -53,12 +53,13 @@ building live in [roadmap.md](roadmap.md).
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
   account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
-  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"1"` in
-  production until the release (phase 7), `"2"` in dev): the format new
-  sign-ups start in. `CONVERT_ON_UNLOCK` (`"0"` in production until the
-  release, `"1"` in dev): whether a format 1 account converts to format 2
-  at its next unlock (`GET /api/keys`'s `convert`; one that has started
-  converting carries on whatever it says).
+  `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"2"` in
+  both since the release (phase 7)): the format new sign-ups start in.
+  `CONVERT_ON_UNLOCK` (`"1"` in both since the release): whether a format
+  1 account converts to format 2 at its next unlock (`GET /api/keys`'s
+  `convert`; one that has started converting carries on whatever it says).
+  The walkthrough's generated config sets both per `--format`, so its
+  format 1 accounts stay format 1.
 - **No stored request logs** (`observability` is off in `wrangler.jsonc`).
   Watch errors live with `npx wrangler tail`.
 - **A dev environment for testing before production**: `env.dev` in
@@ -1024,11 +1025,14 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   dev` (refusing `--dev` with `--remote` or `--persist-to`), and the
   wrangler commands name the database by its binding, `DB`, so the same
   command works for every target. Dev backups are named `notonawa-dev-…`.
-- `node scripts/mark-empty-accounts.mjs [--dry-run] [--remote | --dev]`:
-  makes format 1 accounts with nothing in their journal format 2 straight
-  away (what counts as empty, and the SQL, in `scripts/mark-empty-lib.mjs`,
-  tested in `test/api/mark-empty.test.js`), deleting their plain "Me": run
-  once after the release's deploy (phase 7). `--dry-run` counts them.
+- `node scripts/release-cleanup.mjs [--dry-run] [--remote | --dev]`: run
+  once after the release's deploy (phase 7). Makes format 1 accounts with
+  nothing in their journal format 2 straight away, deleting their plain
+  "Me"; then deletes format 1's connections and offers to connect (format
+  2 keeps none on the server; the cards stay, unlinked) and stops old
+  invites offering to connect. The SQL is in
+  `scripts/release-cleanup-lib.mjs`, tested in
+  `test/api/release-cleanup.test.js`. `--dry-run` counts what it would do.
 - `node scripts/invite.mjs [--remote]`: make an invite code.
   `node scripts/recovery-code.mjs [<user-id>] [--remote]`: list accounts, or
   give one a new recovery code (only when its owner asks, has a recovery

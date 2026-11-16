@@ -175,7 +175,10 @@ config.dev = { ...config.dev, host: `localhost:${PORT}` };
 // The format new accounts start in (npm run test:ui -- --format 2):
 // every chunk signs up its own account, so this runs the whole walkthrough
 // on format 1 or format 2 journals.
-config.vars = { ...config.vars, NEW_ACCOUNT_FORMAT: FORMAT === 2 ? "2" : "1" };
+// Format 1 accounts stay format 1 here (no conversion at unlock), so the
+// walkthrough still runs on them until phase 8 removes format 1; the
+// convert chunk converts its own account directly.
+config.vars = { ...config.vars, NEW_ACCOUNT_FORMAT: FORMAT === 2 ? "2" : "1", CONVERT_ON_UNLOCK: FORMAT === 2 ? "1" : "0" };
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 

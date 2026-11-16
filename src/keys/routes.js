@@ -38,8 +38,7 @@ export async function handleKeys(request, env, user, url) {
   //   signed in with, if it has one. format: 1 or 2 (src/format.js), and
   //   whether it's being converted, so the page knows which store to use;
   //   convert: whether a format 1 account converts at unlock
-  //   (CONVERT_ON_UNLOCK, wrangler.jsonc: on in dev, off in production
-  //   until the release).
+  //   (CONVERT_ON_UNLOCK, wrangler.jsonc: on since the release).
   //   Also allowed in a recovery session.
   if (url.pathname === "/api/keys" && request.method === "GET") {
     const passkeyId = user.session.passkey_id;

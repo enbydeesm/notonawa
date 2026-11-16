@@ -1,11 +1,14 @@
-// The empty-account script's SQL (scripts/mark-empty-lib.mjs): accounts
+// The release-day script's SQL (scripts/release-cleanup-lib.mjs): accounts
 // with nothing in their journal are made format 2, every other kind of
 // content keeps an account format 1 (to convert), and once marked,
-// format 1's routes refuse it, so nothing can slip in between.
+// format 1's routes refuse it, so nothing can slip in between. Then format
+// 1's connections and offers go, the cards they were on kept, unlinked.
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:test";
 import { call, createOtherUser, sessionCookieFor, sql } from "../helpers.js";
-import { COUNT_SQL, MARK_SQL, DELETE_ME_SQL } from "../../scripts/mark-empty-lib.mjs";
+import {
+  COUNT_SQL, MARK_SQL, DELETE_ME_SQL, CONNECTIONS_COUNT_SQL, STOP_INVITE_OFFERS_SQL, DELETE_OFFERS_SQL, DELETE_CONNECTIONS_SQL,
+} from "../../scripts/release-cleanup-lib.mjs";
 
 /** A format 1 account with its "Me", as sign-up makes it, and a session. */
 async function account() {
@@ -74,5 +77,29 @@ describe("marking empty accounts", () => {
     await call("/api/ties", { method: "POST", body: { tie_date: "2026-01-01", tie_type: "floor" }, cookie: a.cookie });
     expect((await env.DB.prepare(MARK_SQL).all()).results).toEqual([]);
     expect((await formatOf(a.id))?.format).toBe(1);
+  });
+});
+
+describe("deleting format 1's connections", () => {
+  it("deletes both sides and every offer, keeps the cards (unlinked), stops old invites offering, and is safe to run again", async () => {
+    const a = await account();
+    const b = await account();
+    const [mine, theirs] = [crypto.randomUUID(), crypto.randomUUID()];
+    await sql(`INSERT INTO connections (id, owner_id, peer_id, invited, label, answered) VALUES (?, ?, ?, 1, NULL, 1), (?, ?, ?, 0, NULL, 1)`,
+      mine, a.id, b.id, theirs, b.id, a.id).run();
+    const card = crypto.randomUUID();
+    await sql("INSERT INTO people (id, owner_id, name, connection_id) VALUES (?, ?, 'Sam', ?)", card, a.id, mine).run();
+    await sql("INSERT INTO connection_offers (token_hash, owner_id, expires_at) VALUES ('h', ?, '2999-01-01T00:00:00Z')", a.id).run();
+    const invite = crypto.randomUUID();
+    await sql(`INSERT INTO shares (id, owner_id, kind, bytes, expires_at, max_uses, connect, ready)
+      VALUES (?, ?, 'profile', 10, '2999-01-01T00:00:00Z', NULL, 1, 1)`, invite, a.id).run();
+
+    expect(await sql(CONNECTIONS_COUNT_SQL).first()).toEqual({ connections: 2, offers: 1 });
+    for (let run = 0; run < 2; run++) {
+      for (const step of [STOP_INVITE_OFFERS_SQL, DELETE_OFFERS_SQL, DELETE_CONNECTIONS_SQL]) await env.DB.prepare(step).run();
+    }
+    expect(await sql(CONNECTIONS_COUNT_SQL).first()).toEqual({ connections: 0, offers: 0 });
+    expect(await sql("SELECT name, connection_id FROM people WHERE id = ?", card).first()).toEqual({ name: "Sam", connection_id: null });
+    expect(await sql("SELECT connect FROM shares WHERE id = ?", invite).first("connect")).toBe(0);
   });
 });

@@ -3648,9 +3648,10 @@ Phase 5, slice 2: the Convert view and the switch.
 
 ## Encrypt everything: empty accounts as built (November 2026)
 
-Phase 5, slice 3: `scripts/mark-empty-accounts.mjs`, run after the
-release's deploy (phase 7), makes accounts with nothing in their journal
-format 2 straight away, so they never see the conversion.
+Phase 5, slice 3: `scripts/mark-empty-accounts.mjs` (since phase 7,
+`scripts/release-cleanup.mjs`), run after the release's deploy, makes
+accounts with nothing in their journal format 2 straight away, so they
+never see the conversion.
 
 - **Empty** is: format 1, not converting; no ties, plans, workshops,
   locations, tags, photos, drawings, poses, presets, connections or offers
@@ -3959,3 +3960,32 @@ a new engine, and slow on a phone).
   rope to match. Left for when it's missed. Hardpoint points and spots on
   other ropes have no dot: Slide and the cinch's own settings move those.
 
+
+## Encrypt everything: release prep (November 2026)
+
+Phase 7's code, ahead of the reviewer's sign-off and the release deploy.
+
+- **Production switched in config**: `NEW_ACCOUNT_FORMAT` "2" and
+  `CONVERT_ON_UNLOCK` "1" at the top level of `wrangler.jsonc`, so the
+  next production deploy from this branch is the release. A unit test
+  (`release-config.test.js`) keeps both environments there; the API tests
+  pin format 1 sign-ups for the routes they test, and the walkthrough's
+  format 1 runs keep their accounts format 1 (no conversion at unlock),
+  both until phase 8.
+- **Old connections go at release, by script, not migration**:
+  `scripts/release-cleanup.mjs` (was `mark-empty-accounts.mjs`) marks
+  empty accounts, then deletes `connections` and `connection_offers` and
+  turns off `shares.connect` (or opening an old invite would make a new
+  offer). A migration takes effect whenever it's applied, and applied
+  early it would break connections on a production still on format 1.
+  An old connection can't become a contact (no keys), so people connect
+  again; their cards stay, unlinked. The tables go in phase 8.
+- **Kept until phase 8, against the plan**: the plan removed
+  `seal-leftovers.js` and the old keyword search index at release. After
+  release neither runs for anyone (a format 1 account sees only the
+  Convert view, and sealing leftovers already skips one due to convert),
+  but the format 1 walkthrough still uses both until format 1 goes, so
+  they go then, with the rest of it.
+- **The policy** adds that backups and the database history held the
+  older, partly readable journal for 30 days after an account's update;
+  rebuilt with `--require-consent`.

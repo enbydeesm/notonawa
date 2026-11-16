@@ -205,6 +205,9 @@ tracking.
   only Mx_Piggie holds, away from our servers. Both are gone after 30 days.
   Photos and videos aren't backed up. We restore only to recover from a
   failure, never to bring back something you deleted unless you ask.
+- **When your account was updated to full encryption**, our backups and our
+  database provider's history still held the older, partly readable version
+  of your journal; that copy is gone 30 days after the update.
 - **Sessions** end when you sign out, and expired ones are cleared daily.
 
 ## Your rights and choices

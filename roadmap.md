@@ -126,6 +126,41 @@ queue of saves made offline, sent when back online, would need its own
 rules for edits another device made meanwhile (cache/sync-rules.js's
 mergeEdit is where they'd start) and for showing what isn't saved yet.
 
+## Covers (format 2)
+
+Choose one of a tie's, plan's or workshop's visuals as its cover, shown on
+its card. The records already have the field (`cover`, a visual's id;
+records/visuals.js drops it when that visual goes), and format v3 files
+have room for a cover part; what's left is choosing one and showing it.
+
+## Pose pictures (format 2)
+
+Keep a picture of each pose as a file (the pose record's reserved
+`picture`, a file id), drawn when it's saved, so lists and cards show it
+without loading the poser's 3D body to draw it.
+
+## Importing photos from an album
+
+Add photos from an album (for example the one a tie's album link points
+to) to its Visuals in one go, each prepared and sealed on the device as a
+photo picked from the device is. The open question is reading an album
+without our server seeing what's in it.
+
+## A device key, for passkeys that can't unlock
+
+A passkey without PRF signs in but can't unlock the journal, so its
+owner types the recovery code on each unlock. A key kept on the device
+(locking a copy of the data key, never sent to the server) would let it
+unlock after the first time. Deferred: every production passkey supports
+PRF (checked November 13, 2026).
+
+## The browser's own X-Wing
+
+Identity keys use a library for X-Wing (vendor/hpke.js, behind
+crypto/identity.js alone). Once every major browser has X-Wing in
+WebCrypto (Chrome has it from 154), switch to it there: the format doesn't
+change.
+
 ## Ideas, not yet committed
 
 <!-- - Plans: “Type” becomes “Plan type”, and difficulty is picked with the rope-hank icons.

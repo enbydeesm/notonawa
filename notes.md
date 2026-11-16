@@ -68,3 +68,5 @@ npm run check:changed -- people plans: checks named areas, whatever changed. -- 
 npm run test:ui -- --only people,plans: chosen walkthrough chunks only.
 npm run check and npm run test:ui still run everything, before a release.
 
+Run npm run deploy:prod.
+Run node scripts/release-cleanup.mjs --dry-run --remote, then run it again without --dry-run.
