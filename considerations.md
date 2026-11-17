@@ -208,6 +208,65 @@ Each one left the app working and shippable on its own.
 - **Rate limit:** 20 requests a minute per IP across `/api/auth/` (Cloudflare's
   rate-limit binding, counted in memory).
 
+### Linking a device as built
+
+Signing in on a new device with one that's signed in, as Signal links a
+device (built 2026-11-16; migration 0034, `src/link/`, `link-flows.js`,
+`crypto/link.js`). Before it, a new device needed a synced passkey, the
+browser's own "use a phone" QR code (Bluetooth, and PRF passed through, or
+it signs in without unlocking), or the recovery code.
+
+- **The flow.** The new device's sign-in view, "Sign in with another
+  device": the crypto Worker makes a throwaway X-Wing key pair (the private
+  half never leaves it), the server opens a request (5 minutes, one use, a
+  polling token of which only the hash is kept) and the page shows a QR code
+  of `/link#<id>.<SHA-256 of the public key>`, a 2-digit number and the
+  link, asking every 3 seconds. The signed-in device's camera opens the
+  link (no scanner in the app, as for shares); `pending-link.js` keeps it in
+  memory through signing in and unlocking. The `/link` view checks the
+  server's public key against the hash, asks which of three numbers the new
+  device shows, then for the passkey (`proveIt`, as adding a passkey), and
+  the Worker seals the data key's bytes to the public key with HPKE, bound
+  to `notonawa|link|v1|<user>|<request>`. The new device's next check gets
+  the sealed key and a session; the request is deleted then. It adds a
+  passkey (a button press: Safari wants one for `create()`), the Worker
+  wraps the key for its PRF output and unlocks, and `register/verify`
+  makes the session a full one.
+- **Why a hash in the QR code, not the key:** X-Wing's public key is 1,216
+  bytes, too big for a QR code a phone reads easily. The hash, which
+  travels outside the server, stops the server from swapping in a key of
+  its own.
+- **Why pick a number:** linked-device QR codes are a known phishing lure
+  ("scan this to verify your account": Signal's were used this way in
+  2025). Picking the new device's number means looking at the new device;
+  a wrong pick declines the request. The number isn't a secret (it's in
+  the link), so it only makes the person look. The view also says in
+  words not to approve a code someone sent.
+- **Why the passkey every time**, even with a fresh session: it hands out
+  the key, and the Worker's rule holds (nothing wraps or seals the key
+  without proof given just now). `linkSeal` needs the same proof as
+  `addWrap`; the new device's `linkOpen`/`linkTake` need the throwaway
+  private key, which only that Worker has. Approving also needs a fresh
+  full session on the server.
+- **The new device's session is the recovery kind** (15 minutes, only the
+  account, settings and keys, and adding a passkey), not a new kind:
+  `sessions.kind`'s CHECK would mean rebuilding the table, and the rules
+  are the ones wanted. Reloading part-way shows the recovery code form, as
+  a recovery does; starting again works too, ending that session.
+- **Two answers at once:** picking up the approval deletes the row first,
+  and only the call that deleted it starts a session.
+- **A passkey without PRF** on the new device signs in and is unlocked
+  this time; the recovery code unlocks it after that (it says so).
+- **Its own rate limit**, `LINK_RATE_LIMIT`, 60 a minute per IP: checking
+  every 3 seconds would use up `/api/auth/`'s 20.
+- **Not exported or imported:** a request lasts minutes and holds only a
+  sealed key; it's deleted with the account that approved it.
+- **Weighed:** the new device scanning the old one's code (desktops rarely
+  have cameras, and the approver is the one who should check); sending
+  the key through a mailbox (format 2 only, and the new device has no
+  account to have one); an 8-digit code typed on the old device in place
+  of a QR code (Copy link covers a device with no camera).
+
 ### Export, import and deletion as built
 
 - **Export** (`GET /api/data/export`, the "Your data" page): one JSON file,

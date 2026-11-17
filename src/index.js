@@ -36,6 +36,7 @@ import { handleFiles } from "./files/routes.js";
 import { handleIdentity } from "./identity/routes.js";
 import { handleMailboxSend, handleMailboxes } from "./mailboxes/routes.js";
 import { handleConvert } from "./convert/routes.js";
+import { handleLink, handleLinkSignedOut, isLinkRoute } from "./link/routes.js";
 import { formatRefusal } from "./format.js";
 import { cleanUpMailboxes } from "./mailboxes/cleanup.js";
 import { cleanUpShares } from "./shares/cleanup.js";
@@ -128,6 +129,16 @@ async function respond(request, env) {
     return (await handleAuth(request, env, url)) ?? notFound();
   }
 
+  // Signing in on a new device with one that's signed in: a limit on
+  // requests per address (the new device asks every few seconds), and the
+  // new device's own routes, which need no session.
+  if (isLinkRoute(url.pathname)) {
+    const { success } = await env.LINK_RATE_LIMIT.limit({ key: rateLimitKey(request) });
+    if (!success) return json({ error: "Too many attempts. Wait a minute and try again." }, 429);
+    const signedOut = await handleLinkSignedOut(request, env, url);
+    if (signedOut) return signedOut;
+  }
+
   // Figure out who is asking. Every other API request needs a signed-in user.
   const user = await getUser(request, env);
   if (!user) {
@@ -173,6 +184,7 @@ async function respond(request, env) {
     (await handleIdentity(request, env, user, url)) ??
     (await handleMailboxes(request, env, user, url)) ??
     (await handleConvert(request, env, user, url)) ??
+    (await handleLink(request, env, user, url)) ??
     notFound()
   );
 }

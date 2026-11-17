@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** November 15, 2026
+**Last updated:** November 16, 2026
 
 ## The short version
 
@@ -98,6 +98,13 @@ entry, only its kind and size.
 - Your key is locked with a secret your passkey produces, which never leaves
   your device, and with your recovery code. We store only these locked
   copies.
+- **Signing in on a new device with one you're signed in on**: the new
+  device shows a code and makes a one-time lock for it; your other device
+  scans the code, checks the lock is the new device's, and, once you've
+  confirmed with your passkey, sends your key locked for the new device
+  only. We pass it on and can't open it. The request lasts 5 minutes and
+  is deleted once the new device picks it up or it's cancelled; any left
+  over are cleared daily.
 - **If you lose every passkey and your recovery code, your journal can't be
   recovered, by you or by us.** That's the cost of us not being able to read
   it. Keep a second passkey (on another device, or a hardware security key)
@@ -209,6 +216,8 @@ tracking.
   database provider's history still held the older, partly readable version
   of your journal; that copy is gone 30 days after the update.
 - **Sessions** end when you sign out, and expired ones are cleared daily.
+- **Requests to sign in on a new device** are deleted when used or
+  cancelled, and within a day of ending if never used.
 
 ## Your rights and choices
 

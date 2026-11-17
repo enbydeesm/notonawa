@@ -3,7 +3,7 @@
 // browser side is app.js.
 
 /**
- * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent" | "convert" | "open" | "verify"} ViewName
+ * @typedef {"ties" | "plans" | "people" | "locations" | "calendar" | "analytics" | "education" | "account" | "data" | "signin" | "not-found" | "unlock" | "consent" | "convert" | "open" | "verify" | "link"} ViewName
  * @typedef {{ path: string | null, view: ViewName, title: string, nav: boolean, needsKey: boolean, beforeConsent?: boolean }} Route
  *   nav: whether the nav (tabs, + and the menu) is shown
  *   needsKey: shown only once the journal is unlocked (otherwise the Unlock
@@ -28,6 +28,9 @@ export const ROUTES = [
   { path: "/open", view: "open", title: "Shared with you · NotoNawa", nav: true, needsKey: true },
   // A safety number scanned from a contact's phone: /verify#<60 digits>.
   { path: "/verify", view: "verify", title: "Verify · NotoNawa", nav: true, needsKey: true },
+  // A new device's sign-in request, scanned from its screen: /link#<id>.<key hash>
+  // (pending-link.js takes it out).
+  { path: "/link", view: "link", title: "Sign in on a new device · NotoNawa", nav: true, needsKey: true },
   { path: "/signin", view: "signin", title: "Sign in · NotoNawa", nav: false, needsKey: false },
 ];
 

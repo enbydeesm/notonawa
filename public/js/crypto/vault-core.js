@@ -11,7 +11,7 @@
 // PRF output arrives as bytes and can be; a recovery code is a string and
 // can't.
 
-import { newDataKey, wrapDataKey, unwrapDataKey, unwrapKeyMaterial, recoveryKeyMaterial } from "./keys.js";
+import { newDataKey, wrapDataKey, unwrapDataKey, unwrapKeyMaterial, recoveryKeyMaterial, keyMaterialOf } from "./keys.js";
 import { sealRecord, openRecord, CantOpen } from "./fields.js";
 import { matchingTies } from "../search-match.js";
 import { sealPhoto, sealVideo, openPart, openPieces, sealCaption, openCaption, sealObject, mediaBinding } from "./media.js";
@@ -21,6 +21,7 @@ import { RECORD_KINDS, newItemKey, openItemKey, sealBody, openBody } from "./rec
 import { newFileKey, fileKey, sealFile, openPart as openFilePart } from "./files.js";
 import { newIdentity, sealSeed, openSeed } from "./identity.js";
 import { sealAcceptance, openAcceptance, sealMessage, openMessage } from "./pair.js";
+import { keyHash, linkBinding, sealLinkKey, openLinkKey } from "./link.js";
 import { idKeyFrom, convertedId, selfId, settingsId } from "../records/ids.js";
 import { checkRecord } from "../records/schema.js";
 import { syncCache } from "../cache/sync.js";
@@ -63,6 +64,10 @@ export class VaultCore {
   #identity = null;
   /** @type {import("../cache/sync-rules.js").CacheDb | null} the account's cache, once opened */
   #cache = null;
+  /** @type {Uint8Array | null} signing in on a new device: the throwaway key pair's seed */
+  #linkSeed = null;
+  /** @type {{ key: CryptoKey, userId: string } | null} the data key it was sent, extractable, until wrapped for a passkey */
+  #linked = null;
 
   /**
    * @param {() => Promise<IndexEntry[]>} [loadIndex] fetches the ties' search
@@ -157,8 +162,106 @@ export class VaultCore {
     }
   }
 
+  /**
+   * Signing in on a new device (src/link/), the new device's first step: a
+   * throwaway X-Wing key pair, its private half kept here. Starting again
+   * replaces it.
+   * @returns {Promise<{ publicKey: string, keyHash: string }>} base64url
+   */
+  async linkStart() {
+    this.#forgetLink();
+    const { seed, publicKey } = await newIdentity();
+    this.#linkSeed = seed;
+    return { publicKey: toBase64url(publicKey), keyHash: await keyHash(publicKey) };
+  }
+
+  /**
+   * On the device approving it: the data key sealed to the new device's
+   * public key, given proof (as addWrap: an existing wrap and its secret,
+   * given just now). Being unlocked isn't enough, as for addWrap. Checks
+   * the key is the one whose hash the QR code had.
+   * @param {{ userId: string, requestId: string, publicKey: string, keyHash: string,
+   *   proof: { wrap: Wrap, secret: Secret } }} args
+   * @returns {Promise<string>} the sealed key, base64url
+   */
+  async linkSeal({ userId, requestId, publicKey, keyHash: expected, proof }) {
+    const proofBytes = secretBytes(proof.secret);
+    try {
+      const publicBytes = fromBase64url(publicKey);
+      if (await keyHash(publicBytes) !== expected) throw new Error("That code doesn't match the new device's. Don't approve it.");
+      const key = await unwrapDataKey(proof.wrap, { userId, secret: proofBytes }, { extractable: true });
+      const raw = new Uint8Array(/** @type {ArrayBuffer} */ (await crypto.subtle.exportKey("raw", key)));
+      try {
+        return await sealLinkKey(raw, publicBytes, linkBinding(userId, requestId));
+      } finally {
+        raw.fill(0);
+      }
+    } finally {
+      proofBytes.fill(0);
+    }
+  }
+
+  /**
+   * On the new device, once approved: opens the data key sent to this
+   * Worker's throwaway key, and keeps it until linkTake. Throws CantOpen if
+   * it won't open (not for this account or this request).
+   * @param {{ userId: string, requestId: string, sealed: string }} args
+   */
+  async linkOpen({ userId, requestId, sealed }) {
+    if (!this.#linkSeed) throw new Error("This sign-in has ended. Start again.");
+    const raw = await openLinkKey(this.#linkSeed, sealed, linkBinding(userId, requestId));
+    try {
+      const key = await crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+      this.#linkSeed.fill(0);
+      this.#linkSeed = null;
+      this.#linked = { key, userId };
+    } finally {
+      raw.fill(0);
+    }
+  }
+
+  /**
+   * Then, with the new passkey's PRF output: wraps the key for it (if it
+   * gave any) and unlocks. The key opened by linkOpen is the proof: only
+   * this Worker could open it.
+   * @param {{ prf?: ArrayBuffer | null }} args
+   * @returns {Promise<{ wrap: Wrap | null }>}
+   */
+  async linkTake({ prf = null }) {
+    if (!this.#linked) throw new Error("This sign-in has ended. Start again.");
+    const { key, userId } = this.#linked;
+    /** @type {Wrap | null} */
+    let wrap = null;
+    if (prf) {
+      const secret = /** @type {Uint8Array<ArrayBuffer>} */ (new Uint8Array(prf));
+      try {
+        wrap = await this.#checkedWrap(key, userId, "passkey", secret);
+      } finally {
+        secret.fill(0);
+      }
+    }
+    // Kept non-extractable from here on, as after any unlock.
+    const raw = new Uint8Array(/** @type {ArrayBuffer} */ (await crypto.subtle.exportKey("raw", key)));
+    try {
+      this.#key = await crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    } finally {
+      raw.fill(0);
+    }
+    this.#idKey = await idKeyFrom(await keyMaterialOf(key), userId);
+    this.#userId = userId;
+    this.#linked = null;
+    return { wrap };
+  }
+
+  #forgetLink() {
+    this.#linkSeed?.fill(0);
+    this.#linkSeed = null;
+    this.#linked = null;
+  }
+
   /** Forgets the key, and everything opened with it. */
   lock() {
+    this.#forgetLink();
     this.#key = null;
     this.#userId = null;
     this.#index = null;

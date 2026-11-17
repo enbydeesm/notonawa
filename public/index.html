@@ -625,6 +625,12 @@
     <section class="card" id="verify-body"></section>
   </template>
 
+  <!-- A new device's sign-in request, scanned from its screen (/link) -->
+  <template id="view-link">
+    <h1>Sign in on a new device</h1>
+    <section class="card" id="link-body"></section>
+  </template>
+
   <!-- Sign in (/signin) -->
   <template id="view-signin">
     <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
@@ -634,6 +640,7 @@
       <p class="hint">NotoNawa uses passkeys: your phone or computer unlocks it with Face ID, a fingerprint or your PIN. There's no password.</p>
       <button type="button" class="primary" id="sign-in">Sign in with a passkey</button>
       <p class="message" id="sign-in-message"></p>
+      <button type="button" class="link" id="link-start">Sign in with another device</button><br>
       <button type="button" class="link" data-show="signup">Create an account (invite needed)</button><br>
       <button type="button" class="link" data-show="recover">Use a recovery code</button>
     </section>
@@ -666,6 +673,29 @@
         <p class="message" id="recover-message"></p>
       </form>
       <button type="button" class="link" data-show="choose">Back</button>
+    </section>
+
+    <section class="card" id="link-wait" hidden>
+      <h2>Sign in with another device</h2>
+      <p class="hint">On a phone or computer that's signed in to NotoNawa, scan this code with its camera, or open the link there. Then pick this number there:</p>
+      <p class="link-number" id="link-number"></p>
+      <div id="link-code"></div>
+      <label for="link-address">Link</label>
+      <input id="link-address" type="text" readonly autocomplete="off" spellcheck="false">
+      <div class="button-row"><button type="button" id="link-copy">Copy link</button></div>
+      <p class="message" id="link-status" role="status"></p>
+      <button type="button" class="link" id="link-back" data-show="choose">Back</button>
+    </section>
+
+    <section class="card" id="link-passkey" hidden>
+      <h2>Add a passkey</h2>
+      <p class="hint">Approved. Add a passkey on this device to finish signing in: next time, it signs you in by itself.</p>
+      <form id="link-passkey-form">
+        <label for="link-passkey-name">Name for this passkey</label>
+        <input id="link-passkey-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. My laptop">
+        <button type="submit" class="primary">Add passkey</button>
+        <p class="message" id="link-passkey-message"></p>
+      </form>
     </section>
 
     <section class="card" id="add-passkey" hidden>

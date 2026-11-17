@@ -10,6 +10,9 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- Sign in on a new phone or computer without your recovery code: choose "Sign in with another device" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.
+
 ## 2026.11.16.0758
 Now with more encryption flavor!
 - Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.

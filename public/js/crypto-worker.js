@@ -91,6 +91,11 @@ const OPERATIONS = {
   setup: (args) => vault.setup(args),
   unlock: async (args) => { await vault.unlock(args); return null; },
   addWrap: (args) => vault.addWrap(args),
+  // Signing in on a new device (src/link/).
+  linkStart: () => vault.linkStart(),
+  linkSeal: (args) => vault.linkSeal(args),
+  linkOpen: async (args) => { await vault.linkOpen(args); return null; },
+  linkTake: (args) => vault.linkTake(args),
   status: async () => ({ unlocked: vault.unlocked }),
   seal: (args) => vault.seal(args),
   open: (args) => vault.open(args),

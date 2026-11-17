@@ -29,6 +29,7 @@ import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/jou
 import { showUnseenReleases } from "./whats-new.js";
 import { showTourOnce } from "./tour.js";
 import { takeShareLink } from "./pending-share.js";
+import { takeLinkFragment } from "./pending-link.js";
 
 /**
  * @typedef {{ mount: (root: HTMLElement, context: { signal: AbortSignal, unlocked: () => void }) => unknown }} ViewModule
@@ -51,12 +52,15 @@ const VIEWS = {
   convert: () => import("./views/convert.js"),
   open: () => import("./views/open.js"),
   verify: () => import("./views/verify.js"),
+  link: () => import("./views/link.js"),
 };
 
 // A share's link (/open#<id>.<key>): its key is kept in memory and taken
 // out of the address before anything else runs, so it isn't left in the
 // address bar or the history entry, and survives signing in and unlocking.
 takeShareLink();
+// A new device's sign-in request (/link#<id>.<key hash>), likewise.
+takeLinkFragment();
 
 const root = $("#view");
 renderNav();
@@ -165,7 +169,7 @@ async function show({ fresh, scroll, focus }) {
  * (which has its data by then). A module loads once and stays loaded while
  * the page is open, so opening a view the first time then doesn't wait on
  * its files, each of which waits on the ones that import it. Not Shared
- * with you, which only a link opens. Nothing to do if one fails: opening
+ * with you or Sign in on a new device, which only a link opens. Nothing to do if one fails: opening
  * that view loads it again.
  */
 function warmUp() {
@@ -173,7 +177,7 @@ function warmUp() {
   later(() => {
     preloadMenuLogo();
     for (const { view, needsKey } of ROUTES) {
-      if (needsKey && view !== "open" && view !== currentView) VIEWS[view]().catch(() => {});
+      if (needsKey && view !== "open" && view !== "link" && view !== currentView) VIEWS[view]().catch(() => {});
     }
   });
 }
@@ -250,10 +254,10 @@ document.addEventListener(SETTINGS_SAVED, () => {
   show({ fresh: true, scroll: window.scrollY, focus: false });
 });
 
-// Another share's link opened in this tab: only the "#…" changed, so the
-// page didn't load again.
+// Another share's link (or sign-in request) opened in this tab: only the
+// "#…" changed, so the page didn't load again.
 window.addEventListener("hashchange", () => {
-  if (takeShareLink()) show({ fresh: true, scroll: 0, focus: true });
+  if (takeShareLink() || takeLinkFragment()) show({ fresh: true, scroll: 0, focus: true });
 });
 
 // Registered before any view's own popstate listener, so a view being left

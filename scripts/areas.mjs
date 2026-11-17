@@ -15,7 +15,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
-  "share-items", "convert", "contacts",
+  "share-items", "convert", "contacts", "link",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -25,7 +25,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65, "share-items": 45, convert: 40, contacts: 60,
+  shares: 65, "share-items": 45, convert: 40, contacts: 60, link: 30,
 };
 
 /**
@@ -101,7 +101,13 @@ export const AREAS = [
       "public/js/codes.js", "public/js/recovery.js", "public/js/recovery-email.js", "public/js/views/signin.js",
       "public/js/views/unlock.js", "scripts/invite.mjs", "scripts/recovery-code.mjs", "scripts/d1.mjs",
       "scripts/d1-target.mjs"],
-    ui: ["basics", "lock", "account"],
+    ui: ["basics", "lock", "account", "link"],
+  },
+  {
+    name: "link",
+    files: ["src/link/", "public/js/crypto/link.js", "public/js/link-flows.js", "public/js/pending-link.js",
+      "public/js/views/link.js"],
+    ui: ["link"],
   },
   {
     name: "version",

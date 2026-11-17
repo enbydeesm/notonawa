@@ -164,7 +164,7 @@ export async function setUpKey({ replace = false } = {}) {
  * passkey can't unlock, the recovery code.
  * @returns {Promise<{ keys: Keys, proof: { wrap: Wrap, secret: import("./crypto/vault-core.js").Secret } }>}
  */
-async function proveIt() {
+export async function proveIt() {
   const { prfOutput } = await signInWithPasskey();
   const keys = await getKeys();
   if (prfOutput && keys.passkey) return { keys, proof: { wrap: keys.passkey, secret: { prf: prfOutput } } };

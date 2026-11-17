@@ -133,6 +133,46 @@ export async function addWrap(args) {
   return wrap;
 }
 
+/**
+ * Signing in on a new device (src/link/), on the new device: a throwaway
+ * key pair, its private half kept in the Worker.
+ * @returns {Promise<{ publicKey: string, keyHash: string }>}
+ */
+export function linkStart() {
+  return call("linkStart", {});
+}
+
+/**
+ * On the device approving it: the data key sealed to the new device's
+ * public key, given proof (as addWrap).
+ * @param {{ userId: string, requestId: string, publicKey: string, keyHash: string, proof: { wrap: Wrap, secret: Secret } }} args
+ * @returns {Promise<string>}
+ * @throws {WrongSecret}
+ */
+export function linkSeal(args) {
+  return call("linkSeal", args, buffersIn(args.proof.secret));
+}
+
+/**
+ * On the new device, once approved: opens the key it was sent.
+ * @param {{ userId: string, requestId: string, sealed: string }} args
+ * @throws {CantOpen}
+ */
+export async function linkOpen(args) {
+  await call("linkOpen", args);
+}
+
+/**
+ * Then wraps it for the new passkey (if it gave PRF output) and unlocks.
+ * @param {{ prf: ArrayBuffer | null }} args
+ * @returns {Promise<{ wrap: Wrap | null }>}
+ */
+export async function linkTake(args) {
+  const result = await call("linkTake", args, args.prf ? [args.prf] : []);
+  unlocked = true;
+  return result;
+}
+
 /** @typedef {import("./crypto/fields.js").RecordKind} RecordKind */
 
 /**

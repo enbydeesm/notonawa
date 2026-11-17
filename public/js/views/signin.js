@@ -1,24 +1,37 @@
 // Sign-in view: sign in (and unlock) with a passkey, create an account with
-// an invite, or get back in with a recovery code (then add a passkey).
+// an invite, get back in with a recovery code (then add a passkey), or sign
+// in with another device that's signed in, by its camera scanning a code
+// shown here (link-flows.js; then add a passkey).
 // Anything left to do to unlock (the recovery code, setting up the key) is
 // the Unlock view's, which the journal shows next.
 
 import { api, errorMessage } from "../api.js";
 import { $, showMessage } from "../dom.js";
+import { tell } from "../dialog.js";
 import { recoverySecret } from "../auth-flows.js";
 import { signInAndUnlock, signUp, finishRecovery } from "../key-flows.js";
+import { startLink, checkLink, finishLink } from "../link-flows.js";
+import { qrCode } from "../share-code.js";
 import { navigate } from "../navigate.js";
 import { pendingShare } from "../pending-share.js";
+import { pendingLink } from "../pending-link.js";
 import { APP_VERSION } from "../releases.js";
 import { reloadIfOutdated, watchVersion } from "../version-check.js";
 
 // Into the journal. Replacing this entry, so Back doesn't return here (it
 // would only send you on again).
-const toJournal = () => navigate(pendingShare().link || pendingShare().damaged ? "/open" : "/", { replace: true });
+// A share link or a new device's sign-in request waiting goes there.
+function toJournal() {
+  const waiting = pendingShare().link || pendingShare().damaged ? "/open"
+    : pendingLink().scanned || pendingLink().damaged ? "/link" : "/";
+  navigate(waiting, { replace: true });
+}
+
+const CHECK_EVERY_MS = 3000; // asking whether the other device has approved
 
 /** @param {HTMLElement} _root @param {{ signal: AbortSignal }} context */
 export async function mount(_root, { signal }) {
-  const VIEWS = ["choose", "signup", "recover", "add-passkey"];
+  const VIEWS = ["choose", "signup", "recover", "add-passkey", "link-wait", "link-passkey"];
   // A deploy while the page was open: reload into the new version (see
   // version-check.js), and once more before signing in.
   watchVersion(signal);
@@ -93,6 +106,76 @@ export async function mount(_root, { signal }) {
       // Adds the passkey, unlocks with the code, and replaces the code.
       await finishRecovery(recoveryCode, /** @type {HTMLInputElement} */ ($("#new-passkey-name")).value);
       recoveryCode = null;
+      toJournal();
+    });
+  });
+
+  // Signing in with another device: show the code, then ask every few
+  // seconds whether it's been approved, until it is, it ends, or Back.
+  /** @type {ReturnType<typeof setInterval> | undefined} */
+  let checking;
+  const stopChecking = () => clearInterval(checking);
+  signal.addEventListener("abort", stopChecking);
+  $("#link-back").addEventListener("click", stopChecking);
+
+  $("#link-start").addEventListener("click", () => attempt($("#sign-in-message"), async () => {
+    if (await reloadIfOutdated()) return;
+    stopChecking();
+    const link = await startLink();
+    if (signal.aborted) return;
+    $("#link-number").textContent = String(link.number);
+    $("#link-code").replaceChildren(qrCode(link.link, "QR code to scan with your other device"));
+    /** @type {HTMLInputElement} */ ($("#link-address")).value = link.link;
+    showMessage($("#sign-in-message"), "");
+    const status = $("#link-status");
+    showMessage(status, "Waiting for your other device… This code works for 5 minutes.");
+    show("link-wait");
+
+    const ends = Date.parse(link.expiresAt);
+    let asking = false;
+    checking = setInterval(async () => {
+      if (asking) return;
+      if (Date.now() > ends) {
+        stopChecking();
+        return showMessage(status, "This code has expired. Go back and start again.", true);
+      }
+      asking = true;
+      try {
+        if (await checkLink(link)) {
+          stopChecking();
+          show("link-passkey");
+        }
+      } catch (err) {
+        stopChecking();
+        showMessage(status, errorMessage(err), true);
+      } finally {
+        asking = false;
+      }
+    }, CHECK_EVERY_MS);
+  }));
+
+  $("#link-copy").addEventListener("click", async () => {
+    const address = /** @type {HTMLInputElement} */ ($("#link-address"));
+    try {
+      await navigator.clipboard.writeText(address.value);
+      showMessage($("#link-status"), "Link copied. Open it on your other device.");
+    } catch {
+      address.select();
+      showMessage($("#link-status"), "Couldn't copy: select the link and copy it yourself.", true);
+    }
+  });
+
+  $("#link-passkey-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    attempt($("#link-passkey-message"), async () => {
+      const { canUnlock } = await finishLink(/** @type {HTMLInputElement} */ ($("#link-passkey-name")).value);
+      showMessage($("#link-passkey-message"), "");
+      if (!canUnlock) {
+        await tell({
+          title: "Signed in",
+          message: "This device's passkey can't unlock your journal by itself, so it will ask for your recovery code next time.",
+        });
+      }
       toJournal();
     });
   });

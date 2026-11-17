@@ -42,6 +42,7 @@ export const OWNED_ROWS = {
   identity_keys: "SELECT count(*) AS n FROM identity_keys WHERE user_id = ?",
   mailboxes: "SELECT count(*) AS n FROM mailboxes WHERE owner_id = ?",
   mailbox_messages: "SELECT count(*) AS n FROM mailbox_messages m JOIN mailboxes b ON b.id = m.mailbox_id WHERE b.owner_id = ?",
+  link_requests: "SELECT count(*) AS n FROM link_requests WHERE user_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -142,6 +143,9 @@ export async function userWithEverything() {
     env.DB.prepare("INSERT INTO mailboxes (id, owner_id, token_hash, kind) VALUES (?, ?, 'h', 'contact')").bind(mailbox, id),
     env.DB.prepare("INSERT INTO mailbox_messages (id, mailbox_id, body, bytes, expires_at) VALUES (?, ?, 'm1.1.a.b', 8, '2999-01-01T00:00:00Z')")
       .bind(`msg-${id}`, mailbox),
+    // A new device's sign-in request this account approved, not picked up yet (migration 0034).
+    env.DB.prepare(`INSERT INTO link_requests (id, poll_hash, public_key, user_id, sealed_key, expires_at, approved_at)
+      VALUES (?, 'h', 'pk', ?, 'sealed', '2999-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`).bind(`link-${id}`, id),
   ]);
   return { id, cookie };
 }

@@ -13,7 +13,7 @@
 <body>
   <main class="policy">
 <h1 id="ntonawa-privacy-policy">NōtoNawa Privacy Policy</h1>
-<p><strong>Last updated:</strong> November 15, 2026</p>
+<p><strong>Last updated:</strong> November 16, 2026</p>
 <h2 id="the-short-version">The short version</h2>
 <ul>
   <li>NōtoNawa is a private journal for rope practice. <strong>Everything you put in your journal is encrypted on your device before it leaves it</strong>: your ties, plans, workshops, people, locations, tags, notes, photos, videos, drawings and poses. We can't read any of it, and neither can anyone who gets hold of our servers.</li>
@@ -56,6 +56,7 @@
 <ul>
   <li>When you create your account, your device makes a random encryption key. Every entry gets a key of its own, locked with yours, and is encrypted with it (AES-256-GCM) on your device.</li>
   <li>Your key is locked with a secret your passkey produces, which never leaves your device, and with your recovery code. We store only these locked copies.</li>
+  <li><strong>Signing in on a new device with one you're signed in on</strong>: the new device shows a code and makes a one-time lock for it; your other device scans the code, checks the lock is the new device's, and, once you've confirmed with your passkey, sends your key locked for the new device only. We pass it on and can't open it. The request lasts 5 minutes and is deleted once the new device picks it up or it's cancelled; any left over are cleared daily.</li>
   <li><strong>If you lose every passkey and your recovery code, your journal can't be recovered, by you or by us.</strong> That's the cost of us not being able to read it. Keep a second passkey (on another device, or a hardware security key) and keep your recovery code somewhere safe.</li>
 </ul>
 <h2 id="on-your-device">On your device</h2>
@@ -104,6 +105,7 @@
   <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, and we back up the database every day, encrypted with a key that only Mx_Piggie holds, away from our servers. Both are gone after 30 days. Photos and videos aren't backed up. We restore only to recover from a failure, never to bring back something you deleted unless you ask.</li>
   <li><strong>When your account was updated to full encryption</strong>, our backups and our database provider's history still held the older, partly readable version of your journal; that copy is gone 30 days after the update.</li>
   <li><strong>Sessions</strong> end when you sign out, and expired ones are cleared daily.</li>
+  <li><strong>Requests to sign in on a new device</strong> are deleted when used or cancelled, and within a day of ending if never used.</li>
 </ul>
 <h2 id="your-rights-and-choices">Your rights and choices</h2>
 <p>Wherever you live, you can:</p>

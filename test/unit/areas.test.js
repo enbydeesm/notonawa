@@ -66,7 +66,7 @@ describe("planFor", () => {
   });
 
   it("keeps the walkthrough's order", () => {
-    expect(planFor(["src/stats/db.js", "public/js/views/signin.js"]).ui).toEqual(["basics", "lock", "account", "insights"]);
+    expect(planFor(["src/stats/db.js", "public/js/views/signin.js"]).ui).toEqual(["basics", "lock", "account", "insights", "link"]);
   });
 
   it("runs everything for a shared file, naming it", () => {

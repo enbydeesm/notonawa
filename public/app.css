@@ -1340,6 +1340,9 @@ button.link.tour-skip { min-height: 44px; padding: 0 4px; color: var(--muted); f
 .share-field, .merge-field label.inline { margin: 6px 0; align-items: flex-start; overflow-wrap: anywhere; }
 .share-field input, .merge-field input { margin-top: 3px; }
 .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* Signing in on a new device: the number to pick on the other one. */
+.link-number { font-size: 2.5rem; font-weight: 700; text-align: center; letter-spacing: 0.1em; margin: 4px 0; }
+.link-numbers button { font-size: 1.5rem; min-width: 4.5rem; }
 .qr-code { display: block; width: min(100%, 280px); height: auto; margin: 12px auto; border-radius: 8px; }
 .qr-dark { fill: var(--qr-dark); }
 .qr-light { fill: var(--qr-light); }

@@ -52,7 +52,8 @@ building live in [roadmap.md](roadmap.md).
   passkeys are tied to `RP_ID` for good, so changing domain means everyone
   adds a new passkey with their recovery code. `AUTH_RATE_LIMIT` limits the
   `/api/auth/` routes per IP; `SHARE_RATE_LIMIT`, opening shares per
-  account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP.
+  account; `MAILBOX_RATE_LIMIT`, messages left in mailboxes per IP;
+  `LINK_RATE_LIMIT`, the `/api/link` routes per IP.
   `NEW_ACCOUNT_FORMAT` (`"1"` or `"2"`, both environments; `"2"` in
   both since the release (phase 7)): the format new sign-ups start in.
   `CONVERT_ON_UNLOCK` (`"1"` in both since the release): whether a format
@@ -107,6 +108,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `webauthn.js` (the library with our settings), `db.js`, `user.js`
   (`getUser`: the session's user), `routes.js` (`/api/auth/register|login/
   options|verify`, `/api/auth/recover`, `/api/auth/logout`).
+- `src/link/`: signing in on a new device with one that's signed in
+  (migration 0034; see considerations.md, "Linking a device as built").
+  `parse.js` (pure: X-Wing's public key and the sealed key by length,
+  `LINK_MINUTES`, 5), `db.js`, `routes.js` (signed out, routed in
+  `index.js` before signing in is checked: `POST /api/link` with `{
+  public_key }` → `{ id, poll, expires_at }`, `POST /api/link/status`
+  with `{ id, poll }` → waiting, or once approved the sealed key and a
+  recovery-kind session, the row deleted; signed in: `GET
+  /api/link/:id` (the public key), `POST /api/link/:id/approve` with `{
+  sealed_key }` (fresh session), `DELETE /api/link/:id`). Expired ones go
+  in the daily clean-up.
 - `src/encryption/`: encrypted notes. `config.js` (the encrypted columns and
   how each table is scoped to its owner), `db.js`, `routes.js` (`GET
   /api/encryption/pending`, `POST /api/encryption/seal`: older plain text
@@ -399,6 +411,15 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `crypto/fields.js` (pure: sealing and opening notes fields),
   `crypto/media.js` (pure: sealing and opening photos, videos (their full
   size in 1 MB pieces, format v2) and captions, bound to the photo's id),
+  `crypto/link.js` (pure: signing in on a new device: the binding, the
+  public key's hash in the QR code, the 2-digit number and its three
+  choices, `/link#<id>.<hash>`, the data key sealed to the new device),
+  `link-flows.js` (both devices' steps: `startLink`, `checkLink`,
+  `finishLink`; `linkRequest`, `approveLink` with `proveIt`'s proof,
+  `declineLink`), `pending-link.js` (a scanned `/link#…` held in memory
+  through sign-in, as `pending-share.js`), `views/link.js` (`/link`: the
+  warning, pick the number, then the passkey), the Worker's `linkStart`,
+  `linkSeal`, `linkOpen` and `linkTake`,
   `crypto/share.js` (pure: a share's id and key, sealing and opening its
   snapshot, bound to its id and kind, its photos and videos (another key
   from the link's, each bound to the share and the file's id, in
