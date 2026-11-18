@@ -19,7 +19,7 @@ export default async function () {
   // The app's code and images hold none of the journal: kept by the
   // browser, the code checked with the server before each use.
   for (const [path, cache] of [["/js/api.js", "no-cache"], ["/js/views/plans.js", "no-cache"], ["/app.css", "no-cache"],
-    ["/img/logo-mark.svg", "max-age=604800"], ["/img/favicon-v2.png", "max-age=604800"]]) {
+    ["/img/logo-mark-v3.svg", "max-age=604800"], ["/img/favicon-v3.png", "max-age=604800"]]) {
     const res = await fetch(BASE + path);
     check(`${path}: cached (${cache}), with the security headers`, [res.headers.get("cache-control"), res.headers.get("x-frame-options")], [cache, "DENY"]);
   }
@@ -35,7 +35,7 @@ export default async function () {
     const res = await fetch(BASE + path);
     check(`${path} is a PNG`, [res.status, res.headers.get("content-type")], [200, "image/png"]);
   }
-  for (const path of ["/img/logo-mark.svg", "/img/logo-word.svg"]) {
+  for (const path of ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"]) {
     const res = await fetch(BASE + path);
     check(`${path} is an SVG, with no script in it`, [res.status, res.headers.get("content-type"), (await res.text()).includes("<script")],
       [200, "image/svg+xml", false]);
@@ -44,7 +44,7 @@ export default async function () {
   await go("/");
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered, the logo's pencil in the accent and its name in dark mode's light text", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 .logo")];`),
-    ["/signin", "choose", "none", "center", [true, "NotoNawa", ["/img/logo-mark.svg", "/img/logo-word.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
+    ["/signin", "choose", "none", "center", [true, "NotoNawa", ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];
@@ -98,7 +98,7 @@ export default async function () {
     const open = await tourOpen(); const tc = tourCard(); const mark = $(".tour-mark").getBoundingClientRect();
     const style = getComputedStyle($(".tour-mark"));
     return [open, tc.classList.contains("centered"), tc.querySelector("h2").textContent, [...tc.querySelectorAll("p")].map((p) => p.innerText),
-      Math.round(mark.height), style.maskImage.includes("/img/logo-mark.svg"), style.backgroundColor,
+      Math.round(mark.height), style.maskImage.includes("/img/logo-mark-v3.svg"), style.backgroundColor,
       document.activeElement?.textContent, $(".tour-later .tour-skip").textContent, $(".tour-ring").hasAttribute("hidden"), await seen()];`),
     [true, true, "Welcome to NōtoNawa", ["Your end-to-end encrypted planner and journal for your rope practice.", "Let's take a quick tour.",
       "You can replay it any time from\nMenu > Tutorial."], 44, true, "rgb(254, 199, 98)", "Start the tour", "Skip tour", true, false]);

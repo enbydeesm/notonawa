@@ -4132,7 +4132,7 @@ encryption branch, to ship with it.
   card goes under the nav at a fixed 66px (the nav's own height) or in the
   middle, by class; the progress bar is a `<progress>`. The pointer is a
   second SVG over the card, so it covers the card's border where they join.
-- **The welcome card's logo** is `logo-mark.svg`, the pencil and knot, as a
+- **The welcome card's logo** is `logo-mark-v3.svg`, the pencil and knot, as a
   mask in `--accent` in both modes, 44px tall; the file shares its canvas
   with the name, so the mask is sized and moved to crop to the mark.
 

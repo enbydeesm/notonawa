@@ -57,7 +57,7 @@ export const PLAN_SAVED = "plan-saved";
 export const WORKSHOP_SAVED = "workshop-saved";
 
 // The logo's two parts, as in app.css (.logo), the same in both modes.
-const LOGO = ["/img/logo-mark.svg", "/img/logo-word.svg"];
+const LOGO = ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"];
 
 /**
  * Fetches the logo, so it's there as soon as the menu first opens rather
