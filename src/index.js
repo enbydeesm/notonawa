@@ -37,6 +37,8 @@ import { handleIdentity } from "./identity/routes.js";
 import { handleMailboxSend, handleMailboxes } from "./mailboxes/routes.js";
 import { handleConvert } from "./convert/routes.js";
 import { handleLink, handleLinkSignedOut, isLinkRoute } from "./link/routes.js";
+import { handlePush } from "./push/routes.js";
+import { pushNotices } from "./push/send.js";
 import { formatRefusal } from "./format.js";
 import { cleanUpMailboxes } from "./mailboxes/cleanup.js";
 import { cleanUpShares } from "./shares/cleanup.js";
@@ -48,14 +50,15 @@ export default {
   /**
    * @param {Request} request
    * @param {Env} env
+   * @param {ExecutionContext} ctx for work after the answer (push notifications)
    * @returns {Promise<Response>}
    */
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     // Errors are caught here, around everything (signing in included), so
     // even a failure gets a friendly answer with the security headers.
     let response;
     try {
-      response = await respond(request, env);
+      response = await respond(request, env, ctx);
     } catch (err) {
       response = errorResponse(err);
     }
@@ -68,10 +71,16 @@ export default {
    * shares and offers to connect that have ended, photo and share files left without a row,
    * and expired intro mailboxes and messages left unfetched for 90 days.
    * Each runs even if one before it fails.
-   * @param {ScheduledController} _controller
+   * Every 5 minutes (the other cron trigger): only sends notices posted
+   * with --push as notifications (src/push/send.js).
+   * @param {ScheduledController} controller
    * @param {Env} env
    */
-  async scheduled(_controller, env) {
+  async scheduled(controller, env) {
+    if (controller.cron === NOTICE_PUSH_CRON) {
+      await pushNotices(env);
+      return;
+    }
     const jobs = [
       // The dev environment (wrangler.jsonc) has neither the key nor the bucket.
       ["backup", () => (env.BACKUP_PUBLIC_KEY && env.BACKUPS
@@ -96,12 +105,17 @@ export default {
   },
 };
 
+/** wrangler.jsonc's cron for sending notices as notifications (not
+ * exported: the runtime refuses a main module's export that isn't a handler). */
+const NOTICE_PUSH_CRON = "*/5 * * * *";
+
 /**
  * @param {Request} request
  * @param {Env} env
+ * @param {ExecutionContext} ctx
  * @returns {Promise<Response>}
  */
-async function respond(request, env) {
+async function respond(request, env, ctx) {
   const url = new URL(request.url);
 
   // Not an API request? Serve the page files.
@@ -119,7 +133,7 @@ async function respond(request, env) {
 
   // Leaving a message in a contact's mailbox: its token, no session, so it
   // isn't tied to the sender's account; a limit per address.
-  const sent = await handleMailboxSend(request, env, url);
+  const sent = await handleMailboxSend(request, env, url, ctx);
   if (sent) return sent;
 
   // Signing up, in and out: no session needed, but a limit on attempts.
@@ -185,6 +199,7 @@ async function respond(request, env) {
     (await handleMailboxes(request, env, user, url)) ??
     (await handleConvert(request, env, user, url)) ??
     (await handleLink(request, env, user, url)) ??
+    (await handlePush(request, env, user, url)) ??
     notFound()
   );
 }

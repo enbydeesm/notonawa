@@ -1,5 +1,6 @@
-// The Settings dialog, opened from the menu: light/dark mode, and the
-// words used for the top and bottom roles (see settings.js and roles.js).
+// The Settings dialog, opened from the menu: light/dark mode, this device's
+// notifications (push-settings.js), and the words used for the top and
+// bottom roles (see settings.js and roles.js).
 // The mode changes as soon as the switch is tapped; the role names wait for
 // Save. Ids are prefixed settings- so they don't clash with the view.
 
@@ -8,10 +9,11 @@ import { loadSettings, saveRoleNames, saveTheme, currentTheme } from "./settings
 import { otherTheme } from "./theme.js";
 import { DEFAULT_NAMES } from "./roles.js";
 import { errorMessage } from "./api.js";
+import { pushSettings } from "./push-settings.js";
 
 /** Opens the dialog. Resolves once it's closed. */
 export async function openSettings() {
-  const message = h("p", { className: "message", role: "alert" });
+  const message = h("p", { className: "message", id: "settings-message", role: "alert" });
   const darkSwitch = h("button", {
     type: "button", id: "settings-dark", className: "switch", role: "switch",
     "aria-checked": String(currentTheme() === "dark"), onclick: toggleTheme,
@@ -23,6 +25,7 @@ export async function openSettings() {
   const form = h("form", { className: "settings-form", onsubmit: submit },
     h("div", { className: "settings-row" },
       h("label", { htmlFor: "settings-dark", id: "settings-dark-label" }, "Dark mode"), darkSwitch),
+    pushSettings(),
     h("h3", { className: "settings-heading" }, "Customize role names"),
     h("label", { htmlFor: "settings-top" }, "Person tying is called:"), top,
     h("label", { htmlFor: "settings-bottom" }, "Person being tied is called:"), bottom,

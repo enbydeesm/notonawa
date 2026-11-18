@@ -2,6 +2,7 @@
 // recovery email, and signing out.
 
 import { api, errorMessage } from "../api.js";
+import { forgetPushDevice } from "../push.js";
 import { dataGrid } from "../data-grid.js";
 import { h, $, showMessage, privateField, infoButton } from "../dom.js";
 import { choose } from "../dialog.js";
@@ -211,6 +212,8 @@ export function mount(root) {
 
   $("#sign-out").addEventListener("click", async () => {
     try {
+      // This device's notifications stop first, while still signed in.
+      await forgetPushDevice();
       await api("/api/auth/logout", { method: "POST", body: {} });
       lock();
       await wipeCaches();
@@ -226,6 +229,9 @@ export function mount(root) {
     if (!(await confirmDeleteAccount())) return;
     try {
       const { passkey_ids } = await withReauth(() => api("/api/account", { method: "DELETE" }));
+      // Its notifications went with it on the server; this device's
+      // subscription with its push service goes too.
+      await forgetPushDevice({ serverToo: false });
       lock({ quiet: true });
       await wipeCaches();
       await forgetPasskeys(passkey_ids);

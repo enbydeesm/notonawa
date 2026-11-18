@@ -7,17 +7,17 @@ describe("readNoticeArgs", () => {
   it("reads a message for everyone, from now on", () => {
     expect(readNoticeArgs(["Back up and running", "--remote"])).toEqual({
       action: "add",
-      notice: { message: "Back up and running", level: "info", link: null, userId: null, startsAt: null, endsAt: null },
+      notice: { message: "Back up and running", level: "info", link: null, userId: null, startsAt: null, endsAt: null, push: false },
     });
   });
 
   it("reads the options", () => {
-    const todo = readNoticeArgs(["Hi", "--warning", "--user", ID, "--link", "privacy", "--from", "2026-11-01", "--until", "2026-11-30"]);
+    const todo = readNoticeArgs(["Hi", "--warning", "--user", ID, "--link", "privacy", "--from", "2026-11-01", "--until", "2026-11-30", "--push"]);
     expect(todo).toEqual({
       action: "add",
       notice: {
         message: "Hi", level: "warning", link: "privacy", userId: ID,
-        startsAt: startOfDay("2026-11-01"), endsAt: startOfDay("2026-12-01"),
+        startsAt: startOfDay("2026-11-01"), endsAt: startOfDay("2026-12-01"), push: true,
       },
     });
   });

@@ -5,6 +5,7 @@
 // an older code or a new key.
 
 import { api, ApiError, errorMessage } from "../api.js";
+import { forgetPushDevice } from "../push.js";
 import { $, showMessage } from "../dom.js";
 import { choose } from "../dialog.js";
 import { navigate } from "../navigate.js";
@@ -124,6 +125,7 @@ export async function mount(_root, { unlocked, signal }) {
   $("#unlock-sign-out").addEventListener("click", async () => {
     forgetPending();
     try {
+      await forgetPushDevice();
       await api("/api/auth/logout", { method: "POST", body: {} });
     } finally {
       navigate("/signin", { replace: true });

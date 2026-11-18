@@ -3,6 +3,7 @@
 // DevTools protocol, and the helpers each chunk (scripts/ui/chunks/) uses.
 // Importing it starts all that; stop() ends it.
 
+import { newVapidKeys } from "../../src/push/webpush.js";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -179,6 +180,9 @@ config.dev = { ...config.dev, host: `localhost:${PORT}` };
 // walkthrough still runs on them until phase 8 removes format 1; the
 // convert chunk converts its own account directly.
 config.vars = { ...config.vars, NEW_ACCOUNT_FORMAT: FORMAT === 2 ? "2" : "1", CONVERT_ON_UNLOCK: FORMAT === 2 ? "1" : "0" };
+// Push notifications offered (a public key to subscribe with), but none sent:
+// no private key, so nothing here ever posts to a real push service.
+config.vars.VAPID_PUBLIC_KEY = (await newVapidKeys()).publicKey;
 const configPath = path.join(workDir, "wrangler.json");
 writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -290,6 +294,11 @@ async function prepare() {
   await send("Page.enable");
   // Lets steps wait only while the app is busy (scripts/ui/idle.mjs).
   await send("Page.addScriptToEvaluateOnNewDocument", { source: IDLE_TRACKER });
+  // The notifications offer counts as answered on every page, so it isn't
+  // over every chunk's views; the push chunk asks for it (sessionStorage).
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: `try { if (!sessionStorage.getItem("ui-push-banner")) localStorage.setItem("push-asked", "1"); } catch {}`,
+  });
   // Headless Chrome isn't a focused window, so focus and blur events wouldn't
   // fire (the tie form's location picker opens and settles on them).
   await send("Emulation.setFocusEmulationEnabled", { enabled: true });

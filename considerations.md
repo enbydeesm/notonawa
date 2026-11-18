@@ -1454,6 +1454,59 @@ about 6 minutes, too slow to run after every change.
 - **Known gap**: Safari can't tell the page whether the app is already
   installed, so someone who installed it but opens it in a Safari tab
   still sees the instructions until they choose Not now.
+- **Install app in the menu** (November 2026): above Tutorial, the first of
+  the panel's bottom group, whenever the banner would offer something,
+  Not now or not (`menuOffer`), so dismissing the banner isn't final.
+  Chrome and Edge: their install window; Safari and Firefox on Android:
+  the same steps as the banner, in a dialog. Left out where there's no way
+  to install (Firefox on a computer) and once installed.
+
+## Push notifications as built (November 2026)
+
+Notifications when a connection sends something, and announcements from
+us (migration 0035, `src/push/`, `public/sw.js`, `push.js`).
+
+- **Web Push, written by hand** (`src/push/webpush.js`: RFC 8291's
+  aes128gcm encryption and RFC 8292's VAPID signature, WebCrypto only),
+  tested against RFC 8291's own example to the byte, and its output opened
+  with a device key in the API tests. No package: it's about 150 lines
+  with no untrusted input to parse. Weighed: `@pushforge/builder`.
+- **Per device, not per account**: each device's subscription row holds
+  which kinds it wants (`connections`, `announcements`), as the browser's
+  permission is per device and a phone may want what a laptop doesn't.
+  Signing in to another account on the device moves it there; signing
+  out deletes it (`forgetPushDevice`, plain `fetch` so a 401 can't hang
+  the sign-out), so a shared device doesn't keep getting someone's.
+- **What a connection's notification says**: only "something new from a
+  connection". The server can't read mailbox messages or tell who left
+  one, and the service worker can't open anything (the key is only in the
+  crypto Worker while unlocked). Sent after the answer (`waitUntil`), with
+  one topic, so pushes waiting for an offline device are replaced, not
+  piled up.
+- **Notices with --push**: `scripts/notice.mjs` only marks the notice; the
+  Worker sends it once it's showing, from a second cron trigger every 5
+  minutes, 200 devices a run with a cursor. So the private key lives only
+  in the Worker (a secret), and --from scheduling works for pushes too.
+- **Only the push services' hosts** are accepted as push addresses
+  (Google's FCM, Apple's, Mozilla's, Microsoft's WNS), so a subscription
+  can't make the Worker post anywhere else. A 404 or 410 deletes it.
+- **The service worker** only shows notifications and opens the app: no
+  fetch handler, no cache, so nothing decrypted or journal-shaped is ever
+  kept by it. A plain script (module service workers aren't everywhere
+  yet). Registering it is a Trusted Types sink: a second policy,
+  `service-worker`, allows only `/sw.js`.
+- **Asking**: once per device, a banner after unlocking (your words),
+  not over the install banner. Allow asks the browser's permission
+  straight from the tap (Safari asks only then); a web app can't open the
+  device's settings, so once refused the banner and Settings say where to
+  allow them again. On an iPhone or iPad, only the installed app can get
+  notifications, so there it says to install first.
+- **Not exported**: a subscription is tied to one device's browser, as a
+  wrapped key is to its passkey; deleted with the account.
+- **The walkthrough** can't subscribe for real (headless Chrome has no push
+  service): it fakes the browser's permission and subscription in the
+  page, registers the real service worker, and checks what the server
+  keeps. It has a public key but no private key, so it never pushes.
 
 ## Drawings on ties, plans and workshops (October 2026)
 

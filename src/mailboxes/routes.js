@@ -8,6 +8,7 @@ import { sha256Hex } from "../auth/session.js";
 import { rateLimitKey } from "../auth/guard.js";
 import { parseNewMailbox, parseMailboxId, parseMessage, parseAck } from "./parse.js";
 import { addMailbox, deleteMailbox, deliver, listMessages, ackMessages } from "./db.js";
+import { notifyMailboxOwner } from "../push/send.js";
 
 /** @typedef {import("../auth/user.js").User} User */
 
@@ -20,13 +21,15 @@ const ONE_PATH = /^\/api\/mailboxes\/([^/]+)$/;
  *   is checked, and any cookie sent is ignored. A wrong token and an
  *   unknown (or expired) mailbox are the same 404; 429 when it has 100
  *   waiting or this address has sent too many. A profile message replaces
- *   one waiting.
+ *   one waiting. Then the owner's devices that want it get a notification
+ *   (src/push/send.js), after the answer, so the sender isn't kept waiting.
  * @param {Request} request
  * @param {Env} env
  * @param {URL} url
+ * @param {{ waitUntil: (promise: Promise<unknown>) => void }} [ctx]
  * @returns {Promise<Response | null>}
  */
-export async function handleMailboxSend(request, env, url) {
+export async function handleMailboxSend(request, env, url, ctx) {
   const send = url.pathname.match(SEND_PATH);
   if (!send || request.method !== "POST") return null;
   const { success } = await env.MAILBOX_RATE_LIMIT.limit({ key: rateLimitKey(request) });
@@ -36,6 +39,9 @@ export async function handleMailboxSend(request, env, url) {
   const result = await deliver(env.DB, id, await sha256Hex(message.token), message);
   if (result === "unknown") return notFound();
   if (result === "full") return json({ error: "That mailbox is full. Try again later." }, 429);
+  ctx?.waitUntil(notifyMailboxOwner(env, id).catch(() => {
+    // Unreachable for now: a failure is only that no notification went.
+  }));
   return noContent();
 }
 

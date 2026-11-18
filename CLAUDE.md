@@ -119,6 +119,18 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   /api/link/:id` (the public key), `POST /api/link/:id/approve` with `{
   sealed_key }` (fresh session), `DELETE /api/link/:id`). Expired ones go
   in the daily clean-up.
+- `src/push/`: push notifications (migration 0035; considerations.md,
+  "Push notifications as built"). `webpush.js` (pure apart from WebCrypto:
+  RFC 8291 encryption, VAPID, `newVapidKeys`), `parse.js` (pure: the push
+  services' hosts only, a subscription, `KINDS` (`connections`,
+  `announcements`), each notification's words), `db.js` (one row per
+  device, its kinds; notices' `push`, `push_cursor`, `pushed_at`),
+  `send.js` (`notifyMailboxOwner`, after a mailbox delivery through
+  `ctx.waitUntil`; `pushNotices`, from the 5-minute cron; nothing without
+  `VAPID_PUBLIC_KEY` and the secret `VAPID_PRIVATE_KEY`; 404/410 deletes),
+  `routes.js` (`GET /api/push` (the public key), `POST
+  /api/push/subscription`, `.../status`, `.../delete`, the push address
+  in the body).
 - `src/encryption/`: encrypted notes. `config.js` (the encrypted columns and
   how each table is scoped to its owner), `db.js`, `routes.js` (`GET
   /api/encryption/pending`, `POST /api/encryption/seal`: older plain text
@@ -857,7 +869,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide, pinned to the top (sticky); the + button and the ☰ menu panel: Settings, Account, Your
-  data, Tutorial (the welcome tour), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Install app (where it can be), Tutorial (the welcome tour), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
@@ -933,9 +945,17 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   saved), `zip.js` (pure apart from `DecompressionStream`: zip files for
   exports with photos), `notices.js` (the banners between the nav and the
   view), `install-rules.js` (pure: whether and how to offer
-  installing the app) and `install-banner.js` (that offer, under the
+  installing the app; `menuOffer`, the menu's Install app, which Not now
+  doesn't hide) and `install-banner.js` (that offer, under the
   notices: Chrome's and Edge's own Install, or where to find it in Safari
-  and Firefox; "Not now" kept in localStorage), `consent-state.js` (whether I must agree to a changed policy;
+  and Firefox; "Not now" kept in localStorage; `installFromMenu`),
+  push notifications: `public/sw.js` (the service worker: shows a push,
+  opens the app on a tap; caches nothing), `push-rules.js` (pure: the
+  device's state, the one-time banner, the words), `push.js` (registering
+  the service worker through the `service-worker` Trusted Types policy,
+  subscribing, kinds per device, `forgetPushDevice` before signing out),
+  `push-banner.js` (the one-time offer, under the install offer) and
+  `push-settings.js` (Settings' "Notifications on this device"), `consent-state.js` (whether I must agree to a changed policy;
   `api.js` marks it on a 403 `consent`, and `app.js` then shows
   `views/consent.js` in place of journal views, except Your data and
   Account (`beforeConsent` routes), so someone who won't agree can export
@@ -1043,8 +1063,13 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   `--require-consent "what changed"` when people must agree again; post a
   notice first for changes they should hear about before they take effect.
 - `node scripts/notice.mjs "message" [--warning] [--user <id>] [--link privacy]
-  [--from YYYY-MM-DD] [--until YYYY-MM-DD] [--remote]`: a banner in the app;
+  [--from YYYY-MM-DD] [--until YYYY-MM-DD] [--push] [--remote]`: a banner in the app
+  (`--push`: also a notification, within 5 minutes of showing);
   `--list` and `--end <id>`.
+- `node scripts/push-keys.mjs`: makes push notifications' key pair, once
+  per environment: the public half in `wrangler.jsonc` as
+  `VAPID_PUBLIC_KEY`, the private half with `npx wrangler secret put
+  VAPID_PRIVATE_KEY [--env dev]`. Empty: notifications aren't offered.
 - `node scripts/backup-keys.mjs`: makes the daily backups' key pair once
   (the public half goes in `wrangler.jsonc` as `BACKUP_PUBLIC_KEY`).
 - **`--dev`**: the scripts that use the database (invite, recovery-code,

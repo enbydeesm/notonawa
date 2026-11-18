@@ -691,7 +691,9 @@ dialog.menu-panel {
 @starting-style { dialog.menu-panel[open] { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-panel { transition: none; } }
 .menu-inner { display: flex; flex-direction: column; height: 100%; padding: 16px; overflow-y: auto; }
-.menu-tutorial { margin-top: auto; }
+/* The bottom group starts at Install app when it's there, else Tutorial. */
+.menu-tutorial, .menu-install { margin-top: auto; }
+.menu-install + .menu-tutorial { margin-top: 0; }
 dialog .menu-title { margin: 4px 0 16px; text-align: center; }
 .menu-item {
   display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 4px;
@@ -1188,7 +1190,7 @@ button.update-flag { border: 0; cursor: pointer; background: var(--accent); colo
 .notice p { margin: 0; flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .notice-dismiss { flex: none; border: none; padding: 0 4px; color: var(--muted); font-weight: 400; }
 /* The offer to install the app (install-banner.js): its buttons under the text. */
-.notice.install-notice { flex-wrap: wrap; }
+.notice.install-notice, .notice.push-notice { flex-wrap: wrap; }
 .notice-actions { flex-basis: 100%; display: flex; align-items: center; gap: 12px; }
 
 /* The Consent view's ways out. */

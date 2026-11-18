@@ -15,7 +15,7 @@
 export const UI_CHUNKS = [
   "basics", "lock", "settings", "people", "locations", "plans", "ties", "search",
   "notes", "photos", "drawings", "poses", "deleting", "account", "data", "insights", "education", "shares",
-  "share-items", "convert", "contacts", "link",
+  "share-items", "convert", "contacts", "link", "push",
 ];
 
 // About how long each chunk takes alone, in seconds (October 2026), for
@@ -25,7 +25,7 @@ export const UI_CHUNKS = [
 export const UI_SECONDS = {
   basics: 37, lock: 26, settings: 32, people: 14, locations: 18, plans: 28, ties: 23, search: 35,
   notes: 19, photos: 55, drawings: 40, poses: 40, deleting: 26, account: 67, data: 20, insights: 20, education: 30,
-  shares: 65, "share-items": 45, convert: 40, contacts: 60, link: 30,
+  shares: 65, "share-items": 45, convert: 40, contacts: 60, link: 30, push: 25,
 };
 
 /**
@@ -104,6 +104,12 @@ export const AREAS = [
     ui: ["basics", "lock", "account", "link"],
   },
   {
+    name: "push",
+    files: ["src/push/", "public/sw.js", "public/js/push.js", "public/js/push-rules.js", "public/js/push-banner.js",
+      "public/js/push-settings.js", "scripts/push-keys.mjs"],
+    ui: ["push"],
+  },
+  {
     name: "link",
     files: ["src/link/", "public/js/crypto/link.js", "public/js/link-flows.js", "public/js/pending-link.js",
       "public/js/views/link.js"],
@@ -160,7 +166,7 @@ export const AREAS = [
   {
     name: "install",
     files: ["public/js/install-rules.js", "public/js/install-banner.js"],
-    ui: ["basics"],
+    ui: ["basics", "settings", "push"],
   },
   {
     name: "shell",

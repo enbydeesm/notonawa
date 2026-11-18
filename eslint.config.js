@@ -22,6 +22,8 @@ export default defineConfig([
   { files: ["src/**/*.js"], languageOptions: { globals: { ...globals.serviceworker, FixedLengthStream: "readonly" } } },
   // Pages run in the browser.
   { files: ["public/**/*.js"], languageOptions: { globals: globals.browser } },
+  // The service worker, for push notifications.
+  { files: ["public/sw.js"], languageOptions: { globals: globals.serviceworker } },
   // Every read and write of journal data goes through the store
   // (public/js/store/), never api() directly, so the encrypted version can
   // replace it underneath without the pages changing. A path built from a

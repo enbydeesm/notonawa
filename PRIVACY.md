@@ -1,6 +1,6 @@
 # NōtoNawa Privacy Policy
 
-**Last updated:** November 16, 2026
+**Last updated:** November 17, 2026
 
 ## The short version
 
@@ -187,6 +187,14 @@ and videos in North America [and the database in enam]; its network may
 handle data in other countries. Everything is also encrypted at rest by
 Cloudflare.
 
+**Notifications, if you turn them on** for a device, go through the push
+service of that device's browser (Apple's for Safari, Google's for Chrome
+and most others, Mozilla's for Firefox, Microsoft's for Edge on Windows).
+Each one is encrypted to your device, so the push service can't read it; it
+sees that a notification went to that device, and when. A connection's
+notification says only that you have something new, as our server can't
+tell what or who it's from.
+
 When you paste a short Google Maps link (maps.app.goo.gl) into a location, our
 server asks Google where it points, to fill in its coordinates. Google sees
 our server, not you, and only the link. Full Google Maps links are read on
@@ -198,8 +206,10 @@ We use one cookie, to keep you signed in. It can't be read by scripts, is sent
 only to NōtoNawa over secure connections, and expires after 30 days (7 without
 use). Your browser also keeps the app's own code, the sealed copy of your
 journal (see [On your device](#on-your-device)), and the word "light" or
-"dark" so pages show the right colors before you sign in. Nothing is used for
-tracking.
+"dark" so pages show the right colors before you sign in. It also notes
+whether you've answered the offers to install the app and to turn on
+notifications, and, once you turn them on, keeps a small background script
+that only shows notifications. Nothing is used for tracking.
 
 ## How long we keep your data
 
@@ -216,6 +226,11 @@ tracking.
   database provider's history still held the older, partly readable version
   of your journal; that copy is gone 30 days after the update.
 - **Sessions** end when you sign out, and expired ones are cleared daily.
+- **Notifications**: for each device you turn them on for, we keep the
+  address its push service gave it, the keys notifications are encrypted
+  to, and which kinds you chose. It's deleted when you turn them off on
+  that device, sign out there, or delete your account, and when the push
+  service says the address no longer works.
 - **Requests to sign in on a new device** are deleted when used or
   cancelled, and within a day of ending if never used.
 
@@ -284,7 +299,8 @@ can, and notify regulators where the law requires.
 
 We can show you messages in the app, for example about a change to this
 policy or a problem with the service. They're written by us as plain text. We
-record which ones you've dismissed, so they don't come back.
+record which ones you've dismissed, so they don't come back. Some may also
+come as a notification, on devices where you've turned on announcements.
 
 ## Changes to this policy
 

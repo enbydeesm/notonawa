@@ -36,7 +36,8 @@ export default async function () {
     return [ready(), fetched("/js/views/open.js"), $("dialog.menu-panel") === null];`), [true, false, true]);
   check("the menu opens with the logo, Settings (a gear), Account, Your data, Bug and feedback, What's new, Privacy Policy and Sign Out", await run(`
     await openMenu();
-    return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
+    // Install app is there only when this Chrome offers installing (checked below).
+    return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item:not(.menu-install)")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
     ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
@@ -49,7 +50,25 @@ export default async function () {
       Math.round(news.top - feedback.bottom), Math.round(feedback.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
       $(".menu-inner .app-version").textContent];`),
     [16, true, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
-  check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome tour from its start in place of the menu", await run(`
+  check("once the browser can install it, Install app is first in the bottom group, even after Not now, and opens the browser's install window", await run(`
+    $("dialog.menu-panel").close(); await calm(200);
+    localStorage.setItem("install-dismissed", "1");
+    // What Chrome and Edge hand over when the app can be installed.
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    let prompted = false;
+    event.prompt = async () => { prompted = true; }; event.userChoice = Promise.resolve({ outcome: "dismissed" });
+    window.dispatchEvent(event);
+    await openMenu();
+    const box = (sel) => $(sel).getBoundingClientRect();
+    const shown = [$(".menu-install")?.textContent, !!$(".menu-install svg rect"),
+      $(".menu-install").nextElementSibling === $(".menu-tutorial"), Math.round(box(".menu-tutorial").top - box(".menu-install").bottom),
+      box(".menu-install").top - box(".nav-data").bottom > 50];
+    $(".menu-install").click(); await calm(300);
+    const done = [prompted, $("dialog.menu-panel") === null];
+    localStorage.removeItem("install-dismissed");
+    await openMenu();
+    return [shown, done];`), [["Install app", true, true, 0, true], [true, true]]);
+    check("Tutorial's icon is a lightbulb with a question mark, and it opens the welcome tour from its start in place of the menu", await run(`
     const icon = $(".menu-tutorial svg");
     const parts = [icon.querySelectorAll("path").length, icon.querySelectorAll("circle").length];
     $(".menu-tutorial").click(); await calm(400);
@@ -142,7 +161,7 @@ export default async function () {
     [LIGHT_BG, "light", "light", "light"]);
   check("two roles can't have the same name", await run(`
     ${openSettings} $("#settings-top").value = "Rope"; $("#settings-bottom").value = "rope"; $("#settings-save").click(); await calm(800);
-    return [$(".settings-dialog .message").textContent, $(".settings-dialog") !== null];`),
+    return [$("#settings-message").textContent, $(".settings-dialog") !== null];`),
     ["Couldn't save: Give the two roles different names.", true]);
   check("saved role names are used everywhere at once: the tie form, People, Analytics", await run(`
     $("#settings-top").value = " rigger "; $("#settings-bottom").value = "Rope bunny"; $("#settings-save").click(); await calm(1200);

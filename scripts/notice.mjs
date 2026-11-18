@@ -10,6 +10,8 @@
 //     --link privacy          add a "Read the privacy policy" link
 //     --from 2026-11-01       start showing it that day (this computer's calendar)
 //     --until 2026-11-30      stop showing it after that day
+//     --push                  also send it as a notification, once it's showing, to
+//                             devices that turned on announcements (within 5 minutes)
 //   node scripts/notice.mjs --list [--remote]       notices showing now or later
 //   node scripts/notice.mjs --end <id> [--remote]   stop showing one now
 // (--dev in place of --remote: the dev environment's.)
@@ -25,12 +27,12 @@ try {
   const todo = readNoticeArgs(args);
   if (todo.action === "list") {
     const { results } = d1(
-      `SELECT id, user_id, level, link, starts_at, ends_at, message FROM notices
+      `SELECT id, user_id, level, link, starts_at, ends_at, message, push, pushed_at FROM notices
         WHERE ends_at IS NULL OR ends_at > ${NOW} ORDER BY starts_at`, flags);
     if (results.length === 0) console.log("No notices showing now or later.");
     for (const n of results) {
       console.log(`${n.id}  ${n.user_id ? `for ${n.user_id}` : "for everyone"}, ${n.level}` +
-        `${n.link ? `, link: ${n.link}` : ""}, from ${n.starts_at}${n.ends_at ? ` until ${n.ends_at}` : ""}\n  ${n.message}`);
+        `${n.link ? `, link: ${n.link}` : ""}${n.push ? (n.pushed_at ? ", sent as a notification" : ", to send as a notification") : ""}, from ${n.starts_at}${n.ends_at ? ` until ${n.ends_at}` : ""}\n  ${n.message}`);
     }
   } else if (todo.action === "end") {
     d1(`UPDATE notices SET ends_at = ${NOW} WHERE id = '${todo.id}' AND (ends_at IS NULL OR ends_at > ${NOW})`, flags);
@@ -42,10 +44,11 @@ try {
       const { results } = d1(`SELECT id FROM users WHERE id = '${n.userId}'`, flags);
       if (results.length === 0) throw new Error("There's no account with that id.");
     }
-    d1(`INSERT INTO notices (id, user_id, message, level, link, starts_at, ends_at) VALUES (
+    d1(`INSERT INTO notices (id, user_id, message, level, link, starts_at, ends_at, push) VALUES (
       '${id}', ${n.userId ? `'${n.userId}'` : "NULL"}, ${sqlText(n.message)}, '${n.level}',
-      ${n.link ? `'${n.link}'` : "NULL"}, ${n.startsAt ? `'${n.startsAt}'` : NOW}, ${n.endsAt ? `'${n.endsAt}'` : "NULL"})`, flags);
-    console.log(`Posted notice ${id}${n.userId ? " for that account" : " for everyone"}.`);
+      ${n.link ? `'${n.link}'` : "NULL"}, ${n.startsAt ? `'${n.startsAt}'` : NOW}, ${n.endsAt ? `'${n.endsAt}'` : "NULL"}, ${n.push ? 1 : 0})`, flags);
+    console.log(`Posted notice ${id}${n.userId ? " for that account" : " for everyone"}` +
+      `${n.push ? ", and it goes out as a notification within 5 minutes of showing" : ""}.`);
   }
 } catch (err) {
   console.error(err instanceof Error ? err.message : err);

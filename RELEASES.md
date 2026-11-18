@@ -11,6 +11,8 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
+- Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
+- Install app is in the menu now, so you can still install NōtoNawa after choosing Not now on the banner.
 - Sign in on a new phone or computer without your recovery code: choose "Sign in with another device" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.
 
 ## 2026.11.16.0758

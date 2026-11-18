@@ -1,6 +1,6 @@
 // Offering to install the app (public/js/install-rules.js). No DOM needed.
 import { describe, it, expect } from "vitest";
-import { platformOf, isDismissed, installOffer, PROMPT_TEXT, STEPS } from "../../public/js/install-rules.js";
+import { platformOf, isDismissed, installOffer, menuOffer, PROMPT_TEXT, STEPS } from "../../public/js/install-rules.js";
 
 const UA = {
   iphoneSafari: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
@@ -62,5 +62,18 @@ describe("installOffer", () => {
   it("offers nothing once installed, or after Not now", () => {
     expect(installOffer({ ...base, canPrompt: true, installed: true })).toBeNull();
     expect(installOffer({ ...base, platform: "ios", dismissed: true })).toBeNull();
+  });
+});
+
+describe("menuOffer", () => {
+  const base = { installed: false, canPrompt: false, platform: /** @type {const} */ ("other") };
+
+  it("offers the same as the banner, Not now or not", () => {
+    expect(menuOffer({ ...base, canPrompt: true })).toEqual({ kind: "button", text: PROMPT_TEXT });
+    expect(menuOffer({ ...base, platform: "ios" })).toEqual({ kind: "steps", text: STEPS.ios });
+  });
+  it("offers nothing once installed, or where there's no way to install", () => {
+    expect(menuOffer({ ...base, canPrompt: true, installed: true })).toBeNull();
+    expect(menuOffer(base)).toBeNull();
   });
 });

@@ -7,7 +7,8 @@
 # Types means the browser refuses innerHTML and similar string-to-HTML calls
 # outright (we never use them; see dom.js). Its one policy, crypto-worker,
 # lets through only the crypto Worker's URL (vault.js), which worker-src
-# 'self' allows to start. img-src blob: shows photos decrypted on the
+# 'self' allows to start; service-worker, only /sw.js (push.js), the
+# service worker for push notifications. img-src blob: shows photos decrypted on the
 # device (photo-urls.js), and media-src blob: plays videos decrypted there;
 # nothing else makes blob: URLs for images or videos. (The video library,
 # public/js/vendor/mediabunny.js, can start Workers from blob: URLs for
@@ -23,7 +24,7 @@
 # page load made views slow to open.
 /*
   Cache-Control: no-store
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src blob:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types crypto-worker
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src blob:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types crypto-worker service-worker
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()

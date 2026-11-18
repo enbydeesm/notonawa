@@ -44,7 +44,8 @@ export default async function () {
     return [wrong, $("#tie-count") !== null, leakyFields()];`),
     ["That recovery code doesn't unlock your journal.", true, []]);
   check(FORMAT === 2 ? "nothing is kept in the browser's storage but the theme and the sealed cache" : "nothing is kept in the browser's storage but the theme",
-    await run(`return [Object.keys(localStorage).filter((k) => k !== "theme"), sessionStorage.length,
+    // push-asked is the walkthrough's own (harness.mjs), keeping the notifications offer away.
+    await run(`return [Object.keys(localStorage).filter((k) => k !== "theme" && k !== "push-asked"), sessionStorage.length,
       (await indexedDB.databases()).map((d) => d.name.replace(/notonawa-.*/, "notonawa-<user>"))];`),
     [[], 0, FORMAT === 2 ? ["notonawa-<user>"] : []]);
 

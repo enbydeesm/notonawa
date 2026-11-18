@@ -3,7 +3,8 @@
 // its own, over the view: it asks where to save what it makes), then the + button
 // and the menu button (☰),
 // which opens a side panel: Settings (light/dark mode and role names, in
-// their own dialog), the account and "Your data" links, Tutorial (the
+// their own dialog), the account and "Your data" links, Install app (until
+// it's installed, where the browser can), Tutorial (the
 // welcome tour), Bug and feedback,
 // What's new (the release notes), the privacy policy, Sign Out and the
 // app's version.
@@ -16,6 +17,8 @@ import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
 import { openFeedback } from "./feedback-dialog.js";
 import { openTour } from "./tour.js";
+import { installMenuOffer, installFromMenu } from "./install-banner.js";
+import { forgetPushDevice } from "./push.js";
 import { APP_VERSION } from "./releases.js";
 import { api, errorMessage } from "./api.js";
 import { lock, isUnlocked } from "./vault.js";
@@ -164,9 +167,14 @@ function openMenu() {
         href: "/data", className: "menu-item nav-data",
         "aria-current": current === "/data" ? "page" : null,
       }, dataIcon(), h("span", {}, "Your data")),
-      // The tutorial, feedback, What's new, the privacy policy and signing
-      // out are pinned to the bottom of the panel. The tutorial is the
-      // welcome tour (tour.js), from its start.
+      // Installing, the tutorial, feedback, What's new, the privacy policy
+      // and signing out are pinned to the bottom of the panel. Install app
+      // stays after the banner's "Not now". The tutorial is the welcome
+      // tour (tour.js), from its start.
+      installMenuOffer() ? h("button", {
+        type: "button", className: "menu-item menu-install",
+        onclick: () => { dialog.close(); installFromMenu(); },
+      }, installIcon(), h("span", {}, "Install app")) : null,
       h("button", {
         type: "button", className: "menu-item menu-tutorial", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openTour(); },
@@ -194,6 +202,8 @@ function openMenu() {
   // journal locks, and the sign-in view replaces this one.
   async function signOut() {
     try {
+      // This device's notifications stop first, while still signed in.
+      await forgetPushDevice();
       await api("/api/auth/logout", { method: "POST", body: {} });
       lock();
       // The journal's sealed copy on this device goes too: someone else may use it next.
@@ -318,6 +328,18 @@ function dataIcon() {
     svg("path", { d: "M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" }),
     svg("path", { d: "M9 4v10M6 11l3 3 3-3" }),
     svg("path", { d: "M15 14V4M12 7l3-3 3 3" })
+  );
+  return icon;
+}
+
+/** A phone with an arrow down into it, for Install app. */
+function installIcon() {
+  const icon = lineIcon();
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.append(
+    svg("rect", { x: 6, y: 2.5, width: 12, height: 19, rx: 2 }),
+    svg("path", { d: "M12 7v7M9 11l3 3 3-3" }),
+    svg("path", { d: "M10.5 18.5h3" })
   );
   return icon;
 }

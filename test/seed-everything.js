@@ -43,6 +43,7 @@ export const OWNED_ROWS = {
   mailboxes: "SELECT count(*) AS n FROM mailboxes WHERE owner_id = ?",
   mailbox_messages: "SELECT count(*) AS n FROM mailbox_messages m JOIN mailboxes b ON b.id = m.mailbox_id WHERE b.owner_id = ?",
   link_requests: "SELECT count(*) AS n FROM link_requests WHERE user_id = ?",
+  push_subscriptions: "SELECT count(*) AS n FROM push_subscriptions WHERE user_id = ?",
 };
 
 // Child rows whose parent is gone: there should never be any.
@@ -146,6 +147,9 @@ export async function userWithEverything() {
     // A new device's sign-in request this account approved, not picked up yet (migration 0034).
     env.DB.prepare(`INSERT INTO link_requests (id, poll_hash, public_key, user_id, sealed_key, expires_at, approved_at)
       VALUES (?, 'h', 'pk', ?, 'sealed', '2999-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`).bind(`link-${id}`, id),
+    // A device getting its notifications (migration 0035).
+    env.DB.prepare("INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, 'k', 'a')")
+      .bind(`push-${id}`, id, `https://web.push.apple.com/${id}`),
   ]);
   return { id, cookie };
 }

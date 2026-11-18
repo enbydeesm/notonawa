@@ -24,6 +24,7 @@ import { consentState, setConsentState, onConsentRequired } from "./consent-stat
 import { noticeBox, showNotices, forgetNotices } from "./notices.js";
 import { connectionBox, showConnectionBanners, forgetConnectionBanners } from "./connection-banner.js";
 import { installBox, showInstallOffer } from "./install-banner.js";
+import { pushBox, showPushOffer } from "./push-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/journal.js";
 import { showUnseenReleases } from "./whats-new.js";
@@ -67,6 +68,7 @@ renderNav();
 noticeBox();
 connectionBox();
 installBox();
+pushBox();
 
 /** @type {import("./router.js").ViewName | null} */
 let currentView = null;
@@ -115,6 +117,8 @@ async function show({ fresh, scroll, focus }) {
   showConnectionBanners(route === addressed && route.needsKey);
   // And the offer to install the app, in the same places.
   showInstallOffer(route === addressed && route.needsKey);
+  // Then, once per device, the offer of notifications.
+  showPushOffer(route === addressed && route.needsKey);
   setCurrent(addressed.path);
   const template = /** @type {HTMLTemplateElement} */ ($(`#view-${route.view}`));
   root.replaceChildren(template.content.cloneNode(true));

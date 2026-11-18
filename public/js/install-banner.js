@@ -1,11 +1,13 @@
 // Offers installing the app (install-rules.js decides whether and how): a
 // banner between the nav and the view, below the notices, while the journal
-// is open, until the app is installed or "Not now" is chosen on this device.
+// is open, until the app is installed or "Not now" is chosen on this device;
+// and the menu's Install app (nav.js), which "Not now" doesn't hide.
 // "Not now" is kept in localStorage (just "1", never journal data), like the
 // light/dark mode, and isn't sent to us.
 
 import { h, $ } from "./dom.js";
-import { installOffer, platformOf, isDismissed, DISMISSED_KEY, INSTALLED_MODES } from "./install-rules.js";
+import { tell } from "./dialog.js";
+import { installOffer, menuOffer, platformOf, isDismissed, DISMISSED_KEY, INSTALLED_MODES } from "./install-rules.js";
 
 /**
  * The browser's own install window, handed over by Chrome and Edge.
@@ -62,6 +64,31 @@ function draw() {
     h("div", { className: "notice-actions" },
       offer.kind === "button" ? h("button", { type: "button", className: "install-now", onclick: install }, "Install") : null,
       h("button", { type: "button", className: "link install-later", onclick: notNow }, "Not now")))] : []));
+}
+
+/**
+ * What the menu's Install app would do now, or null to leave it out.
+ * @returns {import("./install-rules.js").InstallOffer | null}
+ */
+export function installMenuOffer() {
+  return menuOffer({ installed, canPrompt: promptEvent !== null, platform: platformOf(navigator.userAgent, navigator.maxTouchPoints) });
+}
+
+/** The menu's Install app: the browser's install window, or where to find it. */
+export async function installFromMenu() {
+  const offer = installMenuOffer();
+  if (offer?.kind === "button") return install();
+  if (offer) await tell({ title: "Install the app", message: offer.text, id: "install-steps" });
+}
+
+/** Whether the install banner is showing (the notifications offer waits for it). */
+export function installBannerShown() {
+  return box !== null && !box.hidden;
+}
+
+/** Whether the app is running installed (in a window of its own). */
+export function isInstalled() {
+  return installed;
 }
 
 async function install() {

@@ -29,7 +29,7 @@ export function startOfDay(date, plusDays = 0) {
  * @param {string[]} args
  * @returns {{ action: "list" } | { action: "end", id: string } | { action: "add", notice: {
  *   message: string, level: "info" | "warning", link: "privacy" | null, userId: string | null,
- *   startsAt: string | null, endsAt: string | null } }}
+ *   startsAt: string | null, endsAt: string | null, push: boolean } }}
  */
 export function readNoticeArgs(args) {
   /** @param {string} flag */
@@ -63,6 +63,6 @@ export function readNoticeArgs(args) {
   if (endsAt !== null && endsAt <= (startsAt ?? new Date().toISOString())) throw new Error("--until has to be after it starts.");
   return {
     action: "add",
-    notice: { message, level: args.includes("--warning") ? "warning" : "info", link, userId, startsAt, endsAt },
+    notice: { message, level: args.includes("--warning") ? "warning" : "info", link, userId, startsAt, endsAt, push: args.includes("--push") },
   };
 }

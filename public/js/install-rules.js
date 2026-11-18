@@ -57,6 +57,17 @@ export function isDismissed(value) {
  */
 
 /**
+ * What the menu's Install app does, if it's shown: the browser's own install
+ * window, or where to find installing. Unlike the banner, "Not now" doesn't
+ * hide it: it's the way back to installing after dismissing the banner.
+ * @param {{ installed: boolean, canPrompt: boolean, platform: Platform }} situation
+ * @returns {InstallOffer | null}
+ */
+export function menuOffer({ installed, canPrompt, platform }) {
+  return installOffer({ installed, dismissed: false, canPrompt, platform });
+}
+
+/**
  * What to offer, if anything.
  * @param {{ installed: boolean, dismissed: boolean, canPrompt: boolean, platform: Platform }} situation
  *   canPrompt: the browser handed over its install window (and it's unused)

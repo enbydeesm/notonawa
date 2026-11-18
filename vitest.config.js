@@ -23,6 +23,11 @@ const backupKeys = /** @type {CryptoKeyPair} */ (await crypto.subtle.generateKey
 const { kty, n, e } = /** @type {JsonWebKey} */ (await crypto.subtle.exportKey("jwk", backupKeys.publicKey));
 const TEST_BACKUP_PUBLIC_KEY = JSON.stringify({ kty, n, e, alg: "RSA-OAEP-256" });
 
+// Throwaway push keys (VAPID), so the Worker's sending runs in the tests,
+// to push services faked by each test (test/api/push.test.js).
+const { newVapidKeys } = await import("./src/push/webpush.js");
+const TEST_VAPID = await newVapidKeys();
+
 export default defineConfig({
   test: {
     projects: [
@@ -46,6 +51,8 @@ export default defineConfig({
                 RP_ID: "localhost",
                 ORIGIN: "http://localhost",
                 BACKUP_PUBLIC_KEY: TEST_BACKUP_PUBLIC_KEY,
+                VAPID_PUBLIC_KEY: TEST_VAPID.publicKey,
+                VAPID_PRIVATE_KEY: TEST_VAPID.privateKey,
                 // The API tests sign up format 1 accounts, as they were written
                 // for (format 1's routes), until phase 8 removes format 1;
                 // wrangler.jsonc makes new accounts format 2 (a unit test checks).

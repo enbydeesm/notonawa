@@ -4,6 +4,7 @@
 // still open, so someone who doesn't agree can take their journal and go.
 
 import { $, showMessage } from "../dom.js";
+import { forgetPushDevice } from "../push.js";
 import { api, errorMessage } from "../api.js";
 import { navigate } from "../navigate.js";
 import { lock } from "../vault.js";
@@ -38,6 +39,7 @@ export function mount(_root, { unlocked }) {
 
   $("#consent-sign-out").addEventListener("click", async () => {
     try {
+      await forgetPushDevice();
       await api("/api/auth/logout", { method: "POST", body: {} });
     } finally {
       lock();

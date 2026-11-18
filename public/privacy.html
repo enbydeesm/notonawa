@@ -13,7 +13,7 @@
 <body>
   <main class="policy">
 <h1 id="ntonawa-privacy-policy">NōtoNawa Privacy Policy</h1>
-<p><strong>Last updated:</strong> November 16, 2026</p>
+<p><strong>Last updated:</strong> November 17, 2026</p>
 <h2 id="the-short-version">The short version</h2>
 <ul>
   <li>NōtoNawa is a private journal for rope practice. <strong>Everything you put in your journal is encrypted on your device before it leaves it</strong>: your ties, plans, workshops, people, locations, tags, notes, photos, videos, drawings and poses. We can't read any of it, and neither can anyone who gets hold of our servers.</li>
@@ -94,9 +94,10 @@
 <p>Your journal may hold information about the people you tie with. Please only record what they would be comfortable with, and remove it if they ask. If they also use NōtoNawa, they can't see your entries, and we don't tell them you've written about them. When you share a tie, plan or workshop, share only what the people on it would be comfortable with.</p>
 <h2 id="where-your-data-is-stored">Where your data is stored</h2>
 <p>NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), our only service provider with access to stored data. We ask Cloudflare to store photos and videos in North America [and the database in enam]; its network may handle data in other countries. Everything is also encrypted at rest by Cloudflare.</p>
+<p><strong>Notifications, if you turn them on</strong> for a device, go through the push service of that device's browser (Apple's for Safari, Google's for Chrome and most others, Mozilla's for Firefox, Microsoft's for Edge on Windows). Each one is encrypted to your device, so the push service can't read it; it sees that a notification went to that device, and when. A connection's notification says only that you have something new, as our server can't tell what or who it's from.</p>
 <p>When you paste a short Google Maps link (maps.app.goo.gl) into a location, our server asks Google where it points, to fill in its coordinates. Google sees our server, not you, and only the link. Full Google Maps links are read on your device.</p>
 <h2 id="cookies-and-browser-storage">Cookies and browser storage</h2>
-<p>We use one cookie, to keep you signed in. It can't be read by scripts, is sent only to NōtoNawa over secure connections, and expires after 30 days (7 without use). Your browser also keeps the app's own code, the sealed copy of your journal (see <a href="#on-your-device">On your device</a>), and the word &quot;light&quot; or &quot;dark&quot; so pages show the right colors before you sign in. Nothing is used for tracking.</p>
+<p>We use one cookie, to keep you signed in. It can't be read by scripts, is sent only to NōtoNawa over secure connections, and expires after 30 days (7 without use). Your browser also keeps the app's own code, the sealed copy of your journal (see <a href="#on-your-device">On your device</a>), and the word &quot;light&quot; or &quot;dark&quot; so pages show the right colors before you sign in. It also notes whether you've answered the offers to install the app and to turn on notifications, and, once you turn them on, keeps a small background script that only shows notifications. Nothing is used for tracking.</p>
 <h2 id="how-long-we-keep-your-data">How long we keep your data</h2>
 <ul>
   <li><strong>What you store</strong> is kept until you delete it. Deleting removes it from our live database and storage straight away.</li>
@@ -105,6 +106,7 @@
   <li><strong>Backups.</strong> Our database provider keeps a rolling history for disaster recovery, and we back up the database every day, encrypted with a key that only Mx_Piggie holds, away from our servers. Both are gone after 30 days. Photos and videos aren't backed up. We restore only to recover from a failure, never to bring back something you deleted unless you ask.</li>
   <li><strong>When your account was updated to full encryption</strong>, our backups and our database provider's history still held the older, partly readable version of your journal; that copy is gone 30 days after the update.</li>
   <li><strong>Sessions</strong> end when you sign out, and expired ones are cleared daily.</li>
+  <li><strong>Notifications</strong>: for each device you turn them on for, we keep the address its push service gave it, the keys notifications are encrypted to, and which kinds you chose. It's deleted when you turn them off on that device, sign out there, or delete your account, and when the push service says the address no longer works.</li>
   <li><strong>Requests to sign in on a new device</strong> are deleted when used or cancelled, and within a day of ending if never used.</li>
 </ul>
 <h2 id="your-rights-and-choices">Your rights and choices</h2>
@@ -134,7 +136,7 @@
   <li>let anyone else see your journal, except what you choose to share</li>
 </ul>
 <h2 id="messages-from-us">Messages from us</h2>
-<p>We can show you messages in the app, for example about a change to this policy or a problem with the service. They're written by us as plain text. We record which ones you've dismissed, so they don't come back.</p>
+<p>We can show you messages in the app, for example about a change to this policy or a problem with the service. They're written by us as plain text. We record which ones you've dismissed, so they don't come back. Some may also come as a notification, on devices where you've turned on announcements.</p>
 <h2 id="changes-to-this-policy">Changes to this policy</h2>
 <p>If we change this policy, we will update the date at the top. If a change would reduce your privacy, we will ask for your agreement in the app first. Until you agree, nothing new can be saved to your journal, but you can still export your data or delete your account.</p>
 <h2 id="contact">Contact</h2>
