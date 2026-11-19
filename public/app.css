@@ -94,7 +94,7 @@ nav .nav-poser:disabled { opacity: 0.4; }
    drawings on the same canvas, /img/logo-mark-v3.svg (the pencil) and
    logo-word-v3.svg (the name), cut from logo-v3.svg, each a mask over a color:
    both the text color in light mode; in dark mode the pencil in the accent. */
-.logo { display: block; position: relative; max-width: 100%; margin: 0 auto; aspect-ratio: 163.8 / 79.3; }
+.logo { display: block; position: relative; max-width: 100%; margin: 0 auto; aspect-ratio: 171.1 / 86.9; }
 .logo::before, .logo::after { content: ""; position: absolute; inset: 0; background-color: var(--text); }
 .logo::before { mask: url("/img/logo-mark-v3.svg") center / contain no-repeat; }
 .logo::after { mask: url("/img/logo-word-v3.svg") center / contain no-repeat; }
@@ -1294,11 +1294,11 @@ button.link.tour-skip { min-height: 44px; padding: 0 4px; color: var(--muted); f
 .tour-card.tour-note { padding: 18px 16px 12px; }
 /* The logo's pencil and knot alone, in the accent, 44px tall. logo-mark-v3.svg
    shares its canvas with the name, so it's cropped to the mark: the canvas
-   drawn 136.82 × 66.24px, moved so the mark's own box (0.11px in from the
-   left, 0.15px down) fills this one. */
+   drawn 136.89 × 69.53px, moved so the mark's own box (0.10px in from the
+   left, 0.08px down) fills this one. */
 .tour-mark {
-  display: block; width: 136.63px; height: 44px; margin: 0 auto 4px; background-color: var(--accent);
-  mask: url("/img/logo-mark-v3.svg") -0.11px -0.15px / 136.82px 66.24px no-repeat;
+  display: block; width: 136.72px; height: 44px; margin: 0 auto 4px; background-color: var(--accent);
+  mask: url("/img/logo-mark-v3.svg") -0.10px -0.08px / 136.89px 69.53px no-repeat;
 }
 @media (forced-colors: active) { .tour-mark { forced-color-adjust: none; background-color: CanvasText; } }
 .tour-welcome button.primary { margin-top: 16px; }
