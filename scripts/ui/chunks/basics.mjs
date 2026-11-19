@@ -1,6 +1,6 @@
 // The walkthrough's basics chunk. Signing up and the app's shell: security headers, icons, sign-up, the welcome tour, moving between views, and the offer to install the app.
 
-import { APP_VERSION } from "../../../public/js/releases.js";
+import { APP_VERSION, RELEASES } from "../../../public/js/releases.js";
 import { BASE, HELP_LINE, account, check, go, newInvite, resetBrowser, run, send, sleep } from "../harness.mjs";
 
 export default async function () {
@@ -84,6 +84,13 @@ export default async function () {
     const seen = async () => (await (await fetch("/api/account/settings")).json()).hide_welcome;
     const showAgain = () => fetch("/api/account/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ hide_welcome: false }) });
     const press = async (sel) => { $("dialog.tour[open] " + sel).click(); await calm(300); };
+    // What's new, which follows the tour once it's finished or skipped: its releases, closed with OK.
+    const news = async () => {
+      for (let i = 0; i < 30 && !$("dialog.whats-new[open]"); i++) await wait(100);
+      const versions = [...document.querySelectorAll("dialog.whats-new[open] h3")].map((h) => h.textContent);
+      $("#whats-new-ok")?.click(); await calm(300);
+      return versions.length;
+    };
     // Where the ring is, and whether it goes round the element given, a few pixels out, and the pointer's tip under it.
     const ringRound = (sel) => {
       const ring = $(".tour-ring"); if (ring.hasAttribute("hidden")) return "no ring";
@@ -146,20 +153,26 @@ export default async function () {
     await press("#tour-start");
     for (let i = 0; i < 11; i++) await press(".tour-next");
     await press("#tour-done"); await calm(500);
-    return [$("dialog") === null, await seen()];`), [true, true]);
+    return [$("dialog.tour") === null, await seen()];`), [true, true]);
+  check("…then What's new opens as from the menu, the recent releases newest first, and closing it marks them seen", await run(`
+    for (let i = 0; i < 30 && !$("dialog.whats-new[open]"); i++) await wait(100);
+    const versions = [...document.querySelectorAll("dialog.whats-new[open] h3")].map((h) => h.textContent);
+    $("#whats-new-ok").click(); await calm(500);
+    return [versions, $("dialog") === null, (await (await fetch("/api/account/settings")).json()).seen_release];`),
+  [RELEASES.slice(0, 10).map((r) => r.version), true, APP_VERSION]);
   await go("/");
-  check("…so it isn't shown again after the next unlock", await run(`await calm(800); return $("dialog.tour") === null;`), true);
+  check("…so it isn't shown again after the next unlock, nor What's new", await run(`await calm(800); return [$("dialog.tour") === null, $("dialog.whats-new") === null];`), [true, true]);
   await run(`${tour} await showAgain();`);
   await go("/");
   check("Skip tour, on any card, closes it and remembers that too", await run(`
     ${tour}
     const open = await tourOpen(); await press("#tour-start"); await press(".tour-next"); await press(".tour-skip"); await calm(500);
-    return [open, $("dialog") === null, await seen()];`), [true, true, true]);
+    return [open, $("dialog.tour") === null, await seen(), await news() > 0, $("dialog") === null];`), [true, true, true, true, true]);
   await run(`${tour} await showAgain();`);
   await go("/");
   const escOpen = await run(`${tour} return await tourOpen();`);
   for (const type of ["keyDown", "keyUp"]) await send("Input.dispatchKeyEvent", { type, key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
-  check("Esc is Skip tour", [escOpen, ...await run(`${tour} await calm(500); return [$("dialog") === null, await seen()];`)], [true, true, true]);
+  check("Esc is Skip tour", [escOpen, ...await run(`${tour} await calm(500); return [$("dialog.tour") === null, await seen(), await news() > 0];`)], [true, true, true, true]);
   await run(`${tour} await showAgain();`);
   await go("/");
   check("closed by the view changing under it, it isn't remembered, so it shows after the next unlock", await run(`

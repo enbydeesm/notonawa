@@ -593,7 +593,8 @@ export async function resetBrowser() {
 /**
  * Starts a chunk: a new account of its own, signed up with a new passkey
  * ("Test phone") and unlocked on the Ties list, the welcome tour skipped
- * for good. The checks of signing up and the tour are the basics chunk's.
+ * for good and the What's new after it closed. The checks of signing up,
+ * the tour and that What's new are the basics chunk's.
  * @returns {Promise<string>} the recovery code shown at sign-up
  */
 export async function freshAccount() {
@@ -611,6 +612,9 @@ export async function freshAccount() {
     for (let i = 0; i < 100 && !$("dialog.tour[open]"); i++) await wait(100);
     $("dialog.tour[open] .tour-skip").click();
     for (let i = 0; i < 50 && !(await (await fetch("/api/account/settings")).json()).hide_welcome; i++) await wait(100);
+    // What's new follows the tour (the basics chunk checks it).
+    for (let i = 0; i < 50 && !$("dialog.whats-new[open]"); i++) await wait(100);
+    $("#whats-new-ok")?.click(); await calm(300);
     return [code, location.pathname, $("#tie-count") !== null, $("dialog") === null];`);
   if (!isDeepStrictEqual(code.slice(1), ["/", true, true]) || !code[0]) throw new Error(`Couldn't sign up a new account: ${JSON.stringify(code)}`);
   account.currentCode = code[0];

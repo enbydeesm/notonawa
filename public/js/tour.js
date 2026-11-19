@@ -168,9 +168,13 @@ export function openTour() {
  * Shows the tour unless I've already finished or skipped it, and remembers
  * that I have. Closed some other way (the view changed under it), it shows
  * again after the next unlock.
+ * @returns {Promise<boolean>} whether it was shown and finished or skipped
+ *   just now (app.js then shows What's new)
  */
 export async function showTourOnce() {
   const { hide_welcome: seen } = await loadSettings();
-  if (seen) return;
-  if ((await openTour()) !== "closed") await saveTourSeen();
+  if (seen) return false;
+  if ((await openTour()) === "closed") return false;
+  await saveTourSeen();
+  return true;
 }

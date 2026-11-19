@@ -1,7 +1,9 @@
 // "What's new": the release notes (RELEASES.md, built into releases.js), in
 // a dialog. Opened from the menu, and once after an update: the first
 // time the journal is shown after unlocking, if there are releases I
-// haven't seen, one dialog lists them all, newest first.
+// haven't seen, one dialog lists them all, newest first. Right after the
+// welcome tour is finished or skipped, it opens as from the menu, so a new
+// account (which starts as having seen them all) sees the recent ones.
 
 import { h } from "./dom.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
@@ -59,5 +61,15 @@ export async function showUnseenReleases() {
   const unseen = unseenReleases(RELEASES, seen);
   if (!unseen.length) return;
   await openWhatsNew(unseen);
+  await saveSeenRelease(APP_VERSION);
+}
+
+/**
+ * After the welcome tour: the recent releases, as the menu shows them,
+ * then this version remembered as seen (covering any I hadn't seen, so
+ * they don't follow in a second dialog).
+ */
+export async function showRecentReleases() {
+  await openWhatsNew();
   await saveSeenRelease(APP_VERSION);
 }

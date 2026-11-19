@@ -634,7 +634,9 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   in or unlocking, and reload into a newer version; not while a share
   link is waiting to be opened),
   `release-notes.js` (pure: the releases I haven't seen) and `whats-new.js`
-  (the "What's new" dialog: from the menu, and once after an update),
+  (the "What's new" dialog: from the menu, once after an update, and,
+  as from the menu, right after the welcome tour is finished or skipped,
+  so a new account sees the recent releases),
   `tour.js` (the welcome tour: one modal dialog over the window, a welcome
   card, a ring round each nav icon in turn with its card under the nav,
   Account Recovery, then "That's a wrap!"; Esc is Skip tour; the dim, its

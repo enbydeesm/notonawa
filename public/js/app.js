@@ -27,7 +27,7 @@ import { installBox, showInstallOffer } from "./install-banner.js";
 import { pushBox, showPushOffer } from "./push-banner.js";
 import { loadSettings, SETTINGS_SAVED } from "./settings.js";
 import { startJournal, accountFormat, conversionWantedNow } from "./store/v2/journal.js";
-import { showUnseenReleases } from "./whats-new.js";
+import { showRecentReleases, showUnseenReleases } from "./whats-new.js";
 import { showTourOnce } from "./tour.js";
 import { takeShareLink } from "./pending-share.js";
 import { takeLinkFragment } from "./pending-link.js";
@@ -139,13 +139,14 @@ async function show({ fresh, scroll, focus }) {
   // Then, once per unlock, the welcome tour (until I've finished or skipped
   // it) and the release notes I haven't seen, one after the other (not
   // over the privacy policy agreement, which comes first and doesn't need
-  // the key).
+  // the key). Right after the tour, the recent notes as the menu shows
+  // them, so a new account sees what's been added lately.
   if (route.needsKey && !releasesChecked) {
     releasesChecked = true;
     // Unreachable for now: either is shown after the next unlock instead.
     showTourOnce()
-      .catch(() => {})
-      .then(() => showUnseenReleases())
+      .catch(() => false)
+      .then((toured) => (toured ? showRecentReleases() : showUnseenReleases()))
       .catch(() => {});
   }
 
