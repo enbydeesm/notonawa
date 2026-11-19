@@ -12,12 +12,13 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
-- Install app is in the menu now, so you can still install nōtonawa after choosing Not now on the banner.
+- Install app is in the menu now, so you can still install nōtonawa after dismissing the banner. You should reinstall the app to show the new improved logo! 
 - Sign in on a new phone or computer without your recovery code: choose "Sign in with another device" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.
+- The logo and app icons have been updated.
 
 ## 2026.11.16.0758
 Now with more encryption flavor!
-- Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.
+- EVERYTHING in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses--not just notes and photos. The privacy policy has been updated to reflect this.
 - Connected accounts now talk privately: our server keeps no record of who is connected to whom.
 - Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.
 - Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.
