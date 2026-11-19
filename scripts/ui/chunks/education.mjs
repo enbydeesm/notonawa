@@ -23,7 +23,7 @@ export default async function () {
     return [tabs, poser.tagName, poser.previousElementSibling.getAttribute("href"), !!poser.querySelector(".pose-icon"),
       poser.nextElementSibling.classList.contains("nav-add"), $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
     [["Ties", "Plans", "Education", "People", "Locations", "Calendar", "Analytics", "Poser"], "BUTTON", "/analytics", true, true,
-      "Education", "Education · NotoNawa"]);
+      "Education", "Education · nōtonawa"]);
   check("all of the nav fits on one row at this width", await run(navFits), [true, true, true]);
   for (const width of [375, 320]) {
     await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: true });

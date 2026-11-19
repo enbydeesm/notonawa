@@ -27,10 +27,10 @@ export const TIE_BATCH = 200;
  */
 export function readExport(data) {
   const doc = /** @type {Record<string, any>} */ (data && typeof data === "object" ? data : {});
-  if (doc.format !== EXPORT_FORMAT) throw new Error("This isn't a NotoNawa export.");
+  if (doc.format !== EXPORT_FORMAT) throw new Error("This isn't a nōtonawa export.");
   if (doc.version !== EXPORT_VERSION) {
     throw new Error(doc.version > EXPORT_VERSION
-      ? "This export is from a newer version of NotoNawa. Reload the page and try again."
+      ? "This export is from a newer version of nōtonawa. Reload the page and try again."
       : "This export's version isn't supported.");
   }
   /** @param {unknown} v */

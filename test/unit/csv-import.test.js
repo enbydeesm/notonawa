@@ -199,11 +199,11 @@ describe("import steps", () => {
     expect(exportRoleNames(null)).toBeNull();
   });
 
-  it("reads only NotoNawa exports of a version it knows", () => {
+  it("reads only nōtonawa exports of a version it knows", () => {
     expect(readExport({ format: "notonawa-export", version: 1, ties: [{ title: "x" }] }))
       .toEqual({ people: [], locations: [], plans: [], tags: [], ties: [{ title: "x" }], workshops: [] });
-    expect(() => readExport({ hello: 1 })).toThrow("isn't a NotoNawa export");
-    expect(() => readExport(null)).toThrow("isn't a NotoNawa export");
+    expect(() => readExport({ hello: 1 })).toThrow("isn't a nōtonawa export");
+    expect(() => readExport(null)).toThrow("isn't a nōtonawa export");
     expect(() => readExport({ format: "notonawa-export", version: 2 })).toThrow("newer version");
   });
 

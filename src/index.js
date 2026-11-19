@@ -1,4 +1,4 @@
-// NotoNawa - Worker script
+// nōtonawa - Worker script
 // Sits between your pages (in /public) and the database (env.DB).
 // Anything under /api/ is handled here; everything else is served from /public.
 

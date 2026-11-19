@@ -27,7 +27,7 @@ export default async function () {
   const manifest = await (await fetch(BASE + "/manifest.webmanifest")).json();
   // Plain icons, and maskable ones (drawn to fill Android's shapes) in the same sizes.
   check("the manifest names the app and its icons", [manifest.name, manifest.icons.map((i) => `${i.sizes}${i.purpose ? ` ${i.purpose}` : ""}`)],
-    ["NotoNawa", ["192x192", "512x512", "192x192 maskable", "512x512 maskable"]]);
+    ["nōtonawa", ["192x192", "512x512", "192x192 maskable", "512x512 maskable"]]);
   const page = await (await fetch(BASE + "/")).text();
   const linked = [...page.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="([^"]+)"/g)].map((m) => m[1]);
   check("the page links a tab icon and a home-screen icon", linked.length, 2);
@@ -44,7 +44,7 @@ export default async function () {
   await go("/");
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered, the logo's pencil in the accent and its name in dark mode's light text", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 .logo")];`),
-    ["/signin", "choose", "none", "center", [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
+    ["/signin", "choose", "none", "center", [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];
@@ -100,7 +100,7 @@ export default async function () {
     return [open, tc.classList.contains("centered"), tc.querySelector("h2").textContent, [...tc.querySelectorAll("p")].map((p) => p.innerText),
       Math.round(mark.height), style.maskImage.includes("/img/logo-mark-v4.svg"), style.backgroundColor,
       document.activeElement?.textContent, $(".tour-later .tour-skip").textContent, $(".tour-ring").hasAttribute("hidden"), await seen()];`),
-    [true, true, "Welcome to NōtoNawa", ["Your end-to-end encrypted planner and journal for your rope practice.", "Let's take a quick tour.",
+    [true, true, "Welcome to nōtonawa", ["Your end-to-end encrypted planner and journal for your rope practice.", "Let's take a quick tour.",
       "You can replay it any time from\nMenu > Tutorial."], 44, true, "rgb(254, 199, 98)", "Start the tour", "Skip tour", true, false]);
   check("Start goes to the first stop: a ring round Ties, its card under the nav with a pointer up to it, and Back, Next and Skip tour", await run(`
     ${tour}
@@ -140,7 +140,7 @@ export default async function () {
     await press(".tour-back"); headings.push(tourCard().querySelector("h2").textContent);
     for (let i = 0; i < 11; i++) { await press(".tour-buttons .tour-back"); headings.push(tourCard().querySelector("h2").textContent); }
     return headings;`),
-    ["Account Recovery", "Menu", "Add a tie", "Model Poser", "Analytics", "Calendar", "Locations", "People", "Education", "Plans", "Ties", "Welcome to NōtoNawa"]);
+    ["Account Recovery", "Menu", "Add a tie", "Model Poser", "Analytics", "Calendar", "Locations", "People", "Education", "Plans", "Ties", "Welcome to nōtonawa"]);
   check("Done at the end closes it and remembers it on the account", await run(`
     ${tour}
     await press("#tour-start");
@@ -193,12 +193,12 @@ export default async function () {
     $("nav a[aria-current=page]")?.getAttribute("aria-label") ?? null, document.activeElement === $("#view h1")];`;
   check("a tab changes the view without loading a new page, with its title, tab and focus", await run(`
     window.marker = 1; $("nav a[href='/plans']").click(); await calm(800); ${viewState}`),
-    ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true]);
+    ["/plans", "Plans · nōtonawa", "Plans", true, "Plans", true]);
   check("Back and Forward change the view, still without a page load", await run(`
     history.back(); await calm(800); const back = (() => { ${viewState} })();
     history.forward(); await calm(800); return [back, (() => { ${viewState} })()];`), [
-    ["/", "NotoNawa", "NotoNawa", true, "Ties", true],
-    ["/plans", "Plans · NotoNawa", "Plans", true, "Plans", true],
+    ["/", "nōtonawa", "nōtonawa", true, "Ties", true],
+    ["/plans", "Plans · nōtonawa", "Plans", true, "Plans", true],
   ]);
   check("Back to the Ties list brings back its sort order", await run(`
     $("nav a[href='/']").click(); await calm(800); $("#sort").click(); await settle();
@@ -214,7 +214,7 @@ export default async function () {
   await go("/people");
   check("an address loaded directly (a bookmark or refresh) shows its view", await run(`
     return [document.title, $("#view h1").textContent, $("nav a[aria-current=page]")?.getAttribute("aria-label"), $("nav").hidden];`),
-    ["People · NotoNawa", "People", "People", false]);
+    ["People · nōtonawa", "People", "People", false]);
   await go("/nope");
   // "Not found" doesn't need the key, so after loading it the journal is
   // locked, and the ties ask to unlock first.
@@ -222,7 +222,7 @@ export default async function () {
     const shown = [document.title, $("#view h1").textContent, $("nav a[aria-current=page]") === null];
     window.marker = 1; $("#view a[href='/']").click(); await calm(800);
     return [...shown, location.pathname, document.title, $("#unlock-choose")?.hidden === false, window.marker === 1];`),
-    ["Page not found · NotoNawa", "Page not found", true, "/", "Unlock · NotoNawa", true, true]);
+    ["Page not found · nōtonawa", "Page not found", true, "/", "Unlock · nōtonawa", true, true]);
 
   console.log("Offering to install the app");
   // Chrome hands over its install window by itself, as the manifest makes
@@ -239,7 +239,7 @@ export default async function () {
   await go("/");
   check("Chrome can install the app, so the journal offers it", await run(`
     for (let i = 0; i < 100 && $("#install-offer").hidden; i++) await wait(100); ${offerShown}`),
-    [true, "Install NōtoNawa as an app: it opens in a window of its own, with an icon on your home screen or dock.", ["Install", "Not now"]]);
+    [true, "Install nōtonawa as an app: it opens in a window of its own, with an icon on your home screen or dock.", ["Install", "Not now"]]);
   check("Install opens the browser's install window, once", await run(`
     ${offerInstall} $("#install-offer .install-now").click(); await wait(100);
     return [window.prompted, $("#install-offer").hidden];`), [1, true]);

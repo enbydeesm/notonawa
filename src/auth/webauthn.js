@@ -8,7 +8,7 @@ import {
 } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
 
-const RP_NAME = "NotoNawa";
+const RP_NAME = "nōtonawa";
 
 /**
  * Options for navigator.credentials.create(). userId becomes the passkey's

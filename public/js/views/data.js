@@ -482,7 +482,7 @@ export function mount(_root, { signal }) {
     if (looksLikeZip(new Uint8Array(buffer))) {
       const files = await readZip(buffer);
       const name = journalEntry(files.keys());
-      if (!name) throw new Error("This zip file isn't a NotoNawa export.");
+      if (!name) throw new Error("This zip file isn't a nōtonawa export.");
       const data = parseJson(new TextDecoder().decode(files.get(name)));
       fileRoleNames = exportRoleNames(data);
       fileDefaultShape = exportDefaultShape(data);
@@ -516,7 +516,7 @@ export function mount(_root, { signal }) {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error("Choose a NotoNawa export (.json or .zip) or a CSV file.");
+      throw new Error("Choose a nōtonawa export (.json or .zip) or a CSV file.");
     }
   }
 

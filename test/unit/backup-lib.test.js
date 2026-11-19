@@ -42,7 +42,7 @@ describe("encrypted backups", () => {
     const header = file.slice();
     header[10] ^= 1; // in the salt: authenticated, so it's caught
     await expect(decryptBackup(header, "correct horse battery")).rejects.toThrow();
-    await expect(decryptBackup(text("-- plain SQL dump, long enough to pass the size check......"), "x")).rejects.toThrow("isn't a NotoNawa backup");
+    await expect(decryptBackup(text("-- plain SQL dump, long enough to pass the size check......"), "x")).rejects.toThrow("isn't a nōtonawa backup");
   });
 });
 

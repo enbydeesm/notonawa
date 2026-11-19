@@ -55,7 +55,7 @@ export default async function () {
   check("importing the export into the same journal has nothing to add", (await chooseFile(exported[0] ?? "x.json", "application/json", exportText)).slice(1),
     [null, "Everything in this file is already in your journal."]);
   check("a file that isn't an export is refused", (await chooseFile("notes.json", "application/json", '{"hello":1}'))[2],
-    "This isn't a NotoNawa export.");
+    "This isn't a nōtonawa export.");
 
   // With photos (and a video), the export is a zip that imports back.
   const photoTie = await run(`

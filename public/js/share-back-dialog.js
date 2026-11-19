@@ -28,7 +28,7 @@ export function chooseShareBack(me, { name, accepting }, send = async () => {}) 
     const message = h("p", { className: "message", id: "share-back-status" });
     const submit = h("button", { type: "submit", className: "primary", id: "share-back-share" }, accepting ? "Share and connect" : "Share");
     const form = h("form", { onsubmit: share },
-      h("p", { className: "hint" }, "It goes to them through your connection, sealed: NotoNawa's server can't read it. "
+      h("p", { className: "hint" }, "It goes to them through your connection, sealed: nōtonawa's server can't read it. "
         + "When you change your profile later, they get the same fields again."),
       ...choose.nameRow,
       choose.fields,

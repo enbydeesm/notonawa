@@ -39,7 +39,7 @@ describe("wantsBanner", () => {
 
 describe("words", () => {
   it("says what was asked for", () => {
-    expect(BANNER_TEXT).toBe("NōtoNawa can now send you push notifications when a connection sends you something or announcements are made. "
+    expect(BANNER_TEXT).toBe("nōtonawa can now send you push notifications when a connection sends you something or announcements are made. "
       + "Would you like to allow notifications?");
     expect(installFirstText()).toBe("On iPhone and iPad, notifications need the app installed. To install it: tap the Share button "
       + "(in some browsers it's under ⋯), then Add to Home Screen. Then open it from your home screen and allow notifications there.");

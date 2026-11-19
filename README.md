@@ -1,10 +1,10 @@
-# NōtoNawa
+# nōtonawa
 
 code repo for custom app for rope planning and journalling
 
 ## How the app is structured
 
-NōtoNawa is a private rope journal. It runs on Cloudflare: a Worker serves
+nōtonawa is a private rope journal. It runs on Cloudflare: a Worker serves
 the API and the static files, D1 (SQLite) holds the data, and R2 holds
 photos and backups. There's no framework and no build step. Both the server
 and the browser are plain JavaScript ES modules, type-checked from JSDoc

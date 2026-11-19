@@ -22,7 +22,7 @@ export function pushSettings() {
   function draw(status) {
     const hint = (/** @type {string} */ text) => h("p", { className: "hint", id: "settings-push-hint" }, text);
     const device = { platform: platformOf(navigator.userAgent, navigator.maxTouchPoints), installed: isInstalled(), userAgent: navigator.userAgent };
-    if (status.state === "unsupported") return body.replaceChildren(hint("This browser can't show notifications from NōtoNawa."));
+    if (status.state === "unsupported") return body.replaceChildren(hint("This browser can't show notifications from nōtonawa."));
     if (status.state === "install-first") return body.replaceChildren(hint(installFirstText()));
     if (status.state === "blocked") return body.replaceChildren(hint(blockedText(device)));
     if (status.state === "off") {
@@ -45,7 +45,7 @@ export function pushSettings() {
     };
     body.replaceChildren(
       toggle("connections", "Connections"),
-      toggle("announcements", "Announcements from NōtoNawa"),
+      toggle("announcements", "Announcements from nōtonawa"),
       h("button", { type: "button", id: "settings-push-off", onclick: off }, "Turn off on this device"));
 
     /**

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NotoNawa</title>
+  <title>nōtonawa</title>
   <link rel="stylesheet" href="/app.css">
   <link rel="icon" type="image/png" href="/img/favicon-v4.png">
   <link rel="apple-touch-icon" href="/img/apple-touch-icon-v4.png">
@@ -24,7 +24,7 @@
   <template id="view-ties">
     <!-- Hidden: the tab says where you are. Kept for screen readers, and
          as where focus goes on changing view (app.js). -->
-    <h1 class="visually-hidden">NotoNawa</h1>
+    <h1 class="visually-hidden">nōtonawa</h1>
 
     <!-- Opens the tie form in its dialog (tie-form.js), as the nav's + does. -->
     <section class="card add-card plus-first">
@@ -586,7 +586,7 @@
 
     <section class="card">
       <h2>Import</h2>
-      <p class="hint">Add to your journal from a NotoNawa export, or from a spreadsheet of ties saved as CSV
+      <p class="hint">Add to your journal from a nōtonawa export, or from a spreadsheet of ties saved as CSV
         (<a href="/import-template.csv" download>download a template</a>). People, locations and plans are matched to
         yours by name, and new ones are added. Ties already in your journal are skipped. You'll see what will happen
         before anything is saved.</p>
@@ -608,7 +608,7 @@
     <!-- My connections to other accounts: shared-by-me.js. -->
     <section class="card">
       <h2>Connections</h2>
-      <p class="hint" id="connections-hint">Accounts connected to yours. Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you.</p>
+      <p class="hint" id="connections-hint">Accounts connected to yours. Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you.</p>
       <div id="connections"><p class="empty">Loading…</p></div>
       <p class="message" id="connections-message"></p>
     </section>
@@ -633,11 +633,11 @@
 
   <!-- Sign in (/signin) -->
   <template id="view-signin">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card" id="choose" hidden>
       <h2>Sign in</h2>
-      <p class="hint">NotoNawa uses passkeys: your phone or computer unlocks it with Face ID, a fingerprint or your PIN. There's no password.</p>
+      <p class="hint">nōtonawa uses passkeys: your phone or computer unlocks it with Face ID, a fingerprint or your PIN. There's no password.</p>
       <button type="button" class="primary" id="sign-in">Sign in with a passkey</button>
       <p class="message" id="sign-in-message"></p>
       <button type="button" class="link" id="link-start">Sign in with another device</button><br>
@@ -677,7 +677,7 @@
 
     <section class="card" id="link-wait" hidden>
       <h2>Sign in with another device</h2>
-      <p class="hint">On a phone or computer that's signed in to NotoNawa, scan this code with its camera, or open the link there. Then pick this number there:</p>
+      <p class="hint">On a phone or computer that's signed in to nōtonawa, scan this code with its camera, or open the link there. Then pick this number there:</p>
       <p class="link-number" id="link-number"></p>
       <div id="link-code"></div>
       <label for="link-address">Link</label>
@@ -715,7 +715,7 @@
 
   <!-- In place of any view that needs the key, while the journal is locked -->
   <template id="view-unlock">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card" id="unlock-choose" hidden>
       <h2>Your journal is locked</h2>
@@ -739,7 +739,7 @@
 
     <section class="card" id="unlock-setup" hidden>
       <h2>Set up encryption</h2>
-      <p class="hint">NotoNawa now encrypts your private notes on your device, so only you can read them. Your
+      <p class="hint">nōtonawa now encrypts your private notes on your device, so only you can read them. Your
         journal needs its encryption key first. You'll get a new recovery code, which unlocks it and replaces your
         old one: save it somewhere safe.</p>
       <button type="button" class="primary" id="unlock-setup-go">Set up encryption</button>
@@ -767,11 +767,11 @@
   <!-- Shown in place of the journal until I agree to a changed privacy
        policy (views/consent.js). -->
   <template id="view-consent">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card">
       <h2>Our privacy policy has changed</h2>
-      <p id="consent-summary">Please read the updated policy, and agree to it to keep using NotoNawa.</p>
+      <p id="consent-summary">Please read the updated policy, and agree to it to keep using nōtonawa.</p>
       <p><a href="/privacy.html" target="_blank" rel="noopener">Read the privacy policy</a> (opens in a new tab)</p>
       <label class="inline"><input type="checkbox" id="consent-agree"> I've read and agree to the updated privacy policy</label>
       <button type="button" class="primary" id="consent-go" disabled>Agree and continue</button>
@@ -791,14 +791,14 @@
   </template>
 
   <template id="view-convert">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="NotoNawa"></span></h1>
+    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card">
       <h2>Updating your journal's encryption</h2>
-      <p>To improve your privacy, NōtoNawa now encrypts all your journal data. Now each tie, plan, person, etc is
+      <p>To improve your privacy, nōtonawa now encrypts all your journal data. Now each tie, plan, person, etc is
          sealed individually, so even what used to be readable to our server (titles, dates, tags) is now only readable on your devices.</p>
       <p>This happens once, on this device, and takes a minute or so (longer with many photos and videos). Your journal is just as it was afterwards.
-         Going forward, NōtoNawa will keep an encrypted copy cached on your device to maintain searchability and enable offline use.</p>
+         Going forward, nōtonawa will keep an encrypted copy cached on your device to maintain searchability and enable offline use.</p>
       <p>Keep this page open until it's done.</p>
       <p class="hint" id="convert-started" hidden>It was started before, here or on another device. If it isn't still
         going there, carry on here: nothing is done twice, and nothing is lost.</p>

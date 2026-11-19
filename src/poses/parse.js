@@ -189,12 +189,12 @@ export function parsePose(value) {
   const bad = (/** @type {string} */ why) => new BadInput(`Couldn't save the pose: ${why}`);
   const doc = /** @type {Record<string, any>} */ (value);
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) throw bad("it was missing.");
-  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of NotoNawa. Reload the page and try again.");
+  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
 
   const sent = doc.joints;
   if (!sent || typeof sent !== "object" || Array.isArray(sent)) throw bad("it has no joints.");
   for (const name of Object.keys(sent)) {
-    if (!Object.hasOwn(JOINTS, name)) throw bad("it has a joint NotoNawa doesn't know.");
+    if (!Object.hasOwn(JOINTS, name)) throw bad("it has a joint nōtonawa doesn't know.");
   }
   /** @type {Record<string, number[]>} */
   const joints = {};

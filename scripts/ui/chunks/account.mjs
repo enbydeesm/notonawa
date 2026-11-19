@@ -50,7 +50,7 @@ export default async function () {
   await run(`$("#sign-out").click();`);
   await sleep(1500);
   check("sign out goes to the sign-in page, without the nav, and the journal stays locked", await run(`
-    return [location.pathname, $("nav").hidden, document.title, (await fetch("/api/tags")).status];`), ["/signin", true, "Sign in · NotoNawa", 401]);
+    return [location.pathname, $("nav").hidden, document.title, (await fetch("/api/tags")).status];`), ["/signin", true, "Sign in · nōtonawa", 401]);
 
   console.log("Signing in");
   await go("/signin");
@@ -139,8 +139,8 @@ export default async function () {
     $("#consent-go").click(); await calm(1500);
     const after = [document.title, $("#tie-count") !== null, (await (await fetch("/api/consent")).json()).needed];
     return [first, save, data, back, enabled, after];`),
-    [["Privacy policy update · NotoNawa", true, true, true], "refused", "Your data · NotoNawa", "Privacy policy update · NotoNawa", true,
-      ["NotoNawa", true, false]]);
+    [["Privacy policy update · nōtonawa", true, true, true], "refused", "Your data · nōtonawa", "Privacy policy update · nōtonawa", true,
+      ["nōtonawa", true, false]]);
 
   console.log("Deleting the account");
   await go("/account");

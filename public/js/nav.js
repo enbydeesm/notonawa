@@ -153,8 +153,8 @@ function openMenu() {
     h(
       "div",
       { className: "menu-inner" },
-      // The app's logo, app.css's mask in the text color. Search for "NotoNawa" when it's renamed.
-      h("h2", { className: "menu-title" }, h("span", { className: "logo", role: "img", "aria-label": "NotoNawa" })),
+      // The app's logo, app.css's mask in the text color. Search for "nōtonawa" when it's renamed.
+      h("h2", { className: "menu-title" }, h("span", { className: "logo", role: "img", "aria-label": "nōtonawa" })),
       h("button", {
         type: "button", className: "menu-item menu-settings", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openSettings(); },

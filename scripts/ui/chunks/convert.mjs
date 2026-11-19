@@ -118,9 +118,9 @@ export default async function () {
   await go("/plans");
   check("then, unlocked, the journal waits for the update: it says it was started, and offers to carry on here", await run(`
     return [document.title, !$("#convert-started").hidden, $("#convert-go").textContent, $("nav").hidden];`),
-  ["Updating your journal · NotoNawa", true, "Continue on this device", true]);
+  ["Updating your journal · nōtonawa", true, "Continue on this device", true]);
   await go("/data");
-  check("…but Your data still opens, to export first", await run(`return document.title;`), "Your data · NotoNawa");
+  check("…but Your data still opens, to export first", await run(`return document.title;`), "Your data · nōtonawa");
 
   check("stopped again half-way through its entries, and again just before the finish: nothing old touched", [
     await run(RUN_TO("half-records")), await run(RUN_TO("finish")), await status(),
@@ -134,7 +134,7 @@ export default async function () {
     await calm(1000);
     const k = await (await fetch("/api/keys")).json();
     return [k.format, k.converting, document.title, titles().includes("Floor session")];`),
-  [2, false, "NotoNawa", true]);
+  [2, false, "nōtonawa", true]);
 
   const after = await run(SNAPSHOT);
   check("the converted journal exports exactly as before: every item, link, caption and visual's place", comparable(after.doc),

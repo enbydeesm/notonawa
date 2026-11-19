@@ -240,7 +240,7 @@ export function mount(root) {
         h("h1", {}, "Account deleted"),
         h("section", { className: "card" },
           h("p", {}, "Your account and everything in your journal have been deleted."),
-          h("p", { className: "hint" }, "Your device may still list a passkey for NotoNawa. You can remove it in your " +
+          h("p", { className: "hint" }, "Your device may still list a passkey for nōtonawa. You can remove it in your " +
             "device's or password manager's settings."),
           h("a", { href: "/signin" }, "Back to the sign-in page")));
     } catch (err) {

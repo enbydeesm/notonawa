@@ -36,11 +36,11 @@ describe("parseSubscription", () => {
 
 describe("messages", () => {
   it("says only what the server can know of a connection's message", () => {
-    expect(connectionMessage()).toEqual({ title: "NōtoNawa", body: "You have something new from a connection. Open NōtoNawa to see it.",
+    expect(connectionMessage()).toEqual({ title: "nōtonawa", body: "You have something new from a connection. Open nōtonawa to see it.",
       tag: "connections", url: "/" });
   });
   it("sends a notice's words, a long one cut short", () => {
-    expect(noticeMessage({ id: "n1", message: "Back up" })).toEqual({ title: "NōtoNawa", body: "Back up", tag: "notice-n1", url: "/" });
+    expect(noticeMessage({ id: "n1", message: "Back up" })).toEqual({ title: "nōtonawa", body: "Back up", tag: "notice-n1", url: "/" });
     const long = noticeMessage({ id: "n1", message: "word ".repeat(100) }).body;
     expect(long.length).toBeLessThanOrEqual(300);
     expect(long.endsWith("…")).toBe(true);

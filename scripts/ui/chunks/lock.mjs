@@ -23,8 +23,8 @@ export default async function () {
   await send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
   check("loading a page locks the journal: Unlock shows instead, at the same address, without the nav, not even while it loads", await run(`
     return [location.pathname, ...(() => { ${shown} })(), window.navShownWhileLoading];`),
-    ["/plans", "Unlock · NotoNawa", "NotoNawa", true, "unlock-choose", false, false]);
-  check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
+    ["/plans", "Unlock · nōtonawa", "nōtonawa", true, "unlock-choose", false, false]);
+  check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
   check("Unlock says who to email for help, on its own centred line", await run(HELP_LINE),
     ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
@@ -34,7 +34,7 @@ export default async function () {
     const login = JSON.parse(sent.find(([url]) => url.endsWith("/api/auth/login/verify"))[1]);
     return [location.pathname, document.title, $("#view h1").textContent, login.prf, JSON.stringify(login.response.clientExtensionResults),
       sent.some(([, body]) => body.includes("results"))];`),
-    ["/plans", "Plans · NotoNawa", "Plans", true, JSON.stringify({ prf: {} }), false]);
+    ["/plans", "Plans · nōtonawa", "Plans", true, JSON.stringify({ prf: {} }), false]);
   await go("/", { unlock: false });
   check("the recovery code unlocks too; a wrong one says so", await run(`
     [...document.querySelectorAll("[data-unlock-show=code]")][0].click(); await wait(100);

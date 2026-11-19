@@ -70,7 +70,7 @@ const pageFor = (markdown) => `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Privacy policy · NotoNawa</title>
+  <title>Privacy policy · nōtonawa</title>
   <link rel="stylesheet" href="/app.css">
   <link rel="icon" type="image/png" href="/img/favicon-v4.png">
   <link rel="apple-touch-icon" href="/img/apple-touch-icon-v4.png">

@@ -7,11 +7,11 @@ const AT = "2026-10-20T18:02:11Z";
 describe("feedbackEmail", () => {
   it("says a bug report for a bug, and feedback for an idea", () => {
     expect(feedbackEmail({ kind: "bug", app_version: "2026.10.20.001" }, AT)).toEqual({
-      subject: "NotoNawa: new bug report",
+      subject: "nōtonawa: new bug report",
       text: "A bug report was sent from version 2026.10.20.001 at 2026-10-20T18:02:11Z.\n\nRead it with: node scripts/feedback.mjs --remote\n",
     });
     expect(feedbackEmail({ kind: "idea", app_version: "2026.10.20.001" }, AT)).toEqual({
-      subject: "NotoNawa: new feedback",
+      subject: "nōtonawa: new feedback",
       text: "Feedback was sent from version 2026.10.20.001 at 2026-10-20T18:02:11Z.\n\nRead it with: node scripts/feedback.mjs --remote\n",
     });
   });

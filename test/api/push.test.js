@@ -142,8 +142,8 @@ describe("sending", () => {
     const push = /** @type {(typeof service.sent)[number]} */ (service.sent.find((s) => s.url === phone.subscription.endpoint));
     expect(push.headers).toMatchObject({ "content-encoding": "aes128gcm", topic: "connections", ttl: "86400" });
     expect(push.headers.authorization).toMatch(new RegExp(`^vapid t=[^,]+, k=${env.VAPID_PUBLIC_KEY}$`));
-    expect(await phone.open(push.body)).toEqual({ title: "NōtoNawa",
-      body: "You have something new from a connection. Open NōtoNawa to see it.", tag: "connections", url: "/" });
+    expect(await phone.open(push.body)).toEqual({ title: "nōtonawa",
+      body: "You have something new from a connection. Open nōtonawa to see it.", tag: "connections", url: "/" });
   });
 
   it("deletes a device the push service says is gone, and keeps one that failed for now", async () => {
@@ -199,7 +199,7 @@ describe("sending", () => {
       const service = pushService();
       await pushNotices(env, service.fetcher);
       expect(service.sent.map((s) => s.url)).toEqual([aPhone.subscription.endpoint]);
-      expect(await aPhone.open(service.sent[0].body)).toEqual({ title: "NōtoNawa", body: "Back up and running", tag: `notice-${forA}`, url: "/" });
+      expect(await aPhone.open(service.sent[0].body)).toEqual({ title: "nōtonawa", body: "Back up and running", tag: `notice-${forA}`, url: "/" });
       expect(await sql("SELECT pushed_at IS NOT NULL AS done FROM notices WHERE id = ?", forA).first()).toEqual({ done: 1 });
       // Not again; one not showing yet waits.
       await pushNotices(env, service.fetcher);

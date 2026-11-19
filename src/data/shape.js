@@ -211,7 +211,7 @@ function drawingEntry(d) {
 /**
  * A pose as the export lists it: its figure and ropes as they're stored.
  * (No picture of it in the zip: drawing one takes the 3D view, which the
- * export doesn't load. Opening the export in NotoNawa brings them back.)
+ * export doesn't load. Opening the export in nōtonawa brings them back.)
  * @param {Row} d
  */
 function poseEntry(d) {

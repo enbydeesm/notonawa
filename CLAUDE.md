@@ -1,4 +1,4 @@
-# NotoNawa: instructions for Claude
+# nōtonawa: instructions for Claude
 
 A private rope journal: plan ties, log what happened, and keep notes on the
 people and places involved. Design ideas we've weighed live in

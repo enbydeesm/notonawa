@@ -36,7 +36,7 @@ describe("the inviter's banner", () => {
 
 describe("the disclosures", () => {
   it("say the server keeps no record of the connection, and accepting says it can be removed", () => {
-    expect(CONNECT_DISCLOSURE).toBe("Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected.");
+    expect(CONNECT_DISCLOSURE).toBe("Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected.");
     expect(ACCEPT_DISCLOSURE.startsWith(CONNECT_DISCLOSURE)).toBe(true);
     expect(ACCEPT_DISCLOSURE).toMatch(/remove it at any time/);
   });

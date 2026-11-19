@@ -86,7 +86,7 @@ export function openTour() {
         card.className = "tour-card centered tour-welcome";
         card.replaceChildren(
           h("span", { className: "tour-mark", "aria-hidden": "true" }),
-          h("h2", { id: "tour-heading" }, "Welcome to NōtoNawa"),
+          h("h2", { id: "tour-heading" }, "Welcome to nōtonawa"),
           h("p", {}, "Your end-to-end encrypted planner and journal for your rope practice."),
           h("p", {}, "Let's take a quick tour."),
           next,
@@ -104,7 +104,7 @@ export function openTour() {
           next,
           h("button", { type: "button", className: "link tour-back", onclick: () => go(FINISH - 1) }, "Back"),
           h("p", { className: "hint tour-coffee" },
-            "NōtoNawa is a solo ", h("s", {}, "obsession"), " project; if you'd like to help us cover hosting, feel free to ",
+            "nōtonawa is a solo ", h("s", {}, "obsession"), " project; if you'd like to help us cover hosting, feel free to ",
             h("a", { href: COFFEE_URL, target: "_blank", rel: "noopener noreferrer" }, "buy us a coffee.")));
       } else {
         const { stop, count, last } = at;

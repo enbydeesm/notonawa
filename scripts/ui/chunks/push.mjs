@@ -35,7 +35,7 @@ export default async function () {
   await run(`sessionStorage.setItem("ui-push-banner", "1"); localStorage.removeItem("push-asked"); localStorage.setItem("install-dismissed", "1");`);
   await go("/");
   check("after unlocking, a one-time banner offers notifications", await run(BANNER), [false,
-    "NōtoNawa can now send you push notifications when a connection sends you something or announcements are made. "
+    "nōtonawa can now send you push notifications when a connection sends you something or announcements are made. "
     + "Would you like to allow notifications?", ["Allow", "Not now"]]);
   check("…Not now hides it, and it doesn't come back", await run(`
     $(".push-later").click(); await calm(200); const now = $("#push-offer").hidden;
@@ -49,7 +49,7 @@ export default async function () {
   check("Allow, refused in the browser's question, says where to allow them again", await run(`
     ${FAKE("denied")}
     $(".push-allow").click(); await calm(400);
-    ${BANNER}`), [false, "Notifications are blocked for NōtoNawa on this device. To allow them, open the site's settings "
+    ${BANNER}`), [false, "Notifications are blocked for nōtonawa on this device. To allow them, open the site's settings "
     + "(the icon beside the address, or the app's info), set Notifications to Allow, and turn them on again here.", ["OK"]]);
 
   // Allow, and allowed.
@@ -58,7 +58,7 @@ export default async function () {
   const on = await run(`
     ${FAKE("granted")}
     $(".push-allow").click();
-    for (let i = 0; i < 50 && $("#push-offer-text")?.textContent.startsWith("NōtoNawa can now"); i++) await wait(100);
+    for (let i = 0; i < 50 && $("#push-offer-text")?.textContent.startsWith("nōtonawa can now"); i++) await wait(100);
     await calm(300);
     const registration = await navigator.serviceWorker.getRegistration("/");
     return [${BANNER_NOW}, registration?.active?.scriptURL.endsWith("/sw.js") ?? false, window.__fakeEndpoint];`);

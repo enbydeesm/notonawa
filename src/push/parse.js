@@ -66,7 +66,7 @@ export const KINDS = /** @type {const} */ (["connections", "announcements"]);
  * @returns {PushMessage}
  */
 export function connectionMessage() {
-  return { title: "NōtoNawa", body: "You have something new from a connection. Open NōtoNawa to see it.", tag: "connections", url: "/" };
+  return { title: "nōtonawa", body: "You have something new from a connection. Open nōtonawa to see it.", tag: "connections", url: "/" };
 }
 
 const NOTICE_BODY = 300; // characters: longer notices are cut, the rest in the app
@@ -78,5 +78,5 @@ const NOTICE_BODY = 300; // characters: longer notices are cut, the rest in the 
  */
 export function noticeMessage({ id, message }) {
   const body = message.length > NOTICE_BODY ? `${message.slice(0, NOTICE_BODY - 1).trimEnd()}…` : message;
-  return { title: "NōtoNawa", body, tag: `notice-${id}`, url: "/" };
+  return { title: "nōtonawa", body, tag: `notice-${id}`, url: "/" };
 }

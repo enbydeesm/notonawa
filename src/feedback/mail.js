@@ -22,7 +22,7 @@ const WORDS = {
 export function feedbackEmail({ kind, app_version }, sentAt) {
   const words = WORDS[kind] ?? WORDS.idea;
   return {
-    subject: `NotoNawa: ${words.subject}`,
+    subject: `nōtonawa: ${words.subject}`,
     text: `${words.noun} was sent from version ${app_version} at ${sentAt}.\n\n` +
       "Read it with: node scripts/feedback.mjs --remote\n",
   };

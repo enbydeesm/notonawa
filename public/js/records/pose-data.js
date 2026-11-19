@@ -15,11 +15,11 @@ export function poseData(value) {
   const bad = (/** @type {string} */ why) => new BadEdit(`Couldn't save the pose: ${why}`);
   if (!value || typeof value !== "object" || Array.isArray(value)) throw bad("it was missing.");
   const doc = /** @type {Record<string, any>} */ (value);
-  if (doc.v !== 1) throw bad("it's from a newer version of NotoNawa. Reload the page and try again.");
+  if (doc.v !== 1) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
   const sent = doc.joints;
   if (!sent || typeof sent !== "object" || Array.isArray(sent)) throw bad("it has no joints.");
   const known = new Set(JOINTS.map((j) => j.name));
-  if (Object.keys(sent).some((name) => !known.has(name))) throw bad("it has a joint NotoNawa doesn't know.");
+  if (Object.keys(sent).some((name) => !known.has(name))) throw bad("it has a joint nōtonawa doesn't know.");
   /** @type {Record<string, number[]>} */
   const joints = {};
   for (const joint of JOINTS) {

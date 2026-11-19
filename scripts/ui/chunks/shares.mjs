@@ -74,7 +74,7 @@ export default async function () {
       getComputedStyle(box.closest("label").querySelector("strong")).fontWeight >= 600];
     set("#share-profile-connect", true);
     const note = $("#share-profile-connect-note");
-    const after = [note.hidden, note.textContent === "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected."];
+    const after = [note.hidden, note.textContent === "Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected."];
     set("#share-profile-expires", "never"); set("#share-profile-uses", "any");
     const warned = $("#share-profile-warning").textContent.includes("connect to your account");
     $("#share-profile-cancel").click(); await calm(200); $("[data-cancel-edit]").click(); await calm(200);
@@ -98,7 +98,7 @@ export default async function () {
     ["?", true, [false, "The suggested name for your pr"], true],
     ["?", true, [false, "Provides context for you in Yo"], true],
   ],
-  "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected."]);
+  "Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected."]);
   const [once, onceShown] = await run(MAKE_INVITE({ "#share-profile-label": "First" }));
   check("making an invite shows its QR code and link, with the key after #", [onceShown, /^\/open#[\w-]{22}\.[\w-]{43}$/.test(once)],
     [[true, true, []], true]);
@@ -135,7 +135,7 @@ export default async function () {
     return [uses, $("#connections .empty")?.textContent, $("#connections-hint").textContent];`),
   [[["Munch", "not opened yet · connects accounts"], ["Class", "not opened yet"], ["First", "not opened yet"]],
     "No connections. You can offer one when you share your profile, from your own card in People.",
-    "Accounts connected to yours. Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you."]);
+    "Accounts connected to yours. Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected. Removing one ends it for both of you."]);
 
   // Someone else opens them.
   await freshAccount();

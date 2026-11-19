@@ -62,7 +62,7 @@ export function parseDrawing(value) {
   const bad = (/** @type {string} */ why) => new BadInput(`Couldn't save the drawing: ${why}`);
   const doc = /** @type {Record<string, any>} */ (value);
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) throw bad("it was missing.");
-  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of NotoNawa. Reload the page and try again.");
+  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
   if (!Array.isArray(doc.strokes)) throw bad("it has no lines.");
   if (doc.strokes.length === 0) throw bad("draw something first.");
   if (doc.strokes.length > MAX_STROKES) throw bad(`it has more than ${MAX_STROKES.toLocaleString()} lines.`);

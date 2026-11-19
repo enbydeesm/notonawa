@@ -92,10 +92,10 @@ export const RELEASES = [
   {
     "version": "2026.10.28.001",
     "intro": [
-      "Share with other people who use NōtoNawa!"
+      "Share with other people who use nōtonawa!"
     ],
     "notes": [
-      "Everything you share is encrypted on your device first, and the key is only in the link, so NotoNawa can't read it.",
+      "Everything you share is encrypted on your device first, and the key is only in the link, so nōtonawa can't read it.",
       "The 'Your data' menu has \"Shared by me\": every share invite that hasn't ended, when it ends and how many times it's been opened, with Show code and Revoke. Revoking deletes it at once, photos too.",
       "Every share has a QR code and a Copy link button. Scan the code with a phone's camera to open it.",
       {
@@ -110,7 +110,7 @@ export const RELEASES = [
         "text": "Connecting accounts:",
         "sub": [
           "Tick it on a profile invite to link your account with whoever accepts it. They have to consent on their side too. When someone accepts your invite, a banner lets you add them to a Person or make a new Person. A linked profile shows a link icon.",
-          "Connecting lets NotoNawa's server see that the two accounts know each other, but never what's in either journal. It opens the way for later features with that person, like sending things inside the app and live plan sharing and messaging.",
+          "Connecting lets nōtonawa's server see that the two accounts know each other, but never what's in either journal. It opens the way for later features with that person, like sending things inside the app and live plan sharing and messaging.",
           "Remove a connection at any time from Your data > Connections. It's also removed if either of you deletes your account, and gives you the option to delete your shared 'About me' from their journals."
         ]
       },

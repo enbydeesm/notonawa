@@ -1111,7 +1111,7 @@ archived as it's added. Weighed: a default stored in account settings. A
 flag on the location keeps it with the location's export, import and
 deletion.
 
-The page titles (NotoNawa, Plans, People, Locations) are kept for screen
+The page titles (nōtonawa, Plans, People, Locations) are kept for screen
 readers but hidden (`visually-hidden`), taking no space.
 
 ## Notices, agreeing to policy changes, and daily backups
@@ -2405,7 +2405,7 @@ below).
 ### Connecting accounts
 
 - **Optional**, unticked, on profile invites only, as **Connect our
-  accounts**. Ticking it shows: "Connecting your accounts lets NotoNawa's
+  accounts**. Ticking it shows: "Connecting your accounts lets nōtonawa's
   server see that the two accounts know each other. It still can't read
   anything in either journal. You can remove the connection at any time
   from Shared by me, and it's deleted if either of you deletes your
@@ -3896,7 +3896,7 @@ Slice 3: verifying.
   banner, which then opens it as a link would; Not now hides it until the
   journal locks. If it can't be sent, the share is revoked.
 - **One set of words for both formats.** The disclosure says "Profile
-  connections are private. NōtoNawa's server keeps no record that the two
+  connections are private. nōtonawa's server keeps no record that the two
   accounts are connected." ("keeps no record", not "can't see": it sees
   an invite opened and a message arriving soon after, and stores
   neither). That's format 2's truth; format 1 accounts convert before

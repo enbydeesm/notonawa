@@ -12,7 +12,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
-- Install app is in the menu now, so you can still install NōtoNawa after choosing Not now on the banner.
+- Install app is in the menu now, so you can still install nōtonawa after choosing Not now on the banner.
 - Sign in on a new phone or computer without your recovery code: choose "Sign in with another device" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.
 
 ## 2026.11.16.0758
@@ -73,8 +73,8 @@ A new rope icon and lots more model poser updates!
 - When saving a body preset, you can save the arms as a preset too (and the other way round).
 
 ## 2026.10.28.001
-Share with other people who use NōtoNawa! 
-- Everything you share is encrypted on your device first, and the key is only in the link, so NotoNawa can't read it.
+Share with other people who use nōtonawa! 
+- Everything you share is encrypted on your device first, and the key is only in the link, so nōtonawa can't read it.
 - The 'Your data' menu has "Shared by me": every share invite that hasn't ended, when it ends and how many times it's been opened, with Show code and Revoke. Revoking deletes it at once, photos too.
 - Every share has a QR code and a Copy link button. Scan the code with a phone's camera to open it.
 
@@ -84,7 +84,7 @@ Share with other people who use NōtoNawa!
   - Opening a profile share prompts to add them as a new person, or add it to someone already in your People. For an existing person you choose, field by field, whether to keep your data or take theirs. Your private notes about them stay as they are.
 - Connecting accounts: 
   - Tick it on a profile invite to link your account with whoever accepts it. They have to consent on their side too. When someone accepts your invite, a banner lets you add them to a Person or make a new Person. A linked profile shows a link icon. 
-  - Connecting lets NotoNawa's server see that the two accounts know each other, but never what's in either journal. It opens the way for later features with that person, like sending things inside the app and live plan sharing and messaging.
+  - Connecting lets nōtonawa's server see that the two accounts know each other, but never what's in either journal. It opens the way for later features with that person, like sending things inside the app and live plan sharing and messaging.
   - Remove a connection at any time from Your data > Connections. It's also removed if either of you deletes your account, and gives you the option to delete your shared 'About me' from their journals.
 
 - Sharing ties, plans, and workshops:

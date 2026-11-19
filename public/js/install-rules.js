@@ -15,13 +15,13 @@ export const INSTALLED_MODES = ["standalone", "minimal-ui", "fullscreen", "windo
 
 /** @typedef {"ios" | "mac-safari" | "android-firefox" | "other"} Platform */
 
-export const PROMPT_TEXT = "Install NōtoNawa as an app: it opens in a window of its own, with an icon on your home screen or dock.";
+export const PROMPT_TEXT = "Install nōtonawa as an app: it opens in a window of its own, with an icon on your home screen or dock.";
 
 /** Where to find installing, in browsers that can't be asked to show it. @type {Record<Platform, string | null>} */
 export const STEPS = {
-  ios: "Install NōtoNawa as an app: tap the Share button (in some browsers it's under ⋯), then Add to Home Screen.",
-  "mac-safari": "Install NōtoNawa as an app: in Safari, choose File, then Add to Dock.",
-  "android-firefox": "Install NōtoNawa as an app: open Firefox's ⋮ menu, then choose Install or Add to Home screen.",
+  ios: "Install nōtonawa as an app: tap the Share button (in some browsers it's under ⋯), then Add to Home Screen.",
+  "mac-safari": "Install nōtonawa as an app: in Safari, choose File, then Add to Dock.",
+  "android-firefox": "Install nōtonawa as an app: open Firefox's ⋮ menu, then choose Install or Add to Home screen.",
   other: null,
 };
 

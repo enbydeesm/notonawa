@@ -18,7 +18,7 @@ sw.addEventListener("push", (/** @type {any} */ event) => {
   } catch {
     // Not ours: still shown, as browsers require of every push.
   }
-  const title = typeof message.title === "string" ? message.title : "NōtoNawa";
+  const title = typeof message.title === "string" ? message.title : "nōtonawa";
   event.waitUntil(sw.registration.showNotification(title, {
     body: typeof message.body === "string" ? message.body : "",
     tag: typeof message.tag === "string" ? message.tag : undefined,

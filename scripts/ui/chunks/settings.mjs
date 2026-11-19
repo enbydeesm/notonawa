@@ -39,7 +39,7 @@ export default async function () {
     // Install app is there only when this Chrome offers installing (checked below).
     return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item:not(.menu-install)")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["NotoNawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
+    ["nōtonawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
       true, "/account", "/privacy"]);
   check("Tutorial, Bug and feedback, What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
@@ -76,7 +76,7 @@ export default async function () {
     $("dialog.tour[open] .tour-skip").click(); await calm(300);
     const closed = $("dialog[open]") === null;
     await openMenu();
-    return [parts, opened, closed];`), [[3, 1], [true, true, "Welcome to NōtoNawa"], true]);
+    return [parts, opened, closed];`), [[3, 1], [true, true, "Welcome to nōtonawa"], true]);
   check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
     const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
     return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);
@@ -87,7 +87,7 @@ export default async function () {
       [...$("#feedback-kind").options].map((o) => o.text), $("#feedback-kind").value, $("#feedback-kind").required, $("#feedback-message").maxLength,
       $("#feedback-mailto").getAttribute("href"), dialogButtons(), leakyFields()];`),
     [true, "Bug and feedback", true, ["", "Bug", "Idea"], "", true, 2000,
-      "mailto:contact@notonawa.app?subject=" + encodeURIComponent(`NotoNawa feedback (version ${APP_VERSION})`), ["Submit", "Cancel"], []]);
+      "mailto:contact@notonawa.app?subject=" + encodeURIComponent(`nōtonawa feedback (version ${APP_VERSION})`), ["Submit", "Cancel"], []]);
   check("it can't be sent without choosing bug or idea", await run(`
     $("#feedback-message").value = "x"; $("#feedback-submit").click(); await calm(300);
     return [$("#feedback-kind").validity.valueMissing, $("#feedback-status").textContent];`), [true, ""]);
@@ -121,7 +121,7 @@ export default async function () {
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
   check("the logo is at the top of the menu", await run(`
-    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"], true]);
+    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"], true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);
@@ -154,7 +154,7 @@ export default async function () {
   check("in light mode the menu's logo is all in light mode's dark text", await run(`
     await openMenu(); const shown = logo(".menu-title .logo");
     $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(34, 34, 34)", "rgb(34, 34, 34)"]]);
+    [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(34, 34, 34)", "rgb(34, 34, 34)"]]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
@@ -192,5 +192,5 @@ export default async function () {
   check("…with the logo's pencil in the accent and its name in light text in the menu", await run(`
     await openMenu(); const shown = logo(".menu-title .logo");
     $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
+    [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
 }

@@ -60,14 +60,14 @@ export function showShareCode({ id, key, title, note }) {
     const shareSheet = typeof navigator.share === "function"
       ? h("button", {
         type: "button", id: "share-code-send",
-        onclick: () => navigator.share({ title: "NotoNawa", url: link }).catch(() => {}),
+        onclick: () => navigator.share({ title: "nōtonawa", url: link }).catch(() => {}),
       }, "Share…")
       : null;
 
     // Ids start with "share-code-": this opens over a view or another dialog.
     const dialog = h("dialog", { className: "form-dialog share-code", "aria-labelledby": "share-code-heading" },
       h("h2", { id: "share-code-heading" }, title),
-      h("p", { className: "hint" }, "They scan this with their phone's camera, or open the link, while signed in to NotoNawa."),
+      h("p", { className: "hint" }, "They scan this with their phone's camera, or open the link, while signed in to nōtonawa."),
       qrCode(link, "QR code for the link"),
       note ? h("p", { className: "warning-note", id: "share-code-note" }, note) : null,
       h("label", { htmlFor: "share-code-link" }, "Link"),

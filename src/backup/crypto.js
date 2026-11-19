@@ -59,7 +59,7 @@ export async function sealBackup(plaintext, publicKey) {
  */
 export async function openBackup(file, privateKey) {
   file = new Uint8Array(file);
-  if (file.length < MAGIC.length + 2 || !MAGIC.every((b, i) => file[i] === b)) throw new Error("This isn't a NotoNawa daily backup.");
+  if (file.length < MAGIC.length + 2 || !MAGIC.every((b, i) => file[i] === b)) throw new Error("This isn't a nōtonawa daily backup.");
   const lockedLength = new DataView(file.buffer).getUint16(MAGIC.length);
   const headerLength = MAGIC.length + 2 + lockedLength + 12;
   if (file.length < headerLength + 16) throw new Error("Couldn't open it: the file is damaged.");

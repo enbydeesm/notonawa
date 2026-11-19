@@ -8,7 +8,7 @@ import { STEPS } from "./install-rules.js";
 /** localStorage: "1" once the banner has been answered on this device. */
 export const ASKED_KEY = "push-asked";
 
-export const BANNER_TEXT = "NōtoNawa can now send you push notifications when a connection sends you something or "
+export const BANNER_TEXT = "nōtonawa can now send you push notifications when a connection sends you something or "
   + "announcements are made. Would you like to allow notifications?";
 
 /**
@@ -52,7 +52,7 @@ export function wantsBanner({ state, asked, installOfferShown }) {
  * @returns {string}
  */
 export function installFirstText() {
-  return `On iPhone and iPad, notifications need the app installed. ${(STEPS.ios ?? "").replace(/^Install NōtoNawa as an app: /, "To install it: ")} `
+  return `On iPhone and iPad, notifications need the app installed. ${(STEPS.ios ?? "").replace(/^Install nōtonawa as an app: /, "To install it: ")} `
     + "Then open it from your home screen and allow notifications there.";
 }
 
@@ -62,9 +62,9 @@ export function installFirstText() {
  * @param {{ platform: import("./install-rules.js").Platform, installed: boolean, userAgent: string }} device
  */
 export function blockedText({ platform, installed, userAgent }) {
-  const start = "Notifications are blocked for NōtoNawa on this device. ";
-  if (platform === "ios" && installed) return `${start}To allow them, open the Settings app, then Notifications, then NōtoNawa, and turn on Allow Notifications.`;
-  if (platform === "mac-safari") return `${start}To allow them, open Safari's Settings, then Websites, then Notifications, and set NōtoNawa to Allow.`;
+  const start = "Notifications are blocked for nōtonawa on this device. ";
+  if (platform === "ios" && installed) return `${start}To allow them, open the Settings app, then Notifications, then nōtonawa, and turn on Allow Notifications.`;
+  if (platform === "mac-safari") return `${start}To allow them, open Safari's Settings, then Websites, then Notifications, and set nōtonawa to Allow.`;
   if (/Firefox\//.test(userAgent)) return `${start}To allow them, tap the icon beside the address, then clear the blocked Notifications permission, and turn them on again here.`;
   return `${start}To allow them, open the site's settings (the icon beside the address, or the app's info), set Notifications to Allow, and turn them on again here.`;
 }

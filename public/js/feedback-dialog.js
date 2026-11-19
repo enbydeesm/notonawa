@@ -31,7 +31,7 @@ export function openFeedback() {
     const message = h("p", { className: "message", id: "feedback-status" });
     const submit = h("button", { type: "submit", className: "primary", id: "feedback-submit" }, "Submit");
     // Only the version goes in the subject: never anything typed.
-    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`NotoNawa feedback (version ${APP_VERSION})`)}`;
+    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`nōtonawa feedback (version ${APP_VERSION})`)}`;
 
     const form = h("form", { onsubmit: send },
       h("p", { className: "warning-note", id: "feedback-warning" },

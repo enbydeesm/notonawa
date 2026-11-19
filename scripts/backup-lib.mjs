@@ -64,7 +64,7 @@ export async function decryptBackup(file, passphrase) {
   // .buffer directly would start somewhere else entirely.
   file = new Uint8Array(file);
   if (file.length < HEADER + 16 || !MAGIC.every((b, i) => file[i] === b)) {
-    throw new Error("This isn't a NotoNawa backup.");
+    throw new Error("This isn't a nōtonawa backup.");
   }
   const header = file.slice(0, HEADER);
   const iterations = new DataView(header.buffer).getUint32(MAGIC.length);
@@ -117,7 +117,7 @@ export function expiredBackups(names, now, days = RETENTION_DAYS) {
  * @param {{ format: string, schema: { type: string, name: string, sql: string }[], tables: Record<string, Record<string, unknown>[]> }} doc
  */
 export function backupToSql(doc) {
-  if (doc.format !== "notonawa-backup") throw new Error("This isn't a NotoNawa backup.");
+  if (doc.format !== "notonawa-backup") throw new Error("This isn't a nōtonawa backup.");
   /** @param {string} name */
   const quoteName = (name) => `"${name.replace(/"/g, '""')}"`;
   /** @param {unknown} value */

@@ -1,10 +1,10 @@
-# NōtoNawa Privacy Policy
+# nōtonawa Privacy Policy
 
-**Last updated:** November 17, 2026
+**Last updated:** November 18, 2026
 
 ## The short version
 
-- NōtoNawa is a private journal for rope practice. **Everything you put in
+- nōtonawa is a private journal for rope practice. **Everything you put in
   your journal is encrypted on your device before it leaves it**: your ties,
   plans, workshops, people, locations, tags, notes, photos, videos, drawings
   and poses. We can't read any of it, and neither can anyone who gets hold of
@@ -24,7 +24,7 @@
 
 ## Who we are
 
-NōtoNawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
+nōtonawa is run by Juice aka Mx_Piggie ("we", "us") in Seattle, WA, USA.
 Contact us about privacy, give feedback, or tell us how frickin cool we are at contact@notonawa.app.
 
 ## What we store
@@ -81,13 +81,13 @@ keep no request logs.
 
 ## Usage statistics
 
-To understand how NōtoNawa is used and which features matter, we count a few
+To understand how nōtonawa is used and which features matter, we count a few
 things from what we already store: how many accounts there are, how many have
 been used recently (from when their passkeys and sessions were last used),
 how many entries of each kind accounts have (for example ties, plans or
 poses), and how much storage they use. We look at these as totals and spreads
 across accounts, not at what any one person is doing, and we never combine
-them with information from outside NōtoNawa. We can't see what's in any
+them with information from outside nōtonawa. We can't see what's in any
 entry, only its kind and size.
 
 ## How encryption works
@@ -175,13 +175,13 @@ be careful which extensions you allow.
 
 Your journal may hold information about the people you tie with. Please only
 record what they would be comfortable with, and remove it if they ask. If they
-also use NōtoNawa, they can't see your entries, and we don't tell them you've
+also use nōtonawa, they can't see your entries, and we don't tell them you've
 written about them. When you share a tie, plan or workshop, share only what
 the people on it would be comfortable with.
 
 ## Where your data is stored
 
-NōtoNawa runs on Cloudflare (Workers, D1 database and R2 storage), our only
+nōtonawa runs on Cloudflare (Workers, D1 database and R2 storage), our only
 service provider with access to stored data. We ask Cloudflare to store photos
 and videos in North America [and the database in enam]; its network may
 handle data in other countries. Everything is also encrypted at rest by
@@ -203,7 +203,7 @@ your device.
 ## Cookies and browser storage
 
 We use one cookie, to keep you signed in. It can't be read by scripts, is sent
-only to NōtoNawa over secure connections, and expires after 30 days (7 without
+only to nōtonawa over secure connections, and expires after 30 days (7 without
 use). Your browser also keeps the app's own code, the sealed copy of your
 journal (see [On your device](#on-your-device)), and the word "light" or
 "dark" so pages show the right colors before you sign in. It also notes
@@ -261,7 +261,7 @@ out from data we already hold for running your account.
 
 ## Our own access
 
-The only person who can access NōtoNawa's systems is Mx_Piggie, using an
+The only person who can access nōtonawa's systems is Mx_Piggie, using an
 account protected by a hardware security key. We don't browse accounts, and we
 can't read your journal under any circumstances.
 

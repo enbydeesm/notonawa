@@ -11,7 +11,7 @@
  * stores links the two (format 2's contacts are in each journal, sealed).
  */
 export const CONNECT_DISCLOSURE =
-  "Profile connections are private. NōtoNawa's server keeps no record that the two accounts are connected.";
+  "Profile connections are private. nōtonawa's server keeps no record that the two accounts are connected.";
 
 /** Shown to whoever opens an invite that offers to connect. */
 export const ACCEPT_DISCLOSURE =
