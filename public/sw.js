@@ -22,8 +22,8 @@ sw.addEventListener("push", (/** @type {any} */ event) => {
   event.waitUntil(sw.registration.showNotification(title, {
     body: typeof message.body === "string" ? message.body : "",
     tag: typeof message.tag === "string" ? message.tag : undefined,
-    icon: "/img/icon-192-v3.png",
-    badge: "/img/icon-192-v3.png",
+    icon: "/img/icon-192-v4.png",
+    badge: "/img/icon-192-v4.png",
     data: { url: typeof message.url === "string" && message.url.startsWith("/") ? message.url : "/" },
   }));
 });

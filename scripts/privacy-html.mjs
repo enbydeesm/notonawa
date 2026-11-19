@@ -72,8 +72,8 @@ const pageFor = (markdown) => `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy policy · NotoNawa</title>
   <link rel="stylesheet" href="/app.css">
-  <link rel="icon" type="image/png" href="/img/favicon-v3.png">
-  <link rel="apple-touch-icon" href="/img/apple-touch-icon-v3.png">
+  <link rel="icon" type="image/png" href="/img/favicon-v4.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon-v4.png">
   <script src="/js/theme-init.js"></script>
 </head>
 <body>

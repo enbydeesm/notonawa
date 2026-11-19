@@ -96,8 +96,8 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (the pages' CSP lives there); keep the shared headers the same in both.
   Pages stay `no-store`; `/js/*` and `app.css` are `no-cache` and
   `/img/*` is cached a week, so **a changed image needs a new file name**.
-  The logo is `/img/logo-mark-v3.svg` (the pencil) and `logo-word-v3.svg` (the
-  name), cut from `logo-v3.svg` on the same canvas, black drawings used as
+  The logo is `/img/logo-mark-v4.svg` (the pencil) and `logo-word-v4.svg` (the
+  name), cut from `logo-v4.svg` on the same canvas, black drawings used as
   masks over colors (`.logo`'s `::before` and `::after` in `app.css`):
   `--text` in light mode, the pencil `--accent` in dark.
 - `src/http.js`: `json`, `notFound`, `readJson`, `BadInput`.

@@ -30,7 +30,7 @@ export default async function () {
     return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
     [["nav-add", "nav-icon nav-menu"], 3, true]);
   check("once unlocked, the logo and the other views' code load ahead, before the menu or a view is opened", await run(`
-    const ready = () => ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"].every((f) => fetched(f) || loadedImage(f)) && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
+    const ready = () => ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"].every((f) => fetched(f) || loadedImage(f)) && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
       .every((v) => fetched("/js/views/" + v + ".js"));
     for (let i = 0; i < 50 && !ready(); i++) await wait(100);
     return [ready(), fetched("/js/views/open.js"), $("dialog.menu-panel") === null];`), [true, false, true]);
@@ -121,7 +121,7 @@ export default async function () {
     const r = $("dialog.menu-panel").getBoundingClientRect();
     return [Math.round(r.right) === innerWidth, Math.round(r.top), Math.round(r.height) === innerHeight, r.left > 0];`), [true, 0, true, true]);
   check("the logo is at the top of the menu", await run(`
-    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"], true]);
+    return [...logo(".menu-title .logo"), $(".menu-inner").firstElementChild === $(".menu-title")];`), [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"], true]);
   await key("keyDown"); await key("keyUp");
   check("Esc closes the menu", await run(menuGone), true);
   await run(`await openMenu();`);
@@ -154,7 +154,7 @@ export default async function () {
   check("in light mode the menu's logo is all in light mode's dark text", await run(`
     await openMenu(); const shown = logo(".menu-title .logo");
     $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"], ["rgb(34, 34, 34)", "rgb(34, 34, 34)"]]);
+    [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(34, 34, 34)", "rgb(34, 34, 34)"]]);
   await run(`localStorage.removeItem("theme");`);
   await go("/plans");
   check("another device (nothing kept in the browser) gets the account's mode once unlocked", await run(themeState),
@@ -192,5 +192,5 @@ export default async function () {
   check("…with the logo's pencil in the accent and its name in light text in the menu", await run(`
     await openMenu(); const shown = logo(".menu-title .logo");
     $("dialog.menu-panel").close(); await calm(300); return shown;`),
-    [true, "NotoNawa", ["/img/logo-mark-v3.svg", "/img/logo-word-v3.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
+    [true, "NotoNawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
 }
