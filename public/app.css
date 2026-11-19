@@ -55,6 +55,10 @@ body {
 }
 main { max-width: 640px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 1.6rem; margin: 8px 0 16px; }
+/* A view's heading is focused from code (app.js, so screen readers announce
+   the new view); it isn't a control, so no focus ring round it (or round the
+   logo, the heading on Ties, Sign in and Unlock). */
+h1[tabindex="-1"]:focus { outline: none; }
 h2 { font-size: 1.1rem; margin: 0 0 12px; }
 a { color: var(--accent-ink); }
 

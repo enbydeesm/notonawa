@@ -45,6 +45,12 @@ export default async function () {
   check("signed out, the journal goes to the sign-in page, without the nav, its title centered, the logo's pencil in the accent and its name in dark mode's light text", await run(`
     return [location.pathname, visibleCard(), getComputedStyle($("nav")).display, getComputedStyle($("#view h1")).textAlign, logo("#view h1 .logo")];`),
     ["/signin", "choose", "none", "center", [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]]);
+  // Redirected to sign-in, the app focuses its heading for screen readers;
+  // Chrome and Safari would draw their focus ring round the logo in it.
+  check("the sign-in heading, the logo, has focus but no focus ring round it", await run(`
+    const h = $("#view h1");
+    return [document.activeElement === h, h.querySelector(".logo") !== null, getComputedStyle(h).outlineStyle];`),
+    [true, true, "none"]);
   check("pulling down doesn't reload the page, nor does a dialog's scrolling pull the page under it", await run(`
     const dialog = document.createElement("dialog"); document.body.append(dialog);
     const styles = [getComputedStyle(document.documentElement).overscrollBehaviorY, getComputedStyle(dialog).overscrollBehaviorY];
