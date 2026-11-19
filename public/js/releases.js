@@ -15,7 +15,7 @@ export const RELEASES = [
       "Now with more encryption flavor!"
     ],
     "notes": [
-      "Everything in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses, not just notes and photos. The privacy policy has been updated to reflect this.",
+      "EVERYTHING in your journal is now encrypted on your device: ties, plans, workshops, people, locations, tags, drawings and poses--not just notes and photos. The privacy policy has been updated to reflect this.",
       "Connected accounts now talk privately: our server keeps no record of who is connected to whom.",
       "Send a tie, plan or workshop straight to a connection, and share your profile back when you accept an invite.",
       "Cinch any rope, not just uplines: tap a rope, then Cinch, and tie it to another rope or the body. With Move the body ticked, shortening it brings those parts of the body together.",
