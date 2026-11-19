@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.11.16.0758";
+export const APP_VERSION = "2026.11.19.1829";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,15 @@ export const APP_VERSION = "2026.11.16.0758";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.11.19.1829",
+    "notes": [
+      "Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.",
+      "Install app is in the menu now, so you can still install nōtonawa after dismissing the banner. You should reinstall the app to show the new improved logo!",
+      "Sign in on a new phone or computer without your recovery code: choose \"Sign in with another device\" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.",
+      "The logo and app icons have been updated."
+    ]
+  },
   {
     "version": "2026.11.16.0758",
     "intro": [

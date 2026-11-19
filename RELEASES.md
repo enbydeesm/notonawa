@@ -10,7 +10,7 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
+## 2026.11.19.1829
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
 - Install app is in the menu now, so you can still install nōtonawa after dismissing the banner. You should reinstall the app to show the new improved logo! 
 - Sign in on a new phone or computer without your recovery code: choose "Sign in with another device" there, scan the code it shows with a device you're signed in on, pick the number it shows, and confirm with your passkey. Then add a passkey on the new device.
