@@ -25,7 +25,8 @@ describe("poseData", () => {
   });
 
   it("refuses what isn't a pose", () => {
-    expect(() => poseData({ v: 2, joints: {} })).toThrow(/newer version/);
+    expect(() => poseData({ v: 3, joints: {} })).toThrow(/newer version/);
+    expect(poseData({ v: 2, joints: {} }).v).toBe(2);
     expect(() => poseData({ v: 1 })).toThrow(/no joints/);
     expect(() => poseData({ v: 1, joints: { tail: [1] } })).toThrow(/doesn't know/);
     expect(() => poseData({ v: 1, joints: { l_shoulder: [1, 2, 3, 4, 5] } })).toThrow(/right format/);

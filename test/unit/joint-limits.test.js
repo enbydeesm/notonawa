@@ -47,19 +47,26 @@ describe("limits that depend on several movements", () => {
     expect(canReach("r_hip", [60, -35, 0])).toBe(true);
   });
 
-  it("twists a lower leg only once the knee bends, and with the hip no more than 70° all told", () => {
+  it("twists a lower leg only once the knee bends, and with the hip no more than 110° all told", () => {
     expect(canReach("l_knee", [0, 20])).toBe(false);
     expect(canReach("l_knee", [90, 40])).toBe(true);
     expect(canReach("l_knee", [45, 30])).toBe(false);
-    expect(canReach("l_knee", [90, 40], { l_hip: [0, 0, 40] })).toBe(false);
-    expect(canReach("l_knee", [90, 30], { l_hip: [0, 0, 40] })).toBe(true);
-    expect(canReach("l_hip", [0, 0, 40], { l_knee: [90, 40] })).toBe(false);
+    expect(canReach("l_knee", [90, 40], { l_hip: [0, 0, 80] })).toBe(false);
+    expect(canReach("l_knee", [90, 30], { l_hip: [0, 0, 80] })).toBe(true);
+    expect(canReach("l_hip", [0, 0, 80], { l_knee: [90, 40] })).toBe(false);
     // A knee straightened loses its twist; a hip twisted with it is kept to the rest.
     const pose = setJoint(setJoint(newPose(), "l_knee", 0, 90), "l_knee", 1, 30);
     expect(setJoint(pose, "l_knee", 0, 0).joints.l_knee).toEqual([0, 0]);
-    expect(setJoint(pose, "l_hip", 2, 60).joints.l_hip[2]).toBe(40);
+    expect(setJoint(pose, "l_hip", 2, 90).joints.l_hip[2]).toBe(80);
     // Each side looks at its own hip.
-    expect(canReach("r_knee", [90, 40], { l_hip: [0, 0, 50] })).toBe(true);
+    expect(canReach("r_knee", [90, 40], { l_hip: [0, 0, 90] })).toBe(true);
+  });
+
+  it("twists a hip out further than in", () => {
+    expect(canReach("l_hip", [90, 0, 90])).toBe(true);
+    expect(canReach("l_hip", [90, 0, -50])).toBe(true);
+    expect(clampJoint("l_hip", [90, 0, -70])).toEqual([90, 0, -50]);
+    expect(clampJoint("r_hip", [90, 0, 120])).toEqual([90, 0, 90]);
   });
 
   it("twists a forearm from palm back to palm forward", () => {
@@ -105,14 +112,14 @@ describe("limits that depend on several movements", () => {
   });
 
   it("brings an older pose's or preset's joints within each movement's range, leaving the rest as they were", () => {
-    const older = { joints: { l_shoulder: [180, 0, 90], l_hip: [0, 0, 70], l_knee: [30] }, lift: 99 };
+    const older = { joints: { l_shoulder: [180, 0, 90], l_hip: [0, 0, -70], l_knee: [30] }, lift: 99 };
     const fixed = jointsInRange(older);
     // An older knee (one number, from before it twisted) gets its twist, at
     // rest; a twist past what a body can reach with the arm up is kept.
-    expect(fixed.joints).toEqual({ l_shoulder: [180, 0, 90], l_hip: [0, 0, 50], l_knee: [30, 0] });
+    expect(fixed.joints).toEqual({ l_shoulder: [180, 0, 90], l_hip: [0, 0, -50], l_knee: [30, 0] });
     expect(fixed.lift).toBe(99);
     const fine = { joints: { l_knee: [30, 0] } };
     expect(jointsInRange(fine).joints).toEqual(fine.joints);
-    expect(clampJoint("l_hip", [0, 0, 70])).toEqual([0, 0, 50]);
+    expect(clampJoint("l_hip", [0, 0, -70])).toEqual([0, 0, -50]);
   });
 });

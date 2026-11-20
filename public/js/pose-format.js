@@ -53,6 +53,7 @@
 import { COLORS, PICK_COLORS } from "./drawing-format.js";
 import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, startJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
 import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./figure-body.js";
+import { FORWARD_FIRST, withNewerHips } from "./hip-order.js";
 
 /** @typedef {import("./drawing-format.js").Color} Color */
 /** @typedef {import("./drawing-format.js").Width} Width */
@@ -66,7 +67,7 @@ import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./fig
 /** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
 /**
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
+ *   v: 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
  *   shape: import("./figure-body.js").Shape,
  *   camera: Camera, ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[], marks?: import("./pose-marks.js").Marks,
@@ -75,7 +76,9 @@ import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./fig
  */
 
 export { COLORS, PICK_COLORS };
-export const FORMAT_VERSION = 1;
+// Format 2's hips turn Forward first; a format 1 pose's are turned to match
+// when it's read (hip-order.js).
+export const FORMAT_VERSION = FORWARD_FIRST;
 export const RING = "ring";
 export const BAMBOO = "bamboo";
 export const HASHIRA = "hashira";
@@ -194,11 +197,14 @@ export function ropesOntoBody(ropes) {
  * A pose as saved, made whole: every joint listed and within its ranges
  * (older or partial poses, e.g. from an import, open like this). One saved
  * before the body had a shape gets the in-between one, its ropes moved
- * onto it.
- * @param {Partial<Pose>} saved
+ * onto it. A format 1 pose's hips are turned to match how they turn
+ * now (hip-order.js), the leg where it was.
+ * @param {Partial<Pose> | Record<string, any>} older
  * @returns {Pose}
  */
-export function readPose(saved) {
+export function readPose(older) {
+  /** @type {Partial<Pose>} */
+  const saved = /** @type {any} */ (older).v === 1 ? withNewerHips(older) : older;
   const fresh = newPose();
   const joints = restJoints();
   for (const j of JOINTS) {

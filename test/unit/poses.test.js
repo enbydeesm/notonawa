@@ -41,6 +41,15 @@ describe("the page and the server", () => {
     const { name: _a, ...arms } = armsPresetFrom(posed, "x");
     expect(presets.parsePresetData("body", body)).toEqual(body);
     expect(presets.parsePresetData("arms", arms)).toEqual(arms);
+    // A body preset's hips turn Forward first (v 2); one without v is older, turned by the page.
+    expect(presets.parsePresetData("body", { ...body, v: 2 })).toEqual({ ...body, v: 2 });
+    expect(() => presets.parsePresetData("body", { ...body, v: 3 })).toThrow(/newer version/);
+  });
+
+  it("keep a format 1 pose as it was sent (the page turns its hips when it opens it)", () => {
+    const older = { ...page.newPose(), v: 1 };
+    expect(server.parsePose(older).v).toBe(1);
+    expect(server.parsePose(page.newPose()).v).toBe(2);
   });
 
   it("agree on the joints, their order and their limits", () => {
@@ -144,7 +153,7 @@ describe("parsePose", () => {
   it("refuses anything else, saying why", () => {
     const bad = (/** @type {unknown} */ value, /** @type {RegExp} */ why) => expect(() => server.parsePose(value)).toThrow(why);
     bad(null, /missing/);
-    bad({ ...ok, v: 2 }, /newer version/);
+    bad({ ...ok, v: 3 }, /newer version/);
     bad({ ...ok, joints: null }, /no joints/);
     bad({ ...ok, joints: { tail: [1] } }, /doesn't know/);
     bad({ ...ok, joints: { l_knee: [-11] } }, /further than a body can/);

@@ -2130,6 +2130,49 @@ too far: horrific poses, and a leg pulled the whole body round.
 - **Considered, not now**: a "Flexible body" checkbox to turn the wider
   ranges back on.
 
+## Poser: hips turn Forward first (November 2026)
+
+**Status:** built (2026-11-19)
+
+Sitting with the knees and feet together couldn't be posed: the hip
+turned Out, then Forward (`ZXY`), so with the thigh forward Out spun the
+leg about its own length, swinging the shin and foot instead of moving the
+knee (and reversing past 90°). Trying 37 everyday and rope poses against
+the rig's own code (thigh and shin directions, slider values searched
+within every limit) also found butterfly, cross-legged, figure-four, tree
+pose and a straddle with kneecaps up out of reach, each needing a hip
+twist of 90–140° in that order.
+
+- **The hip turns Forward, then Out, then twists (`XZY`).** Out is then
+  always sideways from where the leg points, and the twist is the leg's
+  own, close to how a sitting body's is measured. Standing, nothing
+  changes (with Forward at 0 the two orders are the same).
+- **A hip twists out 90°, in 50°** (it was ±50°), and hip and knee 110°
+  all told (it was 70°): in the new order the poses above need about 65–90°
+  out, which a hip does further than in. A leg goes out its full 100° only
+  from 60° forward (it was 30°), so a standing middle split stays out.
+- **Older poses and presets are turned, not migrated in the database.**
+  Format 2 accounts' poses are sealed, so the server can't change them.
+  Pose format 2 (`v: 2`) is the new order; a format 1 pose's hips are
+  turned exactly (to the degree) when it's opened (`readPose`) or drawn as
+  a picture, and it's saved as format 2 next time. The server and the
+  record checks take both formats and keep `v` as sent. Body presets had
+  no `v`: one saved now has `v: 2`, and one without is turned when the
+  presets are read. The built-in body presets' hips were turned the same
+  way, so each looks as it did. A format 1 hip that lands past a new range
+  (mostly odd combinations, twisted far in) opens within it, a little
+  changed. A page from before that hasn't reloaded shows format 2 poses'
+  hips wrongly; the page reloads itself once the server's on a newer
+  version.
+- **Not the shoulder.** Its order has the same trouble at Forward 90°
+  (Out barely moves an arm pointing straight ahead; an arm across the
+  chest is Out 135°, Forward 132°), but Forward first only moves the dead
+  spot to Out 90°, arms out to the side, which ties use far more. Left for
+  now; a turn made of a direction and a twist about the limb, with no dead
+  spot, would fix both.
+- **Still out of reach**: the back leg of pigeon and of front splits (the
+  hip's −35° behind the body, unchanged), and lotus.
+
 ## Poser: "Add pose to…", from the nav's poser (October 2026)
 
 **Status:** built (2026-10-31)

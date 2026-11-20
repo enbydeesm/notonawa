@@ -5,7 +5,7 @@
 // can be opened and posed again, and its copies changed separately. It's
 // plain JSON, which the server checks:
 //   {
-//     v: 1,
+//     v: 2 (or 1: hips turned Out first, FORMAT_VERSION),
 //     joints: { spine: [bend, side, twist], l_elbow: [bend], … },
 //     body: [pitch, yaw, roll], lift,
 //     shift: [across, front to back],
@@ -53,7 +53,12 @@ import { COLORS, WIDTHS } from "../drawings/parse.js";
 // A caption is sealed in the browser, or empty, as a drawing's is.
 export { parseCaption, COLORS, WIDTHS };
 
-export const FORMAT_VERSION = 1;
+// Format 2's hips turn Forward first (public/js/hip-order.js). Format 1
+// poses are still taken (a page from before, and copies of older poses)
+// and kept as they were: the page turns their hips when it opens them.
+export const FORMAT_VERSION = 2;
+/** The formats a pose can be in. */
+export const FORMAT_VERSIONS = Object.freeze([1, 2]);
 
 /**
  * Each joint's angles, in order, as [min, max] whole degrees.
@@ -70,11 +75,11 @@ export const JOINTS = Object.freeze({
   r_shoulder: [[-80, 180], [-35, 180], [-95, 95]],
   r_elbow: [[-5, 155], [-85, 95]],
   r_wrist: [[-85, 85], [-35, 35]],
-  l_hip: [[-35, 150], [-35, 100], [-50, 50]],
+  l_hip: [[-35, 150], [-35, 100], [-50, 90]],
   l_knee: [[-5, 160], [-40, 40]],
   l_ankle: [[-75, 35]],
   l_toes: [[-35, 85]],
-  r_hip: [[-35, 150], [-35, 100], [-50, 50]],
+  r_hip: [[-35, 150], [-35, 100], [-50, 90]],
   r_knee: [[-5, 160], [-40, 40]],
   r_ankle: [[-75, 35]],
   r_toes: [[-35, 85]],
@@ -145,7 +150,7 @@ export const MAX_BODY_BYTES = 256 * 1024;
  * @typedef {[string, number, number, number]} RopePoint
  * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number }} Rope
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
+ *   v: 1 | 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[],
  * }} Pose
@@ -189,7 +194,7 @@ export function parsePose(value) {
   const bad = (/** @type {string} */ why) => new BadInput(`Couldn't save the pose: ${why}`);
   const doc = /** @type {Record<string, any>} */ (value);
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) throw bad("it was missing.");
-  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
+  if (!FORMAT_VERSIONS.includes(doc.v)) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
 
   const sent = doc.joints;
   if (!sent || typeof sent !== "object" || Array.isArray(sent)) throw bad("it has no joints.");
@@ -280,7 +285,7 @@ export function parsePose(value) {
   /** @param {number[] | null} list */
   const copy = (list) => (list === null ? null : [...list]);
   return {
-    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]],
+    v: doc.v, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]],
     ...(shape === null ? {} : { shape: [...shape] }), camera: [...camera],
     ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };

@@ -73,9 +73,12 @@ function limbs(side) {
       moves: [move("Bend", "x", -1, -5, 155), move("Twist out", "y", out, -85, 95)] },
     { name: `${side}_wrist`, label: `${name} wrist`, parent: `${side}_elbow`, offset: [0, -25, 0], order: "ZXY",
       moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -85, 85), move("Tilt", "x", 1, -35, 35)] },
+    // The hip turns Forward first, then Out, so Out moves the knee sideways
+    // however far forward the leg is (pose format 1's turned Out first,
+    // hip-order.js). It twists out further than in, as a hip does.
     {
-      name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "ZXY",
-      moves: [move("Forward", "x", -1, -35, 150), move("Out", "z", out, -35, 100), move("Twist out", "y", out, -50, 50)],
+      name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "XZY",
+      moves: [move("Forward", "x", -1, -35, 150), move("Out", "z", out, -35, 100), move("Twist out", "y", out, -50, 90)],
     },
     // The lower leg's twist turns the foot out or in: only once the knee
     // bends, and with the hip's no further than a leg can (joint-limits.js).
@@ -314,21 +317,23 @@ export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_
  */
 export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
+  // (The hips' angles were worked out for format 1's hips, which turned Out
+  // first: hip-order.js turned them into these, so each looks as it did.)
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
     name: "Kneeling (seiza)", body: [0, 0, 0], lift: 19,
-    joints: { l_hip: [68, 8, 0], r_hip: [68, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
+    joints: { l_hip: [68, 3, -7], r_hip: [68, 3, -7], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
   },
   { name: "Kneeling up", body: [0, 0, 0], lift: 50, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
-  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, 15, 0], l_knee: [155], l_ankle: [-40] } },
+  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
   {
     name: "Face down", body: [90, 0, 0], lift: 110,
-    joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 5, 0], l_knee: [20], r_knee: [80] },
+    joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 4, -3], l_knee: [20], r_knee: [80] },
   },
   {
     name: "Face up", body: [-90, 0, 0], lift: 110,
-    joints: { head: [30, 0, 0], l_hip: [60, 10, 0], r_hip: [20, 10, 0], l_knee: [90], r_knee: [40] },
+    joints: { head: [30, 0, 0], l_hip: [60, 5, -9], r_hip: [20, 9, -3], l_knee: [90], r_knee: [40] },
   },
   {
     name: "On their side", body: [0, 0, 90], lift: 110,
@@ -337,7 +342,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   {
     name: "Upside down", body: [180, 180, 0], lift: 165,
     // The legs folded: knees bent right up, toes pointed.
-    joints: { l_hip: [19, 5, 0], r_hip: [19, 5, 0], l_knee: [150], r_knee: [150], l_ankle: [-50], r_ankle: [-50] },
+    joints: { l_hip: [19, 5, -2], r_hip: [19, 5, -2], l_knee: [150], r_knee: [150], l_ankle: [-50], r_ankle: [-50] },
   },
 ]));
 
