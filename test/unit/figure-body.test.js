@@ -7,7 +7,9 @@ import {
   readBody, bodyPositions, measurements,
 } from "../../public/js/figure-body.js";
 import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
-import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom } from "../../public/js/figure-rig.js";
+import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom, jointsInRange } from "../../public/js/figure-rig.js";
+import { canReach } from "../../public/js/joint-limits.js";
+import { lowestSkin } from "../../public/js/pose-uplines.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
 import { makeSkeleton, posed, ropePoint, boneParts, vertexParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
@@ -194,6 +196,32 @@ describe("a pose's shape", () => {
       }
     }
     expect(withShape(skeleton, standing, [50, 50, 25, 150]).lift).toBeLessThan(standing.lift - 10);
+  });
+
+  it("rests each body preset on the floor, but those that start in the air, within every joint's range", () => {
+    const skeleton = makeSkeleton();
+    const inTheAir = ["Face down", "Face up", "On their side", "On their side, top leg folded (left)", "On their side, top leg folded (right)", "Upside down"];
+    for (const preset of BODY_PRESETS) {
+      const pose = withBodyPresetOn(skeleton, newPose(), preset);
+      posed(skeleton, pose);
+      const low = lowestSkin(skeleton);
+      if (inTheAir.includes(preset.name)) {
+        expect(low, preset.name).toBeGreaterThan(50);
+      } else {
+        // On the floor: the skin (as capsules) touching it, a little into it at most (seiza's shins most).
+        expect(low, preset.name).toBeGreaterThan(-9);
+        expect(low, preset.name).toBeLessThan(0.5);
+      }
+      const kept = /** @type {Record<string, number[]>} */ (jointsInRange({ joints: preset.joints }).joints);
+      for (const [name, angles] of Object.entries(preset.joints)) expect(kept[name].slice(0, angles.length), `${preset.name} ${name}`).toEqual(angles);
+      const all = { ...restJoints(), ...preset.joints };
+      for (const [name, angles] of Object.entries(preset.joints)) {
+        const full = all[name].map((a, i) => angles[i] ?? a);
+        expect(canReach(name, full, all), `${preset.name} ${name}`).toBe(true);
+      }
+    }
+    // Each new name once.
+    expect(new Set(BODY_PRESETS.map((p) => p.name)).size).toBe(BODY_PRESETS.length);
   });
 
   it("puts a body preset on a shorter or taller body at the height it has on the default body, and knows it's in it", () => {

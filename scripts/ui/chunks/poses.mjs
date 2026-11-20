@@ -13,6 +13,7 @@ import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
 import { readPose, setHardpoint } from "../../../public/js/pose-format.js";
+import { BODY_PRESETS } from "../../../public/js/figure-rig.js";
 
 /**
  * The PNG downloaded into an empty folder: whether its name is as given, and
@@ -150,7 +151,8 @@ export default async function () {
   // Each row's name, and whether it's tinted as the one the figure's in (the divider's words, and false).
   const pickerRows = (dialog) => `[...document.querySelectorAll("${dialog} .preset-list > *")]
     .map((el) => [el.querySelector(".preset-name")?.textContent ?? el.textContent, el.classList.contains("current")])`;
-  const BODY_NAMES = ["Standing", "Kneeling (seiza)", "Kneeling up", "One leg folded (futomomo)", "Face down", "Face up", "On their side", "Upside down"];
+  // The built-in body presets, in their order (figure-rig.js).
+  const BODY_NAMES = BODY_PRESETS.map((p) => p.name);
   check("Arms… opens Arms Presets: Save as preset and ✕ on its heading's row, on the heading (no keyboard), the one the figure's in tinted and Save greyed out; ✕ changes nothing", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
     const d = $("#pose-arms-presets");
@@ -210,7 +212,7 @@ export default async function () {
   [true, ["Save this body as a preset", "pose-preset-name", " Save arms as a preset too?", false, []], "Saved, for any pose.",
     [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, true]]]);
   check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left; saving with the arms too adds an arms preset", await run(`
-    $("#pose-body-presets-b2").click(); await calm(300);
+    $("#pose-body-presets-b${BODY_NAMES.indexOf("Kneeling up")}").click(); await calm(300);
     ${slide("pose-head-0", -10)}
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     $("#pose-body-presets-save").click(); await calm(300);
