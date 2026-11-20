@@ -324,9 +324,10 @@ export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_
 export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
   // Standing on one leg, the other raised out to the side, knee bent.
-  // Standing on one leg, the other raised out to the side, the knee as high as the waist.
-  { name: "Kata ashi (right leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [110, 45, 45], r_knee: [90], r_ankle: [-35] } },
-  { name: "Kata ashi (left leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [110, 45, 45], l_knee: [90], l_ankle: [-35] } },
+  // Standing on one leg, the other raised out to the side, the knee as high
+  // as the waist and the shin hanging in line with the thigh.
+  { name: "Kata ashi (right leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [115, 49, -18], r_knee: [68, 13], r_ankle: [-30] } },
+  { name: "Kata ashi (left leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [115, 49, -18], l_knee: [68, 13], l_ankle: [-30] } },
   // Leaning forward over bent knees, the knees and ankles touching.
   {
     name: "Chair pose", body: [40, 0, 0], lift: 75,
@@ -344,15 +345,16 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   },
   { name: "Kneeling up", body: [0, 0, 0], lift: 50, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
   // Sitting on the floor.
-  // Leaning back a little, the knees up and open, nearly folded (futomomo), the feet on the floor.
+  // Leaning back a little, the legs open and the knees up, each shin in
+  // line with its thigh, the feet planted on the floor.
   {
     name: "Seated, legs open", body: [-10, 0, 0], lift: 26,
-    joints: { head: [10, 0, 0], l_hip: [110, 35, 40], r_hip: [110, 35, 40], l_knee: [125], r_knee: [125], l_ankle: [-15], r_ankle: [-15] },
+    joints: { head: [10, 0, 0], l_hip: [100, 35, -10], r_hip: [100, 35, -10], l_knee: [60, -10], r_knee: [60, -10], l_ankle: [-40], r_ankle: [-40] },
   },
-  // Leaning back a little, knees up, the knees and ankles touching, the feet on the floor.
+  // Leaning back, knees up, the knees and ankles touching, the bottom and feet on the floor.
   {
-    name: "Seated, legs together", body: [-15, 0, 0], lift: 40,
-    joints: { head: [15, 0, 0], l_hip: [80, -13, 0], r_hip: [80, -13, 0], l_knee: [60, -10], r_knee: [60, -10], l_ankle: [-35], r_ankle: [-35] },
+    name: "Seated, legs together", body: [-20, 0, 0], lift: 24,
+    joints: { head: [20, 0, 0], l_hip: [90, -12, 4], r_hip: [90, -12, 4], l_knee: [65, 0], r_knee: [65, 0], l_ankle: [-40], r_ankle: [-40] },
   },
   {
     name: "Sitting, crossed legs", body: [0, 0, 0], lift: 26,
@@ -451,12 +453,12 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
     },
   },
   // For the body presets of the same names: straight down to the floor
-  // with the trunk at "All fours"'s slope, the hands flat; and the upper
-  // arms straight down with the elbows bent as Tenshi's, the elbows on the
-  // floor.
+  // with the trunk at "All fours"'s slope, the palms flat on it, fingers
+  // forward; and the upper arms straight down with the elbows bent as
+  // Tenshi's, the elbows on the floor.
   {
     name: "All fours", joints: {
-      l_shoulder: [80, 5, 0], l_elbow: [0, -85], l_wrist: [80, 0], r_shoulder: [80, 5, 0], r_elbow: [0, -85], r_wrist: [80, 0],
+      l_shoulder: [80, 5, 0], l_elbow: [0, -85], l_wrist: [-80, 0], r_shoulder: [80, 5, 0], r_elbow: [0, -85], r_wrist: [-80, 0],
     },
   },
   { name: "All fours, elbows", joints: { l_shoulder: [107, 8, 0], l_elbow: [150, 0], r_shoulder: [107, 8, 0], r_elbow: [150, 0] } },

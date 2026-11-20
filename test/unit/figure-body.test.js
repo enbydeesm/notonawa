@@ -9,6 +9,7 @@ import {
 import { HEADS, CORNER_STATURE, SEGMENTS } from "../../public/js/figure-body-data.js";
 import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, ARMS_PRESETS, inPreset, bodyPresetFrom, jointsInRange } from "../../public/js/figure-rig.js";
 import { capsules } from "../../public/js/pose-contact.js";
+import { Vector3 } from "../../public/js/vendor/three.js";
 import { canReach } from "../../public/js/joint-limits.js";
 import { lowestSkin } from "../../public/js/pose-uplines.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
@@ -238,6 +239,28 @@ describe("a pose's shape", () => {
         expect(low, `${name}: ${part}`).toBeGreaterThan(-9);
         expect(low, `${name}: ${part}`).toBeLessThan(1);
       }
+      if (name === "All fours") {
+        // The palms on the floor, not the backs of the hands; the fingers forward.
+        for (const [S, x] of /** @type {const} */ ([["L", -1], ["R", 1]])) {
+          const wrist = /** @type {import("../../public/js/vendor/three.js").Object3D} */ (skeleton.all.get(`wrist.${S}`));
+          const at = (/** @type {string} */ b) => /** @type {import("../../public/js/vendor/three.js").Object3D} */ (skeleton.all.get(b)).localToWorld(new Vector3());
+          const palm = wrist.localToWorld(new Vector3(x, 0, 0)).sub(at(`wrist.${S}`));
+          expect(palm.y / palm.length(), S).toBeLessThan(-0.9);
+          expect(at(`finger3-1.${S}`).z - at(`wrist.${S}`).z, S).toBeGreaterThan(5);
+        }
+      }
+    }
+  });
+
+  it("sits the seated presets with the bottom and the feet both on the floor", () => {
+    const skeleton = makeSkeleton();
+    for (const name of ["Seated, legs open", "Seated, legs together"]) {
+      posed(skeleton, withBodyPresetOn(skeleton, newPose(), /** @type {any} */ (BODY_PRESETS.find((p) => p.name === name))));
+      const caps = capsules(skeleton);
+      const low = (/** @type {string} */ part) => Math.min(...caps[SEGMENTS.findIndex((s) => s.name === part)].map((c) => Math.min(c.a.y, c.b.y) - c.r));
+      // The hips capsule is the pelvis's core: seated, it's about 14 cm above where the skin meets the floor.
+      expect(Math.abs(low("hips") - 14 - low("l_foot")), name).toBeLessThan(4);
+      expect(low("l_foot"), name).toBeLessThan(1);
     }
   });
 
