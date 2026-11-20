@@ -13,7 +13,7 @@ import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
 import { readPose, setHardpoint } from "../../../public/js/pose-format.js";
-import { BODY_PRESETS } from "../../../public/js/figure-rig.js";
+import { BODY_PRESETS, ARMS_PRESETS } from "../../../public/js/figure-rig.js";
 
 /**
  * The PNG downloaded into an empty folder: whether its name is as given, and
@@ -163,7 +163,7 @@ export default async function () {
     $("#pose-arms-presets-close").click(); await calm(200);
     return [...result, !!$("#pose-arms-presets"), $("#pose-undo").disabled];`),
   [["Arms Presets", "Save as preset", "Close"], "pose-arms-presets-title", "Search", true,
-    [["At sides", true], ["Boxtie", false], ["Bunny ears", false], ["Tengu", false], ["Tenshi", false], ["Crossed (hug)", false]], true, [],
+    ARMS_PRESETS.map((p, i) => [p.name, i === 0]), true, [],
     false, true]);
   check("searching narrows the list, the picker staying where it is at the same height; tapping a row anywhere chooses it and closes it, as one change to undo", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}

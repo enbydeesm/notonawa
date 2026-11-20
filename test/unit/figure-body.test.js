@@ -6,8 +6,9 @@ import {
   BONES, SHAPE_RANGES, DEFAULT_SHAPE, hats, shapeBlend, bodyHeads, standingLift, cleanShape, sameShape,
   readBody, bodyPositions, measurements,
 } from "../../public/js/figure-body.js";
-import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
-import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom, jointsInRange } from "../../public/js/figure-rig.js";
+import { HEADS, CORNER_STATURE, SEGMENTS } from "../../public/js/figure-body-data.js";
+import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, ARMS_PRESETS, inPreset, bodyPresetFrom, jointsInRange } from "../../public/js/figure-rig.js";
+import { capsules } from "../../public/js/pose-contact.js";
 import { canReach } from "../../public/js/joint-limits.js";
 import { lowestSkin } from "../../public/js/pose-uplines.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
@@ -220,8 +221,24 @@ describe("a pose's shape", () => {
         expect(canReach(name, full, all), `${preset.name} ${name}`).toBe(true);
       }
     }
-    // Each new name once.
+    // Each name once.
     expect(new Set(BODY_PRESETS.map((p) => p.name)).size).toBe(BODY_PRESETS.length);
+  });
+
+  it("puts the hands, or the elbows, on the floor beside the knees with the all-fours arms presets", () => {
+    const skeleton = makeSkeleton();
+    for (const [name, parts] of /** @type {const} */ ([["All fours", ["l_hand", "r_hand"]], ["All fours, elbows", ["l_upperarm", "r_upperarm"]]])) {
+      const body = /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((p) => p.name === name));
+      const arms = /** @type {import("../../public/js/figure-rig.js").ArmsPreset} */ (ARMS_PRESETS.find((p) => p.name === name));
+      const pose = withBodyPresetOn(skeleton, newPose(), body);
+      posed(skeleton, { ...pose, joints: { ...pose.joints, ...arms.joints } });
+      const caps = capsules(skeleton);
+      for (const part of parts) {
+        const low = Math.min(...caps[SEGMENTS.findIndex((s) => s.name === part)].map((c) => Math.min(c.a.y, c.b.y) - c.r));
+        expect(low, `${name}: ${part}`).toBeGreaterThan(-9);
+        expect(low, `${name}: ${part}`).toBeLessThan(1);
+      }
+    }
   });
 
   it("puts a body preset on a shorter or taller body at the height it has on the default body, and knows it's in it", () => {
