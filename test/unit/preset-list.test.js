@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import { presetList } from "../../public/js/preset-list.js";
 import { BODY_PRESETS, ARMS_PRESETS, inPreset, withBodyPreset, withArmsPreset, bodyPresetFrom, armsPresetFrom, startJoints } from "../../public/js/figure-rig.js";
 
+/** The built-in body presets the checks use, by name (the list's order is only how the picker shows them). */
+const named = (/** @type {string} */ name) => /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((p) => p.name === name));
+const STANDING = named("Standing"), KNEELING = named("Kneeling (seiza)");
+
 const lists = (/** @type {string[]} */ mine) => ({
   builtIn: ["Standing", "Kneeling up", "Face down"], builtInName: (/** @type {string} */ n) => n,
   mine, mineName: (/** @type {string} */ n) => n,
@@ -31,9 +35,9 @@ describe("inPreset", () => {
   const standing = { joints: startJoints(), body: /** @type {[number, number, number]} */ ([0, 0, 0]), lift: 99 };
 
   it("knows a figure is in a built-in preset, its missing joints at rest", () => {
-    expect(inPreset("body", standing, BODY_PRESETS[0])).toBe(true);
+    expect(inPreset("body", standing, STANDING)).toBe(true);
     expect(inPreset("arms", standing, ARMS_PRESETS[0])).toBe(true);
-    expect(inPreset("body", standing, BODY_PRESETS[1])).toBe(false);
+    expect(inPreset("body", standing, KNEELING)).toBe(false);
     expect(inPreset("arms", standing, ARMS_PRESETS[1])).toBe(false);
   });
 
@@ -57,9 +61,9 @@ describe("inPreset", () => {
 
   it("ignores the other kind's joints, and tiny differences", () => {
     const boxtie = withArmsPreset(standing, ARMS_PRESETS[1]);
-    expect(inPreset("body", boxtie, BODY_PRESETS[0])).toBe(true);
+    expect(inPreset("body", boxtie, STANDING)).toBe(true);
     const nudged = { ...standing, lift: 99.01 };
-    expect(inPreset("body", nudged, BODY_PRESETS[0])).toBe(true);
-    expect(inPreset("body", { ...standing, lift: 100 }, BODY_PRESETS[0])).toBe(false);
+    expect(inPreset("body", nudged, STANDING)).toBe(true);
+    expect(inPreset("body", { ...standing, lift: 100 }, STANDING)).toBe(false);
   });
 });

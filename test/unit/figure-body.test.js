@@ -16,6 +16,8 @@ import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
 import { makeSkeleton, posed, ropePoint, boneParts, vertexParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
 
+const STANDING = /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((p) => p.name === "Standing"));
+
 /** @typedef {import("../../public/js/figure-body.js").Shape} Shape */
 
 describe("the body's shape", () => {
@@ -287,8 +289,8 @@ describe("a pose's shape", () => {
       }
     }
     // Standing on a 150 cm body is lower than on the default one, feet on the floor.
-    const short = withBodyPresetOn(skeleton, withShape(skeleton, newPose(), [50, 50, 25, 150]), BODY_PRESETS[0]);
-    expect(short.lift).toBeLessThan(BODY_PRESETS[0].lift - 15);
+    const short = withBodyPresetOn(skeleton, withShape(skeleton, newPose(), [50, 50, 25, 150]), STANDING);
+    expect(short.lift).toBeLessThan(STANDING.lift - 15);
   });
 
   it("opens an older pose on the in-between body, its ropes where they were on the first figure", () => {

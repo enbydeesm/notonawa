@@ -322,21 +322,6 @@ export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_
  * @type {readonly BodyPreset[]}
  */
 export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
-  { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
-  // Standing on one leg, the other raised out to the side, knee bent.
-  // Standing on one leg, the other raised out to the side, the knee as high
-  // as the waist and the shin hanging in line with the thigh.
-  { name: "Kata ashi (right leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [115, 49, -18], r_knee: [68, 13], r_ankle: [-30] } },
-  { name: "Kata ashi (left leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [115, 49, -18], l_knee: [68, 13], l_ankle: [-30] } },
-  // Leaning forward over bent knees, the knees and ankles touching.
-  {
-    name: "Chair pose", body: [40, 0, 0], lift: 75,
-    joints: { head: [-25, 0, 0], l_hip: [95, -13, 4], r_hip: [95, -13, 4], l_knee: [80, 5], r_knee: [80, 5], l_ankle: [10], r_ankle: [10] },
-  },
-  {
-    name: "Deep squat", body: [0, 0, 0], lift: 28,
-    joints: { spine: [30, 0, 0], l_hip: [110, 15, -5], r_hip: [110, 15, -5], l_knee: [140], r_knee: [140], l_ankle: [32], r_ankle: [32] },
-  },
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
@@ -369,6 +354,22 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
     name: "Side-saddle (feet to the left)", body: [0, 0, 0], lift: 29,
     joints: { chest: [0, -8, 0], r_hip: [77, 7, 77], r_knee: [125, 31], r_ankle: [-50], l_hip: [68, 7, -45], l_knee: [137, -24], l_ankle: [-50] },
   },
+  { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
+  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
+  // Standing on one leg, the other raised out to the side, knee bent.
+  // Standing on one leg, the other raised out to the side, the knee as high
+  // as the waist and the shin hanging in line with the thigh.
+  { name: "Kata ashi (right leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [115, 49, -18], r_knee: [68, 13], r_ankle: [-30] } },
+  { name: "Kata ashi (left leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [115, 49, -18], l_knee: [68, 13], l_ankle: [-30] } },
+  // Leaning forward over bent knees, the knees and ankles touching.
+  {
+    name: "Chair pose", body: [40, 0, 0], lift: 75,
+    joints: { head: [-25, 0, 0], l_hip: [95, -13, 4], r_hip: [95, -13, 4], l_knee: [80, 5], r_knee: [80, 5], l_ankle: [10], r_ankle: [10] },
+  },
+  {
+    name: "Deep squat", body: [0, 0, 0], lift: 28,
+    joints: { spine: [30, 0, 0], l_hip: [110, 15, -5], r_hip: [110, 15, -5], l_knee: [140], r_knee: [140], l_ankle: [32], r_ankle: [32] },
+  },
   // Each leg folded heel to hip, the knees open.
   {
     name: "Frogtie, seated", body: [0, 0, 0], lift: 27,
@@ -382,7 +383,11 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
       l_hip: [77, 41, 87], l_knee: [131, 2], l_ankle: [-30], r_hip: [72, 44, 85], r_knee: [135, 0], r_ankle: [-30],
     },
   },
-  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
+  // Face down on the floor, knees bent, the feet raised toward the hands, the head up.
+  {
+    name: "Hogtie", body: [90, 0, 0], lift: 14,
+    joints: { head: [-35, 0, 0], spine: [-15, 0, 0], l_hip: [-10, 5, 0], r_hip: [-10, 5, 0], l_knee: [125], r_knee: [125], l_ankle: [-45], r_ankle: [-45] },
+  },
   // On hands and knees, the thighs straight down; the arms preset of the same name puts the hands on the floor.
   {
     name: "All fours", body: [80, 0, 0], lift: 51,
@@ -396,11 +401,6 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   {
     name: "Face down", body: [90, 0, 0], lift: 110,
     joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 4, -3], l_knee: [20], r_knee: [80] },
-  },
-  // Face down on the floor, knees bent, the feet raised toward the hands, the head up.
-  {
-    name: "Hogtie", body: [90, 0, 0], lift: 14,
-    joints: { head: [-35, 0, 0], spine: [-15, 0, 0], l_hip: [-10, 5, 0], r_hip: [-10, 5, 0], l_knee: [125], r_knee: [125], l_ankle: [-45], r_ankle: [-45] },
   },
   {
     name: "Face up", body: [-90, 0, 0], lift: 110,
