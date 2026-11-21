@@ -204,7 +204,7 @@ export const AREAS = [
   {
     name: "ties",
     files: ["src/ties/", "public/js/tie-form.js", "public/js/search-picker.js", "public/js/search-choices.js",
-      "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/ties-view.js", "public/js/views/ties.js",
+      "public/js/rope-rating.js", "public/js/tie-card.js", "public/js/people-order.js", "public/js/ties-view.js", "public/js/views/ties.js",
       "public/js/links.js", "public/js/person-rows.js", "public/js/store/v1/ties.js", "public/js/store/v2/ties.js", "public/js/store/queries/ties.js"],
     ui: ["ties", "plans", "search", "notes", "deleting", "education"],
   },

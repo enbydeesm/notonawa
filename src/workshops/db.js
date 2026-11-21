@@ -33,11 +33,12 @@ export const WORKSHOP_COLUMNS = `
 function linkStatements(db, workshopIds, params) {
   return [
     db.prepare(
-      `SELECT wp.id, wp.workshop_id, wp.person_id, pe.name AS person_name, wp.kind, wp.role
+      // In the order they were added: the form's, as saved.
+      `SELECT wp.id, wp.workshop_id, wp.person_id, pe.name AS person_name, COALESCE(pe.is_self, 0) AS is_self, wp.kind, wp.role
          FROM workshop_people wp
          LEFT JOIN people pe ON pe.id = wp.person_id
         WHERE wp.workshop_id IN (${workshopIds})
-        ORDER BY pe.name COLLATE NOCASE`
+        ORDER BY wp.rowid`
     ).bind(...params),
     db.prepare(
       `SELECT wt.workshop_id, tg.name

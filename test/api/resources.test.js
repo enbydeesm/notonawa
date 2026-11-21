@@ -302,7 +302,7 @@ describe("deleting", () => {
     expect((await call(`/api/people/${person}`, { method: "DELETE" })).status).toBe(404);
 
     const listed = (await call("/api/ties/search", { method: "POST", body: {} })).body.ties.find((/** @type {any} */ t) => t.id === tie);
-    expect(listed.participants).toEqual([{ id: expect.any(String), person_id: null, person_name: null, role: "bottom" }]);
+    expect(listed.participants).toEqual([{ id: expect.any(String), person_id: null, person_name: null, is_self: 0, role: "bottom" }]);
   });
 
   it("a location marks its ties as '(location deleted)'", async () => {

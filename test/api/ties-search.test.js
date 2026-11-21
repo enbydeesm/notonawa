@@ -201,7 +201,7 @@ describe("paging ties", () => {
 
     const [oldest] = (await search({ location_ids: [loc], page: 2 })).body.ties;
     expect(oldest.title).toBe("Oldest");
-    expect(oldest.participants).toEqual([{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" }]);
+    expect(oldest.participants).toEqual([{ id: expect.any(String), person_id: sam, person_name: "Sam", is_self: 0, role: "bottom" }]);
     expect(oldest.plans).toEqual([{ id: expect.any(String), plan_id: plan, plan_title: "Box tie", plan_version: 1 }]);
   });
 });

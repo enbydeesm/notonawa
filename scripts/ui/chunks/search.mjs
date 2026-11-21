@@ -46,7 +46,7 @@ export default async function () {
     const narrow = [line.innerText, line.querySelector(".tie-more").title];
     $("#tie-list").style.width = ""; await calm(400);
     return [narrow, line.innerText];`),
-    [["With: Me (top) +1", "Sam (bottom)"], "With: Me (top), Sam (bottom)"]);
+    [["With: Sam (bottom) +1", "Me (top)"], "With: Sam (bottom), Me (top)"]);
   check("filters list everyone A–Z, archived in muted text", await run(`
     $("#people-filter summary").click(); $("#locations-filter summary").click(); await calm(200);
     return [filterOptions("#people-filter"), filterOptions("#locations-filter")];`),

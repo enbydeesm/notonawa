@@ -3,6 +3,7 @@
 // ties behind a chart.
 
 import { h, $, opensOnTap } from "./dom.js";
+import { selfLast } from "./people-order.js";
 import { openTieForm } from "./tie-form.js";
 import { cardDate, attachedText } from "./format.js";
 import { ratingHanks } from "./rope-rating.js";
@@ -26,7 +27,8 @@ function renderLabel(label) {
  */
 export function tieCard(tie, onEdit) {
   const place = placeLine(tie);
-  const people = tie.participants.map((/** @type {any} */ p, /** @type {number} */ i) => {
+  // As entered, with "this is me" last.
+  const people = selfLast(tie.participants).map((/** @type {any} */ p, /** @type {number} */ i) => {
     const { name, role } = participantLabel(p);
     return h("span", { className: "tie-person" }, i > 0 ? ", " : "", renderLabel(name), ` (${roleName(role)})`);
   });

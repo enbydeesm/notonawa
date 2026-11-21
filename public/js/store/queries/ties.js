@@ -157,8 +157,8 @@ export function tieRow(tie, journal) {
     visual_count: visuals.length,
     participants: peopleOn(tie).map((/** @type {any} */ p, /** @type {number} */ i) => {
       const person = linked(p?.person_id, "person");
-      return { id: `p${i}`, person_id: person ? person.id : null, person_name: person?.body?.name ?? null, role: p?.role };
-    }).sort((x, y) => byName(x.person_name, y.person_name)),
+      return { id: `p${i}`, person_id: person ? person.id : null, person_name: person?.body?.name ?? null, is_self: person?.body?.is_self ? 1 : 0, role: p?.role };
+    }),
     plans: plansOn(tie).map((/** @type {any} */ p, /** @type {number} */ i) => {
       const plan = linked(p?.plan_id, "plan");
       return { id: `l${i}`, plan_id: plan ? plan.id : null, plan_title: plan?.body?.title ?? null, plan_version: p?.plan_version ?? 1 };

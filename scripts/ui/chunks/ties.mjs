@@ -121,7 +121,7 @@ export default async function () {
     set("#tie-album_url", "https://photos.app.goo.gl/floor");
     $("#tie-save").click(); await calm(1000);
     return [!!document.querySelector("dialog"), titles()[0], card(0)];`),
-    [false, "Floor session", [true, "Floor tie at Studio", 4, "With: Me (top), Sam (bottom)", ["Floor", "Futomomo"]]]);
+    [false, "Floor session", [true, "Floor tie at Studio", 4, "With: Sam (bottom), Me (top)", ["Floor", "Futomomo"]]]);
   check("the card links to its album, which the server only has sealed", await run(`
     const link = document.querySelector(".tie-card .tie-album a");
     const stored = (await store.findTies({})).ties[0];

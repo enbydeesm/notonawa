@@ -41,14 +41,25 @@ describe("workshops", () => {
       description: sealed("what"), notes: sealed("notes"), album_url: sealed("album"),
       created_at: expect.any(String), updated_at: expect.any(String),
       location_id: loc, location_deleted: 0, location_name: "Studio", photo_count: 0, visual_count: 0,
-      educators: [{ id: expect.any(String), person_id: kit, person_name: "Kit", role: "top" }],
-      participants: [{ id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" }],
+      educators: [{ id: expect.any(String), person_id: kit, person_name: "Kit", is_self: 0, role: "top" }],
+      participants: [{ id: expect.any(String), person_id: sam, person_name: "Sam", is_self: 0, role: "bottom" }],
       tags: ["Floor", "kata"], linked: [],
     });
     expect((await user.send(`/api/workshops/${id}`)).body).toEqual(list[0]);
     // The tags are the same list as ties' and plans', counted for workshops.
     const tags = (await user.send("/api/tags")).body;
     expect(tags.map((/** @type {any} */ t) => [t.name, t.workshop_count, t.tie_count])).toEqual([["Floor", 1, 0], ["kata", 1, 0]]);
+  });
+
+  it("lists its educators and participants in the order they were entered, not by name", async () => {
+    const user = await freshUser();
+    const { kit } = await withPeople(user);
+    const [zed, zoe, al] = [await user.post("/api/people", { name: "Zed", is_educator: true }), await user.post("/api/people", { name: "Zoe" }), await user.post("/api/people", { name: "Al" })];
+    const id = await user.post("/api/workshops", { title: "Order", start_date: "2026-03-01",
+      educators: [{ person_id: zed, role: "bottom" }, { person_id: kit, role: "top" }], participants: [{ person_id: zoe, role: "bottom" }, { person_id: al, role: "top" }] });
+    const w = (await user.send(`/api/workshops/${id}`)).body;
+    expect(w.educators.map((/** @type {any} */ p) => p.person_name)).toEqual(["Zed", "Kit"]);
+    expect(w.participants.map((/** @type {any} */ p) => p.person_name)).toEqual(["Zoe", "Al"]);
   });
 
   it("lists newest first", async () => {
@@ -138,7 +149,7 @@ describe("workshops", () => {
     await user.send(`/api/locations/${loc}`, undefined, "DELETE");
     const w = (await user.send(`/api/workshops/${id}`)).body;
     expect(w).toMatchObject({ location_id: null, location_deleted: 1, location_name: null });
-    expect(w.educators).toEqual([{ id: expect.any(String), person_id: null, person_name: null, role: "top" }]);
+    expect(w.educators).toEqual([{ id: expect.any(String), person_id: null, person_name: null, is_self: 0, role: "top" }]);
 
     // Keep the deleted educator and the location; drop the participant.
     const base = { title: "Intro", start_date: "2026-03-01" };

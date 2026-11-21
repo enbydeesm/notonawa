@@ -121,11 +121,13 @@ export const TIE_COLUMNS = `
 function linkStatements(db, tieIds, params) {
   return [
     db.prepare(
-      `SELECT tp.id, tp.tie_id, tp.person_id, pe.name AS person_name, tp.role
+      // In the order they were added: the tie form's order, as saved (one
+      // kept from before, in the same role, keeps its place).
+      `SELECT tp.id, tp.tie_id, tp.person_id, pe.name AS person_name, COALESCE(pe.is_self, 0) AS is_self, tp.role
          FROM tie_participants tp
          LEFT JOIN people pe ON pe.id = tp.person_id
         WHERE tp.tie_id IN (${tieIds})
-        ORDER BY pe.name COLLATE NOCASE`
+        ORDER BY tp.rowid`
     ).bind(...params),
     db.prepare(
       `SELECT tpl.id, tpl.tie_id, tpl.plan_id, p.title AS plan_title, tpl.plan_version
