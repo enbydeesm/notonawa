@@ -6,7 +6,9 @@ import { JOINTS } from "../../public/js/figure-rig.js";
 import { makeSkeleton, posed } from "../../public/js/pose-skeleton.js";
 import { segmentLength } from "../../public/js/pose-cinch.js";
 import { dampedSolve, dampedSolveMany } from "../../public/js/pose-ik.js";
-import { uplineStretch, uplineLength, setUplineLength, lowestSkin } from "../../public/js/pose-uplines.js";
+import { uplineStretch, uplineLength, setUplineLength, lowestSkin, seesawSides, seesawLengths, setSeesawStart, SEESAW_END } from "../../public/js/pose-uplines.js";
+import { bodyEnd } from "../../public/js/pose-constraints.js";
+import { Vector3 } from "../../public/js/vendor/three.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
 /** @typedef {import("../../public/js/pose-format.js").Rope} Rope */
@@ -152,6 +154,79 @@ describe("an upline's Length", () => {
     const whole = taut(raised, 1) + (raised.ropes[1].k ?? 0);
     expect(whole).toBeGreaterThan(taut(pose, 1) - 1.5);
     expect(raised.ropes[1].k ?? 0).toBeLessThanOrEqual(10 + Math.max(0, taut(pose, 1) - taut(raised, 1)) + 1);
+  });
+});
+
+describe("an upline tied to a spot on a rope", () => {
+  // A rope round the chest, and an upline added to it (Add rope).
+  const chestRope = () => rope([["chest", -100, 0, 0], ["chest", 100, 0, 0]]);
+  const added = () => rope([page.ropeSpot(0, 0, 0.5), RING]);
+
+  it("is tied to the part that rope is tied to there, through ropes on ropes; a rope only between hardpoints reaches no part", () => {
+    const pose = { ...standing(), ropes: [chestRope(), added(), rope([page.ropeSpot(1, 0, 0.3), RING])] };
+    expect(bodyEnd(pose, 1, 0)).toBe("chest");
+    expect(bodyEnd(pose, 2, 0)).toBe("chest");
+    expect(uplineStretch(pose, 1)).toBe(0);
+    const hardpointsOnly = { ...standing(), bamboo: [0, 200, 0, 0, 100, 10], ropes: [rope([RING, ["bamboo", 0, 0, 0]]), added()] };
+    expect(bodyEnd(hardpointsOnly, 1, 0)).toBeNull();
+    expect(uplineStretch(hardpointsOnly, 1)).toBe(-1);
+    // A rope on itself (a loop) reaches no part, and doesn't hang.
+    expect(bodyEnd({ ...standing(), ropes: [rope([page.ropeSpot(0, 0, 0.5), RING])] }, 0, 0)).toBeNull();
+  });
+
+  it("has a Length: shorter raises the body by it", () => {
+    const pose = { ...standing(), ropes: [chestRope(), added()] };
+    const raised = setUplineLength(pose, 1, 0, taut(pose, 1) - 30);
+    near(taut(raised, 1), taut(pose, 1) - 30);
+    expect(raised.lift).toBeGreaterThan(pose.lift + 25);
+  });
+});
+
+describe("a see-saw's Start ◀ ▶ End", () => {
+  // Arms out in front, a see-saw over the ring from wrist to wrist.
+  /** @returns {Pose} */
+  const seesaw = () => ({
+    ...standing(), ring: [0, 200, 60],
+    joints: { ...standing().joints, l_shoulder: [90, 0, 0], r_shoulder: [90, 0, 0] },
+    ropes: [rope([["l_wrist", 0, 0, 0], RING, ["r_wrist", 0, 0, 0]], { s: true })],
+  });
+  const sides = (/** @type {Pose} */ pose) => {
+    posed(skeleton, pose);
+    return /** @type {{ start: number, total: number }} */ (seesawLengths(skeleton, pose, 0));
+  };
+
+  it("is only a see-saw's, both its sides on the body", () => {
+    expect(seesawSides(seesaw(), 0)).toEqual({ sides: [0, 1], parts: ["l_wrist", "r_wrist"] });
+    const off = { ...seesaw(), ropes: [{ ...seesaw().ropes[0], s: undefined }] };
+    expect(seesawSides(off, 0)).toBeNull();
+  });
+
+  it("shortens the start side and lengthens the end side by as much, raising one end and lowering the other", () => {
+    const pose = seesaw();
+    const before = sides(pose);
+    const moved = setSeesawStart(pose, 0, before.start - 15);
+    const after = sides(moved);
+    near(after.start, before.start - 15);
+    held(after.total, before.total);
+    const heights = (/** @type {Pose} */ p) => {
+      posed(skeleton, p);
+      return ["wrist.L", "wrist.R"].map((b) => /** @type {import("../../public/js/vendor/three.js").Object3D} */ (skeleton.all.get(b)).localToWorld(new Vector3()).y);
+    };
+    const wristsWere = heights(pose), wrists = heights(moved);
+    expect(wrists[0]).toBeGreaterThan(wristsWere[0] + 5);
+    expect(wrists[1]).toBeLessThan(wristsWere[1] - 5);
+    withinLimits(moved);
+  });
+
+  it("stops short of the hardpoint, its whole length kept, as near as it can get", () => {
+    const pose = seesaw();
+    const before = sides(pose);
+    const pulled = setSeesawStart(pose, 0, 0);
+    const after = sides(pulled);
+    expect(after.start).toBeGreaterThan(SEESAW_END - 1.5);
+    expect(after.start).toBeLessThan(before.start);
+    held(after.total, before.total);
+    withinLimits(pulled);
   });
 });
 

@@ -60,6 +60,18 @@ describe("a body hanging", () => {
     expect(canHang({ ...standing, lift: 130 })).toBe(true);
   });
 
+  it("hangs from an upline tied to a spot on a rope that's tied to the body, as from one tied to the body", () => {
+    // A rope round the chest, and an upline added to it (Add rope).
+    /** @type {Pose} */
+    const pose = { ...page.newPose(), lift: 130, ring: [40, 250, 0], ropes: [
+      rope([["chest", -100, 0, 0], ["chest", 100, 0, 0]]), rope([page.ropeSpot(0, 0, 0.5), RING]),
+    ] };
+    expect(canHang(pose)).toBe(true);
+    const hung = hang(pose);
+    expect(Math.abs(weight(hung).x - 40)).toBeLessThan(6);
+    expect(Math.abs(taut(hung, 1) - taut(pose, 1))).toBeLessThan(1.5);
+  });
+
   it("on one line, swings under the hardpoint, the line as long as it was and the joints as posed", () => {
     /** @type {Pose} */
     const pose = { ...page.newPose(), lift: 130, ring: [40, 250, 0], ropes: [CHEST] };

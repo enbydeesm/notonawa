@@ -146,14 +146,39 @@ export function settle(pose, angles, errors, { exact = false } = {}) {
 export const onHardpoint = (p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA;
 
 /**
- * The part of the body a hanging stretch starts from, if it's on the body.
+ * The part of the body a hanging stretch starts from, if it's on the body:
+ * where it's tied, or, tied to a spot on another rope (an added rope, or a
+ * rope's end on a cinch), the part that rope is tied to there (its
+ * segment's nearer end, else the other), followed through ropes on ropes.
+ * Null when nothing there reaches the body (a rope only between
+ * hardpoints).
  * @param {Pose} pose @param {number} rope @param {number} segment
  * @returns {string | null}
  */
 export function bodyEnd(pose, rope, segment) {
   const { p } = pose.ropes[rope];
-  const end = onHardpoint(p[segment]) ? p[segment + 1] : p[segment];
-  return end[0] === ROPE || onHardpoint(end) ? null : end[0];
+  return partAt(pose, onHardpoint(p[segment]) ? p[segment + 1] : p[segment], 0);
+}
+
+/** How many ropes on ropes bodyEnd follows (more is a loop). */
+const ROPES_DEEP = 8;
+
+/**
+ * The part of the body a point is on, through ropes on ropes.
+ * @param {Pose} pose @param {RopePoint | undefined} point @param {number} depth
+ * @returns {string | null}
+ */
+function partAt(pose, point, depth) {
+  if (!point || onHardpoint(point)) return null;
+  if (point[0] !== ROPE) return /** @type {string} */ (point[0]);
+  const host = depth < ROPES_DEEP ? pose.ropes[/** @type {number} */ (point[1])] : undefined;
+  if (!host) return null;
+  const segment = /** @type {number} */ (point[2]), near = /** @type {number} */ (point[3]) < 500 ? 0 : 1;
+  for (const k of [near, 1 - near]) {
+    const part = partAt(pose, host.p[segment + k], depth + 1);
+    if (part) return part;
+  }
+  return null;
 }
 
 /**

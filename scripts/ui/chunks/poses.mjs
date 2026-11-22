@@ -899,7 +899,7 @@ async function ropes({ tap, slide, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
     $("#pose-mode-rope").click(); await wait(300);`);
   await tapRope(stored, 0, 0, 0.5);
-  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw) and ✕ in its heading, then Cinch and Add rope side by side, and its slack", await run(`
+  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw) and ✕ in its heading, then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
     const seesaw = $("#pose-seesaw");
     const actions = $("#pose-cinch-start").parentElement.getBoundingClientRect();
     const head = [...$(".pose-chosen-head").children].map((c) => c.id || c.querySelector("input")?.id || c.className);
@@ -908,10 +908,12 @@ async function ropes({ tap, slide, topDialog }) {
       $("#pose-cinch-start").textContent, $("#pose-added-start").textContent, !!$("#pose-along-start"),
       Math.round($("#pose-cinch-start").getBoundingClientRect().left) === Math.round(actions.left),
       Math.round($("#pose-added-start").getBoundingClientRect().right) === Math.round(actions.right),
-      $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"), leakyFields()];`),
+      $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"),
+      $("label[for=pose-seesaw-start]")?.textContent, Number($("#pose-seesaw-start")?.min) > 0, leakyFields()];`),
   ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-letgo"], true, true, "Runs free",
     "Runs free over the ring: pulling one end moves the other", "Cinch", "Add rope", false, true, true,
-    "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", true, []]);
+    "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", false,
+    "Start ◀ ▶ End", true, []]);
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`
     const three = await import("/js/vendor/three.js");

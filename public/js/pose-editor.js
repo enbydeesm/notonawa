@@ -54,7 +54,7 @@ import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
   PICK_COLORS as COLORS, WIDTHS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
-  setCamera, panCamera, typedNumber, clamp, maxInset,
+  setCamera, panCamera, typedNumber, clamp, maxInset, hangs,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, movePoint, removePoint, MAX_ROPE_POINTS, ROPE_RADIUS, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
   samePose, isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
@@ -66,10 +66,10 @@ import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
 import { makeSkeleton, posed, toBone, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
-import { cinchPoints, spotOn } from "./pose-cinch.js";
+import { cinchPoints, spotOn, segmentLength } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
 import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
-import { uplineStretch, uplineLength, setUplineLength } from "./pose-uplines.js";
+import { uplineStretch, uplineLength, setUplineLength, seesawSides, seesawLengths, setSeesawStart, SEESAW_END } from "./pose-uplines.js";
 import { hang, canHang } from "./pose-hang.js";
 import { skinOf, wrapRound, MAX_WRAPS } from "./pose-surface.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
@@ -911,12 +911,30 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
           apply: (p, v) => setRopeLength(p, index, v),
         });
-      } else if (isUpline(rope)) {
-        // A see-saw, or an upline tied only to other ropes, can be given
-        // slack: its hanging stretches sag (drawn only).
+      } else if (seesawSides(pose, index)) {
+        // A see-saw keeps its whole length: the slider is how much of it is
+        // on the start side (the rope's first point up to the hardpoint).
+        // Toward Start shortens that side, raising its end, and lowers the
+        // other end; let go, it shows where the body got to. (Its whole
+        // length changes with the see-saw switched off.)
+        posed(measuring, pose);
+        const lengths = /** @type {{ start: number, total: number }} */ (seesawLengths(measuring, pose, index));
+        if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2 * SEESAW_END + 2, Math.round(lengths.total)) };
+        const [min, max] = [SEESAW_END, lengthRange.max - SEESAW_END];
         settings = slider({
-          id: "pose-slack", label: "Slack (cm)", min: SLACK_RANGE[0], max: SLACK_RANGE[1], value: rope.k ?? 0,
-          apply: (p, v) => setSlack(p, index, v),
+          id: "pose-seesaw-start", label: "Start ◀ ▶ End", min, max, value: clamp(Math.round(lengths.start), [min, max]),
+          apply: (p, v) => setSeesawStart(p, index, v),
+        });
+      } else if (isUpline(rope)) {
+        // An upline with nothing on the body to lift (hanging from a spot on
+        // a rope that's only between hardpoints), or a see-saw a side of
+        // which doesn't reach the body: a Length that only grows, as slack.
+        const tapped = hangs(rope, chosen.segment) ? chosen.segment : rope.p.findIndex((_, s) => hangs(rope, s));
+        posed(measuring, pose);
+        const taut = Math.round(segmentLength(measuring, pose, index, tapped));
+        settings = slider({
+          id: "pose-length", label: "Length (cm)", min: taut, max: taut + SLACK_RANGE[1], value: taut + (rope.k ?? 0),
+          apply: (p, v) => setSlack(p, index, v - taut),
         });
       }
       ropeOptions.replaceChildren(...chosenRopeView({
