@@ -4179,3 +4179,39 @@ encryption branch, to ship with it.
   mask in `--accent` in both modes, 44px tall; the file shares its canvas
   with the name, so the mask is sized and moved to crop to the mark.
 
+
+## Poser: layers, points added beside, see-through ropes (November 2026)
+
+To show frictions, where one strand crosses over another, a rope's points
+on the body can each be on a layer, 0 (on the skin) to 4. A layered point
+is drawn 1.5 cm out from the skin per layer (`LAYER_CM`), straight out from
+its bone, so a strand on layer 1 lies over one on layer 0 at the same spot.
+It's kept as a fifth number on the point (`[bone, x, y, z, layer]`), left
+off at 0, so older poses read unchanged; the server checks it as a whole
+number 0–4 and only on body points (a ring, bamboo, hashira or a spot on a
+rope has no skin to stand off).
+
+- **Tapping a dot chooses its point** rather than taking it out. Taking a
+  point out by tap was easy to do by mistake, and there was nowhere left to
+  put the layer and the add-a-point controls; the chosen point gets a row
+  instead: Send backward and Bring forward with its layer between, ‹ and ›,
+  and Remove (a red trash can). Tapping the same dot again lets it go. The
+  chosen dot is drawn bigger and white, since black is already the cinch
+  and add-rope spot.
+- **‹ and › add a point beside it**, 5 cm along the rope as drawn, or
+  halfway to the next point if that's nearer (so points never pile up past
+  their neighbour), at the chosen point's layer, and chosen next so taps
+  can walk along the rope. Spots on the rope (cinches, added ropes) keep
+  their place in the world: those on later stretches move up one, one on
+  the stretch split goes to whichever half it's on. They show on the view
+  too, as underlined ‹ › marks where the point would go: underlined so they
+  read the right way up when the view is turned. Not at the rope's ends.
+- **New ropes start on layer 0**: the skin, as before. Layers are set
+  afterwards, point by point; we weighed a per-rope layer and turned it
+  down, as one rope crosses over and under along its length.
+- **See-through ropes** (`t: true`, the eye on the chosen rope's panel):
+  the whole rope at 35% opacity, so the ropes under it show through. It's
+  drawn see-through in pictures (Add to visuals) too, as the user asked:
+  what you see is what's saved. A see-through rope can still be tapped,
+  but where a solid one is also under the finger, the solid one wins, as
+  that's the one you'd be reaching for.

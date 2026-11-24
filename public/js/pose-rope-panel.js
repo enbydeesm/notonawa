@@ -1,10 +1,13 @@
 // The Rope tab's panel for the rope chosen (pose-editor.js), in place of
 // the thickness and color tools while one is: a heading (its color, "Rope
 // selected", then Move the body for a cinch or Runs free for a rope over
-// the ring or bamboo and back (a see-saw), and ✕ to let it go), then Cinch, Slide and Add rope side by side, each an icon over its
-// name, and one box under them for the one setting in play (its slack, its
-// position along the bamboo while sliding, or a cinch's length). The one
-// in use is pressed; tapping it again ends it.
+// the ring or bamboo and back (a see-saw), the eye (solid or see-through)
+// and ✕ to let it go), then Cinch, Slide and Add rope side by side, each an icon over its
+// name, and one box under them for the one setting in play (its length,
+// its position along the bamboo while sliding, or a cinch's length). The one
+// in use is pressed; tapping it again ends it. With one of its points
+// chosen (its dot tapped), a row for that point: Send backward, its layer,
+// Bring forward, a point added before or after it (‹ ›), and Remove.
 //
 // The settings' sliders are the poser's, so it hands them in.
 
@@ -45,6 +48,34 @@ function runsFree({ over, on, onChange }) {
 }
 
 /**
+ * @param {string} id @param {import("./tool-icons.js").ToolIcon} icon @param {string} title
+ * @param {{ disabled?: boolean, onclick: () => void, className?: string }} state
+ */
+function iconButton(id, icon, title, { disabled = false, onclick, className = "" }) {
+  return h("button", {
+    type: "button", className: `tool icon-tool${className ? ` ${className}` : ""}`, id, "aria-label": title, title, disabled, onclick,
+  }, TOOL_ICONS[icon]());
+}
+
+/** The highest layer (the format's LAYERS), here so this stays free of the poser's modules. */
+const TOP_LAYER = 4;
+
+/**
+ * The chosen point's row.
+ * @param {{ layer: number, onLayer: (layer: number) => void, onBefore: (() => void) | null, onAfter: (() => void) | null, onRemove: () => void }} point
+ */
+function pointRow({ layer, onLayer, onBefore, onAfter, onRemove }) {
+  return h("div", { className: "pose-point-row", id: "pose-point-row", role: "group", "aria-label": "The point chosen" },
+    iconButton("pose-point-back", "backward", "Send backward (a layer in)", { disabled: layer <= 0, onclick: () => onLayer(layer - 1) }),
+    h("span", { className: "pose-point-layer", id: "pose-point-layer", "aria-live": "polite" }, `Layer ${layer}`),
+    iconButton("pose-point-forward", "forward", "Bring forward (a layer out, over the ropes under it)", { disabled: layer >= TOP_LAYER, onclick: () => onLayer(layer + 1) }),
+    h("span", { className: "pose-point-gap", "aria-hidden": "true" }),
+    iconButton("pose-point-before", "addBefore", "Add a point before this one", { disabled: !onBefore, onclick: () => onBefore?.() }),
+    iconButton("pose-point-after", "addAfter", "Add a point after this one", { disabled: !onAfter, onclick: () => onAfter?.() }),
+    iconButton("pose-point-remove", "trash", "Remove this point", { onclick: onRemove, className: "danger-tool" }));
+}
+
+/**
  * The chosen rope's panel, as its children.
  * @param {{
  *   color: Color,
@@ -56,18 +87,26 @@ function runsFree({ over, on, onChange }) {
  *   onCinch: () => void,
  *   onSlide: () => void,
  *   onAddRope: () => void,
+ *   seeThrough?: { on: boolean, onChange: (on: boolean) => void },
+ *   point?: { layer: number, onLayer: (layer: number) => void, onBefore: (() => void) | null, onAfter: (() => void) | null, onRemove: () => void } | null,
  * }} rope cinch: given when the rope is one (its "Move the body", shown when onStill
  *   is given: a cinch on uplines, not one only round the body); seesaw: given when it can
  *   run free over the ring or bamboo (over: which), pulling one end moving the other;
  *   slide: "none" when it isn't tied to the bamboo; settings: the box's slider
  * @returns {HTMLElement[]}
  */
-export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo, onCinch, onSlide, onAddRope }) {
+export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo, onCinch, onSlide, onAddRope, seeThrough, point = null }) {
   const heading = h("div", { className: "pose-chosen-head" },
     h("span", { className: `pose-chosen-dot ink-${color}`, "aria-hidden": "true" }),
     h("h3", { className: "pose-part", id: "pose-chosen-title" }, "Rope selected"),
     cinch?.onStill ? checkbox("pose-cinch-body", "Move the body", !cinch.still, (on) => cinch.onStill?.(!on), "pose-check pose-chosen-check") : null,
     seesaw ? runsFree(seesaw) : null,
+    seeThrough ? h("button", {
+      type: "button", className: "tool icon-tool", id: "pose-rope-see-through", "aria-pressed": String(seeThrough.on),
+      "aria-label": seeThrough.on ? "See-through: make it solid" : "Make it see-through",
+      title: seeThrough.on ? "See-through: tap to make it solid" : "Make it see-through, to see the ropes under it",
+      onclick: () => seeThrough.onChange(!seeThrough.on),
+    }, TOOL_ICONS[seeThrough.on ? "seeThrough" : "seen"]()) : null,
     h("button", {
       type: "button", className: "tool icon-tool", id: "pose-rope-letgo", "aria-label": "Let go of this rope", title: "Let go of this rope",
       onclick: onLetGo,
@@ -82,6 +121,7 @@ export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo,
   return [
     heading,
     actions,
+    point ? pointRow(point) : null,
     settings ? h("div", { className: `pose-setting-box${cinch || slide === "on" ? " active" : ""}` }, settings) : null,
   ].filter((el) => el !== null);
 }

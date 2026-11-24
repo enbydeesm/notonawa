@@ -54,7 +54,7 @@ import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
   PICK_COLORS as COLORS, WIDTHS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
-  setCamera, panCamera, typedNumber, clamp, maxInset, hangs,
+  setCamera, panCamera, typedNumber, clamp, maxInset, hangs, onBody, layerOf, setLayer, setSeeThrough,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, movePoint, removePoint, MAX_ROPE_POINTS, ROPE_RADIUS, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
   samePose, isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
@@ -74,6 +74,8 @@ import { hang, canHang } from "./pose-hang.js";
 import { skinOf, wrapRound, MAX_WRAPS } from "./pose-surface.js";
 import { toViewUnits, marksShow, addMark, markAt } from "./pose-marks.js";
 import { marksLayer, withMarks } from "./pose-marks-ui.js";
+import { besideLayer } from "./pose-beside-ui.js";
+import { besidePoint, addBeside } from "./pose-points.js";
 import { TOOL_ICONS } from "./tool-icons.js";
 import { scenePanel } from "./pose-scene-panel.js";
 import { chosenRopeView } from "./pose-rope-panel.js";
@@ -174,7 +176,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     let wrapping = false;
     let wrapTurns = 1;
     let erasing = false;
-    /** The rope chosen (tapped in Rope mode), and where on it. @type {{ index: number, segment: number, along: number } | null} */
+    /**
+     * The rope chosen (tapped in Rope mode), where on it, and the point of
+     * it chosen (its dot tapped: its layer, points beside it, Remove).
+     * @type {{ index: number, segment: number, along: number, point?: number } | null}
+     */
     let chosen = null;
     /**
      * "Move along bamboo": the chosen rope's point on the bamboo being slid
@@ -265,6 +271,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       viewMenu.setAttribute("aria-expanded", String(open));
     }
     const marks = marksLayer();
+    const beside = besideLayer();
     // "Allow collisions" bottom right, as muted as the hint (Pose only).
     const allowBox = h("input", { type: "checkbox", id: "pose-allow-collisions", checked: allowCollisions, onchange: () => setAllowed(allowBox.checked) });
     const allowLabel = h("label", { className: "pose-allow", htmlFor: "pose-allow-collisions" }, allowBox, "Allow collisions");
@@ -444,7 +451,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       h("p", { className: "hint", id: "pose-draw-hint" }, "Pencil: marks go in pictures and hide when the view turns."));
 
     // The view, with its tools and bars over it.
-    const frame = h("div", { className: "pose-frame" }, view.canvas, marks.svg,
+    const frame = h("div", { className: "pose-frame" }, view.canvas, beside.svg, marks.svg,
       // Across the top: undo, redo and the pencil; Wrap (Rope) in the middle; the views.
       h("div", { className: "pose-view-top" },
         h("div", { className: "pose-view-tools", role: "group", "aria-label": "View tools" },
@@ -521,12 +528,55 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         const clash = draft && mode === "pose" ? clashingParts(measuring, history.pose, draft, depthsBefore()) : null;
         view.show(pose, {
           laying, selected: mode === "pose" ? selected : null, rope: mode === "rope" ? chosen?.index ?? -1 : -1, clash, warn: allowCollisions,
-          spot: mode === "rope" ? chosenSpot() : null,
+          spot: mode === "rope" ? chosenSpot() : null, point: mode === "rope" ? chosenPoint() : -1,
         });
         view.draw();
+        drawBeside(pose);
         marks.draw([...(marksShow(pose.marks, pose.camera) ? /** @type {import("./pose-marks.js").Marks} */ (pose.marks).strokes : []),
           ...(markLine ? [markLine] : [])]);
       });
+    }
+
+    /** The chosen rope's point chosen, if it's still one on the body (an undo can take it away), or -1. */
+    function chosenPoint() {
+      const rope = chosen && !laying ? current().ropes[chosen.index] : null;
+      return rope && chosen?.point !== undefined && onBody(rope, chosen.point) ? chosen.point : -1;
+    }
+
+    /**
+     * The marks over the view: the ‹ and › beside the point chosen, where a
+     * point would be added, and the chosen rope's dots' layers above 0.
+     * @param {Pose} pose
+     */
+    function drawBeside(pose) {
+      const k = mode === "rope" && !drawing ? chosenPoint() : -1;
+      const rope = chosen && mode === "rope" && !laying ? pose.ropes[chosen.index] : null;
+      /** @type {import("./pose-beside-ui.js").BesideMark[]} */
+      const marks = [];
+      if (rope && k >= 0) {
+        posed(measuring, pose);
+        for (const side of /** @type {const} */ ([-1, 1])) {
+          const spot = besidePoint(measuring, pose, /** @type {number} */ (chosen?.index), k, side);
+          const at = spot && view.screenAt(spot.at);
+          if (at) marks.push({ side, x: at[0], y: at[1] });
+        }
+      }
+      const layers = rope ? view.handleSpots().flatMap(({ k: n, x, y }) => (layerOf(rope.p[n]) ? [{ x, y, layer: layerOf(rope.p[n]) }] : [])) : [];
+      beside.draw(marks, layers);
+    }
+
+    /**
+     * Adds a point beside the one chosen (‹ before, › after), and chooses it.
+     * @param {-1 | 1} side
+     */
+    function addPointBeside(side) {
+      const k = chosenPoint();
+      if (!chosen || k < 0) return;
+      posed(measuring, history.pose);
+      const added = addBeside(measuring, history.pose, chosen.index, k, side);
+      if (added.pose === history.pose) return;
+      chosen = { ...chosen, point: added.k };
+      commit(added.pose);
     }
 
     /** The view and every control, after any change. */
@@ -851,6 +901,18 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         sliding = null;
         drawAll();
       };
+      // The eye: the whole rope drawn see-through, or solid again.
+      const seeThrough = { on: !!rope.t, onChange: (/** @type {boolean} */ on) => commit(setSeeThrough(history.pose, index, on)) };
+      // The point chosen (its dot tapped): its layer, points beside it, Remove.
+      const k = chosenPoint();
+      posed(measuring, pose);
+      const point = k < 0 ? null : {
+        layer: layerOf(rope.p[k]),
+        onLayer: (/** @type {number} */ layer) => commit(setLayer(history.pose, index, k, layer)),
+        onBefore: besidePoint(measuring, pose, index, k, -1) ? () => addPointBeside(-1) : null,
+        onAfter: besidePoint(measuring, pose, index, k, 1) ? () => addPointBeside(1) : null,
+        onRemove: () => takeOutPoint(index, k),
+      };
       if (isCinch(rope)) {
         posed(measuring, pose);
         const span = Math.max(1, Math.round(cinchPoints(measuring, pose, index).span));
@@ -858,7 +920,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         // body, drawing the parts it's tied to together.
         const still = !!rope.still;
         ropeOptions.replaceChildren(...chosenRopeView({
-          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo,
+          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo, seeThrough,
           // Cinch is pressed: tapping it again is done with it.
           onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
           cinch: { still, onStill: (on) => commit({
@@ -938,7 +1000,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         });
       }
       ropeOptions.replaceChildren(...chosenRopeView({
-        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings,
+        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings, seeThrough, point,
         seesaw: canSeesaw(rope) ? { over: top, on: !!rope.s, onChange: (on) => commit(setSeesaw(history.pose, index, on)) } : null,
         slide: onBamboo < 0 ? "none" : sliding?.index === index ? "on" : "off",
         onSlide: () => {
@@ -1251,6 +1313,12 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         addCinchPoint(view.pick(x, y, { ropes: true }));
         return;
       }
+      // A ‹ or › beside the point chosen adds a point there.
+      const side = !laying?.p.length && chosenPoint() >= 0 ? beside.markAt(x, y) : 0;
+      if (side) {
+        addPointBeside(side);
+        return;
+      }
       // Not laying a rope: tapping one chooses it (and tapping it again,
       // or anywhere else, lets it go).
       if (!laying?.p.length) {
@@ -1484,13 +1552,16 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         }
       }
       if (held) {
-        const { index, k } = held;
+        const { k } = held;
         held = null;
         if (event.type === "pointerup" && dragged && draft) {
           // Moved: one change. Its place along the rope is the same, so cinches on it stay.
+          if (chosen) chosen = { ...chosen, point: k };
           commit(draft);
         } else if (event.type === "pointerup" && !dragged) {
-          takeOutPoint(index, k);
+          // Tapped: the point's chosen (again, it's let go).
+          if (chosen) chosen = { ...chosen, point: chosen.point === k ? undefined : k };
+          drawAll();
         } else if (draft) {
           draft = null;
           drawAll();
@@ -1510,8 +1581,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       const before = history.pose.ropes;
       const whole = before[index].p.length <= 2;
       const next = removePoint(history.pose, index, k);
-      // Still there: the rope stays chosen, on a stretch it still has.
-      chosen = whole || !chosen ? null : { ...chosen, segment: Math.min(chosen.segment, next.ropes[index].p.length - 2) };
+      // Still there: the rope stays chosen, on a stretch it still has, no point chosen.
+      chosen = whole || !chosen ? null : { index: chosen.index, along: chosen.along, segment: Math.min(chosen.segment, next.ropes[index].p.length - 2) };
       commit(next);
       sayRope(pointGoneNote(before.length - next.ropes.length - (whole ? 1 : 0), whole));
     }

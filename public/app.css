@@ -496,6 +496,19 @@ dialog.preset-picker.searchable[open] {
 .pose-rope-actions { align-self: stretch; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 8px; }
 .pose-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 4px; }
 .pose-rope-options .pose-setting-box { align-self: stretch; }
+/* The chosen point's row (pose-rope-panel.js): its layer, points beside it, Remove. */
+.pose-point-row { align-self: stretch; display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 12px; }
+.pose-point-layer { min-width: 4.5em; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pose-point-gap { flex: 1; }
+.tool.icon-tool.danger-tool { color: var(--danger); }
+/* The marks over the view for the point chosen (pose-beside-ui.js): ‹ and ›
+   where a point would go, and each dot's layer. They take no taps: the
+   poser checks a tap against them. */
+.pose-beside { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pose-beside-mark circle { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
+.pose-beside-mark path { fill: none; stroke: var(--text); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.pose-layer-mark circle { fill: var(--accent); }
+.pose-layer-mark text { fill: var(--accent-text); font-size: 11px; font-weight: 600; }
 .pose-rope-note:empty { display: none; }
 .pose-rope-note { margin: 0; }
 .pose-rope-options:empty { display: none; }

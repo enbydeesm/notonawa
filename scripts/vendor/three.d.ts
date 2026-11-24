@@ -171,7 +171,7 @@ export class Material {
   customProgramCacheKey: () => string;
 }
 export class MeshStandardMaterial extends Material {
-  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean });
+  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean, transparent?: boolean, opacity?: number, depthWrite?: boolean });
 }
 export class MeshBasicMaterial extends Material {
   constructor(parameters?: { color?: ColorLike });

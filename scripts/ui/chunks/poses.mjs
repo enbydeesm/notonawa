@@ -613,7 +613,9 @@ async function hanging({ topDialog }) {
 
 /**
  * Wrap lays a turn of rope round the part tapped, undone as one; a chosen
- * rope's white dots move a point when dragged and take it out when tapped.
+ * rope's white dots move a point when dragged and choose it when tapped:
+ * its layer, a point added beside it, Remove; and the eye makes the rope
+ * see-through.
  * @param {{ tap: (fx: number, fy: number) => Promise<void>, drag: (fx0: number, fx1: number, fy0: number, fy1?: number) => Promise<void>, topDialog: string }} helpers
  */
 async function wrapping({ tap, drag, topDialog }) {
@@ -664,12 +666,36 @@ async function wrapping({ tap, drag, topDialog }) {
   await tap(0.5, 0.42);
   check("chosen, the help tells its white dots from the black one, and Wrap is put away", await run(`
     return [$("#pose-rope-hint").textContent, $("#pose-wrap").closest(".pose-wrap-row").hidden];`),
-  ["Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", true]);
-  // Its first point's dot is under the same spot: tapped, the point goes.
+  ["Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black dot.", true]);
+  // Its first point's dot is under the same spot: tapped, the point's chosen.
   await tap(0.5, 0.42);
-  check("a white dot tapped takes its point out, and says so; the rope stays chosen", await run(`
-    return [$("#pose-rope-note").textContent, !$("#pose-rope-options").hidden && !!$("#pose-rope-options").children.length];`),
-  ["Point taken out.", true]);
+  check("a white dot tapped chooses its point: its row (Layer 0, nothing before the rope's first point), and a › on the view where a point would go", await run(`
+    return [$("#pose-point-layer")?.textContent, $("#pose-point-back")?.disabled, $("#pose-point-before")?.disabled, $("#pose-point-after")?.disabled,
+      !!$("#pose-beside-after"), !!$("#pose-beside-before"), !!$("#pose-rope-options").children.length];`),
+  ["Layer 0", true, true, false, true, false, true]);
+  check("Bring forward puts it a layer out, shown by its dot; a point added after it is chosen, at its layer; Remove takes that one out", await run(`
+    $("#pose-point-forward").click(); await calm(300);
+    const forward = [$("#pose-point-layer").textContent, $("#pose-point-back").disabled, document.querySelectorAll("#pose-beside .pose-layer-mark").length];
+    $("#pose-point-after").click(); await calm(300);
+    const added = [$("#pose-point-layer").textContent, document.querySelectorAll("#pose-beside .pose-layer-mark").length, !!$("#pose-beside-before")];
+    $("#pose-point-remove").click(); await calm(300);
+    return [forward, added, $("#pose-rope-note").textContent, !!$("#pose-point-row")];`),
+  [["Layer 1", false, 1], ["Layer 1", 2, true], "Point taken out.", false]);
+  check("the eye makes the whole rope see-through, and solid again; a see-through rope can still be chosen", await run(`
+    $("#pose-rope-see-through").click(); await calm(300);
+    const on = [$("#pose-rope-see-through").getAttribute("aria-pressed"), $("#pose-rope-see-through").title];
+    $("#pose-rope-see-through").click(); await calm(300);
+    const off = $("#pose-rope-see-through").getAttribute("aria-pressed");
+    $("#pose-rope-see-through").click(); await calm(300);
+    return [on, off];`),
+  [["true", "See-through: tap to make it solid"], "false"]);
+  // Chosen again and taken out: the first point goes, as before.
+  await tap(0.5, 0.42);
+  check("its first point chosen again and removed: it says so, and the rope stays chosen", await run(`
+    const chosenRow = !!$("#pose-point-row");
+    $("#pose-point-remove").click(); await calm(300);
+    return [chosenRow, $("#pose-rope-note").textContent, !$("#pose-rope-options").hidden && !!$("#pose-rope-options").children.length];`),
+  [true, "Point taken out.", true]);
   // Its last point is still there: dragged down the body, it moves.
   await drag(0.5, 0.5, 0.42, 0.52);
   check("a white dot dragged moves its point over the skin, as one change, saved with the pose", await run(`
@@ -677,9 +703,9 @@ async function wrapping({ tap, drag, topDialog }) {
     for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
     const [rope] = (await ${tiePose}).data.ropes;
     const [first, last] = [rope.p[0], rope.p[rope.p.length - 1]];
-    // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start).
-    return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30];`),
-  [12, true, true]);
+    // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start); see-through.
+    return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30, rope.t];`),
+  [12, true, true, true]);
 }
 
 /**
@@ -899,7 +925,7 @@ async function ropes({ tap, slide, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
     $("#pose-mode-rope").click(); await wait(300);`);
   await tapRope(stored, 0, 0, 0.5);
-  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw) and ✕ in its heading, then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
+  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw), the eye and ✕ in its heading, then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
     const seesaw = $("#pose-seesaw");
     const actions = $("#pose-cinch-start").parentElement.getBoundingClientRect();
     const head = [...$(".pose-chosen-head").children].map((c) => c.id || c.querySelector("input")?.id || c.className);
@@ -910,9 +936,9 @@ async function ropes({ tap, slide, topDialog }) {
       Math.round($("#pose-added-start").getBoundingClientRect().right) === Math.round(actions.right),
       $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"),
       $("label[for=pose-seesaw-start]")?.textContent, Number($("#pose-seesaw-start")?.min) > 0, leakyFields()];`),
-  ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-letgo"], true, true, "Runs free",
+  ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-see-through", "pose-rope-letgo"], true, true, "Runs free",
     "Runs free over the ring: pulling one end moves the other", "Cinch", "Add rope", false, true, true,
-    "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", false,
+    "Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", false,
     "Start ◀ ▶ End", true, []]);
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`

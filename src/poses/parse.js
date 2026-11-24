@@ -34,7 +34,10 @@
 // cinch. A rope without `l` can start at a spot on a rope before it (a
 // rope added to another), with no other spot. `k` (cm) is a rope's slack.
 // `s` marks a see-saw: a rope over the ring or bamboo once, from the body
-// and back to it (public/js/pose-format.js says more).
+// and back to it (public/js/pose-format.js says more). `t` (true) draws a
+// rope see-through. A point on the body can have a fifth number, its
+// layer, 1 to 4 (LAYERS): that many ropes' thickness out from the skin, so
+// it lies over ropes beneath it; without one it's on the skin.
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
 // a unit test). The limits that depend on several of a joint's movements
@@ -138,6 +141,8 @@ export const OFFSET = 600;
 /** Ropes in one pose. */
 export const MAX_ROPES = 100;
 /** Points in one rope. */
+/** A rope point's layer on the body: 0 on the skin, up to 4 ropes out. */
+export const LAYERS = Object.freeze([0, 4]);
 export const MAX_ROPE_POINTS = 200;
 /** Points in one pose, all its ropes together. */
 export const MAX_POINTS = 3000;
@@ -147,8 +152,8 @@ export const MAX_PER_ITEM = 20;
 export const MAX_BODY_BYTES = 256 * 1024;
 
 /**
- * @typedef {[string, number, number, number]} RopePoint
- * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number }} Rope
+ * @typedef {[string, number, number, number] | [string, number, number, number, number]} RopePoint
+ * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number, t?: true }} Rope
  * @typedef {{
  *   v: 1 | 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
@@ -240,8 +245,12 @@ export function parsePose(value) {
     }
     if (r.p.length < 2 || r.p.length > MAX_ROPE_POINTS) throw bad("a rope has too many or too few points.");
     const p = r.p.map((/** @type {any} */ point) => {
-      if (!Array.isArray(point) || point.length !== 4) throw bad("a rope point isn't in the right format.");
-      const [bone, ...xyz] = point;
+      // A point on the body can have a fifth number, its layer (LAYERS): how
+      // many ropes' thickness out from the skin it lies.
+      if (!Array.isArray(point) || (point.length !== 4 && point.length !== 5)) throw bad("a rope point isn't in the right format.");
+      const [bone, x, y, z, layer] = point;
+      const xyz = [x, y, z];
+      if (point.length === 5 && (!BONES.includes(bone) || !within(layer, LAYERS[0], LAYERS[1]))) throw bad("a rope point isn't in the right format.");
       if (bone === RING) {
         if (ring === null) throw bad("a rope goes to a ring that isn't there.");
         if (!xyz.every((n) => n === 0)) throw bad("a rope point isn't in the right format.");
@@ -257,7 +266,7 @@ export function parsePose(value) {
       } else if (!BONES.includes(bone) || !fits(xyz, [offset, offset, offset])) {
         throw bad("a rope point is off the figure.");
       }
-      return /** @type {RopePoint} */ ([bone, ...xyz]);
+      return /** @type {RopePoint} */ (layer ? [bone, ...xyz, layer] : [bone, ...xyz]);
     });
     points += p.length;
     /** @type {Rope} */
@@ -275,6 +284,11 @@ export function parsePose(value) {
     if (r.s !== undefined) {
       if (r.s !== true) throw bad("a rope isn't in the right format.");
       rope.s = true;
+    }
+    // `t`: drawn see-through.
+    if (r.t !== undefined) {
+      if (r.t !== true) throw bad("a rope isn't in the right format.");
+      rope.t = true;
     }
     return rope;
   });

@@ -11,7 +11,7 @@
 import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
 import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, WAIST_SHARE_OF_HIPS, anchorBone, carrierBone, jointRotation, bodyRotation, withBodyPreset, clampJoint, jointNamed } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
-import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp, withPosture } from "./pose-format.js";
+import { RING, BAMBOO, HASHIRA, ROPE, LAYER_CM, setShape, clamp, withPosture } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -388,7 +388,7 @@ export const onBone = ({ bones }, bone, cm = [0, 0, 0]) =>
  * @param {Pose} pose
  * @returns {Vector3}
  */
-export function ropePoint(skeleton, [bone, x, y, z], pose) {
+export function ropePoint(skeleton, [bone, x, y, z, layer = 0], pose) {
   if (bone === ROPE) {
     const { p } = pose.ropes[x];
     return ropePoint(skeleton, p[y], pose).lerp(ropePoint(skeleton, p[y + 1], pose), z / 1000);
@@ -405,7 +405,18 @@ export function ropePoint(skeleton, [bone, x, y, z], pose) {
     const [hx, hz, turn] = /** @type {number[]} */ (pose.hashira);
     return turned([hx, 0, hz], turn, [x / 10, y / 10, z / 10]);
   }
-  return onBone(skeleton, bone, [x / 10, y / 10, z / 10]);
+  /** @type {[number, number, number]} */
+  const at = [x / 10, y / 10, z / 10];
+  if (layer) {
+    // Out from the skin by its layer: away from the part's middle line, the
+    // bone's own long direction (a foot's and toes' is forward, the rest
+    // up and down), so it lies over the ropes beneath it.
+    const long = /_(ankle|toes)$/.test(bone) ? 2 : 1;
+    const out = at.map((v, i) => (i === long ? 0 : v));
+    const across = Math.hypot(...out);
+    if (across > 0.5) for (const i of [0, 1, 2]) at[i] += out[i] / across * layer * LAYER_CM;
+  }
+  return onBone(skeleton, bone, at);
 }
 
 /**
