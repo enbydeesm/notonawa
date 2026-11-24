@@ -199,6 +199,9 @@ describe("a see-saw's Start ◀ ▶ End", () => {
     expect(seesawSides(seesaw(), 0)).toEqual({ sides: [0, 1], parts: ["l_wrist", "r_wrist"] });
     const off = { ...seesaw(), ropes: [{ ...seesaw().ropes[0], s: undefined }] };
     expect(seesawSides(off, 0)).toBeNull();
+    // An added rope from a spot on a rope round the chest, over the ring, down to a wrist.
+    const added = { ...seesaw(), ropes: [rope([["chest", -100, 0, 0], ["chest", 100, 0, 0]]), rope([page.ropeSpot(0, 0, 0.5), RING, ["r_wrist", 0, 0, 0]], { s: true })] };
+    expect(seesawSides(added, 1)).toEqual({ sides: [0, 1], parts: ["chest", "r_wrist"] });
   });
 
   it("shortens the start side and lengthens the end side by as much, raising one end and lowering the other", () => {

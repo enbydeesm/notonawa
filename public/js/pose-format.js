@@ -360,11 +360,12 @@ export const isUpline = (rope) => !isCinch(rope) && rope.p.some(onUplineHardpoin
 
 /**
  * Whether a rope can be a see-saw: from the body over the ring or bamboo
- * and back to the body (on it once, not at either end).
+ * and back to the body (on it once, not at either end). An added rope can
+ * be one, from its spot on the other rope: that rope ties it to the body.
  * @param {Rope} rope
  */
 export function canSeesaw(rope) {
-  if (isCinch(rope) || isAdded(rope)) return false;
+  if (isCinch(rope)) return false;
   const tops = rope.p.flatMap((p, i) => (onUplineHardpoint(p) ? [i] : []));
   return tops.length === 1 && tops[0] > 0 && tops[0] < rope.p.length - 1;
 }

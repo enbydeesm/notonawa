@@ -263,6 +263,18 @@ describe("the ring", () => {
 });
 
 describe("a rope added to another", () => {
+  it("is a see-saw when it goes from its spot over the ring and back down to the body, as one from the body is", () => {
+    const { pose } = suspended();
+    const over = page.finishRope(pose, rope([page.ropeSpot(0, 0, 0.7), RING, ["r_wrist", 0, 0, 0]]));
+    const added = over.ropes[over.ropes.length - 1];
+    expect(page.canSeesaw(added)).toBe(true);
+    expect(added.s).toBe(true);
+    expect(server.parsePose(over)).toEqual(over);
+    // Up to the ring and no further isn't one.
+    expect(page.canSeesaw(rope([page.ropeSpot(0, 0, 0.7), RING]))).toBe(false);
+  });
+
+
   it("starts at a spot on it, follows it as it bends, and goes with it", () => {
     const { pose, gap } = suspended();
     const added = rope([page.ropeSpot(0, 0, 0.7), ["r_wrist", 0, 0, 0]]);
@@ -270,7 +282,6 @@ describe("a rope added to another", () => {
     expect(page.cantAddTo(pose, 2)).toMatch(/to a cinch/);
     const tied = page.finishRope(pose, added);
     expect(page.isAdded(tied.ropes[3])).toBe(true);
-    expect(page.canSeesaw(rope([page.ropeSpot(0, 0, 0.7), RING, ["r_wrist", 0, 0, 0]]))).toBe(false);
     expect(server.parsePose(tied)).toEqual(tied);
     // Its start is on the upline as drawn, through the cinch's bend.
     const shorter = page.setCinchLength(tied, 2, gap - 20);

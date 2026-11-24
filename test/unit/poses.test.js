@@ -379,7 +379,8 @@ describe("the figure, posed", () => {
     expect(down.head.z).toBeGreaterThan(down.pelvis.z + 40);
     const up = figure("Face up");
     expect(up.face.y).toBeGreaterThan(up.head.y);
-    const side = figure("On their side");
+    // (Its name has a comma, which figure() reads as body, arms.)
+    const side = figure(preset("On their side, top leg folded (left)"));
     expect(Math.abs(side.head.y - side.pelvis.y)).toBeLessThan(25);
     // Lying on its right side: the left shoulder above the right.
     expect(side.at("l_shoulder").y).toBeGreaterThan(side.at("r_shoulder").y);

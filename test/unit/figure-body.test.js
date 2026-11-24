@@ -11,7 +11,6 @@ import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, ARMS_PR
 import { capsules } from "../../public/js/pose-contact.js";
 import { Vector3 } from "../../public/js/vendor/three.js";
 import { canReach } from "../../public/js/joint-limits.js";
-import { lowestSkin } from "../../public/js/pose-uplines.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
 import { makeSkeleton, posed, ropePoint, boneParts, vertexParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
@@ -204,11 +203,13 @@ describe("a pose's shape", () => {
 
   it("rests each body preset on the floor, but those that start in the air, within every joint's range", () => {
     const skeleton = makeSkeleton();
-    const inTheAir = ["Face down", "Face up", "On their side", "On their side, top leg folded (left)", "On their side, top leg folded (right)", "Upside down"];
+    const inTheAir = ["Face down", "Face up", "On their side, top leg folded (left)", "On their side, top leg folded (right)", "Upside down"];
     for (const preset of BODY_PRESETS) {
       const pose = withBodyPresetOn(skeleton, newPose(), preset);
       posed(skeleton, pose);
-      const low = lowestSkin(skeleton);
+      // The arms aren't a body preset's (they're as they were), so the body and legs only.
+      const caps = capsules(skeleton);
+      const low = Math.min(...SEGMENTS.flatMap((s, i) => (/upperarm|forearm|hand/.test(s.name) ? [] : caps[i].map((c) => Math.min(c.a.y, c.b.y) - c.r))));
       if (inTheAir.includes(preset.name)) {
         expect(low, preset.name).toBeGreaterThan(50);
       } else {
@@ -254,15 +255,16 @@ describe("a pose's shape", () => {
     }
   });
 
-  it("sits the seated presets with the bottom and the feet both on the floor", () => {
+  it("sits the sitting presets with the bottom and the feet both on the floor", () => {
     const skeleton = makeSkeleton();
-    for (const name of ["Seated, legs open", "Seated, legs together"]) {
+    for (const name of ["Sitting, legs open", "Sitting, legs closed"]) {
       posed(skeleton, withBodyPresetOn(skeleton, newPose(), /** @type {any} */ (BODY_PRESETS.find((p) => p.name === name))));
       const caps = capsules(skeleton);
       const low = (/** @type {string} */ part) => Math.min(...caps[SEGMENTS.findIndex((s) => s.name === part)].map((c) => Math.min(c.a.y, c.b.y) - c.r));
-      // The hips capsule is the pelvis's core: seated, it's about 14 cm above where the skin meets the floor.
-      expect(Math.abs(low("hips") - 14 - low("l_foot")), name).toBeLessThan(4);
-      expect(low("l_foot"), name).toBeLessThan(1);
+      // Sitting on the bottom (the hips' capsule on the floor), the feet just over it.
+      expect(Math.abs(low("hips")), name).toBeLessThan(2);
+      expect(low("l_foot"), name).toBeGreaterThan(-1);
+      expect(low("l_foot"), name).toBeLessThan(4);
     }
   });
 

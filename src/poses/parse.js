@@ -294,8 +294,8 @@ export function parsePose(value) {
 /**
  * Checks what the cinches and added ropes are on, and the see-saws: a
  * cinch's spots on ropes (not cinches), at least one; a rope added to another on one before it (not a
- * cinch); a see-saw over the ring or bamboo once, between two points on
- * the body.
+ * cinch); a see-saw over the ring or bamboo once, between two of its
+ * points (an added rope's first, its spot on the other rope, can be one).
  * @param {Rope[]} ropes
  * @param {(why: string) => BadInput} bad
  */
@@ -309,7 +309,6 @@ function checkLinks(ropes, bad) {
   for (const [index, rope] of ropes.entries()) {
     if (rope.l === undefined && rope.p[0][0] === ROPE) {
       if (rope.p[0][1] >= index || !onRope(rope.p[0])) throw bad("a rope is added to a rope that isn't there.");
-      if (rope.s) throw bad("a see-saw rope doesn't go over the ring or bamboo.");
     }
     if (rope.s) {
       const tops = rope.p.flatMap((p, i) => (top(p) ? [i] : []));
