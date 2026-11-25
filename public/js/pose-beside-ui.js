@@ -1,15 +1,21 @@
-// The marks over the poser's view for the chosen rope's chosen point: the
-// ‹ and › where a point would be added before or after it (underlined, so
-// they read the same way up however the view's turned), and each dot's
-// layer above 0. An SVG laid over the view, as the pencil's marks are, in
-// the view's own pixels; it takes no taps itself (the poser checks a tap
-// against `markAt`).
+// The marks over the poser's view for the chosen rope: the ‹ and › where a
+// point would be added before or after its chosen point (underlined, so
+// they read the same way up however the view's turned), each dot's layer
+// above 0, and a small × at the spot a cinch or an added rope starts from.
+// The ‹ › and × are plain black, no taller than a medium rope looks there
+// (`size`), but never under MIN_MARK so they can still be seen; a tap
+// still reaches them from a finger's width away. An SVG laid over the
+// view, as the pencil's marks are, in the view's own pixels; it takes no
+// taps itself (the poser checks a tap against `markAt`).
+
+import { besidePaths, crossPaths } from "./pose-beside-paths.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 /** How near a mark a tap has to be to be on it (CSS px): a finger's width. */
 const MARK_REACH = 20;
 
-/** @typedef {{ side: -1 | 1, x: number, y: number }} BesideMark a mark, where it is (CSS px) */
+/** @typedef {{ side: -1 | 1, x: number, y: number, size: number }} BesideMark a mark, where it is and how tall (CSS px) */
+/** @typedef {{ x: number, y: number, size: number }} SpotMark the × at the spot, where it is and how tall (CSS px) */
 /** @typedef {{ x: number, y: number, layer: number }} LayerMark a dot's layer, where the dot is */
 
 /** @param {string} name @param {Record<string, string | number>} attributes */
@@ -27,9 +33,9 @@ export function besideLayer() {
 
   /**
    * Shows these marks, at the view's size now.
-   * @param {BesideMark[]} marks @param {LayerMark[]} layers
+   * @param {BesideMark[]} marks @param {LayerMark[]} layers @param {SpotMark | null} [spot]
    */
-  function draw(marks, layers) {
+  function draw(marks, layers, spot = null) {
     shown = marks;
     const { width, height } = svg.getBoundingClientRect();
     if (width > 0 && height > 0) svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -42,13 +48,18 @@ export function besideLayer() {
         g.append(text);
         return g;
       }),
-      ...marks.map(({ side, x, y }) => {
-        const g = el("g", { class: "pose-beside-mark", id: `pose-beside-${side < 0 ? "before" : "after"}`, transform: `translate(${x} ${y})` });
-        g.append(el("circle", { r: 13 }));
-        g.append(el("path", { d: side < 0 ? "M2.5 -7 -3.5 -1 2.5 5" : "M-2.5 -7 3.5 -1 -2.5 5" }));
-        g.append(el("path", { d: "M-6 8.5H6" }));
-        return g;
-      }));
+      ...marks.map(({ side, x, y, size }) => mark(`pose-beside-mark`, `pose-beside-${side < 0 ? "before" : "after"}`, x, y, besidePaths(side, size))),
+      ...(spot ? [mark("pose-spot-mark", "pose-spot", spot.x, spot.y, crossPaths(spot.size))] : []));
+  }
+
+  /**
+   * @param {string} className @param {string} id @param {number} x @param {number} y
+   * @param {{ paths: string[], width: number }} lines
+   */
+  function mark(className, id, x, y, { paths, width }) {
+    const g = el("g", { class: className, id, transform: `translate(${x} ${y})`, "stroke-width": width });
+    for (const d of paths) g.append(el("path", { d }));
+    return g;
   }
 
   /**

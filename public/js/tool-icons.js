@@ -68,7 +68,7 @@ const rounded = (x, y, w, hgt, r) =>
 /**
  * @typedef {"undo" | "redo" | "download" | "pencil" | "views" | "addVisual" | "facing" | "close" | "eraser" | "cinch" | "slide" | "addRope"
  *   | "ring" | "bamboo" | "hashira" | "chevron" | "bodyPosition" | "armsPosition" | "seen" | "seeThrough" | "trash"
- *   | "forward" | "backward" | "addBefore" | "addAfter"} ToolIcon
+ *   | "forward" | "backward" | "addBefore" | "addAfter" | "removePoint"} ToolIcon
  */
 
 /** @type {Record<ToolIcon, () => SVGSVGElement>} */
@@ -130,4 +130,6 @@ export const TOOL_ICONS = {
   // they read the same way up whichever way the view's turned.
   addBefore: () => icon(["m14 5-6 6 6 6", "M6 21h12"]),
   addAfter: () => icon(["m10 5 6 6-6 6", "M6 21h12"]),
+  // A point taken off a rope: the rope, its dot, and a minus beside it.
+  removePoint: () => icon(["M2 16h20", { d: circle(9, 16, 3), fill: true }, "M14 6h8"]),
 };

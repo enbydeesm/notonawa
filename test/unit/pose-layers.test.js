@@ -1,5 +1,5 @@
 // Layers, points added beside a chosen one, and see-through ropes
-// (pose-format.js, pose-points.js, the server's checks).
+// (pose-format.js, pose-points.js, the server's checks), and the marks drawn for them (pose-beside-paths.js).
 import { describe, it, expect } from "vitest";
 import * as page from "../../public/js/pose-format.js";
 import * as server from "../../src/poses/parse.js";
@@ -115,5 +115,33 @@ describe("a see-through rope", () => {
     expect(page.readPose(clear).ropes[0].t).toBe(true);
     expect("t" in page.setSeeThrough(clear, 0, false).ropes[0]).toBe(false);
     expect(() => server.parsePose({ ...pose, ropes: [{ ...pose.ropes[0], t: 1 }] })).toThrow(/right format/);
+  });
+});
+
+describe("the marks beside a point and at the spot", () => {
+  /** The height and width a mark's paths take, with the stroke. @param {{ paths: string[], width: number }} lines */
+  const extent = ({ paths, width }) => {
+
+    // Every path here is numbers in x, y pairs, apart from H's lone x.
+    const ys = paths.flatMap((d) => [...d.replace(/H-?[\d.]+/, "").matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[2])));
+    return { tall: Math.max(...ys.map(Math.abs)) * 2 + width };
+  };
+
+  it("are no taller than the size given, and never smaller than MIN_MARK", async () => {
+    const { besidePaths, crossPaths, MIN_MARK } = await import("../../public/js/pose-beside-paths.js");
+    for (const size of [9, 14, 30]) {
+      for (const lines of [besidePaths(-1, size), besidePaths(1, size), crossPaths(size)]) {
+        expect(extent(lines).tall).toBeLessThanOrEqual(size + 0.05);
+      }
+    }
+    expect(extent(besidePaths(1, 2)).tall).toBeCloseTo(MIN_MARK, 1);
+  });
+
+  it("point the right way: ‹ opens to the right, › to the left", async () => {
+    const { besidePaths } = await import("../../public/js/pose-beside-paths.js");
+    const tipX = (/** @type {-1 | 1} */ side) => Number(besidePaths(side, 20).paths[0].split(" ")[2]);
+    const endX = (/** @type {-1 | 1} */ side) => Number(besidePaths(side, 20).paths[0].slice(1).split(" ")[0]);
+    expect(tipX(-1)).toBeLessThan(endX(-1));
+    expect(tipX(1)).toBeGreaterThan(endX(1));
   });
 });

@@ -496,17 +496,39 @@ dialog.preset-picker.searchable[open] {
 .pose-rope-actions { align-self: stretch; display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 8px; }
 .pose-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 58px; padding: 6px 4px; }
 .pose-rope-options .pose-setting-box { align-self: stretch; }
-/* The chosen point's row (pose-rope-panel.js): its layer, points beside it, Remove. */
-.pose-point-row { align-self: stretch; display: flex; align-items: center; gap: 6px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 12px; }
-.pose-point-layer { min-width: 4.5em; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
-.pose-point-gap { flex: 1; }
+/* The point row (pose-rope-panel.js), whenever a rope is chosen: its
+   layer, ‹ Add point ›, Remove point. Narrower, its gaps close up first,
+   then "Add point" becomes "+ point". Greyed out with no point chosen
+   (its buttons still take a tap, to say to select one). */
+.pose-point-row { position: relative; container-type: inline-size; align-self: stretch; padding: 4px 6px; border: 1px solid var(--line); border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pose-point-layers, .pose-point-add { display: flex; align-items: center; gap: 2px; }
+.pose-point-layer { min-width: 4.2em; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pose-point-add-text { white-space: nowrap; color: var(--muted); }
+.pose-point-add-short { display: none; }
+.pose-point-row .tool[aria-disabled="true"] { opacity: 0.4; }
+.pose-point-row.unchosen .pose-point-layer, .pose-point-row.unchosen .pose-point-add-text { opacity: 0.55; }
+@container (max-width: 330px) {
+  .pose-point-layers, .pose-point-add { gap: 0; }
+  .pose-point-layer { min-width: 3.6em; }
+  .pose-point-row .tool.icon-tool { padding: 4px 5px; }
+}
+@container (max-width: 290px) {
+  .pose-point-add-long { display: none; }
+  .pose-point-add-short { display: inline; }
+}
+.pose-point-tip {
+  position: absolute; z-index: 2; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 10px;
+  white-space: nowrap; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15); font-size: 14px;
+}
 .tool.icon-tool.danger-tool { color: var(--danger); }
-/* The marks over the view for the point chosen (pose-beside-ui.js): ‹ and ›
-   where a point would go, and each dot's layer. They take no taps: the
-   poser checks a tap against them. */
+/* The marks over the view for the chosen rope (pose-beside-ui.js): ‹ and ›
+   where a point would go, plain black and no taller than a medium rope,
+   each dot's layer, and the × where a cinch or an added rope starts. They
+   take no taps: the poser checks a tap against them. */
 .pose-beside { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.pose-beside-mark circle { fill: var(--card); stroke: var(--accent); stroke-width: 2; }
-.pose-beside-mark path { fill: none; stroke: var(--text); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.pose-beside-mark path, .pose-spot-mark path { fill: none; stroke: var(--ink-black); stroke-linecap: round; stroke-linejoin: round; }
 .pose-layer-mark circle { fill: var(--accent); }
 .pose-layer-mark text { fill: var(--accent-text); font-size: 11px; font-weight: 600; }
 .pose-rope-note:empty { display: none; }

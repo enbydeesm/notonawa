@@ -1,13 +1,16 @@
 // The Rope tab's panel for the rope chosen (pose-editor.js), in place of
 // the thickness and color tools while one is: a heading (its color, "Rope
 // selected", then Move the body for a cinch or Runs free for a rope over
-// the ring or bamboo and back (a see-saw), the eye (solid or see-through)
-// and ✕ to let it go), then Cinch, Slide and Add rope side by side, each an icon over its
-// name, and one box under them for the one setting in play (its length,
-// its position along the bamboo while sliding, or a cinch's length). The one
-// in use is pressed; tapping it again ends it. With one of its points
-// chosen (its dot tapped), a row for that point: Send backward, its layer,
-// Bring forward, a point added before or after it (‹ ›), and Remove.
+// the ring or bamboo and back (a see-saw), the eye (solid or see-through),
+// Delete rope and ✕ to let it go), then Cinch, Slide and Add rope side by
+// side, each an icon over its name, a row for the point chosen (Send
+// backward, its layer, Bring forward, ‹ Add point › before or after it, and
+// Remove point), and one box under them for the one setting in play (its
+// length, its position along the bamboo while sliding, or a cinch's
+// length). The one in use is pressed; tapping it again ends it. The point
+// row is there whenever a rope is chosen, so it's clear it exists: with no
+// point chosen (no dot tapped) its buttons are greyed out, and a tap on one
+// says to select a point first.
 //
 // The settings' sliders are the poser's, so it hands them in.
 
@@ -60,19 +63,53 @@ function iconButton(id, icon, title, { disabled = false, onclick, className = ""
 /** The highest layer (the format's LAYERS), here so this stays free of the poser's modules. */
 const TOP_LAYER = 4;
 
+/** How long "Select a point first" shows (ms). */
+const TIP_MS = 2500;
+
 /**
- * The chosen point's row.
- * @param {{ layer: number, onLayer: (layer: number) => void, onBefore: (() => void) | null, onAfter: (() => void) | null, onRemove: () => void }} point
+ * @typedef {{ chosen: boolean, layer: number, onLayer: (layer: number) => void,
+ *   onBefore: (() => void) | null, onAfter: (() => void) | null, onRemove: () => void }} PointChoice
+ *   chosen: whether a point is (its dot tapped); without one, the rest is unused
  */
-function pointRow({ layer, onLayer, onBefore, onAfter, onRemove }) {
-  return h("div", { className: "pose-point-row", id: "pose-point-row", role: "group", "aria-label": "The point chosen" },
-    iconButton("pose-point-back", "backward", "Send backward (a layer in)", { disabled: layer <= 0, onclick: () => onLayer(layer - 1) }),
-    h("span", { className: "pose-point-layer", id: "pose-point-layer", "aria-live": "polite" }, `Layer ${layer}`),
-    iconButton("pose-point-forward", "forward", "Bring forward (a layer out, over the ropes under it)", { disabled: layer >= TOP_LAYER, onclick: () => onLayer(layer + 1) }),
-    h("span", { className: "pose-point-gap", "aria-hidden": "true" }),
-    iconButton("pose-point-before", "addBefore", "Add a point before this one", { disabled: !onBefore, onclick: () => onBefore?.() }),
-    iconButton("pose-point-after", "addAfter", "Add a point after this one", { disabled: !onAfter, onclick: () => onAfter?.() }),
-    iconButton("pose-point-remove", "trash", "Remove this point", { onclick: onRemove, className: "danger-tool" }));
+
+/**
+ * The point row: the chosen point's layer, ‹ Add point ›, and Remove point.
+ * With no point chosen, its buttons are greyed out (`aria-disabled`, so
+ * they still take a tap) and a tap shows "Select a point first" under it.
+ * @param {PointChoice} point
+ */
+function pointRow({ chosen, layer, onLayer, onBefore, onAfter, onRemove }) {
+  const tip = h("p", { className: "pose-point-tip", id: "pose-point-tip", role: "status", hidden: true }, "Select a point first");
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  const sayChoose = () => {
+    tip.hidden = false;
+    clearTimeout(timer);
+    timer = setTimeout(() => { tip.hidden = true; }, TIP_MS);
+  };
+  /**
+   * @param {string} id @param {import("./tool-icons.js").ToolIcon} icon @param {string} title
+   * @param {boolean} can @param {() => void} act @param {string} [className]
+   */
+  const button = (id, icon, title, can, act, className) => {
+    const b = iconButton(id, icon, title, { disabled: chosen && !can, onclick: chosen ? act : sayChoose, className });
+    if (!chosen) b.setAttribute("aria-disabled", "true");
+    return b;
+  };
+  const row = h("div", { className: `pose-point-row${chosen ? "" : " unchosen"}`, id: "pose-point-row", role: "group", "aria-label": "The point chosen" },
+    h("div", { className: "pose-point-layers" },
+      button("pose-point-back", "backward", "Send backward (a layer in)", layer > 0, () => onLayer(layer - 1)),
+      h("span", { className: "pose-point-layer", id: "pose-point-layer", "aria-live": "polite" }, `Layer ${chosen ? layer : "–"}`),
+      button("pose-point-forward", "forward", "Bring forward (a layer out, over the ropes under it)", layer < TOP_LAYER, () => onLayer(layer + 1))),
+    h("div", { className: "pose-point-add" },
+      button("pose-point-before", "addBefore", "Add a point before this one", !!onBefore, () => onBefore?.()),
+      // "Add point", or "+ point" where the row's narrow (app.css).
+      h("span", { className: "pose-point-add-text", id: "pose-point-add-text" },
+        h("span", { className: "pose-point-add-long" }, "Add point"), h("span", { className: "pose-point-add-short" }, "+ point")),
+      button("pose-point-after", "addAfter", "Add a point after this one", !!onAfter, () => onAfter?.())),
+    button("pose-point-remove", "removePoint", "Remove this point", true, onRemove, "danger-tool"),
+    tip);
+  return row;
 }
 
 /**
@@ -88,14 +125,15 @@ function pointRow({ layer, onLayer, onBefore, onAfter, onRemove }) {
  *   onSlide: () => void,
  *   onAddRope: () => void,
  *   seeThrough?: { on: boolean, onChange: (on: boolean) => void },
- *   point?: { layer: number, onLayer: (layer: number) => void, onBefore: (() => void) | null, onAfter: (() => void) | null, onRemove: () => void } | null,
+ *   onDelete?: () => void,
+ *   point?: PointChoice | null,
  * }} rope cinch: given when the rope is one (its "Move the body", shown when onStill
  *   is given: a cinch on uplines, not one only round the body); seesaw: given when it can
  *   run free over the ring or bamboo (over: which), pulling one end moving the other;
  *   slide: "none" when it isn't tied to the bamboo; settings: the box's slider
  * @returns {HTMLElement[]}
  */
-export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo, onCinch, onSlide, onAddRope, seeThrough, point = null }) {
+export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo, onCinch, onSlide, onAddRope, seeThrough, onDelete, point = null }) {
   const heading = h("div", { className: "pose-chosen-head" },
     h("span", { className: `pose-chosen-dot ink-${color}`, "aria-hidden": "true" }),
     h("h3", { className: "pose-part", id: "pose-chosen-title" }, "Rope selected"),
@@ -107,6 +145,7 @@ export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo,
       title: seeThrough.on ? "See-through: tap to make it solid" : "Make it see-through, to see the ropes under it",
       onclick: () => seeThrough.onChange(!seeThrough.on),
     }, TOOL_ICONS[seeThrough.on ? "seeThrough" : "seen"]()) : null,
+    onDelete ? iconButton("pose-rope-delete", "trash", "Delete this rope", { onclick: onDelete, className: "danger-tool" }) : null,
     h("button", {
       type: "button", className: "tool icon-tool", id: "pose-rope-letgo", "aria-label": "Let go of this rope", title: "Let go of this rope",
       onclick: onLetGo,

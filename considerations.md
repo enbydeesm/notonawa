@@ -4215,3 +4215,14 @@ rope has no skin to stand off).
   what you see is what's saved. A see-through rope can still be tapped,
   but where a solid one is also under the finger, the solid one wins, as
   that's the one you'd be reaching for.
+- **The point row is always there** while a rope is chosen (a later
+  change): with no point chosen it's greyed out, and a tap on one of its
+  buttons says "Select a point first", as it wasn't clear the row existed
+  until a dot was tapped. It reads ◀ Layer N ▶ · ‹ Add point › · Remove
+  point (a dot and a minus, as the heading now has Delete rope's trash
+  can); narrower than about 290px, "+ point". Delete rope doesn't ask
+  first: Undo brings it back.
+- **The marks on the view are small and black**: the ‹ › and the spot
+  Cinch and Add rope start from (now a ×, not a black ball) are drawn no
+  taller than a medium rope looks there, but at least 7 px so they can be
+  seen when zoomed out; a tap still reaches them from a finger's width.

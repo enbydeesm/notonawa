@@ -545,7 +545,9 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
 
     /**
      * The marks over the view: the ‹ and › beside the point chosen, where a
-     * point would be added, and the chosen rope's dots' layers above 0.
+     * point would be added, the chosen rope's dots' layers above 0, and the
+     * × at the spot a cinch or an added rope starts from (the ‹ › and × no
+     * taller than a medium rope looks there).
      * @param {Pose} pose
      */
     function drawBeside(pose) {
@@ -558,11 +560,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         for (const side of /** @type {const} */ ([-1, 1])) {
           const spot = besidePoint(measuring, pose, /** @type {number} */ (chosen?.index), k, side);
           const at = spot && view.screenAt(spot.at);
-          if (at) marks.push({ side, x: at[0], y: at[1] });
+          if (spot && at) marks.push({ side, x: at[0], y: at[1], size: view.pxAcross(spot.at, 2 * ROPE_RADIUS[2]) });
         }
       }
       const layers = rope ? view.handleSpots().flatMap(({ k: n, x, y }) => (layerOf(rope.p[n]) ? [{ x, y, layer: layerOf(rope.p[n]) }] : [])) : [];
-      beside.draw(marks, layers);
+      beside.draw(marks, layers, mode === "rope" ? view.spotScreen() : null);
     }
 
     /**
@@ -903,10 +905,20 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       };
       // The eye: the whole rope drawn see-through, or solid again.
       const seeThrough = { on: !!rope.t, onChange: (/** @type {boolean} */ on) => commit(setSeeThrough(history.pose, index, on)) };
-      // The point chosen (its dot tapped): its layer, points beside it, Remove.
+      // Delete rope: the whole rope, as one change (Undo brings it back).
+      const onDelete = () => {
+        chosen = null;
+        sliding = null;
+        commit(removeRope(history.pose, index));
+        sayRope("Rope deleted.");
+      };
+      // The point row, always there: the point chosen (its dot tapped), its
+      // layer, points beside it, Remove point; with none, greyed out.
       const k = chosenPoint();
       posed(measuring, pose);
-      const point = k < 0 ? null : {
+      const none = () => {};
+      const point = k < 0 ? { chosen: false, layer: 0, onLayer: none, onBefore: null, onAfter: null, onRemove: none } : {
+        chosen: true,
         layer: layerOf(rope.p[k]),
         onLayer: (/** @type {number} */ layer) => commit(setLayer(history.pose, index, k, layer)),
         onBefore: besidePoint(measuring, pose, index, k, -1) ? () => addPointBeside(-1) : null,
@@ -920,7 +932,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         // body, drawing the parts it's tied to together.
         const still = !!rope.still;
         ropeOptions.replaceChildren(...chosenRopeView({
-          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo, seeThrough,
+          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo, seeThrough, onDelete, point,
           // Cinch is pressed: tapping it again is done with it.
           onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
           cinch: { still, onStill: (on) => commit({
@@ -1000,7 +1012,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         });
       }
       ropeOptions.replaceChildren(...chosenRopeView({
-        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings, seeThrough, point,
+        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings, seeThrough, onDelete, point,
         seesaw: canSeesaw(rope) ? { over: top, on: !!rope.s, onChange: (on) => commit(setSeesaw(history.pose, index, on)) } : null,
         slide: onBamboo < 0 ? "none" : sliding?.index === index ? "on" : "off",
         onSlide: () => {

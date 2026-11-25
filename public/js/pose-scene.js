@@ -51,6 +51,8 @@ const ROPE_REACH = 18;
 const ROPE_DEPTH = 3;
 /** How near a chosen rope's dot a finger must be to hold it (CSS px). */
 const HANDLE_REACH = 16;
+/** The camera's field of view, up and down (degrees). */
+const FOV = 38;
 /** How solid a see-through rope is drawn: enough to see and tap, the ropes under it showing. */
 const SEE_THROUGH = 0.35;
 /** The furthest from a part's middle line its skin is looked for (cm). */
@@ -117,7 +119,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   const scene = new Scene();
   scene.background = cssColor("pose-backdrop");
-  const camera = new PerspectiveCamera(38, 1, 5, 5000);
+  const camera = new PerspectiveCamera(FOV, 1, 5, 5000);
 
   scene.add(new HemisphereLight(0xffffff, cssColor("pose-floor"), 1.6));
   const key = new DirectionalLight(0xffffff, 1.8);
@@ -312,8 +314,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     }
     return material;
   };
-  // The chosen rope's points, to drag or take out: white, apart from the
-  // black dot where a cinch or an added rope would start.
+  // The chosen rope's points, to drag or choose: white (the spot where a
+  // cinch or an added rope would start is a × over the view, pose-beside-ui.js).
   const handleInk = new MeshStandardMaterial({ color: cssColor("pose-handle"), roughness: 0.5 });
 
   /** The pose drawn last, so the view can be drawn again at a new size. @type {Pose | null} */
@@ -322,6 +324,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   let ropeLines = [];
   /** The chosen rope's points on the body, where their dots are. @type {{ k: number, point: Vector3 }[]} */
   let handles = [];
+  /** Where the spot chosen on a rope is, in the room, while one is. @type {Vector3 | null} */
+  let spotAt = null;
 
   /** Takes the old ropes off, freeing what they held. */
   function clearRopes() {
@@ -371,8 +375,9 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   /**
    * Shows a pose (and the rope being laid, the part being posed, the rope
    * chosen, and the parts a move is pushing into each other: orange with
-   * `warn`, as collisions are allowed, or red), and a black dot at the spot
-   * chosen on a rope (where a cinch or an added rope goes).
+   * `warn`, as collisions are allowed, or red). The spot chosen on a rope
+   * (where a cinch or an added rope goes) is only placed (`spotScreen`):
+   * the poser marks it with a × over the view.
    * @param {Pose} pose
    * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null, warn?: boolean,
    *   spot?: RopePoint | null, point?: number }} [extras] point: the chosen rope's point chosen (its place in the rope)
@@ -428,13 +433,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const runs = laying.p.length > 1 && !isCinch(laying) ? ropeRuns(skeleton, all, pose.ropes.length, bent, skin) : [laying.p.map(placed)];
       addRope(laying, runs, -1, false, laying.p.map(placed));
     }
-    if (spot && pose.ropes[spot[1]]) {
-      const dot = new Mesh(sphere, marker);
-      dot.position.copy(placed(spot));
-      dot.scale.setScalar(2.2);
-      dot.userData.spot = true;
-      ropes.add(dot);
-    }
+    spotAt = spot && pose.ropes[spot[1]] ? placed(spot) : null;
 
     // The camera circles a point above the floor, looking at it.
     const [yaw, pitch, distance, height, tx, tz] = pose.camera;
@@ -662,13 +661,28 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     return p.z > 1 ? null : [(p.x + 1) / 2 * box.width, (1 - p.y) / 2 * box.height];
   }
 
+  /**
+   * How many CSS px a length (cm) across the view looks at a place in the room.
+   * @param {Vector3} v @param {number} cm
+   */
+  function pxAcross(v, cm) {
+    const far = Math.max(1, v.distanceTo(camera.position));
+    return cm * canvas.getBoundingClientRect().height / (2 * Math.tan(FOV * Math.PI / 360) * far);
+  }
+
+  /** The spot chosen on a rope, on the canvas (CSS px), and how wide a medium rope looks there; or null. */
+  function spotScreen() {
+    const at = spotAt && screenAt(spotAt);
+    return at && spotAt ? { x: at[0], y: at[1], size: pxAcross(spotAt, 2 * ROPE_RADIUS[2]) } : null;
+  }
+
   /** The chosen rope's dots on the canvas (CSS px), each with its point's place in the rope. */
   const handleSpots = () => handles.flatMap(({ k, point }) => {
     const at = screenAt(point);
     return at ? [{ k, x: at[0], y: at[1] }] : [];
   });
 
-  return { canvas, show, draw, setSize, pick, handleAt, skinMeasure, ray, screenAt, handleSpots, dispose };
+  return { canvas, show, draw, setSize, pick, handleAt, skinMeasure, ray, screenAt, pxAcross, spotScreen, handleSpots, dispose };
 }
 
 /** @typedef {ReturnType<typeof poseView>} PoseView */

@@ -666,21 +666,48 @@ async function wrapping({ tap, drag, topDialog }) {
   await tap(0.5, 0.42);
   check("chosen, the help tells its white dots from the black one, and Wrap is put away", await run(`
     return [$("#pose-rope-hint").textContent, $("#pose-wrap").closest(".pose-wrap-row").hidden];`),
-  ["Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black dot.", true]);
+  ["Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.", true]);
+  check("with no point chosen, the point row is there, greyed out: a tap on one of its buttons says to select a point first, and does nothing else", await run(`
+    const row = $("#pose-point-row");
+    const greyed = ["back", "forward", "before", "after", "remove"].map((b) => $("#pose-point-" + b).getAttribute("aria-disabled"));
+    const before = [$("#pose-point-tip").hidden, row.classList.contains("unchosen"), $("#pose-point-layer").textContent];
+    $("#pose-point-forward").click(); await calm(200);
+    return [greyed, before, !$("#pose-point-tip").hidden, $("#pose-point-tip").textContent, $("#pose-point-layer").textContent, $("#pose-laying-bar").hidden];`),
+  [["true", "true", "true", "true", "true"], [true, true, "Layer –"], true, "Select a point first", "Layer –", true]);
+  check("the spot Cinch and Add rope start from is a small black ×, no dot or circle round it; the row reads ‹ Add point ›, and fits", await run(`
+    const spot = $("#pose-spot");
+    const box = spot?.getBBox();
+    const parts = spot ? [...spot.children].map((c) => c.tagName) : [];
+    const shown = () => [...$("#pose-point-add-text").children].filter((c) => getComputedStyle(c).display !== "none").map((c) => c.textContent);
+    const fits = () => { const r = $("#pose-point-row"); return r.scrollWidth <= r.clientWidth + 1; };
+    return [!!spot, parts, box && box.height <= 12 && box.width <= 12, getComputedStyle(spot?.querySelector("path")).stroke, shown(), fits()];`),
+  [true, ["path", "path"], true, "rgb(34, 34, 34)", ["Add point"], true]);
+  await send("Emulation.setDeviceMetricsOverride", { width: 320, height: 640, deviceScaleFactor: 1, mobile: true });
+  check("…and on a 320px phone it fits, as ‹ + point ›", await run(`
+    await calm(400);
+    const r = $("#pose-point-row");
+    const shown = [...$("#pose-point-add-text").children].filter((c) => getComputedStyle(c).display !== "none").map((c) => c.textContent);
+    const inside = [...r.querySelectorAll("button")].every((b) => b.getBoundingClientRect().right <= r.getBoundingClientRect().right + 0.5);
+    return [shown, r.scrollWidth <= r.clientWidth + 1, inside];`),
+  [["+ point"], true, true]);
+  await send("Emulation.clearDeviceMetricsOverride");
+  await run(`await calm(400);`);
   // Its first point's dot is under the same spot: tapped, the point's chosen.
   await tap(0.5, 0.42);
-  check("a white dot tapped chooses its point: its row (Layer 0, nothing before the rope's first point), and a › on the view where a point would go", await run(`
-    return [$("#pose-point-layer")?.textContent, $("#pose-point-back")?.disabled, $("#pose-point-before")?.disabled, $("#pose-point-after")?.disabled,
-      !!$("#pose-beside-after"), !!$("#pose-beside-before"), !!$("#pose-rope-options").children.length];`),
-  ["Layer 0", true, true, false, true, false, true]);
+  check("a white dot tapped chooses its point: its row no longer greyed (Layer 0, nothing before the rope's first point), and a plain black › on the view, no taller than a medium rope there, where a point would go", await run(`
+    const mark = $("#pose-beside-after");
+    return [$("#pose-point-layer")?.textContent, $("#pose-point-row").classList.contains("unchosen"), $("#pose-point-back")?.hasAttribute("aria-disabled"),
+      $("#pose-point-back")?.disabled, $("#pose-point-before")?.disabled, $("#pose-point-after")?.disabled,
+      !!mark, !!$("#pose-beside-before"), mark ? [...mark.children].map((c) => c.tagName) : null, mark?.getBBox().height <= 12, !!$("#pose-rope-options").children.length];`),
+  ["Layer 0", false, false, true, true, false, true, false, ["path", "path"], true, true]);
   check("Bring forward puts it a layer out, shown by its dot; a point added after it is chosen, at its layer; Remove takes that one out", await run(`
     $("#pose-point-forward").click(); await calm(300);
     const forward = [$("#pose-point-layer").textContent, $("#pose-point-back").disabled, document.querySelectorAll("#pose-beside .pose-layer-mark").length];
     $("#pose-point-after").click(); await calm(300);
     const added = [$("#pose-point-layer").textContent, document.querySelectorAll("#pose-beside .pose-layer-mark").length, !!$("#pose-beside-before")];
     $("#pose-point-remove").click(); await calm(300);
-    return [forward, added, $("#pose-rope-note").textContent, !!$("#pose-point-row")];`),
-  [["Layer 1", false, 1], ["Layer 1", 2, true], "Point taken out.", false]);
+    return [forward, added, $("#pose-rope-note").textContent, $("#pose-point-row").classList.contains("unchosen")];`),
+  [["Layer 1", false, 1], ["Layer 1", 2, true], "Point taken out.", true]);
   check("the eye makes the whole rope see-through, and solid again; a see-through rope can still be chosen", await run(`
     $("#pose-rope-see-through").click(); await calm(300);
     const on = [$("#pose-rope-see-through").getAttribute("aria-pressed"), $("#pose-rope-see-through").title];
@@ -689,6 +716,14 @@ async function wrapping({ tap, drag, topDialog }) {
     $("#pose-rope-see-through").click(); await calm(300);
     return [on, off];`),
   [["true", "See-through: tap to make it solid"], "false"]);
+  check("Delete rope takes the whole rope away, saying so; Undo brings it back", await run(`
+    $("#pose-rope-delete").click(); await calm(300);
+    const gone = [$("#pose-rope-note").textContent, $("#pose-rope-options").children.length];
+    $("#pose-undo").click(); await calm(300);
+    return [gone, $("#pose-redo").disabled];`),
+  [["Rope deleted.", 0], false]);
+  // Undone, it's not chosen: tapping it chooses it again.
+  await tap(0.5, 0.42);
   // Chosen again and taken out: the first point goes, as before.
   await tap(0.5, 0.42);
   check("its first point chosen again and removed: it says so, and the rope stays chosen", await run(`
@@ -925,7 +960,7 @@ async function ropes({ tap, slide, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
     $("#pose-mode-rope").click(); await wait(300);`);
   await tapRope(stored, 0, 0, 0.5);
-  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw), the eye and ✕ in its heading, then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
+  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw), the eye, Delete rope and ✕ in its heading, then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
     const seesaw = $("#pose-seesaw");
     const actions = $("#pose-cinch-start").parentElement.getBoundingClientRect();
     const head = [...$(".pose-chosen-head").children].map((c) => c.id || c.querySelector("input")?.id || c.className);
@@ -936,9 +971,9 @@ async function ropes({ tap, slide, topDialog }) {
       Math.round($("#pose-added-start").getBoundingClientRect().right) === Math.round(actions.right),
       $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"),
       $("label[for=pose-seesaw-start]")?.textContent, Number($("#pose-seesaw-start")?.min) > 0, leakyFields()];`),
-  ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-see-through", "pose-rope-letgo"], true, true, "Runs free",
+  ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-see-through", "pose-rope-delete", "pose-rope-letgo"], true, true, "Runs free",
     "Runs free over the ring: pulling one end moves the other", "Cinch", "Add rope", false, true, true,
-    "Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", false,
+    "Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.", "Tap anywhere else to let it go", false,
     "Start ◀ ▶ End", true, []]);
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`
