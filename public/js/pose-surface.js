@@ -134,6 +134,18 @@ function inside(p, { a, b, r }, margin = 0) {
 }
 
 /**
+ * Whether a rope between points on these two parts goes round the body
+ * (the same part, or both on the trunk), rather than straight across
+ * between two parts (a thigh and a calf, say).
+ * @param {string} partA @param {string} partB rope points' bones
+ */
+export function goesRound(partA, partB) {
+  const [i, j] = [segmentOf(partA), segmentOf(partB)];
+  if (i < 0 || j < 0) return false;
+  return i === j || (TORSO.includes(SEGMENTS[i].name) && TORSO.includes(SEGMENTS[j].name));
+}
+
+/**
  * The points to draw a rope through between two of its points on the
  * body, so it lies on the skin: none when they're close, or either isn't
  * on the body.

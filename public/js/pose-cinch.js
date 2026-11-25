@@ -21,7 +21,7 @@
 import { Object3D, Vector3 } from "./vendor/three.js";
 import { ROPE, isCinch, isAdded, hangs, sags, pullsUplines } from "./pose-format.js";
 import { ropePoint, followsSkin, restPoint, skinPoint, makeSkeleton } from "./pose-skeleton.js";
-import { alongSkin, skinOf } from "./pose-surface.js";
+import { alongSkin, goesRound, skinOf } from "./pose-surface.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").Rope} Rope */
@@ -248,11 +248,14 @@ function straightWay(skeleton, from, to) {
 }
 
 /**
- * The points between two on the body, to lie on the skin: laid out on the
- * straight body and moved as the skin there is (pose-skin-bind.js), so the
- * rope bends and stretches with a bent waist or knee as if drawn on it;
- * on the capsules as posed until the skin's loaded. None when either end
- * isn't on the body.
+ * The points between two on the body, to lie on the skin. Round a part
+ * (both on it, or both on the trunk): laid out on the straight body and
+ * moved as the skin there is (pose-skin-bind.js), so the rope bends and
+ * stretches with a bent waist or knee as if drawn on it. Between two parts
+ * (a thigh and a calf, a futomomo's): straight across between them as
+ * they're drawn, lifted out of the body as posed, not down the straight
+ * leg and round the bent knee. On the capsules as posed until the skin's
+ * loaded. None when either end isn't on the body.
  * @param {Skeleton} skeleton posed @param {RopePoint} from @param {RopePoint} to
  * @param {Vector3} a @param {Vector3} b their places as drawn
  * @param {() => Skin} skin the capsules as posed, if they're needed
@@ -260,7 +263,7 @@ function straightWay(skeleton, from, to) {
  */
 export function skinBetween(skeleton, from, to, a, b, skin) {
   if (!skeleton.bones.has(from[0]) || !skeleton.bones.has(to[0])) return [];
-  if (!followsSkin()) return alongSkin(skin(), from[0], a, to[0], b);
+  if (!followsSkin() || !goesRound(from[0], to[0])) return alongSkin(skin(), from[0], a, to[0], b);
   const parts = [from[0], to[0]];
   return straightWay(skeleton, from, to).map((p) => skinPoint(skeleton, parts, p));
 }

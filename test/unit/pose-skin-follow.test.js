@@ -7,7 +7,8 @@ import { Matrix4, Vector3 } from "../../public/js/vendor/three.js";
 import { BONES, BODY_FILE, readBody, bodyPositions } from "../../public/js/figure-body.js";
 import { toDualQuat, blendDualQuats, dqTransform } from "../../public/js/pose-skinning.js";
 import { bindInverses } from "../../public/js/pose-skin-bind.js";
-import { makeSkeleton, posed, ropePoint, toBone, useSkin, vertexParts } from "../../public/js/pose-skeleton.js";
+import { makeSkeleton, posed, ropePoint, toBone, useSkin, vertexParts, onBone } from "../../public/js/pose-skeleton.js";
+import { ropeRuns } from "../../public/js/pose-cinch.js";
 import { newPose, bonePoint, withLayer } from "../../public/js/pose-format.js";
 
 /** @typedef {import("../../public/js/pose-format.js").Pose} Pose */
@@ -162,5 +163,45 @@ describe("rope on the body follows the skin", () => {
     const out = ropePoint(STRAIGHT, withLayer(front, 2), newPose()).sub(ropePoint(STRAIGHT, front, newPose()));
     expect(out.length()).toBeCloseTo(2 * LAYER_CM, 3);
     expect(out.z / out.length()).toBeGreaterThan(0.8);
+  });
+
+  it("a futomomo's rope crosses straight from the thigh to the calf of a bent leg, not down the leg and round the knee", () => {
+    const skeleton = makeSkeleton();
+    const start = newPose();
+    const pose = { ...start, joints: { ...start.joints, l_knee: [140, 0, 0] } };
+    posed(skeleton, pose);
+    const real = skinned(skeleton);
+    const knee = onBone(skeleton, "l_knee");
+    // On the outside of the leg, as a futomomo's turns cross from the thigh to the calf.
+    const nearest = (/** @type {string} */ part, /** @type {Vector3} */ to) => {
+      const id = parts.names.indexOf(part);
+      let best = -1, far = Infinity;
+      for (let v = 0; v < body.vertices; v++) {
+        if (parts.of[v] === id && at(real, v).distanceTo(to) < far) [best, far] = [v, at(real, v).distanceTo(to)];
+      }
+      return at(real, best);
+    };
+    const out = Math.sign(onBone(skeleton, "l_hip").x);
+    const thigh = nearest("l_hip", onBone(skeleton, "l_hip", [10 * out, -25, 0]));
+    const calf = nearest("l_knee", onBone(skeleton, "l_knee", [10 * out, -15, 0]));
+    // Round the front of the thigh first (a rope of two points hangs straight anyway), then across to the calf.
+    const front = nearest("l_hip", onBone(skeleton, "l_hip", [0, -25, 10]));
+    const points = [front, thigh].map((p) => bonePoint("l_hip", toBone(skeleton, "l_hip", p)));
+    points.push(bonePoint("l_knee", toBone(skeleton, "l_knee", calf)));
+    const whole = ropeRuns(skeleton, { ...pose, ropes: [{ c: "red", w: 2, p: points }] }, 0).flat();
+    // The stretch from the thigh's outside to the calf.
+    const from = whole.reduce((k, p, i) => (p.distanceTo(thigh) < whole[k].distanceTo(thigh) ? i : k), 0);
+    const run = whole.slice(from);
+    const [a, b] = [run[0], run[run.length - 1]];
+    const off = (/** @type {Vector3} */ p) => {
+      const ab = b.clone().sub(a), t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / ab.lengthSq()));
+      return p.distanceTo(a.clone().addScaledVector(ab, t));
+    };
+    // About as long as the gap, every point near the line across it, none by the knee.
+    let length = 0;
+    for (let i = 1; i < run.length; i++) length += run[i].distanceTo(run[i - 1]);
+    expect(length).toBeLessThan(a.distanceTo(b) * 1.5 + 2);
+    expect(Math.max(...run.map(off))).toBeLessThan(3);
+    expect(Math.min(...run.map((p) => p.distanceTo(knee)))).toBeGreaterThan(5);
   });
 });

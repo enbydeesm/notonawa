@@ -4249,8 +4249,13 @@ As built (`pose-skin-bind.js`):
   skinning). Measured against the real mesh, a ring round the waist stays
   within a millimetre with the waist bent either way, leaning, or the
   chest bent and turned; at a bent knee or elbow, within 1 to 2.5 mm.
-- **The rope between two points** is laid round the capsules of the
-  straight body, where they fit, and each of its points moved the same way.
+- **The rope between two points on the same part, or both on the trunk**,
+  is laid round the capsules of the straight body, where they fit, and
+  each of its points moved the same way. Between two parts (a thigh and a
+  calf, a futomomo's turns) it runs straight across between them as
+  they're drawn, lifted out of the body as posed: laid out on the straight
+  leg it went down the leg and round the bent knee instead (31 cm for an
+  11.7 cm gap).
   It's worked out once for the shape and the two points, so drawing costs
   no more than before (about 1 ms a frame for a four-turn wrap); the
   straight body for a new shape takes about 70 ms once.
