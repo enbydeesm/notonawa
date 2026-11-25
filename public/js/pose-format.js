@@ -102,8 +102,8 @@ export const MAX_ROPES = 100;
 export const MAX_ROPE_POINTS = 200;
 /** A point's layer on the body: 0 on the skin, up to 4 ropes out (the server's LAYERS). */
 export const LAYERS = /** @type {const} */ ([0, 4]);
-/** How far out a layer is (cm): a medium rope's thickness. */
-export const LAYER_CM = 1.5;
+/** How far out a layer is (cm): half a medium rope's thickness, so stacked ropes read as stacked without jutting out. */
+export const LAYER_CM = 0.75;
 export const MAX_POINTS = 3000;
 export const MAX_POSES = 20;
 /** How far a rope point can be from its bone, in mm, each way. */

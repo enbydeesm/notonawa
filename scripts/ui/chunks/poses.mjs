@@ -741,6 +741,17 @@ async function wrapping({ tap, drag, topDialog }) {
     // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start); see-through.
     return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30, rope.t];`),
   [12, true, true, true]);
+  check("the poser's ropes follow the skin: a point tapped on the waist bent forward is drawn where it was tapped", await run(`
+    const { followsSkin, makeSkeleton, posed, ropePoint, toBone, onBone } = await import("/js/pose-skeleton.js");
+    const { newPose, bonePoint } = await import("/js/pose-format.js");
+    const skeleton = makeSkeleton();
+    const start = newPose();
+    const pose = { ...start, joints: { ...start.joints, spine: [-55, 0, 0] } };
+    posed(skeleton, pose);
+    const tapped = onBone(skeleton, "spine", [0, 4, 14]);
+    const point = bonePoint("spine", toBone(skeleton, "spine", tapped));
+    return [followsSkin(), ropePoint(skeleton, point, pose).distanceTo(tapped) < 0.15];`),
+  [true, true]);
 }
 
 /**

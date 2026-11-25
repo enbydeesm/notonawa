@@ -20,11 +20,12 @@ import {
   HemisphereLight, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, Raycaster,
   Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
-import { BONES, BODY_FILE, TURNS, readBody, bodyPositions, bindHeads, sameShape } from "./figure-body.js";
+import { BONES, BODY_FILE, readBody, bodyPositions, sameShape } from "./figure-body.js";
+import { bindInverses } from "./pose-skin-bind.js";
 import { ROPE, ROPE_RADIUS, HASHIRA_SIZE, isCinch, onBody } from "./pose-format.js";
 import { withDualQuatSkinning, toDualQuat, blendDualQuats, dqTransform } from "./pose-skinning.js";
 import {
-  makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
+  makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, useSkin, RING_RADIUS, BAMBOO_RADIUS,
 } from "./pose-skeleton.js";
 import { bends, ropeRuns, spotPoint } from "./pose-cinch.js";
 import { skinOf, stretchOf } from "./pose-surface.js";
@@ -91,6 +92,8 @@ const cssColor = (name) => new Color(getComputedStyle(document.documentElement).
 const body = readBody(await (await fetch(BODY_FILE)).arrayBuffer());
 /** Which part of the body (figure-rig.js) each vertex is on, for a rope point tapped there, and for posing. */
 const parts = vertexParts(body);
+// Rope on the body follows this skin as it bends (pose-skin-bind.js).
+useSkin(body);
 const posedParts = vertexParts(body, { posing: true });
 
 /**
@@ -200,20 +203,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     place.needsUpdate = true;
     geometry.computeVertexNormals();
     // Each bone's skin is moved from where it's bound (Anny's pose) to its
-    // joint standing arms down: back from its bound joint, then its turn.
-    const bound = bindHeads(skinShape);
-    inverses.forEach((m, i) => {
-      const [x, y, z] = [-bound[i * 3], -bound[i * 3 + 1], -bound[i * 3 + 2]];
-      const t = TURNS[BONES[i]];
-      if (!t) {
-        m.makeTranslation(x, y, z);
-        return;
-      }
-      m.set(t[0], t[1], t[2], t[0] * x + t[1] * y + t[2] * z,
-        t[3], t[4], t[5], t[3] * x + t[4] * y + t[5] * z,
-        t[6], t[7], t[8], t[6] * x + t[7] * y + t[8] * z,
-        0, 0, 0, 1);
-    });
+    // joint standing arms down (the same the ropes follow, pose-skin-bind.js).
+    bindInverses(skinShape).forEach((m, i) => { inverses[i].elements = m.elements; });
   }
 
   /**

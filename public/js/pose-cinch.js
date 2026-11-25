@@ -18,9 +18,9 @@
 // there; its points on the body stay. An approximation: each cinch is
 // worked out as if the others weren't pulling the same ropes.
 
-import { Vector3 } from "./vendor/three.js";
+import { Object3D, Vector3 } from "./vendor/three.js";
 import { ROPE, isCinch, isAdded, hangs, sags, pullsUplines } from "./pose-format.js";
-import { ropePoint } from "./pose-skeleton.js";
+import { ropePoint, followsSkin, restPoint, skinPoint, makeSkeleton } from "./pose-skeleton.js";
 import { alongSkin, skinOf } from "./pose-surface.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -216,19 +216,61 @@ export function sagging(a, b, extra) {
   });
 }
 
+/** The straight body's capsules for a shape, and the ways round laid on them, kept. @type {Map<string, { skin: Skin, ways: Map<string, Vector3[]> }>} */
+const straight = new Map();
+
 /**
- * The points between two of a rope's on the body, to lie on the skin; none
- * when either end isn't on the body.
- * @param {Skeleton} skeleton @param {Rope} rope @param {number} segment
- * @param {Vector3} a @param {Vector3} b its ends as drawn
- * @param {Skin} skin
+ * The way round the body between two points on it, laid out on the
+ * straight body, where the capsules fit it (worked out once for the shape
+ * and the two points).
+ * @param {Skeleton} skeleton @param {RopePoint} from @param {RopePoint} to
+ * @returns {Vector3[]} on the straight body
+ */
+function straightWay(skeleton, from, to) {
+  const shape = skeleton.shape.join();
+  let kept = straight.get(shape);
+  if (!kept) {
+    const rest = makeSkeleton(new Object3D(), skeleton.shape);
+    rest.pelvis.updateMatrixWorld(true);
+    kept = { skin: skinOf(rest), ways: new Map() };
+    if (straight.size >= 3) straight.delete(/** @type {string} */ (straight.keys().next().value));
+    straight.set(shape, kept);
+  }
+  const key = `${from.join()}|${to.join()}`;
+  let way = kept.ways.get(key);
+  if (!way) {
+    const rest = (/** @type {RopePoint} */ [bone, x, y, z, layer]) => restPoint(skeleton, bone, [x / 10, y / 10, z / 10], layer).p;
+    way = alongSkin(kept.skin, from[0], rest(from), to[0], rest(to));
+    if (kept.ways.size > 2000) kept.ways.clear();
+    kept.ways.set(key, way);
+  }
+  return way;
+}
+
+/**
+ * The points between two on the body, to lie on the skin: laid out on the
+ * straight body and moved as the skin there is (pose-skin-bind.js), so the
+ * rope bends and stretches with a bent waist or knee as if drawn on it;
+ * on the capsules as posed until the skin's loaded. None when either end
+ * isn't on the body.
+ * @param {Skeleton} skeleton posed @param {RopePoint} from @param {RopePoint} to
+ * @param {Vector3} a @param {Vector3} b their places as drawn
+ * @param {() => Skin} skin the capsules as posed, if they're needed
  * @returns {Vector3[]}
  */
-function onSkin(skeleton, rope, segment, a, b, skin) {
-  const [from, to] = [rope.p[segment], rope.p[segment + 1]];
+export function skinBetween(skeleton, from, to, a, b, skin) {
   if (!skeleton.bones.has(from[0]) || !skeleton.bones.has(to[0])) return [];
-  return alongSkin(skin, from[0], a, to[0], b);
+  if (!followsSkin()) return alongSkin(skin(), from[0], a, to[0], b);
+  const parts = [from[0], to[0]];
+  return straightWay(skeleton, from, to).map((p) => skinPoint(skeleton, parts, p));
 }
+
+/**
+ * @param {Skeleton} skeleton @param {Rope} rope @param {number} segment
+ * @param {Vector3} a @param {Vector3} b its ends as drawn
+ * @param {() => Skin} skin
+ */
+const onSkin = (skeleton, rope, segment, a, b, skin) => skinBetween(skeleton, rope.p[segment], rope.p[segment + 1], a, b, skin);
 
 /**
  * A rope's line in the room as the runs it's drawn in: its stretches
@@ -264,7 +306,7 @@ export function ropeRuns(skeleton, pose, index, bent = bends(skeleton, pose), gi
       const pulled = bendsOn(bent, index, segment);
       // Lying on the skin between its points (pose-surface.js), unless a
       // cinch has pulled it off.
-      curve.push(...(pulled.length ? pulled : onSkin(skeleton, rope, segment, a, b, skin())), b);
+      curve.push(...(pulled.length ? pulled : onSkin(skeleton, rope, segment, a, b, skin)), b);
       continue;
     }
     if (curve.length) runs.push(curve);

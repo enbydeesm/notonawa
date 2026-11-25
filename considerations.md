@@ -4226,3 +4226,46 @@ rope has no skin to stand off).
   Cinch and Add rope start from (now a ×, not a black ball) are drawn no
   taller than a medium rope looks there, but at least 7 px so they can be
   seen when zoomed out; a tap still reaches them from a finger's width.
+
+## Poser: rope that follows the skin (November 2026)
+
+Rope points on the body used to turn with their own bone alone (chest,
+spine, pelvis, a forearm…), while the skin round a bent joint moves with a
+blend of the bones either side. Bend the waist and a wrap round it turned
+stiffly with the spine, floating off one side and sinking into the other
+(about 2 to 2.6 cm at the waist bent −55 or +70; 9 cm at a knee bent 100°),
+and the rope between its points, laid round the capsules as posed, cut
+corners where they fit the body worst.
+
+As built (`pose-skin-bind.js`):
+
+- **A point's place is on the straight body.** Its numbers (mm from its
+  part's joint) are read as they always were, but on the body standing
+  straight, every bone at rest. There it takes the skin weights of the
+  nearest few vertices of its stretch of skin (the trunk, the head, or a
+  whole arm or leg, so a point by the elbow kept on the forearm bends as
+  the skin above the elbow does), the nearest counting most. Posed, it's
+  moved by that blend of bones, as the skin is (the same dual-quaternion
+  skinning). Measured against the real mesh, a ring round the waist stays
+  within a millimetre with the waist bent either way, leaning, or the
+  chest bent and turned; at a bent knee or elbow, within 1 to 2.5 mm.
+- **The rope between two points** is laid round the capsules of the
+  straight body, where they fit, and each of its points moved the same way.
+  It's worked out once for the shape and the two points, so drawing costs
+  no more than before (about 1 ms a frame for a four-turn wrap); the
+  straight body for a new shape takes about 70 ms once.
+- **Taps and drags go the other way**: the point on the straight body the
+  skin puts under the finger, guessed from the part's own turn and moved
+  by each miss, a few times over (to well under a millimetre).
+- **Layers stand out the way the skin faces**, from its normal, rather than
+  straight out from the bone; and half as far as before (0.75 cm a layer,
+  a medium rope's radius), so stacked ropes read as stacked without
+  jutting out from the body.
+- **Saved poses keep their numbers**: points away from a bend are where
+  they were; ones near a bent joint now sit where the skin is.
+- Until the mesh has loaded (and in unit tests that don't load it,
+  `useSkin`), a point turns with its bone alone, as before.
+
+We weighed storing each point's weights with it, and turned it down: it
+would change the format and the server's checks for nothing the device
+can't work out again.

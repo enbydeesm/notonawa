@@ -5,7 +5,8 @@
 // rest of the ropes.
 
 import { ropePoint, toBone } from "./pose-skeleton.js";
-import { skinOf, alongSkin } from "./pose-surface.js";
+import { skinOf } from "./pose-surface.js";
+import { skinBetween } from "./pose-cinch.js";
 import { onBody, bonePoint, withLayer, layerOf, insertPoint, MAX_ROPE_POINTS } from "./pose-format.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
@@ -41,7 +42,7 @@ export function besidePoint(skeleton, pose, index, k, side) {
   // On the skin: the layers set aside, put back on the new point.
   const flat = (/** @type {RopePoint} */ p) => /** @type {RopePoint} */ (p.slice(0, 4));
   const a = ropePoint(skeleton, flat(here), pose), b = ropePoint(skeleton, flat(there), pose);
-  const between = onBody(rope, n) ? alongSkin(skinOf(skeleton), here[0], a, there[0], b) : [];
+  const between = onBody(rope, n) ? skinBetween(skeleton, flat(here), flat(there), a, b, () => skinOf(skeleton)) : [];
   const path = [a, ...between, b];
   let total = 0;
   for (let i = 1; i < path.length; i++) total += path[i].distanceTo(path[i - 1]);

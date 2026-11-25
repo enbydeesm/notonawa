@@ -263,7 +263,7 @@ export const AREAS = [
       "public/js/pose-scene.js", "public/js/pose-editor.js", "public/js/pose-ik.js", "public/js/poses-ui.js",
       "public/js/import-poses.js", "src/pose-presets/", "public/js/pose-presets.js", "public/js/pose-presets-ui.js", "public/js/preset-picker.js", "public/js/preset-list.js",
       "public/js/drawing-copy.js", "public/js/tile-drag.js", "public/js/tool-icons.js", "scripts/vendor/",
-      "public/js/pose-cinch.js", "public/js/pose-gravity.js", "public/js/pose-constraints.js", "public/js/pose-uplines.js", "public/js/pose-hang.js", "public/js/pose-surface.js", "public/js/pose-points.js", "public/js/pose-beside-ui.js", "public/js/pose-beside-paths.js", "public/js/pose-marks.js", "public/js/pose-marks-ui.js",
+      "public/js/pose-cinch.js", "public/js/pose-gravity.js", "public/js/pose-constraints.js", "public/js/pose-uplines.js", "public/js/pose-hang.js", "public/js/pose-surface.js", "public/js/pose-skin-bind.js", "public/js/pose-points.js", "public/js/pose-beside-ui.js", "public/js/pose-beside-paths.js", "public/js/pose-marks.js", "public/js/pose-marks-ui.js",
       "public/js/figure-body.js", "public/js/figure-body-data.js", "public/figure/", "scripts/figure/", "public/js/pose-skinning.js", "public/js/joint-limits.js", "public/js/hip-order.js", "public/js/pose-contact.js", "public/js/wake-lock.js",
       "public/js/standalone-poser.js", "public/js/add-to-picker.js", "public/js/add-to-choices.js", "public/js/item-targets.js",
       "public/js/new-entry-start.js", "public/js/pose-hints.js", "public/js/pose-scene-panel.js", "public/js/pose-rope-panel.js",
