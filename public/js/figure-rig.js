@@ -316,7 +316,7 @@ export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_
  * Each rests on the floor (its lift puts the lowest point of the body
  * and legs there: the arms aren't a body preset's, so they're left out),
  * but face down, face up, on their side (a leg folded) and upside down,
- * which start in the air. Kneeling (seiza), One leg folded, Face down, Face
+ * which start in the air. Kneeling (seiza), Left leg folded, Face down, Face
  * up and Upside down were worked out for format 1's hips, which turned
  * Out first: hip-order.js turned their hips into these, so each looks as
  * it did.
@@ -344,7 +344,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
   },
   {
     name: "Sitting, legs crossed", body: [0, 0, 0], lift: 15,
-    joints: { l_hip: [90, 15, 88], l_knee: [122, 2], l_ankle: [-30], r_hip: [92, 22, 85], r_knee: [138, 0], r_ankle: [-30] },
+    joints: { l_hip: [90, 20, 85], l_knee: [135, 0], l_ankle: [-30], r_hip: [90, 20, 85], r_knee: [135, 0], r_ankle: [-30] },
   },
   // Both knees folded, the feet to one side of the hips.
   {
@@ -356,7 +356,8 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
     joints: { chest: [0, -8, 0], r_hip: [77, 7, 77], r_knee: [125, 31], r_ankle: [-50], l_hip: [68, 7, -45], l_knee: [137, -24], l_ankle: [-50] },
   },
   { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
-  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
+  { name: "Right leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [100, -3, -15], r_knee: [155], r_ankle: [-40] } },
+  { name: "Left leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
   // Standing on one leg, the other raised out to the side, knee bent.
   // Standing on one leg, the other raised out to the side, the knee as high
   // as the waist and the shin hanging in line with the thigh.
@@ -381,7 +382,7 @@ export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
     name: "Ebi (shrimp)", body: [0, 0, 0], lift: 15,
     joints: {
       spine: [60, 0, 0], chest: [45, 0, 0], head: [25, 0, 0],
-      l_hip: [90, 15, 88], l_knee: [122, 2], l_ankle: [-30], r_hip: [92, 22, 85], r_knee: [138, 0], r_ankle: [-30],
+      l_hip: [90, 20, 85], l_knee: [135, 0], l_ankle: [-30], r_hip: [90, 20, 85], r_knee: [135, 0], r_ankle: [-30],
     },
   },
   // Face down on the floor, knees bent, the feet raised toward the hands, the head up.
