@@ -10,6 +10,14 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- Poser: rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
+- Poser: tap a rope's white dot to select a point, then stack it on a layer over other ropes, add points beside it, or remove it. Ropes can be made see-through or deleted.
+- Poser: tick Lock lengths on a rope to keep what it ties together, so tied thighs move together and a folded knee stays folded.
+- Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
+- Poser: new and reordered body presets, including sitting with legs open, closed or crossed, and left or right leg folded.
+- People on ties and workshops stay in the order you entered them, with you last on cards.
+
 ## 2026.11.19.1829
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
 - Install app is in the menu now, so you can still install nōtonawa after dismissing the banner. You should reinstall the app to show the new improved logo! 
