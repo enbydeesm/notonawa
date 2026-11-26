@@ -27,18 +27,17 @@ const THIGHS = [["l_hip", -30, -300, 70], ["r_hip", 30, -300, 70], ["r_hip", 30,
 const FOLD = [["l_hip", 70, -250, 0], ["l_knee", 70, -150, 0], ["l_knee", -70, -150, 0], ["l_hip", -70, -250, 0]];
 
 describe("locked ropes", () => {
-  it("keep the stretches between two parts and to a hardpoint, not those round one part", () => {
+  it("keep the stretches between two parts, not those round one part or up to a hardpoint", () => {
     const pose = { ...page.newPose(), ring: [0, 250, 0], ropes: [
       rope(THIGHS, { f: true }), rope([["ring", 0, 0, 0], ["chest", 0, 50, 120], ["chest", 100, 50, 0]], { f: true }), rope(THIGHS),
     ] };
     expect(lockedStretches(pose)).toEqual([
       { index: 0, segment: 0, parts: ["l_hip", "r_hip"] }, { index: 0, segment: 2, parts: ["r_hip", "l_hip"] },
-      { index: 1, segment: 0, parts: ["chest"] },
     ]);
     // Points on different parts not next to each other are kept apart too: a bundle.
     expect(lockedPairs(pose)).toEqual([{ index: 0, a: 0, b: 2 }, { index: 0, a: 1, b: 3 }]);
     // A rope being changed itself isn't held to its old lengths.
-    expect(lockedStretches(pose, 0).map((s) => s.index)).toEqual([1]);
+    expect(lockedStretches(pose, 0)).toEqual([]);
   });
 
   it("tying the thighs together: lifting one brings the other with it, the rope as long as it was", () => {
@@ -81,13 +80,28 @@ describe("locked ropes", () => {
     for (const s of [0, 2]) expect(Math.abs(l1[s] - l0[s])).toBeLessThan(1.5);
   });
 
-  it("a locked rope doesn't run over the hardpoint as a see-saw", () => {
+  it("a locked see-saw still runs free over the hardpoint: its uplines aren't locked", () => {
     const ring = { ...page.newPose(), ring: [0, 250, 0] };
     const seesaw = rope([["l_wrist", 0, -30, 0], ["ring", 0, 0, 0], ["r_wrist", 0, -30, 0]], { s: true, f: true });
     const before = { ...ring, ropes: [seesaw] };
     const moved = page.setJoint(before, "l_shoulder", 0, 60);
-    // keepSeesaws leaves it (the lock decides).
-    expect(keepSeesaws(before, moved, ["l_shoulder"])).toBe(moved);
+    expect(keepRopes(before, moved, ["l_shoulder"]).joints.r_shoulder).not.toEqual(before.joints.r_shoulder);
+  });
+
+  it("a change none of the joints may hold goes only as far as the rope lets it", () => {
+    const folded = page.setJoint(page.newPose(), "l_knee", 0, 140);
+    const before = { ...folded, ropes: [rope(FOLD, { f: true })] };
+    // Nothing may give (no joints named as changed, and the knee's chain is the change itself): it stops partway.
+    const after = keepLocked(before, page.setJoint(before, "l_knee", 0, 20), ["l_knee", "l_hip", "hips", "spine", "body", "lift", "shift"]);
+    expect(after.joints.l_knee[0]).toBeGreaterThan(100);
+    const [was, now] = [lengths(before, 0), lengths(after, 0)];
+    for (const s of [0, 2]) expect(Math.abs(now[s] - was[s])).toBeLessThan(1);
+  });
+
+  it("new ropes and cinches start with their lengths locked", () => {
+    const pose = page.finishRope(page.newPose(), rope(THIGHS));
+    expect(pose.ropes[0].f).toBe(true);
+    expect(page.addCinch(pose, { c: "red", w: 2 }, [["rope", 0, 0, 0.5], ["rope", 0, 2, 0.5]], 20).ropes[1].f).toBe(true);
   });
 
   it("is saved and read back; the server refuses anything but true", () => {
@@ -97,4 +111,41 @@ describe("locked ropes", () => {
     expect(page.setLocked(pose, 0, false).ropes[0].f).toBeUndefined();
     expect(() => server.parsePose({ ...pose, ropes: [{ ...pose.ropes[0], f: 1 }] })).toThrow(/right format/);
   });
+
+  it("the lower leg dragged every which way, the body hung and tilted, can't pull thighs tied together apart", async () => {
+    const fsModule = "node:fs";
+    const { readFileSync } = /** @type {{ readFileSync: (path: string) => Uint8Array }} */ (await import(fsModule));
+    const { BODY_FILE, readBody } = await import("../../public/js/figure-body.js");
+    const { useSkin, onBone } = await import("../../public/js/pose-skeleton.js");
+    const { dragTo, dragJoints, limbJoints } = await import("../../public/js/pose-ik.js");
+    const { Vector3 } = await import("../../public/js/vendor/three.js");
+    const file = readFileSync(`public${BODY_FILE}`);
+    useSkin(readBody(/** @type {ArrayBuffer} */ (file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength))));
+    try {
+      const base = page.newPose();
+      const before = { ...base, lift: 140, body: /** @type {[number, number, number]} */ ([60, 0, 0]), joints: { ...base.joints, r_knee: [40, 0] }, ropes: [rope(THIGHS, { f: true })] };
+      const was = lengths(before, 0);
+      posed(skeleton, before);
+      const start = onBone(skeleton, "l_knee", [0, -30, 0]);
+      const ways = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [1, 1, 0], [-1, 1, 0], [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, 1, -1], [1, 0, -1], [-1, 0, -1]];
+      let worst = 0;
+      for (const way of ways) {
+        // As the poser drags: each step from the last one held.
+        /** @type {Pose | null} */
+        let held = null;
+        /** @type {Pose} */
+        let limb = before;
+        for (let step = 1; step <= 10; step++) {
+          const target = start.clone().add(new Vector3(...way).normalize().multiplyScalar(step * 7));
+          limb = dragTo(limb, "l_knee", [0, -30, 0], target, { from: before });
+          held = limb = keepLocked(before, keepSeesaws(before, limb, dragJoints("l_knee")), limbJoints("l_knee"), { from: held ?? before });
+          const now = lengths(held, 0);
+          worst = Math.max(worst, Math.abs(now[0] - was[0]), Math.abs(now[2] - was[2]));
+        }
+      }
+      expect(worst).toBeLessThan(1);
+    } finally {
+      useSkin(null);
+    }
+  }, 120000);
 });

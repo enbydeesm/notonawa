@@ -471,7 +471,8 @@ describe("changing a pose", () => {
     rope = page.addPoint(rope, page.bonePoint("chest", [0, -900, 110]));
     expect(rope.p[1]).toEqual(["chest", 0, -600, 110]);
     const p = page.finishRope(page.newPose(), rope);
-    expect(p.ropes).toEqual([rope]);
+    // Its lengths locked, as every new rope's are.
+    expect(p.ropes).toEqual([{ ...rope, f: true }]);
     expect(page.removeRope(p, 0).ropes).toEqual([]);
   });
 

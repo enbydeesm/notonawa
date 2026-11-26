@@ -62,13 +62,13 @@ import {
 import { poseView, poseImage } from "./pose-scene.js";
 import { SHAPE_RANGES, SHAPE_SLIDERS, DEFAULT_SHAPE, standingLift, sameShape } from "./figure-body.js";
 import { loadSettings, saveDefaultShape } from "./settings.js";
-import { canDrag, dragTo, onPlane, dragJoints } from "./pose-ik.js";
+import { canDrag, dragTo, onPlane, dragJoints, limbJoints } from "./pose-ik.js";
 import { makeSkeleton, posed, toBone, withShape, withBodyPresetOn, onDefaultBody, withHipsOn } from "./pose-skeleton.js";
 import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchPoints, spotOn, segmentLength } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
-import { cinchBody, keepRopes, keepLocked, ropeLength, setRopeLength } from "./pose-constraints.js";
+import { cinchBody, keepRopes, keepLocked, keepSeesaws, lockedStretches, ropeLength, setRopeLength } from "./pose-constraints.js";
 import { uplineStretch, uplineLength, setUplineLength, seesawSides, seesawLengths, setSeesawStart, SEESAW_END } from "./pose-uplines.js";
 import { hang, canHang } from "./pose-hang.js";
 import { skinOf, wrapRound, MAX_WRAPS } from "./pose-surface.js";
@@ -1436,9 +1436,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
     let limb = null;
     /** The dragged limb's pose, before any see-saw follows it. @type {Pose | null} */
     let limbPose = null;
+    /** The drag's last step a locked rope held, while dragging. @type {Pose | null} */
+    let limbHeld = null;
     /**
      * A point of the chosen rope held by its dot (Rope mode): dragged, it
-     * moves over the skin; tapped, it's taken out.
+     * moves over the skin; tapped, it's chosen.
      * @type {{ index: number, k: number } | null}
      */
     let held = null;
@@ -1492,7 +1494,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         // A second finger turns a limb's drag into a pinch, putting it back.
         if (limb || held) {
           limb = null;
-          limbPose = null;
+          limbPose = limbHeld = null;
           held = null;
           draft = null;
           drawAll();
@@ -1533,7 +1535,14 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           drawSoon();
         } else if (target) {
           limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target, { from: history.pose });
-          draft = grounded(measuring, history.pose, keepRopes(history.pose, limbPose, dragJoints(limb.bone)));
+          // See-saws keep their length; a locked rope holds what it ties:
+          // only the limb's own joints give (the other leg follows), and the
+          // drag carries on from where it held, a small step at a time, so
+          // it can't wander off where the rope can't go.
+          const kept = keepLocked(history.pose, keepSeesaws(history.pose, limbPose, dragJoints(limb.bone)), limbJoints(limb.bone),
+            { from: limbHeld ?? history.pose });
+          if (lockedStretches(history.pose).length) limbPose = limbHeld = kept;
+          draft = grounded(measuring, history.pose, kept);
           drawSoon();
         }
         return;
@@ -1558,7 +1567,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       if (limb) {
         const held = limb.bone, lifting = limb.lifting;
         limb = null;
-        limbPose = null;
+        limbPose = limbHeld = null;
         // A limb dragged is one change, any clash settled (pose-contact.js);
         // the body lifted by its head, one change too; let go of with a
         // cancel, it's put back.

@@ -105,7 +105,8 @@ describe("cinches, in the format", () => {
     expect(page.setHardpoint(pose, "bamboo").ropes[2]).toEqual(pose.ropes[2]);
     expect(page.setHardpoint(pose, "hashira").ropes).toEqual([]);
     const seesaw = page.finishRope(pose, rope([["l_wrist", 0, 0, 0], RING, ["r_wrist", 0, 0, 0]]));
-    expect(page.setHardpoint(seesaw, "hashira").ropes).toEqual([rope([["l_wrist", 0, 0, 0], ["r_wrist", 0, 0, 0]])]);
+    // Its lengths locked, as every new rope's are.
+    expect(page.setHardpoint(seesaw, "hashira").ropes).toEqual([{ ...rope([["l_wrist", 0, 0, 0], ["r_wrist", 0, 0, 0]]), f: true }]);
   });
 
   it("are saved, checked, by the server", () => {

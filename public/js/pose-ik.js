@@ -88,6 +88,15 @@ export function dragJoints(bone) {
   return [...new Set([...DRAG_CHAINS[bone], ...trunkFor(bone).map(([angle]) => angle)].map(([name]) => name).concat(other ? [other, "spine"] : []))];
 }
 
+/**
+ * The joints of the limb dragged itself (not the trunk's or the other
+ * hip's, which a drag can move too): what a locked rope may give back of
+ * the drag, the rest free to follow it (pose-constraints.js's keepLocked).
+ * @param {string} bone
+ * @returns {string[]}
+ */
+export const limbJoints = (bone) => [...new Set(DRAG_CHAINS[bone].map(([name]) => name))];
+
 /** How far off the target (cm) the limb alone must stay before the trunk joins in. */
 export const TRUNK_AFTER = 8;
 

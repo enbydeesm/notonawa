@@ -45,8 +45,9 @@
 //            only: nothing it's tied to moves).
 //            `t` (true) draws a rope see-through, ropes under it showing.
 //            `f` (true) locks a rope's lengths: moving the body keeps each
-//            of its stretches tying two parts together (or to a hardpoint)
-//            as long as it was (pose-constraints.js's keepLocked).
+//            of its stretches tying two parts together as long as it was
+//            (pose-constraints.js's keepLocked); stretches to a hardpoint
+//            stay free. New ropes have it.
 //            `s` (true) marks a rope running over the ring or bamboo, from
 //            the body and back to it: a see-saw, keeping its length as one
 //            end moves (pose-constraints.js).
@@ -625,14 +626,16 @@ export function addPoint(rope, point) {
 /**
  * The pose with a rope added, if it has at least two points (a single tap
  * isn't a rope). One over the ring or bamboo and back is a see-saw to
- * begin with.
+ * begin with; every new rope has its lengths locked (`f`), so what it ties
+ * together stays tied, until its lock is tapped off.
  * @param {Pose} pose
  * @param {Rope} rope
  * @returns {Pose}
  */
 export function finishRope(pose, rope) {
   if (rope.p.length < 2) return pose;
-  return { ...pose, ropes: [...pose.ropes, canSeesaw(rope) ? { ...rope, s: true } : rope] };
+  const locked = { ...rope, f: /** @type {true} */ (true) };
+  return { ...pose, ropes: [...pose.ropes, canSeesaw(rope) ? { ...locked, s: true } : locked] };
 }
 
 /**
@@ -803,7 +806,8 @@ export function cantCinch(pose, points) {
 
 /**
  * The pose with a cinch added through its points, as long as given (taut,
- * when it's the length of its line: pose-cinch.js).
+ * when it's the length of its line: pose-cinch.js), its lengths locked as a
+ * new rope's are.
  * @param {Pose} pose
  * @param {{ c: Color, w: Width }} look
  * @param {RopePoint[]} points
@@ -811,7 +815,7 @@ export function cantCinch(pose, points) {
  * @returns {Pose}
  */
 export const addCinch = (pose, { c, w }, points, length) =>
-  ({ ...pose, ropes: [...pose.ropes, { c, w, p: points.map((p) => /** @type {RopePoint} */ ([...p])), l: clamp(length, CINCH_RANGE) }] });
+  ({ ...pose, ropes: [...pose.ropes, { c, w, p: points.map((p) => /** @type {RopePoint} */ ([...p])), l: clamp(length, CINCH_RANGE), f: true }] });
 
 /**
  * Why a rope can't be added to this one, or null if it can.

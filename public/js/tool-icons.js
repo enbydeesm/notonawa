@@ -68,7 +68,7 @@ const rounded = (x, y, w, hgt, r) =>
 /**
  * @typedef {"undo" | "redo" | "download" | "pencil" | "views" | "addVisual" | "facing" | "close" | "eraser" | "cinch" | "slide" | "addRope"
  *   | "ring" | "bamboo" | "hashira" | "chevron" | "bodyPosition" | "armsPosition" | "seen" | "seeThrough" | "trash"
- *   | "forward" | "backward" | "addBefore" | "addAfter" | "removePoint"} ToolIcon
+ *   | "forward" | "backward" | "addBefore" | "addAfter" | "removePoint" | "locked" | "unlocked"} ToolIcon
  */
 
 /** @type {Record<ToolIcon, () => SVGSVGElement>} */
@@ -122,6 +122,9 @@ export const TOOL_ICONS = {
   // A chosen rope drawn solid (an open eye) or see-through (crossed out).
   seen: () => icon(["M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z", circle(12, 12, 3)]),
   seeThrough: () => icon(["M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z", circle(12, 12, 3), "M4 4l16 16"]),
+  // A rope's lengths locked (a padlock shut) or free (its shackle open).
+  locked: () => icon(["M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z", "M8 11V7a4 4 0 0 1 8 0v4", "M12 15v2"]),
+  unlocked: () => icon(["M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z", "M8 11V7a4 4 0 0 1 7.6-1.7", "M12 15v2"]),
   trash: () => icon(["M4 7h16", "M10 11v6", "M14 11v6", "M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12", "M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"]),
   // A point's layer: two strands, the top one brought over (or sent under) the other.
   forward: () => icon(["M3 17h18", { d: "M3 11h18", width: 3 }, { d: "m12 3-3 3h6z", fill: true }]),

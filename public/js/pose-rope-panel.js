@@ -1,9 +1,9 @@
 // The Rope tab's panel for the rope chosen (pose-editor.js), in place of
-// the thickness and color tools while one is: a heading (its color,
-// "Selected", Lock lengths (the body moving keeps the rope's lengths, so
-// what it ties stays tied), then Move the body for a cinch or Runs free
-// for a rope over the ring or bamboo and back (a see-saw; greyed out while
-// its lengths are locked), the eye (solid or see-through),
+// the thickness and color tools while one is: a heading (its color, then
+// Move the body for a cinch or Runs free for a rope over the ring or
+// bamboo and back (a see-saw), the lock (shut and yellow while its lengths
+// are locked, so moving the body keeps what it ties together; open while
+// they're free), the eye (solid or see-through),
 // Delete rope and ✕ to let it go), then Cinch, Slide and Add rope side by
 // side, each an icon over its name, a row for the point chosen (Send
 // backward, its layer, Bring forward, ‹ Add point › before or after it, and
@@ -43,18 +43,12 @@ function actionButton(id, icon, label, title, { pressed = false, disabled = fals
 
 /**
  * "Runs free": a rope over the ring or bamboo and back runs through it, so
- * pulling one end moves the other (a see-saw, pose-constraints.js). Not
- * while its lengths are locked: each side is then kept as it is.
+ * pulling one end moves the other (a see-saw, pose-constraints.js).
  * @param {{ over: string, on: boolean, onChange: (on: boolean) => void }} seesaw
- * @param {boolean} locked
  */
-function runsFree({ over, on, onChange }, locked) {
+function runsFree({ over, on, onChange }) {
   const label = checkbox("pose-seesaw", "Runs free", on, onChange, "pose-check pose-chosen-check");
-  label.title = locked ? "Its lengths are locked: untick Lock lengths to let it run free" : `Runs free over the ${over}: pulling one end moves the other`;
-  if (locked) {
-    /** @type {HTMLInputElement} */ (label.querySelector("input")).disabled = true;
-    label.classList.add("disabled");
-  }
+  label.title = `Runs free over the ${over}: pulling one end moves the other`;
   return label;
 }
 
@@ -143,16 +137,20 @@ function pointRow({ chosen, layer, onLayer, onBefore, onAfter, onRemove }) {
  * @returns {HTMLElement[]}
  */
 export function chosenRopeView({ color, cinch, seesaw, slide, settings, onLetGo, onCinch, onSlide, onAddRope, seeThrough, onDelete, lock, point = null }) {
-  const locking = lock ? checkbox("pose-rope-lock", "Lock lengths", lock.on, lock.onChange, "pose-check pose-chosen-check") : null;
-  if (locking) locking.title = "Moving the body keeps this rope's lengths, so what it ties together stays together";
   const heading = h("div", { className: "pose-chosen-head" },
     h("span", { className: `pose-chosen-dot ink-${color}`, "aria-hidden": "true" }),
-    h("h3", { className: "pose-part", id: "pose-chosen-title" }, "Selected"),
-    // Its checkboxes, together: on a narrow screen, a line of their own under the rest (app.css).
-    h("div", { className: "pose-chosen-checks" },
-      locking,
+    // Named for screen readers only: the dot shows which rope it is.
+    h("h3", { className: "pose-part visually-hidden", id: "pose-chosen-title" }, "Rope selected"),
+    // Its checkboxes: on a narrow screen, a line of their own under the buttons (app.css).
+    h("div", { className: `pose-chosen-checks${cinch?.onStill ? " long" : ""}` },
       cinch?.onStill ? checkbox("pose-cinch-body", "Move the body", !cinch.still, (on) => cinch.onStill?.(!on), "pose-check pose-chosen-check") : null,
-      seesaw ? runsFree(seesaw, !!lock?.on) : null),
+      seesaw ? runsFree(seesaw) : null),
+    lock ? h("button", {
+      type: "button", className: "tool icon-tool", id: "pose-rope-lock", "aria-pressed": String(lock.on),
+      "aria-label": lock.on ? "Lengths locked: unlock" : "Lock its lengths",
+      title: lock.on ? "Lengths locked, so what it ties stays together: tap to let them change" : "Lock its lengths, so what it ties stays together as the body moves",
+      onclick: () => lock.onChange(!lock.on),
+    }, TOOL_ICONS[lock.on ? "locked" : "unlocked"]()) : null,
     seeThrough ? h("button", {
       type: "button", className: "tool icon-tool", id: "pose-rope-see-through", "aria-pressed": String(seeThrough.on),
       "aria-label": seeThrough.on ? "See-through: make it solid" : "Make it see-through",

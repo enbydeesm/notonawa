@@ -4277,30 +4277,42 @@ can't work out again.
 
 ## Poser: locking a rope's lengths (November 2026)
 
-A rope's lengths can be locked (Lock lengths in its heading, `f: true` on
-the rope, unticked by default), so what it ties together stays tied: two
-thighs in a double column move together, a futomomo's knee won't open.
-As built (`keepLocked` in `pose-constraints.js`):
+A rope's lengths can be locked (the lock in its heading, left of the eye:
+shut and yellow when on, open when off; `f: true` on the rope), so what
+it ties together stays tied: two thighs in a double column move together,
+a futomomo's knee won't open. Every new rope, cinch and added rope starts
+locked; ropes saved before it keep what they had (unlocked). As built
+(`keepLocked` in `pose-constraints.js`):
 
 - **What's kept**: each stretch between points on two different parts
-  (thigh and calf, thigh and thigh, arm and chest) or to a hardpoint, and
-  the distance between any two of its points on different parts (up to
-  40 pairs, spread along it). The pairs matter: kept by its crossing
-  strands alone, a double column let the other thigh swing in rather
-  than lift with the first, which keeps those strands just as long.
-  Stretches round one part, or round the trunk, are left free: the skin
-  stretches as the waist bends, and locking a chest harness that way
-  would stop the chest bending at all.
+  (thigh and calf, thigh and thigh, arm and chest), and the distance
+  between any two of its points on different parts (up to 40 pairs,
+  spread along it). The pairs matter: kept by its crossing strands alone,
+  a double column let the other thigh swing in rather than lift with the
+  first, which keeps those strands just as long. Stretches round one part,
+  or round the trunk, are left free: the skin stretches as the waist
+  bends, and locking a chest harness that way would stop the chest
+  bending at all. Stretches up to a hardpoint are left free too: with new
+  ropes locked, a locked upline would hold the whole body at its length,
+  and tilting or lifting it would be refused; an upline keeps its own
+  Length and a see-saw runs free, locked or not.
 - **How**: after a joint slider, a drag, the Hips or the whole body's
   sliders, the body lifted by a drag, or an upline's, a two-point rope's,
   a cinch's or a see-saw's Length, first the joints the change didn't
   touch move (the other leg follows), then, if they can't hold the
-  lengths, the changed ones give some of it back (the rope holds). The
-  rope whose own Length is being changed is left out. Each stays one
-  change for Undo.
+  lengths, the changed ones give some of it back (the rope holds), and if
+  even that can't, only as much of the change as the rope allows is made
+  (halving it until it holds). The rope whose own Length is being changed
+  is left out. Each stays one change for Undo.
+- **Drags**: only the dragged limb's own joints count as changed (the drag
+  also moves the trunk and the other hip, which would otherwise never get
+  to follow), and each step of the drag carries on from the last one held,
+  not from wherever the finger has taken the limb: solved from scratch, a
+  leg pulled out to the side 60 cm with its hip at its limit was too far
+  to bring back, and the thighs came 20 to 40 cm apart.
 - **Not for presets or Reset**: Body…, Arms… and Reset apply as chosen,
   a fresh start, and the lock holds from the next move.
-- **A locked see-saw doesn't run free**: each side is kept, so Runs free
-  is greyed out while Lock lengths is ticked.
-- **The heading**: "Rope selected" became "Selected", making room; its
-  checkboxes take a line of their own under it on a narrow screen.
+- **The heading**: the rope's color dot stands for it ("Rope selected" is
+  for screen readers only), then Move the body or Runs free where the rope
+  has one, then the lock, the eye, Delete and ✕. The checkbox takes a line
+  of its own under the buttons only where it won't fit beside them.
