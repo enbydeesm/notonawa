@@ -35,7 +35,7 @@
 // rope added to another), with no other spot. `k` (cm) is a rope's slack.
 // `s` marks a see-saw: a rope over the ring or bamboo once, from the body
 // and back to it (public/js/pose-format.js says more). `t` (true) draws a
-// rope see-through. A point on the body can have a fifth number, its
+// rope see-through; `f` (true) locks its lengths. A point on the body can have a fifth number, its
 // layer, 1 to 4 (LAYERS): that many ropes' thickness out from the skin, so
 // it lies over ropes beneath it; without one it's on the skin.
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
@@ -153,7 +153,7 @@ export const MAX_BODY_BYTES = 256 * 1024;
 
 /**
  * @typedef {[string, number, number, number] | [string, number, number, number, number]} RopePoint
- * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number, t?: true }} Rope
+ * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number, t?: true, f?: true }} Rope
  * @typedef {{
  *   v: 1 | 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
@@ -289,6 +289,11 @@ export function parsePose(value) {
     if (r.t !== undefined) {
       if (r.t !== true) throw bad("a rope isn't in the right format.");
       rope.t = true;
+    }
+    // `f`: its lengths locked (the poser keeps them as the body moves).
+    if (r.f !== undefined) {
+      if (r.f !== true) throw bad("a rope isn't in the right format.");
+      rope.f = true;
     }
     return rope;
   });

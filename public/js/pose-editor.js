@@ -54,7 +54,7 @@ import { canReach } from "./joint-limits.js";
 import { pickPreset, pickTurn } from "./preset-picker.js";
 import {
   PICK_COLORS as COLORS, WIDTHS, HARDPOINT_RANGES, SHIFT_RANGE, RING_POINT, newPose, readPose, setJoint, setBody, setLift, setShift,
-  setCamera, panCamera, typedNumber, clamp, maxInset, hangs, onBody, layerOf, setLayer, setSeeThrough,
+  setCamera, panCamera, typedNumber, clamp, maxInset, hangs, onBody, layerOf, setLayer, setSeeThrough, setLocked,
   hardpointOf, setHardpoint, moveHardpoint, hardpointPointsLost, bambooPoint, hashiraPoint,
   bonePoint, addPoint, movePoint, removePoint, MAX_ROPE_POINTS, ROPE_RADIUS, finishRope, removeRope, cantAdd, withPosture, startHistory, change, look, undo, redo,
   samePose, isCinch, isUpline, hasLength, pullsUplines, canSeesaw, setSeesaw, cantCinch, cantCinchAt, cantAddTo, addCinch, setCinchLength, setSlack, SLACK_RANGE, ropeSpot, forSaving, moveAlongBamboo,
@@ -68,7 +68,7 @@ import { keepAwake } from "./wake-lock.js";
 import { depths, clashingParts, settleClashes, behindBody, contactAccepted, clashesLeft, fixClashes } from "./pose-contact.js";
 import { cinchPoints, spotOn, segmentLength } from "./pose-cinch.js";
 import { grounded } from "./pose-gravity.js";
-import { cinchBody, keepSeesaws, ropeLength, setRopeLength } from "./pose-constraints.js";
+import { cinchBody, keepRopes, keepLocked, ropeLength, setRopeLength } from "./pose-constraints.js";
 import { uplineStretch, uplineLength, setUplineLength, seesawSides, seesawLengths, setSeesawStart, SEESAW_END } from "./pose-uplines.js";
 import { hang, canHang } from "./pose-hang.js";
 import { skinOf, wrapRound, MAX_WRAPS } from "./pose-surface.js";
@@ -785,12 +785,13 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       const joint = /** @type {import("./figure-rig.js").Joint} */ (jointNamed(selected));
       const own = joint.moves.map((m, i) => slider({
         id: `pose-${joint.name}-${i}`, label: m.label, min: m.min, max: m.max, value: pose.joints[joint.name][i],
-        // A see-saw rope's other end moves to keep it the same length; let
+        // A see-saw rope's other end moves to keep it the same length, and
+        // a rope with its lengths locked holds what it ties together; let
         // go, any clash is settled (pose-contact.js).
         // The Hips turn the pelvis keeping both legs and the trunk where they were (pose-skeleton.js).
         apply: joint.name === "hips"
-          ? (p, v) => keepSeesaws(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
-          : (p, v) => keepSeesaws(p, setJoint(p, joint.name, i, v), [joint.name]),
+          ? (p, v) => keepRopes(p, withHipsOn(measuring, p, p.joints.hips.map((a, k) => (k === i ? v : a))), HIPS_MOVE)
+          : (p, v) => keepRopes(p, setJoint(p, joint.name, i, v), [joint.name]),
         settle: (before, after) => settle(before, after, joint.name === "hips" ? HIPS_MOVE : [joint.name]),
       }));
       if (joint.name !== "head") {
@@ -806,12 +807,15 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           h("button", { type: "button", className: "tool", id: "pose-reset-whole", onclick: resetWholeBody }, "Reset")),
         ...BODY_MOVES.map((m, i) => slider({
           id: `pose-body-${i}`, label: m.label, min: m.min, max: m.max, value: pose.body[i],
-          apply: (p, v) => setBody(p, i, v),
+          apply: (p, v) => keepLocked(p, setBody(p, i, v), ["body"]),
         })),
-        slider({ id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift, apply: setLift }),
+        slider({
+          id: "pose-lift", label: "Height (cm)", min: LIFT_RANGE[0], max: LIFT_RANGE[1], value: pose.lift,
+          apply: (p, v) => keepLocked(p, setLift(p, v), ["lift"]),
+        }),
         ...[1, 0].map((i) => slider({
           id: `pose-shift-${i}`, label: SHIFT_SLIDERS[i], min: SHIFT_RANGE[i][0], max: SHIFT_RANGE[i][1], value: pose.shift[i],
-          apply: (p, v) => setShift(p, i, v),
+          apply: (p, v) => keepLocked(p, setShift(p, i, v), ["shift"]),
         })));
     }
 
@@ -905,6 +909,8 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
       };
       // The eye: the whole rope drawn see-through, or solid again.
       const seeThrough = { on: !!rope.t, onChange: (/** @type {boolean} */ on) => commit(setSeeThrough(history.pose, index, on)) };
+      // Lock lengths: the body moving keeps the rope's lengths (keepLocked).
+      const lock = { on: !!rope.f, onChange: (/** @type {boolean} */ on) => commit(setLocked(history.pose, index, on)) };
       // Delete rope: the whole rope, as one change (Undo brings it back).
       const onDelete = () => {
         chosen = null;
@@ -932,7 +938,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         // body, drawing the parts it's tied to together.
         const still = !!rope.still;
         ropeOptions.replaceChildren(...chosenRopeView({
-          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo, seeThrough, onDelete, point,
+          color: rope.c, seesaw: null, slide: "none", onLetGo: letGo, seeThrough, onDelete, lock, point,
           // Cinch is pressed: tapping it again is done with it.
           onCinch: letGo, onSlide: () => {}, onAddRope: () => {},
           cinch: { still, onStill: (on) => commit({
@@ -944,7 +950,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
           }) },
           settings: slider({
             id: "pose-cinch-length", label: "Length (cm)", min: 0, max: span, value: Math.min(/** @type {number} */ (rope.l), span),
-            apply: (p, v) => (still ? setCinchLength(p, index, v) : cinchBody(p, index, v)),
+            apply: (p, v) => keepLocked(p, still ? setCinchLength(p, index, v) : cinchBody(p, index, v), undefined, { except: index }),
           }),
         }));
         return;
@@ -970,7 +976,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2, 2 * now) };
         settings = slider({
           id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
-          apply: (p, v) => setUplineLength(p, index, stretch, v),
+          apply: (p, v) => keepLocked(p, setUplineLength(p, index, stretch, v), undefined, { except: index }),
           // Let go, a body in the air comes to rest under its lines (pose-hang.js).
           settle: (_before, after) => hang(after),
         });
@@ -983,7 +989,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         if (lengthRange?.chosen !== chosen) lengthRange = { chosen, max: Math.max(2, 2 * now) };
         settings = slider({
           id: "pose-length", label: "Length (cm)", min: 0, max: lengthRange.max, value: Math.min(now, lengthRange.max),
-          apply: (p, v) => setRopeLength(p, index, v),
+          apply: (p, v) => keepLocked(p, setRopeLength(p, index, v), undefined, { except: index }),
         });
       } else if (seesawSides(pose, index)) {
         // A see-saw keeps its whole length: the slider is how much of it is
@@ -997,7 +1003,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         const [min, max] = [SEESAW_END, lengthRange.max - SEESAW_END];
         settings = slider({
           id: "pose-seesaw-start", label: "Start ◀ ▶ End", min, max, value: clamp(Math.round(lengths.start), [min, max]),
-          apply: (p, v) => setSeesawStart(p, index, v),
+          apply: (p, v) => keepLocked(p, setSeesawStart(p, index, v), undefined, { except: index }),
         });
       } else if (isUpline(rope)) {
         // An upline with nothing on the body to lift (hanging from a spot on
@@ -1012,7 +1018,7 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         });
       }
       ropeOptions.replaceChildren(...chosenRopeView({
-        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings, seeThrough, onDelete, point,
+        color: rope.c, cinch: null, onLetGo: letGo, onCinch: startCinch, onAddRope: startAdded, settings, seeThrough, onDelete, lock, point,
         seesaw: canSeesaw(rope) ? { over: top, on: !!rope.s, onChange: (on) => commit(setSeesaw(history.pose, index, on)) } : null,
         slide: onBamboo < 0 ? "none" : sliding?.index === index ? "on" : "off",
         onSlide: () => {
@@ -1523,11 +1529,11 @@ export async function editPose(start, { addToVisuals, standalone = false, place 
         const target = onPlane(view.ray(x, y), limb.through, limb.normal);
         if (target && limb.lifting) {
           // Only the height: the head and chest stay as they are.
-          draft = grounded(measuring, history.pose, setLift(history.pose, Math.round(history.pose.lift + target.y - limb.through.y)));
+          draft = grounded(measuring, history.pose, keepLocked(history.pose, setLift(history.pose, Math.round(history.pose.lift + target.y - limb.through.y)), ["lift"]));
           drawSoon();
         } else if (target) {
           limbPose = dragTo(limbPose ?? history.pose, limb.bone, limb.cm, target, { from: history.pose });
-          draft = grounded(measuring, history.pose, keepSeesaws(history.pose, limbPose, dragJoints(limb.bone)));
+          draft = grounded(measuring, history.pose, keepRopes(history.pose, limbPose, dragJoints(limb.bone)));
           drawSoon();
         }
         return;

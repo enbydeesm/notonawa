@@ -44,6 +44,9 @@
 //            `k` (cm) is a rope's slack: its hanging stretches sag (drawn
 //            only: nothing it's tied to moves).
 //            `t` (true) draws a rope see-through, ropes under it showing.
+//            `f` (true) locks a rope's lengths: moving the body keeps each
+//            of its stretches tying two parts together (or to a hardpoint)
+//            as long as it was (pose-constraints.js's keepLocked).
 //            `s` (true) marks a rope running over the ring or bamboo, from
 //            the body and back to it: a see-saw, keeping its length as one
 //            end moves (pose-constraints.js).
@@ -66,9 +69,9 @@ import { FORWARD_FIRST, withNewerHips } from "./hip-order.js";
  * @typedef {[string, number, number, number] | [string, number, number, number, number]} RopePoint
  */
 /**
- * A rope; `t` draws it see-through; `still` (a cinch's "Move the body"
+ * A rope; `t` draws it see-through; `f` locks its lengths; `still` (a cinch's "Move the body"
  * unticked) is the poser's own, never saved (forSaving).
- * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, k?: number, t?: true, still?: true }} Rope
+ * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, k?: number, t?: true, f?: true, still?: true }} Rope
  */
 /** @typedef {[number, number, number, number, number, number]} Camera */
 /** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
@@ -696,6 +699,21 @@ export function setSeeThrough(pose, index, on) {
       if (i !== index) return r;
       const { t: _t, ...solid } = r;
       return on ? { ...solid, t: /** @type {true} */ (true) } : solid;
+    }),
+  };
+}
+
+/**
+ * A rope's lengths locked (moving the body keeps them, keepLocked), or free again.
+ * @param {Pose} pose @param {number} index @param {boolean} on
+ * @returns {Pose}
+ */
+export function setLocked(pose, index, on) {
+  return {
+    ...pose, ropes: pose.ropes.map((r, i) => {
+      if (i !== index) return r;
+      const { f: _f, ...free } = r;
+      return on ? { ...free, f: /** @type {true} */ (true) } : free;
     }),
   };
 }

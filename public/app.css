@@ -429,9 +429,15 @@ dialog.preset-picker.searchable[open] {
 /* The one setting in play, in its box: outlined in the accent while sliding or on a cinch. */
 .pose-setting-box { padding: 4px 10px; border: 1px solid var(--line); border-radius: 12px; }
 .pose-setting-box.active { border-color: var(--accent); }
-/* The chosen rope's heading: its color, its name, Move the body (a cinch), ✕. */
-.pose-chosen-head { display: flex; align-items: center; gap: 8px; align-self: stretch; }
+/* The chosen rope's heading: its color, "Selected", its checkboxes (Lock
+   lengths, Move the body, Runs free), the eye, Delete and ✕. Narrow, the
+   checkboxes take a line of their own under the rest. */
+.pose-chosen-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; align-self: stretch; container-type: inline-size; }
 .pose-chosen-head .pose-part { flex: 1; }
+.pose-chosen-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 0 14px; }
+@container (max-width: 430px) {
+  .pose-chosen-checks { order: 1; flex-basis: 100%; }
+}
 .pose-chosen-dot { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); }
 .pose-chosen-check { font-weight: 600; min-height: 40px; }
 /* Hardpoint: which, and Change in Scene. */
@@ -537,6 +543,8 @@ dialog.preset-picker.searchable[open] {
 .pose-rope-options .pose-sliders { align-self: stretch; }
 .pose-check { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.9rem; color: var(--text); }
 .pose-check input { width: auto; margin: 0; accent-color: var(--ink-grey); }
+/* Runs free while a rope's lengths are locked (pose-rope-panel.js). */
+.pose-check.disabled { color: var(--muted); opacity: 0.6; }
 .pose-slider label { margin: 0; font-size: 0.85rem; }
 .pose-slider input[type="range"] { width: 100%; margin: 0; padding: 0; }
 /* The value's box, to type a number into: 16px, so an iPhone doesn't zoom
