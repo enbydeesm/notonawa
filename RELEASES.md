@@ -17,6 +17,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
 - Poser: new and reordered body presets, including sitting with legs open, closed or crossed, and left or right leg folded.
 - People on ties and workshops stay in the order you entered them, with you last on cards.
+- Join the nōtonawa Discord from the menu, under Tutorial.
 
 ## 2026.11.19.1829
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.

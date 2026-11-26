@@ -871,7 +871,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   then the poser's button (the poser on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide, pinned to the top (sticky); the + button and the ☰ menu panel: Settings, Account, Your
-  data, Install app (where it can be), Tutorial (the welcome tour), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
+  data, Install app (where it can be), Tutorial (the welcome tour), Join the nōtonawa Discord (`DISCORD_INVITE`, a new tab), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
   `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
