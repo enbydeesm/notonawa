@@ -11,13 +11,14 @@ a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
 ## Next
-- Poser: rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
-- Poser: tap a rope's white dot to select a point, then stack it on a layer over other ropes, add points beside it, or remove it. Ropes can be made see-through or deleted.
-- Poser: tick Lock lengths on a rope to keep what it ties together, so tied thighs move together and a folded knee stays folded.
-- Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
-- Poser: new and reordered body presets, including sitting with legs open, closed or crossed, and left or right leg folded.
-- People on ties and workshops stay in the order you entered them, with you last on cards.
 - Join the nōtonawa Discord from the menu, under Tutorial.
+- Rope now locks tied body parts! By default rope that spans two body parts or body to hardpoint start 'locked' to their drawn length. Select a rope and tap the lock icon to unlock rope and allow it to stretch when the body moves. Position presets will ignore the lock and stretch rope automatically.
+- Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.
+- Rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
+- New body presets: sitting with legs open, closed or crossed, chair pose, and more.
+- Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
+- People on ties and workshops stay in the order you entered them, with you last on cards.
+
 
 ## 2026.11.19.1829
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
