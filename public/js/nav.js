@@ -5,7 +5,8 @@
 // which opens a side panel: Settings (light/dark mode and role names, in
 // their own dialog), the account and "Your data" links, Install app (until
 // it's installed, where the browser can), Tutorial (the
-// welcome tour), Bug and feedback,
+// welcome tour), Join the nōtonawa Discord (our community's invite link, in
+// a new tab), Bug and feedback,
 // What's new (the release notes), the privacy policy, Sign Out and the
 // app's version.
 // Drawn once by app.js; setCurrent() marks the view being shown.
@@ -25,6 +26,9 @@ import { lock, isUnlocked } from "./vault.js";
 import { wipeCaches } from "./cache/db.js";
 import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
 import { HANK_PATH } from "./rope-rating.js";
+
+/** The nōtonawa Discord's invite (the menu's Join the nōtonawa Discord). */
+export const DISCORD_INVITE = "https://discord.gg/5tqpYntYvM";
 
 /** The tabs: address, name and icon, in order. */
 export const PAGES = /** @type {const} */ ([
@@ -179,6 +183,11 @@ function openMenu() {
         type: "button", className: "menu-item menu-tutorial", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openTour(); },
       }, tutorialIcon(), h("span", {}, "Tutorial")),
+      // Our Discord's invite. Another site: a new tab (the app, and its
+      // unlocked key, left as they are), and noreferrer, so it isn't told
+      // which page sent them. Nothing of Discord's runs in the app.
+      h("a", { href: DISCORD_INVITE, target: "_blank", rel: "noopener noreferrer", className: "menu-item menu-discord" },
+        discordIcon(), h("span", {}, "Join the nōtonawa Discord")),
       h("button", {
         type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openFeedback(); },
@@ -372,6 +381,21 @@ function tutorialIcon() {
     svg("path", { d: "M10.4 8.2a1.8 1.8 0 1 1 2.6 1.6c-.6.3-1 .8-1 1.5v.4", "stroke-width": 1.6 }),
     svg("circle", { cx: 12, cy: 13.6, r: 0.9, fill: "currentColor", stroke: "none" })
   );
+  return icon;
+}
+
+/**
+ * Discord's own symbol, from their brand guidelines (discord.com/branding:
+ * Discord-Symbol-White.svg, its one path unchanged), drawn in the text's
+ * color as their white and black versions are: 20 wide, centred in the
+ * menu's 24 × 24 icons.
+ */
+function discordIcon() {
+  const icon = lineIcon();
+  icon.append(svg("path", {
+    transform: "translate(2 4.42) scale(0.15792)", fill: "currentColor", stroke: "none",
+    d: "M81.15,0c-1.2376,2.1973-2.3489,4.4704-3.3591,6.794-9.5975-1.4396-19.3718-1.4396-28.9945,0-.985-2.3236-2.1216-4.5967-3.3591-6.794-9.0166,1.5407-17.8059,4.2431-26.1405,8.0568C2.779,32.5304-1.6914,56.3725.5312,79.8863c9.6732,7.1476,20.5083,12.603,32.0505,16.0884,2.6014-3.4854,4.8998-7.1981,6.8698-11.0623-3.738-1.3891-7.3497-3.1318-10.8098-5.1523.9092-.6567,1.7932-1.3386,2.6519-1.9953,20.281,9.547,43.7696,9.547,64.0758,0,.8587.7072,1.7427,1.3891,2.6519,1.9953-3.4601,2.0457-7.0718,3.7632-10.835,5.1776,1.97,3.8642,4.2683,7.5769,6.8698,11.0623,11.5419-3.4854,22.3769-8.9156,32.0509-16.0631,2.626-27.2771-4.496-50.9172-18.817-71.8548C98.9811,4.2684,90.1918,1.5659,81.1752.0505l-.0252-.0505ZM42.2802,65.4144c-6.2383,0-11.4159-5.6575-11.4159-12.6535s4.9755-12.6788,11.3907-12.6788,11.5169,5.708,11.4159,12.6788c-.101,6.9708-5.026,12.6535-11.3907,12.6535ZM84.3576,65.4144c-6.2637,0-11.3907-5.6575-11.3907-12.6535s4.9755-12.6788,11.3907-12.6788,11.4917,5.708,11.3906,12.6788c-.101,6.9708-5.026,12.6535-11.3906,12.6535Z",
+  }));
   return icon;
 }
 

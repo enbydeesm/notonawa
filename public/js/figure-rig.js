@@ -73,9 +73,12 @@ function limbs(side) {
       moves: [move("Bend", "x", -1, -5, 155), move("Twist out", "y", out, -85, 95)] },
     { name: `${side}_wrist`, label: `${name} wrist`, parent: `${side}_elbow`, offset: [0, -25, 0], order: "ZXY",
       moves: [move("Bend", "z", /** @type {1 | -1} */ (-s), -85, 85), move("Tilt", "x", 1, -35, 35)] },
+    // The hip turns Forward first, then Out, so Out moves the knee sideways
+    // however far forward the leg is (pose format 1's turned Out first,
+    // hip-order.js). It twists out further than in, as a hip does.
     {
-      name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "ZXY",
-      moves: [move("Forward", "x", -1, -35, 150), move("Out", "z", out, -35, 100), move("Twist out", "y", out, -50, 50)],
+      name: `${side}_hip`, label: `${name} hip`, parent: "pelvis", offset: [9 * s, -5, 0], order: "XZY",
+      moves: [move("Forward", "x", -1, -35, 150), move("Out", "z", out, -35, 100), move("Twist out", "y", out, -50, 90)],
     },
     // The lower leg's twist turns the foot out or in: only once the knee
     // bends, and with the hip's no further than a leg can (joint-limits.js).
@@ -310,34 +313,114 @@ export const ARM_JOINTS = Object.freeze(["l_shoulder", "l_elbow", "l_wrist", "r_
  * Starting positions for the body: everything but the arms (the trunk,
  * head and legs, and the whole body's turn and height), as the joints that
  * aren't at rest. Choosing one keeps the arms, ropes, hardpoint and view.
+ * Each rests on the floor (its lift puts the lowest point of the body
+ * and legs there: the arms aren't a body preset's, so they're left out),
+ * but face down, face up, on their side (a leg folded) and upside down,
+ * which start in the air. Kneeling (seiza), Left leg folded, Face down, Face
+ * up and Upside down were worked out for format 1's hips, which turned
+ * Out first: hip-order.js turned their hips into these, so each looks as
+ * it did.
  * @type {readonly BodyPreset[]}
  */
 export const BODY_PRESETS = Object.freeze(/** @type {BodyPreset[]} */ ([
-  { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
   // The knees fold as far as they go (155°), so the thighs slope a little
   // and the shins lie flat on the floor.
   {
     name: "Kneeling (seiza)", body: [0, 0, 0], lift: 19,
-    joints: { l_hip: [68, 8, 0], r_hip: [68, 8, 0], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
+    joints: { l_hip: [68, 3, -7], r_hip: [68, 3, -7], l_knee: [155], r_knee: [155], l_ankle: [-50], r_ankle: [-50] },
   },
   { name: "Kneeling up", body: [0, 0, 0], lift: 50, joints: { l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] } },
-  { name: "One leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, 15, 0], l_knee: [155], l_ankle: [-40] } },
+  // Sitting on the floor.
+  // Leaning back a little, the legs open and the knees up, each shin in
+  // line with its thigh, the bottom and feet on the floor.
+  {
+    name: "Sitting, legs open", body: [-10, 0, 0], lift: 11,
+    joints: { head: [10, 0, 0], l_hip: [115, 35, -10], r_hip: [115, 35, -10], l_knee: [60, -10], r_knee: [60, -10] },
+  },
+  // Leaning back, knees up, the knees and ankles touching, the bottom and feet on the floor.
+  {
+    name: "Sitting, legs closed", body: [-20, 0, 0], lift: 11,
+    joints: { head: [20, 0, 0], l_hip: [100, -12, 4], r_hip: [100, -12, 4], l_knee: [65, 0], r_knee: [65, 0] },
+  },
+  {
+    name: "Sitting, legs crossed", body: [0, 0, 0], lift: 15,
+    joints: { l_hip: [90, 20, 85], l_knee: [135, 0], l_ankle: [-30], r_hip: [90, 20, 85], r_knee: [135, 0], r_ankle: [-30] },
+  },
+  // Both knees folded, the feet to one side of the hips.
+  {
+    name: "Side-saddle (feet to the right)", body: [0, 0, 0], lift: 26,
+    joints: { chest: [0, 8, 0], l_hip: [77, 7, 77], l_knee: [125, 31], l_ankle: [-50], r_hip: [68, 7, -45], r_knee: [137, -24], r_ankle: [-50] },
+  },
+  {
+    name: "Side-saddle (feet to the left)", body: [0, 0, 0], lift: 26,
+    joints: { chest: [0, -8, 0], r_hip: [77, 7, 77], r_knee: [125, 31], r_ankle: [-50], l_hip: [68, 7, -45], l_knee: [137, -24], l_ankle: [-50] },
+  },
+  { name: "Standing", joints: {}, body: [0, 0, 0], lift: STANDING_LIFT },
+  { name: "Right leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [100, -3, -15], r_knee: [155], r_ankle: [-40] } },
+  { name: "Left leg folded (futomomo)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [100, -3, -15], l_knee: [155], l_ankle: [-40] } },
+  // Standing on one leg, the other raised out to the side, knee bent.
+  // Standing on one leg, the other raised out to the side, the knee as high
+  // as the waist and the shin hanging in line with the thigh.
+  { name: "Kata ashi (right leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { r_hip: [115, 49, -18], r_knee: [68, 13], r_ankle: [-30] } },
+  { name: "Kata ashi (left leg up)", body: [0, 0, 0], lift: STANDING_LIFT, joints: { l_hip: [115, 49, -18], l_knee: [68, 13], l_ankle: [-30] } },
+  // Leaning forward over bent knees, the knees and ankles touching.
+  {
+    name: "Chair pose", body: [40, 0, 0], lift: 75,
+    joints: { head: [-25, 0, 0], l_hip: [95, -13, 4], r_hip: [95, -13, 4], l_knee: [80, 5], r_knee: [80, 5], l_ankle: [10], r_ankle: [10] },
+  },
+  {
+    name: "Deep squat", body: [0, 0, 0], lift: 28,
+    joints: { spine: [30, 0, 0], l_hip: [110, 15, -5], r_hip: [110, 15, -5], l_knee: [140], r_knee: [140], l_ankle: [32], r_ankle: [32] },
+  },
+  // Each leg folded heel to hip, the knees open.
+  {
+    name: "Frogtie, seated", body: [0, 0, 0], lift: 27,
+    joints: { spine: [-5, 0, 0], l_hip: [60, 45, 30], r_hip: [60, 45, 30], l_knee: [155], r_knee: [155], l_ankle: [-40], r_ankle: [-40] },
+  },
+  // Legs crossed (as Sitting, legs crossed), folded forward, the head toward the feet.
+  {
+    name: "Ebi (shrimp)", body: [0, 0, 0], lift: 15,
+    joints: {
+      spine: [60, 0, 0], chest: [45, 0, 0], head: [25, 0, 0],
+      l_hip: [90, 20, 85], l_knee: [135, 0], l_ankle: [-30], r_hip: [90, 20, 85], r_knee: [135, 0], r_ankle: [-30],
+    },
+  },
+  // Face down on the floor, knees bent, the feet raised toward the hands, the head up.
+  {
+    name: "Hogtie", body: [90, 0, 0], lift: 14,
+    joints: { head: [-35, 0, 0], spine: [-15, 0, 0], l_hip: [-10, 5, 0], r_hip: [-10, 5, 0], l_knee: [125], r_knee: [125], l_ankle: [-45], r_ankle: [-45] },
+  },
+  // On hands and knees, the thighs straight down; the arms preset of the same name puts the hands on the floor.
+  {
+    name: "All fours", body: [80, 0, 0], lift: 51,
+    joints: { head: [-30, 0, 0], l_hip: [80, 3, 0], r_hip: [80, 3, 0], l_knee: [90], r_knee: [90], l_ankle: [-45], r_ankle: [-45] },
+  },
+  // On elbows and knees, both legs folded (futomomo); the arms preset of the same name puts the elbows on the floor.
+  {
+    name: "All fours, elbows", body: [107, 0, 0], lift: 50,
+    joints: { head: [-40, 0, 0], l_hip: [107, 5, 0], r_hip: [107, 5, 0], l_knee: [155], r_knee: [155], l_ankle: [-40], r_ankle: [-40] },
+  },
   {
     name: "Face down", body: [90, 0, 0], lift: 110,
-    joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 5, 0], l_knee: [20], r_knee: [80] },
+    joints: { head: [-30, 0, 0], l_hip: [5, 5, 0], r_hip: [40, 4, -3], l_knee: [20], r_knee: [80] },
   },
   {
     name: "Face up", body: [-90, 0, 0], lift: 110,
-    joints: { head: [30, 0, 0], l_hip: [60, 10, 0], r_hip: [20, 10, 0], l_knee: [90], r_knee: [40] },
+    joints: { head: [30, 0, 0], l_hip: [60, 5, -9], r_hip: [20, 9, -3], l_knee: [90], r_knee: [40] },
+  },
+  // As a side suspension starts: the top leg folded (futomomo), the other nearly straight.
+  {
+    name: "On their side, top leg folded (left)", body: [0, 0, 90], lift: 110,
+    joints: { spine: [10, 0, 0], l_hip: [75, 0, 0], l_knee: [155], l_ankle: [-40], r_hip: [10, 0, 0], r_knee: [20] },
   },
   {
-    name: "On their side", body: [0, 0, 90], lift: 110,
-    joints: { spine: [10, 0, 0], l_hip: [90, 0, 0], l_knee: [140], r_hip: [20, 0, 0], r_knee: [30] },
+    name: "On their side, top leg folded (right)", body: [0, 0, -90], lift: 110,
+    joints: { spine: [10, 0, 0], r_hip: [75, 0, 0], r_knee: [155], r_ankle: [-40], l_hip: [10, 0, 0], l_knee: [20] },
   },
   {
     name: "Upside down", body: [180, 180, 0], lift: 165,
     // The legs folded: knees bent right up, toes pointed.
-    joints: { l_hip: [19, 5, 0], r_hip: [19, 5, 0], l_knee: [150], r_knee: [150], l_ankle: [-50], r_ankle: [-50] },
+    joints: { l_hip: [19, 5, -2], r_hip: [19, 5, -2], l_knee: [150], r_knee: [150], l_ankle: [-50], r_ankle: [-50] },
   },
 ]));
 
@@ -361,12 +444,34 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
   },
   // The elbows back, the forearms folded forward beside the chest.
   { name: "Tenshi", joints: { l_shoulder: [-48, 5, -2], l_elbow: [150], r_shoulder: [-48, 5, -2], r_elbow: [150] } },
+  // The arms straight down behind the back, drawn in, the hands together.
+  {
+    name: "Strappado", joints: {
+      l_shoulder: [-35, -20, 0], l_elbow: [0, 40], l_wrist: [-25, 0], r_shoulder: [-35, -20, 0], r_elbow: [0, 40], r_wrist: [-25, 0],
+    },
+  },
   // The forearms across the front of the chest, the hands crossing, as in a hug.
   {
     name: "Crossed (hug)", joints: {
       l_shoulder: [30, 3, -65], l_elbow: [133], l_wrist: [13, 14], r_shoulder: [30, 3, -65], r_elbow: [133], r_wrist: [9, 11],
     },
   },
+  // The forearms crossed lower than the hug's, across the bottom of the chest.
+  {
+    name: "Crossed (low)", joints: {
+      l_shoulder: [40, -25, -95], l_elbow: [90, 35], l_wrist: [40, 15], r_shoulder: [40, -25, -95], r_elbow: [90, 35], r_wrist: [40, 15],
+    },
+  },
+  // For the body presets of the same names: straight down to the floor
+  // with the trunk at "All fours"'s slope, the palms flat on it, fingers
+  // forward; and the upper arms straight down with the elbows bent as
+  // Tenshi's, the elbows on the floor.
+  {
+    name: "All fours", joints: {
+      l_shoulder: [80, 5, 0], l_elbow: [0, -85], l_wrist: [-80, 0], r_shoulder: [80, 5, 0], r_elbow: [0, -85], r_wrist: [-80, 0],
+    },
+  },
+  { name: "All fours, elbows", joints: { l_shoulder: [107, 8, 0], l_elbow: [150, 0], r_shoulder: [107, 8, 0], r_elbow: [150, 0] } },
 ]));
 
 /**

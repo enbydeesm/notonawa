@@ -5,8 +5,11 @@
 // any pose from. Its name is sealed in the browser; its angles are plain
 // JSON, as a pose's are, checked against the same joint limits:
 //   body: { joints: { spine: [bend, side, twist], l_hip: […], … },
-//           body: [pitch, yaw, roll], lift }
-//         every joint but the arms' (a joint left out is at rest)
+//           body: [pitch, yaw, roll], lift, v: 2 }
+//         every joint but the arms' (a joint left out is at rest); v 2:
+//         the hips turn Forward first (an older one, without v, turned
+//         Out first, and the page turns its hips when it reads it:
+//         public/js/hip-order.js)
 //   arms: { joints: { l_shoulder: […], l_elbow: […], … } }
 //         only the arms' joints
 // The page's figure-rig.js makes and applies them (bodyPresetFrom,
@@ -26,7 +29,7 @@ export const MAX_SEALED_NAME = 1000;
 
 /**
  * @typedef {"body" | "arms"} Kind
- * @typedef {{ joints: Record<string, number[]>, body?: [number, number, number], lift?: number }} PresetData
+ * @typedef {{ joints: Record<string, number[]>, body?: [number, number, number], lift?: number, v?: 2 }} PresetData
  */
 
 // Made by the server with crypto.randomUUID().
@@ -106,7 +109,9 @@ export function parsePresetData(kind, value) {
     throw bad("the body's turn isn't in the right format.");
   }
   if (!within(doc.lift, LIFT[0], LIFT[1])) throw bad("the figure is off the floor by too much.");
-  return { joints, body: [body[0], body[1], body[2]], lift: doc.lift };
+  // v 2: its hips turn Forward first (public/js/hip-order.js); one without is older, turned by the page.
+  if (doc.v !== undefined && doc.v !== 2) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
+  return { joints, body: [body[0], body[1], body[2]], lift: doc.lift, ...(doc.v === 2 ? { v: 2 } : {}) };
 }
 
 /**

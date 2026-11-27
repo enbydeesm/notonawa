@@ -82,7 +82,7 @@ describe("adding a pose", () => {
   it("refuses poses that aren't in the format, and a caption that isn't encrypted", async () => {
     const tie = await newTie();
     const bad = [
-      { ...pose(), v: 2 },
+      { ...pose(), v: 3 },
       { ...pose(), joints: { tail: [1] } },
       { ...pose(), joints: { l_elbow: [-11] } },
       { ...pose(), lift: 900 },

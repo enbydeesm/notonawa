@@ -111,15 +111,17 @@ describe("rows", () => {
     expect(Object.keys(tieRow(tie("t", "2026-11-14"), journal))).toEqual([...columns, "participants", "plans", "tags"]);
   });
 
-  it("name the location, workshop, people (deleted ones first, no name), plans and tags; archived ones still show", () => {
+  it("name the location, workshop, people (as entered, a deleted one with no name; who's me), plans and tags; archived ones still show", () => {
     const t = tie("t1", "2026-11-14", { location_id: "studio", workshop_id: "w1", tags: ["floor", "box", "gone"],
-      participants: [{ person_id: "sam", role: "bottom" }, { person_id: null, role: "spotter" }, { person_id: "old", role: "top" }],
+      participants: [{ person_id: "me", role: "top" }, { person_id: "sam", role: "bottom" }, { person_id: null, role: "spotter" }, { person_id: "old", role: "top" }],
       plans: [{ plan_id: "tk", plan_version: 1 }, { plan_id: "deleted-plan", plan_version: 2 }], visuals: [{ kind: "file", id: "f" }, { kind: "pose", id: "p" }] });
     const row = tieRow(t, journalOf([...people, ...places, ...plans, ...tags, entry("workshop", "w1", { title: "Intro" })]));
     expect(row).toMatchObject({ location_id: "studio", location_name: "Studio", location_deleted: 0, workshop_title: "Intro",
       photo_count: 1, visual_count: 2, tags: ["box", "Floor"] });
-    expect(row.participants).toEqual([{ id: "p1", person_id: null, person_name: null, role: "spotter" },
-      { id: "p2", person_id: "old", person_name: "Old", role: "top" }, { id: "p0", person_id: "sam", person_name: "Sam", role: "bottom" }]);
+    // In the order entered, not by name: the form shows them so.
+    expect(row.participants).toEqual([{ id: "p0", person_id: "me", person_name: "Me", is_self: 1, role: "top" },
+      { id: "p1", person_id: "sam", person_name: "Sam", is_self: 0, role: "bottom" }, { id: "p2", person_id: null, person_name: null, is_self: 0, role: "spotter" },
+      { id: "p3", person_id: "old", person_name: "Old", is_self: 0, role: "top" }]);
     expect(row.plans).toEqual([{ id: "l1", plan_id: null, plan_title: null, plan_version: 2 }, { id: "l0", plan_id: "tk", plan_title: "TK", plan_version: 1 }]);
     expect(tieRow(tie("t2", "2026-11-14", { location_deleted: true }), new Map())).toMatchObject({ location_id: null, location_deleted: 1 });
   });

@@ -11,6 +11,11 @@
 // not a see-saw) keeps its length, the limb it's tied to turning to allow
 // it, and one with slack takes it up or lets it out before it holds.
 //
+// A see-saw (one rope over the ring or bamboo, the body on both sides)
+// keeps its whole length: its slider says how much of it is on the start
+// side (from the rope's first point up to the hardpoint), and moving it
+// shortens one side and lengthens the other, both ends moving.
+//
 // It's not a physics simulation: nothing weighs anything, so nothing
 // swings to hang under its line. The solver finds the smallest change
 // that gives every rope its length (pose-constraints.js's `settle`), and
@@ -21,7 +26,7 @@
 import { DRAG_CHAINS } from "./pose-ik.js";
 import { makeSkeleton, posed } from "./pose-skeleton.js";
 import { LIFT_RANGE } from "./figure-rig.js";
-import { hangs, isCinch, setSlack, setJoint, clamp, SLACK_RANGE } from "./pose-format.js";
+import { hangs, isCinch, setSlack, setJoint, clamp, canSeesaw, SLACK_RANGE } from "./pose-format.js";
 import { bends, segmentLength } from "./pose-cinch.js";
 import { capsules } from "./pose-contact.js";
 import { settle, chainFor, bodyEnd, WHOLE_BODY } from "./pose-constraints.js";
@@ -191,5 +196,90 @@ export function setUplineLength(pose, index, segment, length) {
     changed.set(o.rope, (changed.get(o.rope) ?? slack) - grew);
   });
   for (const [rope, slack] of changed) next = setSlack(next, rope, clamp(slack, SLACK_RANGE));
+  return next;
+}
+
+/** How close to the hardpoint a see-saw's side can be brought (cm): not onto it. */
+export const SEESAW_END = 10;
+
+/**
+ * A see-saw's two sides: its hanging stretches either side of the
+ * hardpoint, the start side's first, and the parts they're tied to; null
+ * when it isn't a see-saw or a side doesn't reach the body.
+ * @param {Pose} pose @param {number} index
+ * @returns {{ sides: [number, number], parts: [string, string] } | null}
+ */
+export function seesawSides(pose, index) {
+  const rope = pose.ropes[index];
+  if (!rope?.s || !canSeesaw(rope)) return null;
+  const top = rope.p.findIndex((p) => p[0] === "ring" || p[0] === "bamboo");
+  /** @type {[number, number]} */
+  const sides = [top - 1, top];
+  const parts = sides.map((s) => bodyEnd(pose, index, s));
+  return parts[0] && parts[1] ? { sides, parts: /** @type {[string, string]} */ (parts) } : null;
+}
+
+/**
+ * How long a see-saw's start side is, and the whole rope (taut, cm).
+ * @param {Skeleton} skeleton posed for the pose
+ * @param {Pose} pose @param {number} index
+ * @returns {{ start: number, total: number } | null}
+ */
+export function seesawLengths(skeleton, pose, index) {
+  const found = seesawSides(pose, index);
+  if (!found) return null;
+  const bent = bends(skeleton, pose);
+  const [start, end] = found.sides.map((s) => segmentLength(skeleton, pose, index, s, bent));
+  return { start, total: start + end };
+}
+
+/**
+ * A see-saw with this much of it on the start side, its whole length kept:
+ * one end raised and the other lowered, the other taut uplines keeping
+ * theirs. Each end's limb turns first; the whole body follows when a side
+ * is on the trunk or the limbs can't get there. As near as it can get
+ * when a side can't move.
+ * @param {Pose} pose
+ * @param {number} index the rope's
+ * @param {number} start cm, from SEESAW_END to its length less SEESAW_END
+ * @returns {Pose}
+ */
+export function setSeesawStart(pose, index, start) {
+  const found = seesawSides(pose, index);
+  if (!found) return pose;
+  const { sides, parts } = found;
+  const skeleton = spare ??= makeSkeleton();
+  posed(skeleton, pose);
+  const bent = bends(skeleton, pose);
+  const was = sides.map((s) => segmentLength(skeleton, pose, index, s, bent));
+  const total = was[0] + was[1];
+  const want = [clamp(start, [SEESAW_END, total - SEESAW_END]), 0];
+  want[1] = total - want[0];
+  if (Math.abs(want[0] - was[0]) < 0.5) return pose;
+  const held = otherStretches(pose, index).filter((o) => !pose.ropes[o.rope].k);
+  const heldWas = held.map((o) => segmentLength(skeleton, pose, o.rope, o.segment, bent));
+  const floor = Math.min(0, lowestSkin(skeleton));
+
+  /** @param {Skeleton} sk @param {Pose} trial */
+  const errors = (sk, trial) => {
+    const now = bends(sk, trial);
+    return [...sides.map((s, k) => segmentLength(sk, trial, index, s, now) - want[k]),
+      ...held.map((o, k) => segmentLength(sk, trial, o.rope, o.segment, now) - heldWas[k])];
+  };
+  /** @param {Pose} trial */
+  const off = (trial) => {
+    posed(skeleton, trial);
+    const now = bends(skeleton, trial);
+    return Math.max(...sides.map((s, k) => Math.abs(segmentLength(skeleton, trial, index, s, now) - want[k])));
+  };
+  const limbs = once(parts.flatMap((part) => (onTrunk(part) ? [] : chainFor(part))));
+  const others = held.flatMap((o) => (onTrunk(o.part) ? [] : chainFor(o.part)));
+  let next = pose;
+  if (limbs.length) next = settle(next, [...limbs, ...others], errors);
+  if (off(next) > CLOSE) next = settle(next, once([...WHOLE_BODY, ...limbs, ...others]), errors);
+  // Brought down into the floor: back up onto it.
+  posed(skeleton, next);
+  const sunk = floor - lowestSkin(skeleton);
+  if (sunk > 0.5) next = { ...next, lift: clamp(next.lift + sunk, LIFT_RANGE) };
   return next;
 }

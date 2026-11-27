@@ -5,6 +5,7 @@
 // up to date. Reading and writing them, names sealed, is the store's.
 
 import { onWipe } from "./vault.js";
+import { withNewerHips } from "./hip-order.js";
 import {
   listPosePresets, addPosePresets, renamePosePreset, setPosePresetData, deletePosePreset,
 } from "./store/index.js";
@@ -23,7 +24,9 @@ onWipe(() => {
  * @returns {Promise<SavedPreset[]>}
  */
 export function savedPresets() {
-  loaded ??= listPosePresets();
+  // A body preset from before the hips turned Forward first has its hips
+  // turned to match (hip-order.js), here and when it's next saved over.
+  loaded ??= listPosePresets().then((list) => list.map((p) => (p.kind === "body" && p.data ? { ...p, data: withNewerHips(p.data) } : p)));
   // A failed read is tried again next time.
   loaded.catch(() => { loaded = null; });
   return loaded;

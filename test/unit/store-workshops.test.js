@@ -114,7 +114,7 @@ describe("rows", () => {
     expect(Object.keys(workshopRow(entry("workshop", "w", BASE), new Map(), []))).toEqual([...columns, "educators", "participants", "tags", "linked"]);
   });
 
-  it("list newest first, with people by name (deleted first), plans A–Z then ties oldest first", () => {
+  it("list newest first, with people as entered, plans A–Z then ties oldest first", () => {
     put("tag", "t", { name: "suspension" });
     const workshops = [
       entry("workshop", "old", { ...BASE, start_date: "2026-01-01" }),
@@ -129,8 +129,8 @@ describe("rows", () => {
     const [first, second] = listWorkshopsIn(workshops, items, new Map(journal));
     expect([first.id, second.id]).toEqual(["new", "old"]);
     expect(first).toMatchObject({ location_name: "Studio", tags: ["suspension"],
-      educators: [{ id: "w1", person_id: "kai", person_name: "Kai", role: "top" }],
-      participants: [{ id: "w2", person_id: null, person_name: null, role: "audit" }, { id: "w0", person_id: "sam", person_name: "Sam", role: "bottom" }],
+      educators: [{ id: "w1", person_id: "kai", person_name: "Kai", is_self: 0, role: "top" }],
+      participants: [{ id: "w0", person_id: "sam", person_name: "Sam", is_self: 0, role: "bottom" }, { id: "w2", person_id: null, person_name: null, is_self: 0, role: "audit" }],
       linked: [{ kind: "plan", id: "pa", title: "A plan", date: null }, { kind: "plan", id: "pb", title: "b plan", date: null },
         { kind: "tie", id: "t1", title: "First", date: "2026-11-02" }, { kind: "tie", id: "t2", title: null, date: "2026-11-03" }] });
   });

@@ -2,6 +2,20 @@ import { describe, it, expect } from "vitest";
 import { call, create, sql, createOtherUser, sessionCookieFor, sealed } from "../helpers.js";
 
 describe("ties", () => {
+  it("lists a tie's people in the order they were entered, not by name, and in the new order after an edit", async () => {
+    const alex = await create("/api/people", { name: "Alex" });
+    const zoe = await create("/api/people", { name: "Zoe" });
+    const bo = await create("/api/people", { name: "Bo" });
+    const id = await create("/api/ties", { title: "Order", tie_date: "2026-11-20", tie_type: "floor",
+      participants: [{ person_id: zoe, role: "bottom" }, { person_id: alex, role: "top" }, { person_id: bo, role: "spotter" }] });
+    const names = async () => (await call(`/api/ties/${id}`)).body.participants.map((/** @type {any} */ p) => p.person_name);
+    expect(await names()).toEqual(["Zoe", "Alex", "Bo"]);
+    // Re-entered in a new order: the new ones as added (one kept in the same role keeps its place).
+    await call(`/api/ties/${id}`, { method: "PUT", body: { title: "Order", tie_date: "2026-11-20", tie_type: "floor",
+      participants: [{ person_id: zoe, role: "bottom" }, { person_id: bo, role: "photographer" }] } });
+    expect(await names()).toEqual(["Zoe", "Bo"]);
+  });
+
   it("adds a tie with its location, people and plans, and lists it", async () => {
     const me = await create("/api/people", { name: "Me", is_self: true });
     const sam = await create("/api/people", { name: "Sam" });
@@ -25,8 +39,8 @@ describe("ties", () => {
       location_id: loc, location_name: "Studio", location_deleted: 0,
     });
     expect(tie.participants).toEqual([
-      { id: expect.any(String), person_id: me, person_name: "Me", role: "top" },
-      { id: expect.any(String), person_id: sam, person_name: "Sam", role: "bottom" },
+      { id: expect.any(String), person_id: me, person_name: "Me", is_self: 1, role: "top" },
+      { id: expect.any(String), person_id: sam, person_name: "Sam", is_self: 0, role: "bottom" },
     ]);
     // Duplicate plan ids are saved once, with the plan's current version.
     expect(tie.plans).toEqual([{ id: expect.any(String), plan_id: plan, plan_title: "Hip harness", plan_version: 1 }]);

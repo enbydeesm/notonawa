@@ -16,12 +16,24 @@
 // solver finds a fold that keeps the lengths, nudging the angles as
 // dragging a limb does (pose-ik.js), within their limits, getting as near
 // as it can when it can't.
+//
+// A rope with its lengths locked (`f`, keepLocked) ties the parts it's on
+// together: after the body's moved, each of its stretches between two
+// parts (a thigh and a calf, two thighs) is kept as long as it was (a
+// stretch up to a hardpoint is left to its Length and the see-saw), and so is the distance between any two of its points on
+// different parts (a wrap round both thighs binds them as a bundle: kept
+// by the strands alone, the other thigh could swing in rather than
+// follow), first by the joints the move didn't touch (the other leg
+// follows), then, if they can't, by giving back some of the move (a
+// futomomo's knee won't open); and if even that can't, the move goes only
+// as far as the rope lets it.
 
 import { jointNamed, clampJoint, LIFT_RANGE } from "./figure-rig.js";
 import { DRAG_CHAINS, dampedSolve, dampedSolveMany, snapshot, keepReachable } from "./pose-ik.js";
-import { makeSkeleton, posed } from "./pose-skeleton.js";
+import { makeSkeleton, posed, ropePoint } from "./pose-skeleton.js";
 import { SHIFT_RANGE, ROPE, RING, BAMBOO, HASHIRA, hangs, canSeesaw, setCinchLength, pullsUplines, setSlack } from "./pose-format.js";
 import { bends, segmentLength, cinchPoints } from "./pose-cinch.js";
+import { goesRound } from "./pose-surface.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
@@ -146,14 +158,39 @@ export function settle(pose, angles, errors, { exact = false } = {}) {
 export const onHardpoint = (p) => p[0] === RING || p[0] === BAMBOO || p[0] === HASHIRA;
 
 /**
- * The part of the body a hanging stretch starts from, if it's on the body.
+ * The part of the body a hanging stretch starts from, if it's on the body:
+ * where it's tied, or, tied to a spot on another rope (an added rope, or a
+ * rope's end on a cinch), the part that rope is tied to there (its
+ * segment's nearer end, else the other), followed through ropes on ropes.
+ * Null when nothing there reaches the body (a rope only between
+ * hardpoints).
  * @param {Pose} pose @param {number} rope @param {number} segment
  * @returns {string | null}
  */
 export function bodyEnd(pose, rope, segment) {
   const { p } = pose.ropes[rope];
-  const end = onHardpoint(p[segment]) ? p[segment + 1] : p[segment];
-  return end[0] === ROPE || onHardpoint(end) ? null : end[0];
+  return partAt(pose, onHardpoint(p[segment]) ? p[segment + 1] : p[segment], 0);
+}
+
+/** How many ropes on ropes bodyEnd follows (more is a loop). */
+const ROPES_DEEP = 8;
+
+/**
+ * The part of the body a point is on, through ropes on ropes.
+ * @param {Pose} pose @param {RopePoint | undefined} point @param {number} depth
+ * @returns {string | null}
+ */
+function partAt(pose, point, depth) {
+  if (!point || onHardpoint(point)) return null;
+  if (point[0] !== ROPE) return /** @type {string} */ (point[0]);
+  const host = depth < ROPES_DEEP ? pose.ropes[/** @type {number} */ (point[1])] : undefined;
+  if (!host) return null;
+  const segment = /** @type {number} */ (point[2]), near = /** @type {number} */ (point[3]) < 500 ? 0 : 1;
+  for (const k of [near, 1 - near]) {
+    const part = partAt(pose, host.p[segment + k], depth + 1);
+    if (part) return part;
+  }
+  return null;
 }
 
 /**
@@ -314,3 +351,168 @@ export function keepSeesaws(before, after, changed) {
   }
   return pose;
 }
+
+/**
+ * The stretches a rope with its lengths locked keeps: between points on two
+ * different parts (round one part, or the trunk, the skin stretches as it
+ * bends, so it's left free). Not one to a hardpoint (an upline's left to
+ * its Length, and a see-saw's to run free), nor to a spot on another rope.
+ * @param {Pose} pose
+ * @param {number} [except] a rope being changed itself (its Length), left out
+ * @returns {{ index: number, segment: number, parts: string[] }[]}
+ */
+export function lockedStretches(pose, except = -1) {
+  return pose.ropes.flatMap((rope, index) => {
+    if (!rope.f || index === except) return [];
+    return rope.p.slice(1).flatMap((b, s) => {
+      const a = rope.p[s];
+      if (a[0] === ROPE || b[0] === ROPE || onHardpoint(a) || onHardpoint(b) || goesRound(a[0], b[0])) return [];
+      return [{ index, segment: s, parts: [a[0], b[0]] }];
+    });
+  });
+}
+
+/** The most pairs of points a locked rope keeps apart (spread along it), so a long one stays quick. */
+const MOST_PAIRS = 40;
+
+/**
+ * Pairs of a locked rope's points on different parts (not next to each
+ * other: those are its stretches), whose distance apart is kept too.
+ * @param {Pose} pose @param {number} [except]
+ * @returns {{ index: number, a: number, b: number }[]}
+ */
+export function lockedPairs(pose, except = -1) {
+  return pose.ropes.flatMap((rope, index) => {
+    if (!rope.f || index === except) return [];
+    const body = rope.p.flatMap((p, k) => (p[0] === ROPE || onHardpoint(p) ? [] : [k]));
+    /** @type {{ index: number, a: number, b: number }[]} */
+    const pairs = [];
+    for (const [n, a] of body.entries()) {
+      for (const b of body.slice(n + 1)) if (b > a + 1 && !goesRound(rope.p[a][0], rope.p[b][0])) pairs.push({ index, a, b });
+    }
+    const every = Math.ceil(pairs.length / MOST_PAIRS);
+    return pairs.filter((_, k) => k % every === 0);
+  });
+}
+
+/** The whole body's numbers, by what a change to them is called (keepLocked's `changed`). @type {Readonly<Record<string, readonly Angle[]>>} */
+const WHOLE = Object.freeze({ body: [{ body: 0 }, { body: 1 }, { body: 2 }], lift: [{ lift: true }], shift: [{ shift: 0 }, { shift: 1 }] });
+
+/** An angle's name, to tell two apart. @param {Angle} a */
+const angleKey = (a) => ("joint" in a ? `${a.joint}.${a.i}` : "body" in a ? `body.${a.body}` : "shift" in a ? `shift.${a.shift}` : "lift");
+
+/**
+ * The pose after a change to the body, with every rope whose lengths are
+ * locked kept as long as it was (lockedStretches): first by the joints the
+ * change didn't touch, then, if they can't, by the changed ones too, so
+ * the rope holds against the change; and if they can't either, only as
+ * much of the change as the rope allows (halving it until it holds).
+ * @param {Pose} before the pose before the change (the lengths kept are its)
+ * @param {Pose} after the pose changed
+ * @param {readonly string[]} [changed] the joints the change was to, and
+ *   "body", "lift" or "shift" for the whole body's; by default, whatever differs
+ * @param {{ except?: number, from?: Pose }} [options] except: a rope being
+ *   changed itself; from: where the change is coming from, held already (a
+ *   drag's last step), if not before: a change that can't be held stops
+ *   between it and after
+ * @returns {Pose}
+ */
+export function keepLocked(before, after, changed, { except = -1, from = before } = {}) {
+  const stretches = lockedStretches(after, except);
+  if (!stretches.length || before.ropes.length !== after.ropes.length) return after;
+  const pairs = lockedPairs(after, except);
+  const skeleton = spare ??= makeSkeleton();
+  /** @param {Skeleton} sk @param {Pose} p */
+  const lengths = (sk, p) => {
+    const bent = bends(sk, p);
+    const at = (/** @type {number} */ index, /** @type {number} */ k) => ropePoint(sk, p.ropes[index].p[k], p);
+    return [
+      ...stretches.map(({ index, segment }) => segmentLength(sk, p, index, segment, bent)),
+      ...pairs.map(({ index, a, b }) => at(index, a).distanceTo(at(index, b))),
+    ];
+  };
+  posed(skeleton, before);
+  const was = lengths(skeleton, before);
+  posed(skeleton, after);
+  if (lengths(skeleton, after).every((l, k) => Math.abs(l - was[k]) < CLOSE)) return after;
+  const moved = changed ?? [
+    ...Object.keys(after.joints).filter((n) => after.joints[n].some((a, i) => a !== before.joints[n]?.[i])),
+    ...(after.body.some((a, i) => a !== before.body[i]) ? ["body"] : []),
+    ...(after.lift !== before.lift ? ["lift"] : []),
+    ...((after.shift ?? [0, 0]).some((a, i) => a !== (before.shift ?? [0, 0])[i]) ? ["shift"] : []),
+  ];
+  const touched = (/** @type {Angle} */ a) => ("joint" in a ? moved.includes(a.joint)
+    : "body" in a ? moved.includes("body") : "shift" in a ? moved.includes("shift") : moved.includes("lift"));
+  /** @type {Map<string, Angle>} */
+  const free = new Map();
+  for (const { parts } of stretches) for (const part of parts) for (const a of chainFor(part)) if (!touched(a)) free.set(angleKey(a), a);
+  const errors = (/** @type {Skeleton} */ sk, /** @type {Pose} */ trial) => lengths(sk, trial).map((l, k) => l - was[k]);
+  const holds = (/** @type {Pose} */ p, /** @type {number} */ within) => {
+    posed(skeleton, p);
+    return Math.hypot(...errors(skeleton, p)) < within;
+  };
+  /** @type {Map<string, Angle>} */
+  const all = new Map(free);
+  for (const name of moved) {
+    const whole = WHOLE[name];
+    if (whole) for (const a of whole) all.set(angleKey(a), a);
+    const j = jointNamed(name);
+    if (j) j.moves.forEach((_, i) => all.set(`${name}.${i}`, joint(name, i)));
+  }
+  /** A pose held: the joints left alone, then the changed ones too; null if they can't. @param {Pose} start */
+  const hold = (start) => {
+    // First the joints the change left alone: the other leg follows.
+    let pose = free.size ? settle(start, [...free.values()], errors) : start;
+    if (holds(pose, CLOSE)) return pose;
+    // Then the change itself gives: the rope holds.
+    pose = settle(pose, [...all.values()], errors);
+    return holds(pose, HELD) ? pose : null;
+  };
+  const held = hold(after);
+  if (held) return held;
+  // Neither can: only as much of the change as the rope allows, halving
+  // it, from where it came from, until it holds.
+  let best = from;
+  let [lo, hi] = [0, 1];
+  for (let k = 0; k < HALVINGS; k++) {
+    const t = (lo + hi) / 2;
+    const tried = hold(between(from, after, t));
+    if (tried) [best, lo] = [tried, t];
+    else hi = t;
+  }
+  return best;
+}
+
+/** How near a locked rope's lengths must stay (cm, all of them together) for a move to count as held. */
+const HELD = 1;
+/** How many times a move that can't be held is halved, looking for how far it can go. */
+const HALVINGS = 5;
+
+/**
+ * A pose part of the way from one to another (its numbers in between).
+ * @param {Pose} a @param {Pose} b @param {number} t 0 (a) to 1 (b)
+ * @returns {Pose}
+ */
+function between(a, b, t) {
+  // Whole numbers, as a pose keeps them.
+  const mix = (/** @type {number} */ x, /** @type {number} */ y) => Math.round(x + (y - x) * t);
+  const [as, bs] = [a.shift ?? [0, 0], b.shift ?? [0, 0]];
+  return {
+    ...b,
+    joints: Object.fromEntries(Object.entries(b.joints).map(([n, v]) => [n, v.map((y, i) => mix(a.joints[n]?.[i] ?? y, y))])),
+    body: [mix(a.body[0], b.body[0]), mix(a.body[1], b.body[1]), mix(a.body[2], b.body[2])],
+    lift: mix(a.lift, b.lift),
+    shift: [mix(as[0], bs[0]), mix(as[1], bs[1])],
+  };
+}
+
+/**
+ * A change to some joints with every rope kept as it should be: see-saws
+ * one length over the hardpoint (keepSeesaws), then locked ropes' lengths
+ * (keepLocked).
+ * @param {Pose} before @param {Pose} after @param {readonly string[]} changed
+ * @param {{ from?: Pose }} [options] from: as keepLocked's
+ * @returns {Pose}
+ */
+export const keepRopes = (before, after, changed, { from = before } = {}) =>
+  keepLocked(before, keepSeesaws(before, after, changed), changed, { from });

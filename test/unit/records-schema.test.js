@@ -114,6 +114,11 @@ describe("other kinds", () => {
   it("hold a drawing's or pose's data in its own format", () => {
     expect(recordProblems("drawing", { data: { v: 1, strokes: [] } })).toEqual([]);
     expect(recordProblems("drawing", { data: { strokes: [] } })).toEqual(["data isn't in a known format"]);
+    expect(recordProblems("drawing", { data: { v: 2, strokes: [] } })).toEqual(["data isn't in a known format"]);
+    // A pose's format 2 has its hips turning Forward first; format 1's are still read.
+    expect(recordProblems("pose", { data: { v: 2, joints: {} } })).toEqual([]);
+    expect(recordProblems("pose", { data: { v: 1, joints: {} } })).toEqual([]);
+    expect(recordProblems("pose", { data: { v: 3, joints: {} } })).toEqual(["data isn't in a known format"]);
     expect(recordProblems("pose_preset", { kind: "legs", data: {} })[0]).toMatch(/kind should be one of/);
   });
 });

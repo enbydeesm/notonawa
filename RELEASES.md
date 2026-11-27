@@ -10,6 +10,15 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
+## Next
+- Join the nōtonawa Discord from the menu, under Tutorial.
+- Rope now locks tied body parts! By default rope that spans two body parts or body to hardpoint start 'locked' to their drawn length. Select a rope and tap the lock icon to unlock rope and allow it to stretch when the body moves. Position presets will ignore the lock and stretch rope automatically.
+- Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.
+- Rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
+- New body and arms presets: strappado, sitting with legs open, closed or crossed, chair pose, and more.
+- People on ties and workshops stay in the order you entered them, with you last on cards.
+
+
 ## 2026.11.19.1829
 - Turn on notifications to hear when a connection sends you something, and for announcements from us. Choose which ones, for each device, in Settings.
 - Install app is in the menu now, so you can still install nōtonawa after dismissing the banner. You should reinstall the app to show the new improved logo! 

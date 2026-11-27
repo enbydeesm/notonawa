@@ -20,7 +20,9 @@ export class Vector2 {
 }
 
 export class Matrix4 {
+  constructor();
   elements: number[];
+  multiply(m: Matrix4): this;
   makeTranslation(x: number, y: number, z: number): this;
   multiplyMatrices(a: Matrix4, b: Matrix4): this;
   set(n11: number, n12: number, n13: number, n14: number, n21: number, n22: number, n23: number, n24: number,
@@ -64,6 +66,7 @@ export class Vector3 {
   applyMatrix4(m: Matrix4): this;
   applyQuaternion(q: Quaternion): this;
   multiplyScalar(s: number): this;
+  normalize(): this;
   length(): number;
   distanceTo(v: Vector3): number;
 }
@@ -95,6 +98,7 @@ export class Object3D {
   updateMatrixWorld(force?: boolean): void;
   localToWorld(vector: Vector3): Vector3;
   worldToLocal(vector: Vector3): Vector3;
+  getWorldQuaternion(target: Quaternion): Quaternion;
   lookAt(x: number, y: number, z: number): void;
 }
 
@@ -171,7 +175,7 @@ export class Material {
   customProgramCacheKey: () => string;
 }
 export class MeshStandardMaterial extends Material {
-  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean });
+  constructor(parameters?: { color?: ColorLike, roughness?: number, metalness?: number, flatShading?: boolean, vertexColors?: boolean, transparent?: boolean, opacity?: number, depthWrite?: boolean });
 }
 export class MeshBasicMaterial extends Material {
   constructor(parameters?: { color?: ColorLike });

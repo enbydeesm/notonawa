@@ -8,14 +8,15 @@ import { JOINTS } from "../figure-rig.js";
 import { BadEdit } from "./parse.js";
 
 /**
- * @param {unknown} value a pose's data: { v: 1, joints, camera, … }
+ * @param {unknown} value a pose's data: { v: 2 (or 1), joints, camera, … }
  * @returns {Record<string, any>}
  */
 export function poseData(value) {
   const bad = (/** @type {string} */ why) => new BadEdit(`Couldn't save the pose: ${why}`);
   if (!value || typeof value !== "object" || Array.isArray(value)) throw bad("it was missing.");
   const doc = /** @type {Record<string, any>} */ (value);
-  if (doc.v !== 1) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
+  // Format 1's hips turned Out first: kept as they were, and turned when read (hip-order.js).
+  if (doc.v !== 1 && doc.v !== 2) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
   const sent = doc.joints;
   if (!sent || typeof sent !== "object" || Array.isArray(sent)) throw bad("it has no joints.");
   const known = new Set(JOINTS.map((j) => j.name));

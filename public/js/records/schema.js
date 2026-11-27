@@ -74,8 +74,16 @@ const publicKey = (v, p) => v == null || (typeof v === "string" && /^[A-Za-z0-9_
 /** @type {Check} */
 const link = (v, p) => v == null ? null
   : typeof v !== "string" || v.length > 2000 || !/^https?:\/\/\S+$/i.test(v) ? `${p} should be a web link` : null;
-/** An object with v: 1 (a drawing's or pose's own format; its own checks come with the cache). @type {Check} */
-const format1 = (v, p) => v == null || (typeof v === "object" && !Array.isArray(v) && /** @type {any} */ (v).v === 1) ? null : `${p} isn't in a known format`;
+/**
+ * An object in one of its own formats, by v (a drawing's or pose's; its own checks come with the cache).
+ * @param {readonly number[]} formats
+ * @returns {Check}
+ */
+const formatOf = (formats) => (v, p) =>
+  v == null || (typeof v === "object" && !Array.isArray(v) && formats.includes(/** @type {any} */ (v).v)) ? null : `${p} isn't in a known format`;
+const format1 = formatOf([1]);
+/** A pose's: 2, or 1 (its hips turned Out first: hip-order.js). */
+const poseFormat = formatOf([1, 2]);
 /** @type {Check} */
 const object = (v, p) => v == null || (typeof v === "object" && !Array.isArray(v)) ? null : `${p} should be an object`;
 /** @param {Check} check @returns {Check} */
@@ -224,7 +232,7 @@ export const FIELDS = {
   },
   tag: { ...STAMPS, name: required(text(LIMITS.tagName)) },
   drawing: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption) },
-  pose: { ...STAMPS, data: required(format1), caption: text(LIMITS.caption), picture: id },
+  pose: { ...STAMPS, data: required(poseFormat), caption: text(LIMITS.caption), picture: id },
   pose_preset: { ...STAMPS, kind: required(oneOf(["body", "arms"])), name: text(LIMITS.shortText), data: required(object) },
   // default_shape: the poser's body sliders, [gender, muscle, weight, height] (records/settings.js checks their ranges).
   settings: { ...STAMPS, top_label: text(LIMITS.roleName), bottom_label: text(LIMITS.roleName), default_shape: list(number(0, 1000), 4) },

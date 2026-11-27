@@ -44,7 +44,7 @@ export function ropeHint({ erasing, layingKind, points, chosen, sliding, hardpoi
   if (chosen === "cinch") return "Shorten the cinch to pull the upline aside. Tap Cinch again when you're done.";
   if (chosen === "body cinch") return "Shorten the cinch to draw them together. Tap Cinch again when you're done.";
   if (chosen === "rope" && sliding) return "Tap Slide again when it's in place.";
-  if (chosen === "rope") return "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.";
+  if (chosen === "rope") return "Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.";
   if (wrapping) return "Wrap: tap an arm, a leg or the body to lay a turn of rope round it there.";
   if (hardpoint === "hashira") return "Tap the body to lay a rope. Tap the hashira to tie to it, or a rope to choose it.";
   if (hardpoint) return `Tap the body to lay a rope. Tap the ${hardpoint} for an upline, or a rope to choose it.`;

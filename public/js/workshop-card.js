@@ -6,16 +6,18 @@ import { isWebLink } from "./links.js";
 import { attachedText } from "./format.js";
 import { participantLabel } from "./ties-view.js";
 import { roleName } from "./roles.js";
+import { selfLast } from "./people-order.js";
 import { visualsRow } from "./tie-card.js";
 import { dateRangeLines } from "./workshops-view.js";
 
 /**
- * The participants on one line ("With: …"), as many as fit.
+ * The participants on one line ("With: …"), as many as fit: as entered,
+ * with "this is me" last. (The educators stay as entered, me among them.)
  * @param {any[]} people
  */
 function withLine(people) {
   if (!people.length) return null;
-  const names = people.map((p, i) => {
+  const names = selfLast(people).map((p, i) => {
     const { name, role } = participantLabel(p);
     return h("span", { className: "tie-person" }, i > 0 ? ", " : "",
       name.deleted ? h("span", { className: "deleted" }, name.text) : name.text, ` (${roleName(role)})`);

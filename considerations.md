@@ -2130,6 +2130,49 @@ too far: horrific poses, and a leg pulled the whole body round.
 - **Considered, not now**: a "Flexible body" checkbox to turn the wider
   ranges back on.
 
+## Poser: hips turn Forward first (November 2026)
+
+**Status:** built (2026-11-19)
+
+Sitting with the knees and feet together couldn't be posed: the hip
+turned Out, then Forward (`ZXY`), so with the thigh forward Out spun the
+leg about its own length, swinging the shin and foot instead of moving the
+knee (and reversing past 90°). Trying 37 everyday and rope poses against
+the rig's own code (thigh and shin directions, slider values searched
+within every limit) also found butterfly, cross-legged, figure-four, tree
+pose and a straddle with kneecaps up out of reach, each needing a hip
+twist of 90–140° in that order.
+
+- **The hip turns Forward, then Out, then twists (`XZY`).** Out is then
+  always sideways from where the leg points, and the twist is the leg's
+  own, close to how a sitting body's is measured. Standing, nothing
+  changes (with Forward at 0 the two orders are the same).
+- **A hip twists out 90°, in 50°** (it was ±50°), and hip and knee 110°
+  all told (it was 70°): in the new order the poses above need about 65–90°
+  out, which a hip does further than in. A leg goes out its full 100° only
+  from 60° forward (it was 30°), so a standing middle split stays out.
+- **Older poses and presets are turned, not migrated in the database.**
+  Format 2 accounts' poses are sealed, so the server can't change them.
+  Pose format 2 (`v: 2`) is the new order; a format 1 pose's hips are
+  turned exactly (to the degree) when it's opened (`readPose`) or drawn as
+  a picture, and it's saved as format 2 next time. The server and the
+  record checks take both formats and keep `v` as sent. Body presets had
+  no `v`: one saved now has `v: 2`, and one without is turned when the
+  presets are read. The built-in body presets' hips were turned the same
+  way, so each looks as it did. A format 1 hip that lands past a new range
+  (mostly odd combinations, twisted far in) opens within it, a little
+  changed. A page from before that hasn't reloaded shows format 2 poses'
+  hips wrongly; the page reloads itself once the server's on a newer
+  version.
+- **Not the shoulder.** Its order has the same trouble at Forward 90°
+  (Out barely moves an arm pointing straight ahead; an arm across the
+  chest is Out 135°, Forward 132°), but Forward first only moves the dead
+  spot to Out 90°, arms out to the side, which ties use far more. Left for
+  now; a turn made of a direction and a twist about the limb, with no dead
+  spot, would fix both.
+- **Still out of reach**: the back leg of pigeon and of front splits (the
+  hip's −35° behind the body, unchanged), and lotus.
+
 ## Poser: "Add pose to…", from the nav's poser (October 2026)
 
 **Status:** built (2026-10-31)
@@ -4136,3 +4179,140 @@ encryption branch, to ship with it.
   mask in `--accent` in both modes, 44px tall; the file shares its canvas
   with the name, so the mask is sized and moved to crop to the mark.
 
+
+## Poser: layers, points added beside, see-through ropes (November 2026)
+
+To show frictions, where one strand crosses over another, a rope's points
+on the body can each be on a layer, 0 (on the skin) to 4. A layered point
+is drawn 1.5 cm out from the skin per layer (`LAYER_CM`), straight out from
+its bone, so a strand on layer 1 lies over one on layer 0 at the same spot.
+It's kept as a fifth number on the point (`[bone, x, y, z, layer]`), left
+off at 0, so older poses read unchanged; the server checks it as a whole
+number 0–4 and only on body points (a ring, bamboo, hashira or a spot on a
+rope has no skin to stand off).
+
+- **Tapping a dot chooses its point** rather than taking it out. Taking a
+  point out by tap was easy to do by mistake, and there was nowhere left to
+  put the layer and the add-a-point controls; the chosen point gets a row
+  instead: Send backward and Bring forward with its layer between, ‹ and ›,
+  and Remove (a red trash can). Tapping the same dot again lets it go. The
+  chosen dot is drawn bigger and white, since black is already the cinch
+  and add-rope spot.
+- **‹ and › add a point beside it**, 5 cm along the rope as drawn, or
+  halfway to the next point if that's nearer (so points never pile up past
+  their neighbour), at the chosen point's layer, and chosen next so taps
+  can walk along the rope. Spots on the rope (cinches, added ropes) keep
+  their place in the world: those on later stretches move up one, one on
+  the stretch split goes to whichever half it's on. They show on the view
+  too, as underlined ‹ › marks where the point would go: underlined so they
+  read the right way up when the view is turned. Not at the rope's ends.
+- **New ropes start on layer 0**: the skin, as before. Layers are set
+  afterwards, point by point; we weighed a per-rope layer and turned it
+  down, as one rope crosses over and under along its length.
+- **See-through ropes** (`t: true`, the eye on the chosen rope's panel):
+  the whole rope at 35% opacity, so the ropes under it show through. It's
+  drawn see-through in pictures (Add to visuals) too, as the user asked:
+  what you see is what's saved. A see-through rope can still be tapped,
+  but where a solid one is also under the finger, the solid one wins, as
+  that's the one you'd be reaching for.
+- **The point row is always there** while a rope is chosen (a later
+  change): with no point chosen it's greyed out, and a tap on one of its
+  buttons says "Select a point first", as it wasn't clear the row existed
+  until a dot was tapped. It reads ◀ Layer N ▶ · ‹ Add point › · Remove
+  point (a dot and a minus, as the heading now has Delete rope's trash
+  can); narrower than about 290px, "+ point". Delete rope doesn't ask
+  first: Undo brings it back.
+- **The marks on the view are small and black**: the ‹ › and the spot
+  Cinch and Add rope start from (now a ×, not a black ball) are drawn no
+  taller than a medium rope looks there, but at least 7 px so they can be
+  seen when zoomed out; a tap still reaches them from a finger's width.
+
+## Poser: rope that follows the skin (November 2026)
+
+Rope points on the body used to turn with their own bone alone (chest,
+spine, pelvis, a forearm…), while the skin round a bent joint moves with a
+blend of the bones either side. Bend the waist and a wrap round it turned
+stiffly with the spine, floating off one side and sinking into the other
+(about 2 to 2.6 cm at the waist bent −55 or +70; 9 cm at a knee bent 100°),
+and the rope between its points, laid round the capsules as posed, cut
+corners where they fit the body worst.
+
+As built (`pose-skin-bind.js`):
+
+- **A point's place is on the straight body.** Its numbers (mm from its
+  part's joint) are read as they always were, but on the body standing
+  straight, every bone at rest. There it takes the skin weights of the
+  nearest few vertices of its stretch of skin (the trunk, the head, or a
+  whole arm or leg, so a point by the elbow kept on the forearm bends as
+  the skin above the elbow does), the nearest counting most. Posed, it's
+  moved by that blend of bones, as the skin is (the same dual-quaternion
+  skinning). Measured against the real mesh, a ring round the waist stays
+  within a millimetre with the waist bent either way, leaning, or the
+  chest bent and turned; at a bent knee or elbow, within 1 to 2.5 mm.
+- **The rope between two points on the same part, or both on the trunk**,
+  is laid round the capsules of the straight body, where they fit, and
+  each of its points moved the same way. Between two parts (a thigh and a
+  calf, a futomomo's turns) it runs straight across between them as
+  they're drawn, lifted out of the body as posed: laid out on the straight
+  leg it went down the leg and round the bent knee instead (31 cm for an
+  11.7 cm gap).
+  It's worked out once for the shape and the two points, so drawing costs
+  no more than before (about 1 ms a frame for a four-turn wrap); the
+  straight body for a new shape takes about 70 ms once.
+- **Taps and drags go the other way**: the point on the straight body the
+  skin puts under the finger, guessed from the part's own turn and moved
+  by each miss, a few times over (to well under a millimetre).
+- **Layers stand out the way the skin faces**, from its normal, rather than
+  straight out from the bone; and half as far as before (0.75 cm a layer,
+  a medium rope's radius), so stacked ropes read as stacked without
+  jutting out from the body.
+- **Saved poses keep their numbers**: points away from a bend are where
+  they were; ones near a bent joint now sit where the skin is.
+- Until the mesh has loaded (and in unit tests that don't load it,
+  `useSkin`), a point turns with its bone alone, as before.
+
+We weighed storing each point's weights with it, and turned it down: it
+would change the format and the server's checks for nothing the device
+can't work out again.
+
+## Poser: locking a rope's lengths (November 2026)
+
+A rope's lengths can be locked (the lock in its heading, left of the eye:
+shut and yellow when on, open when off; `f: true` on the rope), so what
+it ties together stays tied: two thighs in a double column move together,
+a futomomo's knee won't open. Every new rope, cinch and added rope starts
+locked; ropes saved before it keep what they had (unlocked). As built
+(`keepLocked` in `pose-constraints.js`):
+
+- **What's kept**: each stretch between points on two different parts
+  (thigh and calf, thigh and thigh, arm and chest), and the distance
+  between any two of its points on different parts (up to 40 pairs,
+  spread along it). The pairs matter: kept by its crossing strands alone,
+  a double column let the other thigh swing in rather than lift with the
+  first, which keeps those strands just as long. Stretches round one part,
+  or round the trunk, are left free: the skin stretches as the waist
+  bends, and locking a chest harness that way would stop the chest
+  bending at all. Stretches up to a hardpoint are left free too: with new
+  ropes locked, a locked upline would hold the whole body at its length,
+  and tilting or lifting it would be refused; an upline keeps its own
+  Length and a see-saw runs free, locked or not.
+- **How**: after a joint slider, a drag, the Hips or the whole body's
+  sliders, the body lifted by a drag, or an upline's, a two-point rope's,
+  a cinch's or a see-saw's Length, first the joints the change didn't
+  touch move (the other leg follows), then, if they can't hold the
+  lengths, the changed ones give some of it back (the rope holds), and if
+  even that can't, only as much of the change as the rope allows is made
+  (halving it until it holds). The rope whose own Length is being changed
+  is left out. Each stays one change for Undo.
+- **Drags**: only the dragged limb's own joints count as changed (the drag
+  also moves the trunk and the other hip, which would otherwise never get
+  to follow), and each step of the drag carries on from the last one held,
+  not from wherever the finger has taken the limb: solved from scratch, a
+  leg pulled out to the side 60 cm with its hip at its limit was too far
+  to bring back, and the thighs came 20 to 40 cm apart.
+- **Not for presets or Reset**: Body…, Arms… and Reset apply as chosen,
+  a fresh start, and the lock holds from the next move.
+- **The heading**: the rope's color dot stands for it ("Rope selected" is
+  for screen readers only), then Move the body or Runs free where the rope
+  has one, then the lock, the eye, Delete and ✕. The checkbox takes a line
+  of its own under the buttons only where it won't fit beside them.

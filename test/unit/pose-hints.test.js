@@ -32,7 +32,7 @@ describe("ropeHint", () => {
     expect(rope({ erasing: true, points: 2 })).toBe("Tap a rope to take it out.");
   });
   it("a chosen rope: its actions, sliding, or a cinch", () => {
-    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.");
+    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.");
     expect(rope({ chosen: "rope", sliding: true })).toBe("Tap Slide again when it's in place.");
     expect(rope({ chosen: "cinch" })).toMatch(/Tap Cinch again when you're done\.$/);
     expect(rope({ chosen: "cinch" })).toMatch(/upline/);
@@ -66,7 +66,7 @@ describe("Wrap and a chosen rope's dots", () => {
   });
 
   it("tells a chosen rope's white dots from the black one", () => {
-    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.");
+    expect(rope({ chosen: "rope" })).toBe("Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.");
   });
 
   it("says what went with a point taken out", () => {

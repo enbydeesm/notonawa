@@ -11,11 +11,15 @@
 // for either side. A knee's twist depends on its bend and on the hip's
 // twist (the two together turn the foot), so its rules see the pose's
 // other joints too.
-// The arm or leg points (for the
-// figure's left; the right mirrors it)
+// The arm points (for the figure's left; the right mirrors it)
 //   (cos f · sin o, −cos f · cos o, sin f)
 // with f forward and o out (figure-rig.js's turns: out, then forward, then
-// the twist about the limb, which doesn't move where it points).
+// the twist about the limb, which doesn't move where it points), and the
+// leg
+//   (sin o, −cos o · cos f, cos o · sin f)
+// (forward, then out: so out is always sideways from where the leg points,
+// and the twist is the leg's own, as a sitting body's is measured). Either
+// way the limb is raised acos(cos f · cos o) from hanging straight down.
 
 /** @param {number} n @param {number} low @param {number} high */
 const between = (n, low, high) => Math.min(high, Math.max(low, n));
@@ -42,7 +46,9 @@ export function raised(forward, out) {
  */
 
 /** The most a leg's hip and knee twist add up to, either way: how far a foot turns. */
-const LEG_TWIST = 70;
+const LEG_TWIST = 110;
+/** How far a hip twists in and out. */
+const HIP_TWIST_IN = 50, HIP_TWIST_OUT = 90;
 /** The most a knee twists, bent right up; straight, it hardly does. */
 const KNEE_TWIST = 40;
 
@@ -65,15 +71,16 @@ const RULES = Object.freeze({
   },
   hip: {
     at: 2,
-    // ±50°, and with the knee's no more than LEG_TWIST all told.
+    // In 50°, out 90°, and with the knee's no more than LEG_TWIST all told.
     twist(_angles, joints, side) {
       const knee = joints[`${side}_knee`]?.[1] ?? 0;
-      return [Math.max(-50, -LEG_TWIST - knee), Math.min(50, LEG_TWIST - knee)];
+      return [Math.max(-HIP_TWIST_IN, -LEG_TWIST - knee), Math.min(HIP_TWIST_OUT, LEG_TWIST - knee)];
     },
-    // A leg goes out 100° once forward, but only 50° behind the body; and
-    // it crosses the other far only once it's forward.
+    // A leg goes out 100° once well forward (a sitting body's knees falling
+    // open), but only 50° hanging down or behind the body (more is a
+    // standing split); and it crosses the other far only once it's forward.
     reaches([forward, out]) {
-      const outMost = 50 + 50 * between(forward / 30, 0, 1);
+      const outMost = 50 + 50 * between((forward - 15) / 45, 0, 1);
       const inMost = -18 - 17 * between((forward - 15) / 30, 0, 1);
       return out <= outMost && out >= inMost;
     },

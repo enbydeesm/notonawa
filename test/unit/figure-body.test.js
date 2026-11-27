@@ -6,11 +6,16 @@ import {
   BONES, SHAPE_RANGES, DEFAULT_SHAPE, hats, shapeBlend, bodyHeads, standingLift, cleanShape, sameShape,
   readBody, bodyPositions, measurements,
 } from "../../public/js/figure-body.js";
-import { HEADS, CORNER_STATURE } from "../../public/js/figure-body-data.js";
-import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, inPreset, bodyPresetFrom } from "../../public/js/figure-rig.js";
+import { HEADS, CORNER_STATURE, SEGMENTS } from "../../public/js/figure-body-data.js";
+import { DRIVES, anchorBone, olderJointPlaces, restJoints, BODY_PRESETS, ARMS_PRESETS, inPreset, bodyPresetFrom, jointsInRange } from "../../public/js/figure-rig.js";
+import { capsules } from "../../public/js/pose-contact.js";
+import { Vector3 } from "../../public/js/vendor/three.js";
+import { canReach } from "../../public/js/joint-limits.js";
 import { newPose, readPose, forSaving } from "../../public/js/pose-format.js";
 import { makeSkeleton, posed, ropePoint, boneParts, vertexParts, withShape, withBodyPresetOn, onDefaultBody } from "../../public/js/pose-skeleton.js";
 import * as server from "../../src/poses/parse.js";
+
+const STANDING = /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((p) => p.name === "Standing"));
 
 /** @typedef {import("../../public/js/figure-body.js").Shape} Shape */
 
@@ -196,6 +201,73 @@ describe("a pose's shape", () => {
     expect(withShape(skeleton, standing, [50, 50, 25, 150]).lift).toBeLessThan(standing.lift - 10);
   });
 
+  it("rests each body preset on the floor, but those that start in the air, within every joint's range", () => {
+    const skeleton = makeSkeleton();
+    const inTheAir = ["Face down", "Face up", "On their side, top leg folded (left)", "On their side, top leg folded (right)", "Upside down"];
+    for (const preset of BODY_PRESETS) {
+      const pose = withBodyPresetOn(skeleton, newPose(), preset);
+      posed(skeleton, pose);
+      // The arms aren't a body preset's (they're as they were), so the body and legs only.
+      const caps = capsules(skeleton);
+      const low = Math.min(...SEGMENTS.flatMap((s, i) => (/upperarm|forearm|hand/.test(s.name) ? [] : caps[i].map((c) => Math.min(c.a.y, c.b.y) - c.r))));
+      if (inTheAir.includes(preset.name)) {
+        expect(low, preset.name).toBeGreaterThan(50);
+      } else {
+        // On the floor: the skin (as capsules) touching it, a little into it at most (seiza's shins most).
+        expect(low, preset.name).toBeGreaterThan(-9);
+        expect(low, preset.name).toBeLessThan(0.5);
+      }
+      const kept = /** @type {Record<string, number[]>} */ (jointsInRange({ joints: preset.joints }).joints);
+      for (const [name, angles] of Object.entries(preset.joints)) expect(kept[name].slice(0, angles.length), `${preset.name} ${name}`).toEqual(angles);
+      const all = { ...restJoints(), ...preset.joints };
+      for (const [name, angles] of Object.entries(preset.joints)) {
+        const full = all[name].map((a, i) => angles[i] ?? a);
+        expect(canReach(name, full, all), `${preset.name} ${name}`).toBe(true);
+      }
+    }
+    // Each name once.
+    expect(new Set(BODY_PRESETS.map((p) => p.name)).size).toBe(BODY_PRESETS.length);
+  });
+
+  it("puts the hands, or the elbows, on the floor beside the knees with the all-fours arms presets", () => {
+    const skeleton = makeSkeleton();
+    for (const [name, parts] of /** @type {const} */ ([["All fours", ["l_hand", "r_hand"]], ["All fours, elbows", ["l_upperarm", "r_upperarm"]]])) {
+      const body = /** @type {import("../../public/js/figure-rig.js").BodyPreset} */ (BODY_PRESETS.find((p) => p.name === name));
+      const arms = /** @type {import("../../public/js/figure-rig.js").ArmsPreset} */ (ARMS_PRESETS.find((p) => p.name === name));
+      const pose = withBodyPresetOn(skeleton, newPose(), body);
+      posed(skeleton, { ...pose, joints: { ...pose.joints, ...arms.joints } });
+      const caps = capsules(skeleton);
+      for (const part of parts) {
+        const low = Math.min(...caps[SEGMENTS.findIndex((s) => s.name === part)].map((c) => Math.min(c.a.y, c.b.y) - c.r));
+        expect(low, `${name}: ${part}`).toBeGreaterThan(-9);
+        expect(low, `${name}: ${part}`).toBeLessThan(1);
+      }
+      if (name === "All fours") {
+        // The palms on the floor, not the backs of the hands; the fingers forward.
+        for (const [S, x] of /** @type {const} */ ([["L", -1], ["R", 1]])) {
+          const wrist = /** @type {import("../../public/js/vendor/three.js").Object3D} */ (skeleton.all.get(`wrist.${S}`));
+          const at = (/** @type {string} */ b) => /** @type {import("../../public/js/vendor/three.js").Object3D} */ (skeleton.all.get(b)).localToWorld(new Vector3());
+          const palm = wrist.localToWorld(new Vector3(x, 0, 0)).sub(at(`wrist.${S}`));
+          expect(palm.y / palm.length(), S).toBeLessThan(-0.9);
+          expect(at(`finger3-1.${S}`).z - at(`wrist.${S}`).z, S).toBeGreaterThan(5);
+        }
+      }
+    }
+  });
+
+  it("sits the sitting presets with the bottom and the feet both on the floor", () => {
+    const skeleton = makeSkeleton();
+    for (const name of ["Sitting, legs open", "Sitting, legs closed"]) {
+      posed(skeleton, withBodyPresetOn(skeleton, newPose(), /** @type {any} */ (BODY_PRESETS.find((p) => p.name === name))));
+      const caps = capsules(skeleton);
+      const low = (/** @type {string} */ part) => Math.min(...caps[SEGMENTS.findIndex((s) => s.name === part)].map((c) => Math.min(c.a.y, c.b.y) - c.r));
+      // Sitting on the bottom (the hips' capsule on the floor), the feet just over it.
+      expect(Math.abs(low("hips")), name).toBeLessThan(2);
+      expect(low("l_foot"), name).toBeGreaterThan(-1);
+      expect(low("l_foot"), name).toBeLessThan(4);
+    }
+  });
+
   it("puts a body preset on a shorter or taller body at the height it has on the default body, and knows it's in it", () => {
     const skeleton = makeSkeleton();
     // The lowest joint, as withShape keeps it.
@@ -219,8 +291,8 @@ describe("a pose's shape", () => {
       }
     }
     // Standing on a 150 cm body is lower than on the default one, feet on the floor.
-    const short = withBodyPresetOn(skeleton, withShape(skeleton, newPose(), [50, 50, 25, 150]), BODY_PRESETS[0]);
-    expect(short.lift).toBeLessThan(BODY_PRESETS[0].lift - 15);
+    const short = withBodyPresetOn(skeleton, withShape(skeleton, newPose(), [50, 50, 25, 150]), STANDING);
+    expect(short.lift).toBeLessThan(STANDING.lift - 15);
   });
 
   it("opens an older pose on the in-between body, its ropes where they were on the first figure", () => {

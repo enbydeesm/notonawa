@@ -39,17 +39,21 @@ export default async function () {
     // Install app is there only when this Chrome offers installing (checked below).
     return [$(".menu-title .logo").getAttribute("aria-label"), [...document.querySelectorAll(".menu-item:not(.menu-install)")].map((el) => [el.tagName, el.textContent, el.querySelector("svg") !== null]),
       $(".menu-settings svg circle") !== null, $(".nav-account").getAttribute("href"), $(".menu-privacy").getAttribute("href")];`),
-    ["nōtonawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
+    ["nōtonawa", [["BUTTON", "Settings", true], ["A", "Account", true], ["A", "Your data", true], ["BUTTON", "Tutorial", true], ["A", "Join the nōtonawa Discord", true], ["BUTTON", "Bug and feedback", true], ["BUTTON", "What's new", true],
       ["A", "Privacy Policy", true], ["BUTTON", "Sign Out", true]],
       true, "/account", "/privacy"]);
   check("Tutorial, Bug and feedback, What's new, Privacy Policy, Sign Out and the version sit at the bottom of the panel", await run(`
     const box = (sel) => $(sel).getBoundingClientRect();
-    const panel = box(".menu-inner"), tutorial = box(".menu-tutorial"), feedback = box(".menu-feedback"), news = box(".menu-whats-new"),
+    const panel = box(".menu-inner"), tutorial = box(".menu-tutorial"), discord = box(".menu-discord"), feedback = box(".menu-feedback"), news = box(".menu-whats-new"),
       privacy = box(".menu-privacy"), out = box(".menu-sign-out"), version = box(".app-version");
     return [Math.round(panel.bottom - version.bottom), version.top > out.bottom, Math.round(out.top - privacy.bottom), Math.round(privacy.top - news.bottom),
-      Math.round(news.top - feedback.bottom), Math.round(feedback.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
+      Math.round(news.top - feedback.bottom), Math.round(feedback.top - discord.bottom), Math.round(discord.top - tutorial.bottom), tutorial.top - box(".nav-data").bottom > 100,
       $(".menu-inner .app-version").textContent];`),
-    [16, true, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
+    [16, true, 0, 0, 0, 0, 0, true, `Version ${APP_VERSION}`]);
+  check("Join the nōtonawa Discord, under Tutorial with Discord's symbol in the text's color, opens our invite in a new tab without telling Discord which page sent them", await run(`
+    const link = $(".menu-discord");
+    return [link.previousElementSibling === $(".menu-tutorial"), link.getAttribute("href"), link.target, link.rel.split(" ").sort(), link.querySelectorAll("svg path").length, getComputedStyle(link.querySelector("svg path")).fill === getComputedStyle(link).color];`),
+    [true, "https://discord.gg/5tqpYntYvM", "_blank", ["noopener", "noreferrer"], 1, true]);
   check("once the browser can install it, Install app is first in the bottom group, even after Not now, and opens the browser's install window", await run(`
     $("dialog.menu-panel").close(); await calm(200);
     localStorage.setItem("install-dismissed", "1");

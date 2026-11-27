@@ -35,8 +35,8 @@ export function workshopRow(workshop, journal, linkedItems) {
   const visuals = Array.isArray(b.visuals) ? b.visuals : [];
   const people = (Array.isArray(b.people) ? b.people : []).map((/** @type {any} */ p, /** @type {number} */ i) => {
     const person = linked(p?.person_id, "person");
-    return { kind: p?.kind, row: { id: `w${i}`, person_id: person ? person.id : null, person_name: person?.body?.name ?? null, role: p?.role ?? null } };
-  }).sort((/** @type {any} */ x, /** @type {any} */ y) => byName(x.row.person_name, y.row.person_name));
+    return { kind: p?.kind, row: { id: `w${i}`, person_id: person ? person.id : null, person_name: person?.body?.name ?? null, is_self: person?.body?.is_self ? 1 : 0, role: p?.role ?? null } };
+  });
   const plans = linkedItems.filter((i) => i.kind === "plan")
     .map((p) => ({ kind: "plan", id: p.id, title: p.body?.title ?? null, date: null }))
     .sort((x, y) => byName(x.title, y.title));

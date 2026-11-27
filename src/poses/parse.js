@@ -5,7 +5,7 @@
 // can be opened and posed again, and its copies changed separately. It's
 // plain JSON, which the server checks:
 //   {
-//     v: 1,
+//     v: 2 (or 1: hips turned Out first, FORMAT_VERSION),
 //     joints: { spine: [bend, side, twist], l_elbow: [bend], … },
 //     body: [pitch, yaw, roll], lift,
 //     shift: [across, front to back],
@@ -34,7 +34,10 @@
 // cinch. A rope without `l` can start at a spot on a rope before it (a
 // rope added to another), with no other spot. `k` (cm) is a rope's slack.
 // `s` marks a see-saw: a rope over the ring or bamboo once, from the body
-// and back to it (public/js/pose-format.js says more).
+// and back to it (public/js/pose-format.js says more). `t` (true) draws a
+// rope see-through; `f` (true) locks its lengths. A point on the body can have a fifth number, its
+// layer, 1 to 4 (LAYERS): that many ropes' thickness out from the skin, so
+// it lies over ropes beneath it; without one it's on the skin.
 // Angles are whole degrees within each joint's limits (JOINTS; the page's
 // figure-rig.js has the same, with names and directions, kept in step by
 // a unit test). The limits that depend on several of a joint's movements
@@ -53,7 +56,12 @@ import { COLORS, WIDTHS } from "../drawings/parse.js";
 // A caption is sealed in the browser, or empty, as a drawing's is.
 export { parseCaption, COLORS, WIDTHS };
 
-export const FORMAT_VERSION = 1;
+// Format 2's hips turn Forward first (public/js/hip-order.js). Format 1
+// poses are still taken (a page from before, and copies of older poses)
+// and kept as they were: the page turns their hips when it opens them.
+export const FORMAT_VERSION = 2;
+/** The formats a pose can be in. */
+export const FORMAT_VERSIONS = Object.freeze([1, 2]);
 
 /**
  * Each joint's angles, in order, as [min, max] whole degrees.
@@ -70,11 +78,11 @@ export const JOINTS = Object.freeze({
   r_shoulder: [[-80, 180], [-35, 180], [-95, 95]],
   r_elbow: [[-5, 155], [-85, 95]],
   r_wrist: [[-85, 85], [-35, 35]],
-  l_hip: [[-35, 150], [-35, 100], [-50, 50]],
+  l_hip: [[-35, 150], [-35, 100], [-50, 90]],
   l_knee: [[-5, 160], [-40, 40]],
   l_ankle: [[-75, 35]],
   l_toes: [[-35, 85]],
-  r_hip: [[-35, 150], [-35, 100], [-50, 50]],
+  r_hip: [[-35, 150], [-35, 100], [-50, 90]],
   r_knee: [[-5, 160], [-40, 40]],
   r_ankle: [[-75, 35]],
   r_toes: [[-35, 85]],
@@ -133,6 +141,8 @@ export const OFFSET = 600;
 /** Ropes in one pose. */
 export const MAX_ROPES = 100;
 /** Points in one rope. */
+/** A rope point's layer on the body: 0 on the skin, up to 4 ropes out. */
+export const LAYERS = Object.freeze([0, 4]);
 export const MAX_ROPE_POINTS = 200;
 /** Points in one pose, all its ropes together. */
 export const MAX_POINTS = 3000;
@@ -142,10 +152,10 @@ export const MAX_PER_ITEM = 20;
 export const MAX_BODY_BYTES = 256 * 1024;
 
 /**
- * @typedef {[string, number, number, number]} RopePoint
- * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number }} Rope
+ * @typedef {[string, number, number, number] | [string, number, number, number, number]} RopePoint
+ * @typedef {{ c: typeof COLORS[number], w: typeof WIDTHS[number], p: RopePoint[], l?: number, s?: true, k?: number, t?: true, f?: true }} Rope
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
+ *   v: 1 | 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number], shape?: number[],
  *   camera: number[], ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[],
  * }} Pose
@@ -189,7 +199,7 @@ export function parsePose(value) {
   const bad = (/** @type {string} */ why) => new BadInput(`Couldn't save the pose: ${why}`);
   const doc = /** @type {Record<string, any>} */ (value);
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) throw bad("it was missing.");
-  if (doc.v !== FORMAT_VERSION) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
+  if (!FORMAT_VERSIONS.includes(doc.v)) throw bad("it's from a newer version of nōtonawa. Reload the page and try again.");
 
   const sent = doc.joints;
   if (!sent || typeof sent !== "object" || Array.isArray(sent)) throw bad("it has no joints.");
@@ -235,8 +245,12 @@ export function parsePose(value) {
     }
     if (r.p.length < 2 || r.p.length > MAX_ROPE_POINTS) throw bad("a rope has too many or too few points.");
     const p = r.p.map((/** @type {any} */ point) => {
-      if (!Array.isArray(point) || point.length !== 4) throw bad("a rope point isn't in the right format.");
-      const [bone, ...xyz] = point;
+      // A point on the body can have a fifth number, its layer (LAYERS): how
+      // many ropes' thickness out from the skin it lies.
+      if (!Array.isArray(point) || (point.length !== 4 && point.length !== 5)) throw bad("a rope point isn't in the right format.");
+      const [bone, x, y, z, layer] = point;
+      const xyz = [x, y, z];
+      if (point.length === 5 && (!BONES.includes(bone) || !within(layer, LAYERS[0], LAYERS[1]))) throw bad("a rope point isn't in the right format.");
       if (bone === RING) {
         if (ring === null) throw bad("a rope goes to a ring that isn't there.");
         if (!xyz.every((n) => n === 0)) throw bad("a rope point isn't in the right format.");
@@ -252,7 +266,7 @@ export function parsePose(value) {
       } else if (!BONES.includes(bone) || !fits(xyz, [offset, offset, offset])) {
         throw bad("a rope point is off the figure.");
       }
-      return /** @type {RopePoint} */ ([bone, ...xyz]);
+      return /** @type {RopePoint} */ (layer ? [bone, ...xyz, layer] : [bone, ...xyz]);
     });
     points += p.length;
     /** @type {Rope} */
@@ -271,6 +285,16 @@ export function parsePose(value) {
       if (r.s !== true) throw bad("a rope isn't in the right format.");
       rope.s = true;
     }
+    // `t`: drawn see-through.
+    if (r.t !== undefined) {
+      if (r.t !== true) throw bad("a rope isn't in the right format.");
+      rope.t = true;
+    }
+    // `f`: its lengths locked (the poser keeps them as the body moves).
+    if (r.f !== undefined) {
+      if (r.f !== true) throw bad("a rope isn't in the right format.");
+      rope.f = true;
+    }
     return rope;
   });
   if (points > MAX_POINTS) throw bad("it's too detailed to store.");
@@ -280,7 +304,7 @@ export function parsePose(value) {
   /** @param {number[] | null} list */
   const copy = (list) => (list === null ? null : [...list]);
   return {
-    v: FORMAT_VERSION, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]],
+    v: doc.v, joints, body: [pitch, yaw, roll], lift: doc.lift, shift: [shift[0], shift[1]],
     ...(shape === null ? {} : { shape: [...shape] }), camera: [...camera],
     ring: copy(ring), bamboo: copy(bamboo), hashira: copy(hashira), ropes,
   };
@@ -289,8 +313,8 @@ export function parsePose(value) {
 /**
  * Checks what the cinches and added ropes are on, and the see-saws: a
  * cinch's spots on ropes (not cinches), at least one; a rope added to another on one before it (not a
- * cinch); a see-saw over the ring or bamboo once, between two points on
- * the body.
+ * cinch); a see-saw over the ring or bamboo once, between two of its
+ * points (an added rope's first, its spot on the other rope, can be one).
  * @param {Rope[]} ropes
  * @param {(why: string) => BadInput} bad
  */
@@ -304,7 +328,6 @@ function checkLinks(ropes, bad) {
   for (const [index, rope] of ropes.entries()) {
     if (rope.l === undefined && rope.p[0][0] === ROPE) {
       if (rope.p[0][1] >= index || !onRope(rope.p[0])) throw bad("a rope is added to a rope that isn't there.");
-      if (rope.s) throw bad("a see-saw rope doesn't go over the ring or bamboo.");
     }
     if (rope.s) {
       const tops = rope.p.flatMap((p, i) => (top(p) ? [i] : []));

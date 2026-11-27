@@ -13,6 +13,7 @@ import path from "node:path";
 import { readZip } from "../../../public/js/zip.js";
 import { check, freshAccount, go, run, send, sleep, workDir } from "../harness.mjs";
 import { readPose, setHardpoint } from "../../../public/js/pose-format.js";
+import { BODY_PRESETS, ARMS_PRESETS } from "../../../public/js/figure-rig.js";
 
 /**
  * The PNG downloaded into an empty folder: whether its name is as given, and
@@ -150,7 +151,8 @@ export default async function () {
   // Each row's name, and whether it's tinted as the one the figure's in (the divider's words, and false).
   const pickerRows = (dialog) => `[...document.querySelectorAll("${dialog} .preset-list > *")]
     .map((el) => [el.querySelector(".preset-name")?.textContent ?? el.textContent, el.classList.contains("current")])`;
-  const BODY_NAMES = ["Standing", "Kneeling (seiza)", "Kneeling up", "One leg folded (futomomo)", "Face down", "Face up", "On their side", "Upside down"];
+  // The built-in body presets, in their order (figure-rig.js).
+  const BODY_NAMES = BODY_PRESETS.map((p) => p.name);
   check("Arms… opens Arms Presets: Save as preset and ✕ on its heading's row, on the heading (no keyboard), the one the figure's in tinted and Save greyed out; ✕ changes nothing", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
     const d = $("#pose-arms-presets");
@@ -161,7 +163,7 @@ export default async function () {
     $("#pose-arms-presets-close").click(); await calm(200);
     return [...result, !!$("#pose-arms-presets"), $("#pose-undo").disabled];`),
   [["Arms Presets", "Save as preset", "Close"], "pose-arms-presets-title", "Search", true,
-    [["At sides", true], ["Boxtie", false], ["Bunny ears", false], ["Tengu", false], ["Tenshi", false], ["Crossed (hug)", false]], true, [],
+    ARMS_PRESETS.map((p, i) => [p.name, i === 0]), true, [],
     false, true]);
   check("searching narrows the list, the picker staying where it is at the same height; tapping a row anywhere chooses it and closes it, as one change to undo", await run(`
     ${openPicker("#pose-arms-preset", "#pose-arms-presets")}
@@ -210,7 +212,7 @@ export default async function () {
   [true, ["Save this body as a preset", "pose-preset-name", " Save arms as a preset too?", false, []], "Saved, for any pose.",
     [...BODY_NAMES.map((n) => [n, false]), ["My presets", false], ["Standing tall", true]], true, [["body", true, true]]]);
   check("my presets are in alphabetical order after the built-in ones, each with save, rename and delete (red) icons, from the left; saving with the arms too adds an arms preset", await run(`
-    $("#pose-body-presets-b2").click(); await calm(300);
+    $("#pose-body-presets-b${BODY_NAMES.indexOf("Kneeling up")}").click(); await calm(300);
     ${slide("pose-head-0", -10)}
     ${openPicker("#pose-body-preset", "#pose-body-presets")}
     $("#pose-body-presets-save").click(); await calm(300);
@@ -611,7 +613,9 @@ async function hanging({ topDialog }) {
 
 /**
  * Wrap lays a turn of rope round the part tapped, undone as one; a chosen
- * rope's white dots move a point when dragged and take it out when tapped.
+ * rope's white dots move a point when dragged and choose it when tapped:
+ * its layer, a point added beside it, Remove; and the eye makes the rope
+ * see-through.
  * @param {{ tap: (fx: number, fy: number) => Promise<void>, drag: (fx0: number, fx1: number, fy0: number, fy1?: number) => Promise<void>, topDialog: string }} helpers
  */
 async function wrapping({ tap, drag, topDialog }) {
@@ -662,12 +666,71 @@ async function wrapping({ tap, drag, topDialog }) {
   await tap(0.5, 0.42);
   check("chosen, the help tells its white dots from the black one, and Wrap is put away", await run(`
     return [$("#pose-rope-hint").textContent, $("#pose-wrap").closest(".pose-wrap-row").hidden];`),
-  ["Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", true]);
-  // Its first point's dot is under the same spot: tapped, the point goes.
+  ["Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.", true]);
+  check("with no point chosen, the point row is there, greyed out: a tap on one of its buttons says to select a point first, and does nothing else", await run(`
+    const row = $("#pose-point-row");
+    const greyed = ["back", "forward", "before", "after", "remove"].map((b) => $("#pose-point-" + b).getAttribute("aria-disabled"));
+    const before = [$("#pose-point-tip").hidden, row.classList.contains("unchosen"), $("#pose-point-layer").textContent];
+    $("#pose-point-forward").click(); await calm(200);
+    return [greyed, before, !$("#pose-point-tip").hidden, $("#pose-point-tip").textContent, $("#pose-point-layer").textContent, $("#pose-laying-bar").hidden];`),
+  [["true", "true", "true", "true", "true"], [true, true, "Layer –"], true, "Select a point first", "Layer –", true]);
+  check("the spot Cinch and Add rope start from is a small black ×, no dot or circle round it; the row reads ‹ Add point ›, and fits", await run(`
+    const spot = $("#pose-spot");
+    const box = spot?.getBBox();
+    const parts = spot ? [...spot.children].map((c) => c.tagName) : [];
+    const shown = () => [...$("#pose-point-add-text").children].filter((c) => getComputedStyle(c).display !== "none").map((c) => c.textContent);
+    const fits = () => { const r = $("#pose-point-row"); return r.scrollWidth <= r.clientWidth + 1; };
+    return [!!spot, parts, box && box.height <= 12 && box.width <= 12, getComputedStyle(spot?.querySelector("path")).stroke, shown(), fits()];`),
+  [true, ["path", "path"], true, "rgb(34, 34, 34)", ["Add point"], true]);
+  await send("Emulation.setDeviceMetricsOverride", { width: 320, height: 640, deviceScaleFactor: 1, mobile: true });
+  check("…and on a 320px phone it fits, as ‹ + point ›", await run(`
+    await calm(400);
+    const r = $("#pose-point-row");
+    const shown = [...$("#pose-point-add-text").children].filter((c) => getComputedStyle(c).display !== "none").map((c) => c.textContent);
+    const inside = [...r.querySelectorAll("button")].every((b) => b.getBoundingClientRect().right <= r.getBoundingClientRect().right + 0.5);
+    return [shown, r.scrollWidth <= r.clientWidth + 1, inside];`),
+  [["+ point"], true, true]);
+  await send("Emulation.clearDeviceMetricsOverride");
+  await run(`await calm(400);`);
+  // Its first point's dot is under the same spot: tapped, the point's chosen.
   await tap(0.5, 0.42);
-  check("a white dot tapped takes its point out, and says so; the rope stays chosen", await run(`
-    return [$("#pose-rope-note").textContent, !$("#pose-rope-options").hidden && !!$("#pose-rope-options").children.length];`),
-  ["Point taken out.", true]);
+  check("a white dot tapped chooses its point: its row no longer greyed (Layer 0, nothing before the rope's first point), and a plain black › on the view, no taller than a medium rope there, where a point would go", await run(`
+    const mark = $("#pose-beside-after");
+    return [$("#pose-point-layer")?.textContent, $("#pose-point-row").classList.contains("unchosen"), $("#pose-point-back")?.hasAttribute("aria-disabled"),
+      $("#pose-point-back")?.disabled, $("#pose-point-before")?.disabled, $("#pose-point-after")?.disabled,
+      !!mark, !!$("#pose-beside-before"), mark ? [...mark.children].map((c) => c.tagName) : null, mark?.getBBox().height <= 12, !!$("#pose-rope-options").children.length];`),
+  ["Layer 0", false, false, true, true, false, true, false, ["path", "path"], true, true]);
+  check("Bring forward puts it a layer out, shown by its dot; a point added after it is chosen, at its layer; Remove takes that one out", await run(`
+    $("#pose-point-forward").click(); await calm(300);
+    const forward = [$("#pose-point-layer").textContent, $("#pose-point-back").disabled, document.querySelectorAll("#pose-beside .pose-layer-mark").length];
+    $("#pose-point-after").click(); await calm(300);
+    const added = [$("#pose-point-layer").textContent, document.querySelectorAll("#pose-beside .pose-layer-mark").length, !!$("#pose-beside-before")];
+    $("#pose-point-remove").click(); await calm(300);
+    return [forward, added, $("#pose-rope-note").textContent, $("#pose-point-row").classList.contains("unchosen")];`),
+  [["Layer 1", false, 1], ["Layer 1", 2, true], "Point taken out.", true]);
+  check("the eye makes the whole rope see-through, and solid again; a see-through rope can still be chosen", await run(`
+    $("#pose-rope-see-through").click(); await calm(300);
+    const on = [$("#pose-rope-see-through").getAttribute("aria-pressed"), $("#pose-rope-see-through").title];
+    $("#pose-rope-see-through").click(); await calm(300);
+    const off = $("#pose-rope-see-through").getAttribute("aria-pressed");
+    $("#pose-rope-see-through").click(); await calm(300);
+    return [on, off];`),
+  [["true", "See-through: tap to make it solid"], "false"]);
+  check("Delete rope takes the whole rope away, saying so; Undo brings it back", await run(`
+    $("#pose-rope-delete").click(); await calm(300);
+    const gone = [$("#pose-rope-note").textContent, $("#pose-rope-options").children.length];
+    $("#pose-undo").click(); await calm(300);
+    return [gone, $("#pose-redo").disabled];`),
+  [["Rope deleted.", 0], false]);
+  // Undone, it's not chosen: tapping it chooses it again.
+  await tap(0.5, 0.42);
+  // Chosen again and taken out: the first point goes, as before.
+  await tap(0.5, 0.42);
+  check("its first point chosen again and removed: it says so, and the rope stays chosen", await run(`
+    const chosenRow = !!$("#pose-point-row");
+    $("#pose-point-remove").click(); await calm(300);
+    return [chosenRow, $("#pose-rope-note").textContent, !$("#pose-rope-options").hidden && !!$("#pose-rope-options").children.length];`),
+  [true, "Point taken out.", true]);
   // Its last point is still there: dragged down the body, it moves.
   await drag(0.5, 0.5, 0.42, 0.52);
   check("a white dot dragged moves its point over the skin, as one change, saved with the pose", await run(`
@@ -675,9 +738,20 @@ async function wrapping({ tap, drag, topDialog }) {
     for (let i = 0; i < 100 && !/Pose saved|Couldn't/.test(${topDialog}.textContent); i++) await wait(100);
     const [rope] = (await ${tiePose}).data.ropes;
     const [first, last] = [rope.p[0], rope.p[rope.p.length - 1]];
-    // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start).
-    return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30];`),
-  [12, true, true]);
+    // Twelve points left, every one on the trunk; the last no longer where the wrap ended (level with its start); see-through; locked, as a new rope is.
+    return [rope.p.length, rope.p.every((p) => ["chest", "spine", "pelvis"].includes(p[0])), last[0] !== "chest" || Math.abs(last[2] - first[2]) > 30, rope.t, rope.f];`),
+  [12, true, true, true, true]);
+  check("the poser's ropes follow the skin: a point tapped on the waist bent forward is drawn where it was tapped", await run(`
+    const { followsSkin, makeSkeleton, posed, ropePoint, toBone, onBone } = await import("/js/pose-skeleton.js");
+    const { newPose, bonePoint } = await import("/js/pose-format.js");
+    const skeleton = makeSkeleton();
+    const start = newPose();
+    const pose = { ...start, joints: { ...start.joints, spine: [-55, 0, 0] } };
+    posed(skeleton, pose);
+    const tapped = onBone(skeleton, "spine", [0, 4, 14]);
+    const point = bonePoint("spine", toBone(skeleton, "spine", tapped));
+    return [followsSkin(), ropePoint(skeleton, point, pose).distanceTo(tapped) < 0.15];`),
+  [true, true]);
 }
 
 /**
@@ -897,19 +971,47 @@ async function ropes({ tap, slide, topDialog }) {
     $("#tie-visuals .visual-pose .photo-thumb").click(); await wait(800); ${editPose}
     $("#pose-mode-rope").click(); await wait(300);`);
   await tapRope(stored, 0, 0, 0.5);
-  check("tapping a rope gives its own panel: Rope selected, Runs free (ticked: it's a see-saw) and ✕ in its heading, then Cinch and Add rope side by side, and its slack", await run(`
+  check("tapping a rope gives its own panel: its color, Runs free (ticked: it's a see-saw), the lock, the eye, Delete rope and ✕ in its heading (named for screen readers only), then Cinch and Add rope side by side, and Start ◀ ▶ End (where the ring sits along it), not slack", await run(`
     const seesaw = $("#pose-seesaw");
     const actions = $("#pose-cinch-start").parentElement.getBoundingClientRect();
-    const head = [...$(".pose-chosen-head").children].map((c) => c.id || c.querySelector("input")?.id || c.className);
-    return [$("#pose-chosen-title").textContent, head, $(".pose-rope-tools-rows").hidden,
+    const head = [...$(".pose-chosen-head").children].flatMap((c) => (c.classList.contains("pose-chosen-checks") ? [...c.children] : [c]))
+      .map((c) => c.id || c.querySelector("input")?.id || c.className);
+    return [$("#pose-chosen-title").textContent, $("#pose-chosen-title").getBoundingClientRect().width <= 1, head, $(".pose-rope-tools-rows").hidden,
       seesaw?.checked, seesaw?.parentElement.textContent, seesaw?.parentElement.title,
       $("#pose-cinch-start").textContent, $("#pose-added-start").textContent, !!$("#pose-along-start"),
       Math.round($("#pose-cinch-start").getBoundingClientRect().left) === Math.round(actions.left),
       Math.round($("#pose-added-start").getBoundingClientRect().right) === Math.round(actions.right),
-      $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"), leakyFields()];`),
-  ["Rope selected", ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-letgo"], true, true, "Runs free",
+      $("#pose-rope-hint").textContent, $("#pose-view-hint").textContent, !!$("#pose-slack"),
+      $("label[for=pose-seesaw-start]")?.textContent, Number($("#pose-seesaw-start")?.min) > 0, leakyFields()];`),
+  ["Rope selected", true, ["pose-chosen-dot ink-red", "pose-chosen-title", "pose-seesaw", "pose-rope-lock", "pose-rope-see-through", "pose-rope-delete", "pose-rope-letgo"], true, true, "Runs free",
     "Runs free over the ring: pulling one end moves the other", "Cinch", "Add rope", false, true, true,
-    "Drag a white dot to move that point, or tap it to take it out. Cinch and Add rope start from the black dot.", "Tap anywhere else to let it go", true, []]);
+    "Drag a white dot to move that point, or tap it to choose it. Cinch and Add rope start from the black ×.", "Tap anywhere else to let it go", false,
+    "Start ◀ ▶ End", true, []]);
+  check("the lock, left of the eye: open and plain on a rope saved without it; tapped, shut and yellow; again, open; Runs free stays as it was", await run(`
+    const lock = () => $("#pose-rope-lock");
+    const look = () => [lock().getAttribute("aria-pressed"), lock().querySelectorAll("path").length && lock().querySelector("path:nth-child(2)").getAttribute("d"),
+      getComputedStyle(lock()).backgroundColor === getComputedStyle($("#pose-rope-see-through")).backgroundColor];
+    const order = lock().nextElementSibling === $("#pose-rope-see-through");
+    const open = look();
+    lock().click(); await calm(300);
+    const shut = [...look(), $("#pose-seesaw").disabled, $("#pose-seesaw").checked];
+    lock().click(); await calm(300);
+    return [order, open, shut, look()[0]];`),
+  // Its background as the (plain) eye's while open; the pressed yellow while shut.
+  [true, ["false", "M8 11V7a4 4 0 0 1 7.6-1.7", true], ["true", "M8 11V7a4 4 0 0 1 8 0v4", false, false, true], "false"]);
+  await send("Emulation.setDeviceMetricsOverride", { width: 320, height: 640, deviceScaleFactor: 1, mobile: true });
+  check("on a 320px phone the heading's checkboxes and buttons all fit, none over another, the lock on the buttons' line", await run(`
+    await calm(400);
+    const head = $(".pose-chosen-head").getBoundingClientRect();
+    const boxes = [...$(".pose-chosen-head").children].flatMap((c) => (c.classList.contains("pose-chosen-checks") ? [...c.children] : [c]))
+      .map((c) => c.getBoundingClientRect());
+    const inside = boxes.every((b) => b.left >= head.left - 0.5 && b.right <= head.right + 0.5);
+    const apart = boxes.every((a, i) => boxes.every((b, j) => i >= j || a.right <= b.left + 0.5 || b.right <= a.left + 0.5 || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5));
+    const row = (sel) => Math.round($(sel).getBoundingClientRect().top);
+    return [inside, apart, document.documentElement.scrollWidth <= 320, row("#pose-rope-lock") === row("#pose-rope-letgo")];`),
+  [true, true, true, true]);
+  await send("Emulation.clearDeviceMetricsOverride");
+  await run(`await calm(400);`);
   // The left upper arm, halfway along: where to tap to pose it.
   const upperArm = await run(`
     const three = await import("/js/vendor/three.js");

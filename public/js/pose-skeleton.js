@@ -11,8 +11,9 @@
 import { Bone, Object3D, Quaternion, Vector3 } from "./vendor/three.js";
 import { JOINTS, DRIVES, TAPPED_AS, POSED_AS, WAIST_SHARE_OF_HIPS, anchorBone, carrierBone, jointRotation, bodyRotation, withBodyPreset, clampJoint, jointNamed } from "./figure-rig.js";
 import { BONES, PARENTS, DEFAULT_SHAPE, bodyHeads, sameShape } from "./figure-body.js";
-import { RING, BAMBOO, HASHIRA, ROPE, setShape, clamp, withPosture } from "./pose-format.js";
+import { RING, BAMBOO, HASHIRA, ROPE, LAYER_CM, setShape, clamp, withPosture } from "./pose-format.js";
 import { LIFT_RANGE } from "./figure-rig.js";
+import { makeBinding, restOf, weightsAt, deform, undeform, groupOf } from "./pose-skin-bind.js";
 
 /** @typedef {import("./pose-format.js").Pose} Pose */
 /** @typedef {import("./pose-format.js").RopePoint} RopePoint */
@@ -380,6 +381,66 @@ export const onBone = ({ bones }, bone, cm = [0, 0, 0]) =>
   /** @type {Object3D} */ (bones.get(bone)).localToWorld(new Vector3(...cm));
 
 /**
+ * The skin rope points follow (pose-skin-bind.js), once the mesh is loaded
+ * (useSkin): until then, and in tests that don't load it, a point turns
+ * with its own bone alone. @type {import("./pose-skin-bind.js").Binding | null}
+ */
+let binding = null;
+
+/**
+ * Rope points on the body follow this mesh's skin from now on (the 3D
+ * view calls it once the body has loaded); null, a point turns with its
+ * own bone alone again (for tests).
+ * @param {import("./figure-body.js").Body | null} body
+ */
+export function useSkin(body) {
+  binding = body ? makeBinding(body, vertexParts(body)) : null;
+}
+
+/** Whether rope points follow the skin (useSkin). */
+export const followsSkin = () => binding !== null;
+
+/**
+ * Where a part's joint is on the straight body (cm from the pelvis).
+ * @param {Skeleton} skeleton @param {string} part
+ */
+function anchorRest({ heads }, part) {
+  const i = BONES.indexOf(anchorBone(part)), root = PARENTS.indexOf(-1);
+  return new Vector3(heads[i * 3] - heads[root * 3], heads[i * 3 + 1] - heads[root * 3 + 1], heads[i * 3 + 2] - heads[root * 3 + 2]);
+}
+
+/**
+ * A point on the body, on the straight body (cm from the pelvis), with its
+ * skin weights: out from the skin by its layer, the way the skin faces.
+ * @param {Skeleton} skeleton
+ * @param {string} part
+ * @param {[number, number, number]} cm from the part's joint
+ * @param {number} [layer]
+ * @returns {{ p: Vector3, weights: import("./pose-skin-bind.js").Weights, rest: import("./pose-skin-bind.js").Rest }}
+ */
+export function restPoint(skeleton, part, cm, layer = 0) {
+  const skin = /** @type {import("./pose-skin-bind.js").Binding} */ (binding);
+  const rest = restOf(skin, skeleton.shape, skeleton.heads);
+  const p = anchorRest(skeleton, part).add(new Vector3(...cm));
+  const weights = weightsAt(skin, rest, [groupOf(part)], p);
+  if (layer) p.addScaledVector(weights.normal, layer * LAYER_CM);
+  return { p, weights, rest };
+}
+
+/**
+ * A point on the straight body (restPoint's, or between two of them) on
+ * the body as posed, moved as the skin of these parts there is.
+ * @param {Skeleton} skeleton posed
+ * @param {readonly string[]} parts the stretches of skin it's on
+ * @param {Vector3} p
+ */
+export function skinPoint(skeleton, parts, p) {
+  const skin = /** @type {import("./pose-skin-bind.js").Binding} */ (binding);
+  const rest = restOf(skin, skeleton.shape, skeleton.heads);
+  return deform(skeleton.all, rest, weightsAt(skin, rest, [...new Set(parts.map(groupOf))], p), p);
+}
+
+/**
  * Where a rope point is in the room (cm), the skeleton posed. A cinch's
  * spot on another rope is on the straight line between that rope's two
  * points, before the cinch pulls it (pose-cinch.js).
@@ -388,7 +449,7 @@ export const onBone = ({ bones }, bone, cm = [0, 0, 0]) =>
  * @param {Pose} pose
  * @returns {Vector3}
  */
-export function ropePoint(skeleton, [bone, x, y, z], pose) {
+export function ropePoint(skeleton, [bone, x, y, z, layer = 0], pose) {
   if (bone === ROPE) {
     const { p } = pose.ropes[x];
     return ropePoint(skeleton, p[y], pose).lerp(ropePoint(skeleton, p[y + 1], pose), z / 1000);
@@ -405,7 +466,23 @@ export function ropePoint(skeleton, [bone, x, y, z], pose) {
     const [hx, hz, turn] = /** @type {number[]} */ (pose.hashira);
     return turned([hx, 0, hz], turn, [x / 10, y / 10, z / 10]);
   }
-  return onBone(skeleton, bone, [x / 10, y / 10, z / 10]);
+  /** @type {[number, number, number]} */
+  const at = [x / 10, y / 10, z / 10];
+  if (binding) {
+    // Where the skin there is, as posed (pose-skin-bind.js).
+    const { p, weights, rest } = restPoint(skeleton, bone, at, layer);
+    return deform(skeleton.all, rest, weights, p);
+  }
+  if (layer) {
+    // Out from the skin by its layer: away from the part's middle line, the
+    // bone's own long direction (a foot's and toes' is forward, the rest
+    // up and down), so it lies over the ropes beneath it.
+    const long = /_(ankle|toes)$/.test(bone) ? 2 : 1;
+    const out = at.map((v, i) => (i === long ? 0 : v));
+    const across = Math.hypot(...out);
+    if (across > 0.5) for (const i of [0, 1, 2]) at[i] += out[i] / across * layer * LAYER_CM;
+  }
+  return onBone(skeleton, bone, at);
 }
 
 /**
@@ -416,7 +493,15 @@ export function ropePoint(skeleton, [bone, x, y, z], pose) {
  * @param {Vector3} world
  * @returns {[number, number, number]}
  */
-export function toBone({ bones }, bone, world) {
-  const local = /** @type {Object3D} */ (bones.get(bone)).worldToLocal(world.clone());
-  return [Math.round(local.x * 10), Math.round(local.y * 10), Math.round(local.z * 10)];
+export function toBone(skeleton, bone, world) {
+  const anchor = /** @type {Object3D} */ (skeleton.bones.get(bone));
+  if (!binding) {
+    const local = anchor.worldToLocal(world.clone());
+    return [Math.round(local.x * 10), Math.round(local.y * 10), Math.round(local.z * 10)];
+  }
+  // The point on the straight body that the skin puts there.
+  const skin = binding, from = anchorRest(skeleton, bone);
+  const rest = restOf(skin, skeleton.shape, skeleton.heads);
+  const p = undeform(skeleton.all, anchor, from, (q) => weightsAt(skin, rest, [groupOf(bone)], q), rest, world).sub(from);
+  return [Math.round(p.x * 10), Math.round(p.y * 10), Math.round(p.z * 10)];
 }

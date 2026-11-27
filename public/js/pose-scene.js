@@ -20,11 +20,12 @@ import {
   HemisphereLight, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, Raycaster,
   Scene, Skeleton, SkinnedMesh, SphereGeometry, TorusGeometry, TubeGeometry, Vector2, Vector3, WebGLRenderer,
 } from "./vendor/three.js";
-import { BONES, BODY_FILE, TURNS, readBody, bodyPositions, bindHeads, sameShape } from "./figure-body.js";
+import { BONES, BODY_FILE, readBody, bodyPositions, sameShape } from "./figure-body.js";
+import { bindInverses } from "./pose-skin-bind.js";
 import { ROPE, ROPE_RADIUS, HASHIRA_SIZE, isCinch, onBody } from "./pose-format.js";
 import { withDualQuatSkinning, toDualQuat, blendDualQuats, dqTransform } from "./pose-skinning.js";
 import {
-  makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, RING_RADIUS, BAMBOO_RADIUS,
+  makeSkeleton, posed, ropePoint, toBone, toHardpoint, vertexParts, useSkin, RING_RADIUS, BAMBOO_RADIUS,
 } from "./pose-skeleton.js";
 import { bends, ropeRuns, spotPoint } from "./pose-cinch.js";
 import { skinOf, stretchOf } from "./pose-surface.js";
@@ -51,6 +52,10 @@ const ROPE_REACH = 18;
 const ROPE_DEPTH = 3;
 /** How near a chosen rope's dot a finger must be to hold it (CSS px). */
 const HANDLE_REACH = 16;
+/** The camera's field of view, up and down (degrees). */
+const FOV = 38;
+/** How solid a see-through rope is drawn: enough to see and tap, the ropes under it showing. */
+const SEE_THROUGH = 0.35;
 /** The furthest from a part's middle line its skin is looked for (cm). */
 const SKIN_FAR = 60;
 
@@ -87,6 +92,8 @@ const cssColor = (name) => new Color(getComputedStyle(document.documentElement).
 const body = readBody(await (await fetch(BODY_FILE)).arrayBuffer());
 /** Which part of the body (figure-rig.js) each vertex is on, for a rope point tapped there, and for posing. */
 const parts = vertexParts(body);
+// Rope on the body follows this skin as it bends (pose-skin-bind.js).
+useSkin(body);
 const posedParts = vertexParts(body, { posing: true });
 
 /**
@@ -115,7 +122,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
 
   const scene = new Scene();
   scene.background = cssColor("pose-backdrop");
-  const camera = new PerspectiveCamera(38, 1, 5, 5000);
+  const camera = new PerspectiveCamera(FOV, 1, 5, 5000);
 
   scene.add(new HemisphereLight(0xffffff, cssColor("pose-floor"), 1.6));
   const key = new DirectionalLight(0xffffff, 1.8);
@@ -196,20 +203,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     place.needsUpdate = true;
     geometry.computeVertexNormals();
     // Each bone's skin is moved from where it's bound (Anny's pose) to its
-    // joint standing arms down: back from its bound joint, then its turn.
-    const bound = bindHeads(skinShape);
-    inverses.forEach((m, i) => {
-      const [x, y, z] = [-bound[i * 3], -bound[i * 3 + 1], -bound[i * 3 + 2]];
-      const t = TURNS[BONES[i]];
-      if (!t) {
-        m.makeTranslation(x, y, z);
-        return;
-      }
-      m.set(t[0], t[1], t[2], t[0] * x + t[1] * y + t[2] * z,
-        t[3], t[4], t[5], t[3] * x + t[4] * y + t[5] * z,
-        t[6], t[7], t[8], t[6] * x + t[7] * y + t[8] * z,
-        0, 0, 0, 1);
-    });
+    // joint standing arms down (the same the ropes follow, pose-skin-bind.js).
+    bindInverses(skinShape).forEach((m, i) => { inverses[i].elements = m.elements; });
   }
 
   /**
@@ -297,16 +292,31 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   // The rope chosen (to change a cinch or a see-saw) shows in the
   // selected part's color.
   const chosenInk = new MeshStandardMaterial({ color: cssColor("pose-selected"), roughness: 0.6 });
-  // The chosen rope's points, to drag or take out: white, apart from the
-  // black dot where a cinch or an added rope would start.
+  // A see-through rope (`t`): its own ink (or the chosen one's), faint, the ropes under it showing.
+  /** @type {Map<string, MeshStandardMaterial>} */
+  const clearInks = new Map();
+  /** @param {string} name the CSS color's */
+  const clearInk = (name) => {
+    let material = clearInks.get(name);
+    if (!material) {
+      clearInks.set(name, material = new MeshStandardMaterial({
+        color: cssColor(name), roughness: 0.8, transparent: true, opacity: SEE_THROUGH, depthWrite: false,
+      }));
+    }
+    return material;
+  };
+  // The chosen rope's points, to drag or choose: white (the spot where a
+  // cinch or an added rope would start is a × over the view, pose-beside-ui.js).
   const handleInk = new MeshStandardMaterial({ color: cssColor("pose-handle"), roughness: 0.5 });
 
   /** The pose drawn last, so the view can be drawn again at a new size. @type {Pose | null} */
   let shown = null;
-  /** Each rope's line in the room, as many points along it, for choosing one with a tap. @type {{ index: number, points: Vector3[] }[]} */
+  /** Each rope's line in the room, as many points along it, for choosing one with a tap (`clear`: see-through). @type {{ index: number, points: Vector3[], clear: boolean }[]} */
   let ropeLines = [];
   /** The chosen rope's points on the body, where their dots are. @type {{ k: number, point: Vector3 }[]} */
   let handles = [];
+  /** Where the spot chosen on a rope is, in the room, while one is. @type {Vector3 | null} */
+  let spotAt = null;
 
   /** Takes the old ropes off, freeing what they held. */
   function clearRopes() {
@@ -323,9 +333,9 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
    * @param {number} index its place in pose.ropes, or -1 for the one being laid
    * @param {boolean} chosen
    */
-  function addRope(rope, runs, index, chosen, dots = [], dotInk = marker) {
+  function addRope(rope, runs, index, chosen, dots = [], dotInk = marker, picked = -1) {
     const radius = ROPE_RADIUS[rope.w];
-    const material = chosen ? chosenInk : ink(rope.c);
+    const material = rope.t ? clearInk(chosen ? "pose-selected" : `ink-${rope.c}`) : chosen ? chosenInk : ink(rope.c);
     for (const [i, points] of runs.entries()) {
       if (points.length < 2) continue;
       const curve = new CatmullRomCurve3(points, false, "centripetal");
@@ -333,7 +343,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const tube = new Mesh(new TubeGeometry(curve, steps, radius, 8, false), material);
       tube.userData.rope = index;
       ropes.add(tube);
-      if (index >= 0) ropeLines.push({ index, points: Array.from({ length: steps + 1 }, (_, k) => curve.getPoint(k / steps)) });
+      if (index >= 0) ropeLines.push({ index, points: Array.from({ length: steps + 1 }, (_, k) => curve.getPoint(k / steps)), clear: !!rope.t });
       // A knot where one run meets the next, so the turn has no gap.
       if (i > 0) {
         const knot = new Mesh(sphere, material);
@@ -344,10 +354,11 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     }
     // The rope being laid shows where each tap landed; the rope chosen,
     // its points on the body, to drag or take out.
-    for (const point of dots) {
+    // The point chosen (its dot tapped) is bigger.
+    for (const [k, point] of dots.entries()) {
       const dot = new Mesh(sphere, dotInk);
       dot.position.copy(point);
-      dot.scale.setScalar(radius * (dotInk === marker ? 1.8 : 2.1));
+      dot.scale.setScalar(radius * (k === picked ? 2.8 : dotInk === marker ? 1.8 : 2.1));
       ropes.add(dot);
     }
   }
@@ -355,13 +366,14 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
   /**
    * Shows a pose (and the rope being laid, the part being posed, the rope
    * chosen, and the parts a move is pushing into each other: orange with
-   * `warn`, as collisions are allowed, or red), and a black dot at the spot
-   * chosen on a rope (where a cinch or an added rope goes).
+   * `warn`, as collisions are allowed, or red). The spot chosen on a rope
+   * (where a cinch or an added rope goes) is only placed (`spotScreen`):
+   * the poser marks it with a × over the view.
    * @param {Pose} pose
    * @param {{ laying?: Rope | null, selected?: string | null, rope?: number, clash?: Set<string> | null, warn?: boolean,
-   *   spot?: RopePoint | null }} [extras]
+   *   spot?: RopePoint | null, point?: number }} [extras] point: the chosen rope's point chosen (its place in the rope)
    */
-  function show(pose, { laying = null, selected = null, rope = -1, clash = null, warn = false, spot = null } = {}) {
+  function show(pose, { laying = null, selected = null, rope = -1, clash = null, warn = false, spot = null, point = -1 } = {}) {
     shown = pose;
     posed(skeleton, pose);
     fitSkin();
@@ -403,7 +415,8 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     handles = [];
     pose.ropes.forEach((r, i) => {
       if (i === rope) handles = r.p.flatMap((p, k) => (onBody(r, k) ? [{ k, point: placed(p) }] : []));
-      addRope(r, ropeRuns(skeleton, pose, i, bent, skin), i, i === rope, i === rope ? handles.map((h) => h.point) : [], handleInk);
+      addRope(r, ropeRuns(skeleton, pose, i, bent, skin), i, i === rope, i === rope ? handles.map((h) => h.point) : [], handleInk,
+        i === rope ? handles.findIndex((h) => h.k === point) : -1);
     });
     // The rope being laid, drawn as it will be once finished.
     if (laying?.p.length) {
@@ -411,13 +424,7 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const runs = laying.p.length > 1 && !isCinch(laying) ? ropeRuns(skeleton, all, pose.ropes.length, bent, skin) : [laying.p.map(placed)];
       addRope(laying, runs, -1, false, laying.p.map(placed));
     }
-    if (spot && pose.ropes[spot[1]]) {
-      const dot = new Mesh(sphere, marker);
-      dot.position.copy(placed(spot));
-      dot.scale.setScalar(2.2);
-      dot.userData.spot = true;
-      ropes.add(dot);
-    }
+    spotAt = spot && pose.ropes[spot[1]] ? placed(spot) : null;
 
     // The camera circles a point above the floor, looking at it.
     const [yaw, pitch, distance, height, tx, tz] = pose.camera;
@@ -477,22 +484,30 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
       const p = v.clone().project(camera);
       return p.z > 1 ? null : [(p.x + 1) / 2 * box.width, (1 - p.y) / 2 * box.height];
     };
-    /** @type {{ kind: "rope", index: number, point: Vector3, away: number } | null} */
-    let best = null;
-    for (const { index, points } of ropeLines) {
-      const screen = points.map(onScreen);
-      for (let k = 0; k + 1 < points.length; k++) {
-        const [a, b] = [screen[k], screen[k + 1]];
-        if (!a || !b) continue;
-        const away = segmentDistance(x, y, a[0], a[1], b[0], b[1]);
-        if (away > ROPE_REACH || (best && away >= best.away)) continue;
-        const length = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
-        const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / length));
-        const point = points[k].clone().lerp(points[k + 1], t);
-        if (point.distanceTo(camera.position) > behind + ROPE_DEPTH) continue;
-        best = { kind: "rope", index, point, away };
+    /** The nearest of these lines within reach. @param {typeof ropeLines} lines */
+    const nearest = (lines) => {
+      /** @type {{ kind: "rope", index: number, point: Vector3, away: number } | null} */
+      let best = null;
+      for (const { index, points } of lines) {
+        const screen = points.map(onScreen);
+        for (let k = 0; k + 1 < points.length; k++) {
+          const [a, b] = [screen[k], screen[k + 1]];
+          if (!a || !b) continue;
+          const away = segmentDistance(x, y, a[0], a[1], b[0], b[1]);
+          if (away > ROPE_REACH || (best && away >= best.away)) continue;
+          const length = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+          const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (y - a[1]) * (b[1] - a[1])) / length));
+          const point = points[k].clone().lerp(points[k + 1], t);
+          if (point.distanceTo(camera.position) > behind + ROPE_DEPTH) continue;
+          best = { kind: "rope", index, point, away };
+        }
       }
-    }
+      return best;
+    };
+    // A solid rope within reach is taken before a see-through one, over it
+    // or not, so the ropes under a see-through one can still be chosen; a
+    // see-through one is chosen where there's no solid one.
+    const best = nearest(ropeLines.filter((l) => !l.clear)) ?? nearest(ropeLines.filter((l) => l.clear));
     return best && { kind: "rope", index: best.index, point: best.point };
   }
 
@@ -619,14 +634,46 @@ export function poseView({ keepPicture = false, pixelRatio = Math.min(window.dev
     });
     for (const g of [sphere, ...line]) g.dispose();
     figure.skeleton.dispose();
-    for (const m of [skinMaterial, ringMaterial, juteMaterial, bambooMaterial, woodMaterial, marker, chosenInk, ...inks.values(), floor.material]) {
+    for (const m of [skinMaterial, ringMaterial, juteMaterial, bambooMaterial, woodMaterial, marker, chosenInk, ...inks.values(), ...clearInks.values(), floor.material]) {
       m.dispose();
     }
     renderer.dispose();
     renderer.forceContextLoss();
   }
 
-  return { canvas, show, draw, setSize, pick, handleAt, skinMeasure, ray, dispose };
+  /**
+   * Where a point in the room is on the canvas (CSS px), or null when it's behind the camera.
+   * @param {Vector3} v
+   * @returns {[number, number] | null}
+   */
+  function screenAt(v) {
+    const box = canvas.getBoundingClientRect();
+    const p = v.clone().project(camera);
+    return p.z > 1 ? null : [(p.x + 1) / 2 * box.width, (1 - p.y) / 2 * box.height];
+  }
+
+  /**
+   * How many CSS px a length (cm) across the view looks at a place in the room.
+   * @param {Vector3} v @param {number} cm
+   */
+  function pxAcross(v, cm) {
+    const far = Math.max(1, v.distanceTo(camera.position));
+    return cm * canvas.getBoundingClientRect().height / (2 * Math.tan(FOV * Math.PI / 360) * far);
+  }
+
+  /** The spot chosen on a rope, on the canvas (CSS px), and how wide a medium rope looks there; or null. */
+  function spotScreen() {
+    const at = spotAt && screenAt(spotAt);
+    return at && spotAt ? { x: at[0], y: at[1], size: pxAcross(spotAt, 2 * ROPE_RADIUS[2]) } : null;
+  }
+
+  /** The chosen rope's dots on the canvas (CSS px), each with its point's place in the rope. */
+  const handleSpots = () => handles.flatMap(({ k, point }) => {
+    const at = screenAt(point);
+    return at ? [{ k, x: at[0], y: at[1] }] : [];
+  });
+
+  return { canvas, show, draw, setSize, pick, handleAt, skinMeasure, ray, screenAt, pxAcross, spotScreen, handleSpots, dispose };
 }
 
 /** @typedef {ReturnType<typeof poseView>} PoseView */

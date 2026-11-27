@@ -19,6 +19,7 @@ import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
 import { listPoses, addPose, updatePose, deletePose } from "./store/index.js";
 import { MAX_POSES } from "./pose-format.js";
+import { withNewerHips } from "./hip-order.js";
 import { jointsInRange } from "./figure-rig.js";
 import { chooseCopyTarget } from "./drawing-copy.js";
 import { viewerParts } from "./visual-viewer.js";
@@ -65,7 +66,8 @@ const scene = () => import("./pose-scene.js");
 async function picture(pose, size) {
   const { canDraw3d, poseImage } = await scene();
   if (!canDraw3d()) return null;
-  return poseImage(pose, size);
+  // A format 1 pose's hips turned to how they turn now, as the poser opens it.
+  return poseImage(/** @type {any} */ (pose).v === 1 ? withNewerHips(pose) : pose, size);
 }
 
 /**

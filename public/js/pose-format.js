@@ -24,6 +24,8 @@
 //            [bone, x, y, z]: mm from that bone's joint, in the bone's own
 //            directions, so a rope moves with the body; or ["ring", 0, 0, 0];
 //            ["bamboo", along, 0, 0], mm along it from its middle; or
+//            (one on the body can have a fifth number, its layer, 1 to 4:
+//            that many ropes' thickness out from the skin, LAYERS), or
 //            ["hashira", x, y, z], mm from the foot of the post, in its
 //            own directions; or, on a cinch, ["rope", rope, segment, along]:
 //            a spot on another rope (its index in ropes), between its
@@ -41,6 +43,11 @@
 //            `ropes`), and goes on as any rope does.
 //            `k` (cm) is a rope's slack: its hanging stretches sag (drawn
 //            only: nothing it's tied to moves).
+//            `t` (true) draws a rope see-through, ropes under it showing.
+//            `f` (true) locks a rope's lengths: moving the body keeps each
+//            of its stretches tying two parts together as long as it was
+//            (pose-constraints.js's keepLocked); stretches to a hardpoint
+//            stay free. New ropes have it.
 //            `s` (true) marks a rope running over the ring or bamboo, from
 //            the body and back to it: a see-saw, keeping its length as one
 //            end moves (pose-constraints.js).
@@ -53,20 +60,25 @@
 import { COLORS, PICK_COLORS } from "./drawing-format.js";
 import { JOINTS, STANDING_LIFT, LIFT_RANGE, clampJoint, restJoints, startJoints, anchorBone, olderJointPlaces } from "./figure-rig.js";
 import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./figure-body.js";
+import { FORWARD_FIRST, withNewerHips } from "./hip-order.js";
 
 /** @typedef {import("./drawing-format.js").Color} Color */
 /** @typedef {import("./drawing-format.js").Width} Width */
-/** @typedef {[string, number, number, number]} RopePoint */
 /**
- * A rope; `still` (a cinch's "Move the body" unticked) is the poser's
- * own, never saved (forSaving).
- * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, k?: number, still?: true }} Rope
+ * A rope point; one on the body can have a fifth number, its layer (1 to
+ * 4, LAYERS): how many ropes' thickness out from the skin it lies.
+ * @typedef {[string, number, number, number] | [string, number, number, number, number]} RopePoint
+ */
+/**
+ * A rope; `t` draws it see-through; `f` locks its lengths; `still` (a cinch's "Move the body"
+ * unticked) is the poser's own, never saved (forSaving).
+ * @typedef {{ c: Color, w: Width, p: RopePoint[], l?: number, s?: true, k?: number, t?: true, f?: true, still?: true }} Rope
  */
 /** @typedef {[number, number, number, number, number, number]} Camera */
 /** @typedef {"ring" | "bamboo" | "hashira"} Hardpoint */
 /**
  * @typedef {{
- *   v: 1, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
+ *   v: 2, joints: Record<string, number[]>, body: [number, number, number], lift: number, shift: [number, number],
  *   shape: import("./figure-body.js").Shape,
  *   camera: Camera, ring: number[] | null, bamboo: number[] | null, hashira: number[] | null,
  *   ropes: Rope[], marks?: import("./pose-marks.js").Marks,
@@ -75,7 +87,9 @@ import { BONES as BODY_BONES, DEFAULT_SHAPE, bodyHeads, cleanShape } from "./fig
  */
 
 export { COLORS, PICK_COLORS };
-export const FORMAT_VERSION = 1;
+// Format 2's hips turn Forward first; a format 1 pose's are turned to match
+// when it's read (hip-order.js).
+export const FORMAT_VERSION = FORWARD_FIRST;
 export const RING = "ring";
 export const BAMBOO = "bamboo";
 export const HASHIRA = "hashira";
@@ -90,6 +104,10 @@ export const ROPE_RADIUS = /** @type {const} */ ({ 1: 0.5, 2: 0.75, 3: 1.05 });
 
 export const MAX_ROPES = 100;
 export const MAX_ROPE_POINTS = 200;
+/** A point's layer on the body: 0 on the skin, up to 4 ropes out (the server's LAYERS). */
+export const LAYERS = /** @type {const} */ ([0, 4]);
+/** How far out a layer is (cm): half a medium rope's thickness, so stacked ropes read as stacked without jutting out. */
+export const LAYER_CM = 0.75;
 export const MAX_POINTS = 3000;
 export const MAX_POSES = 20;
 /** How far a rope point can be from its bone, in mm, each way. */
@@ -194,11 +212,14 @@ export function ropesOntoBody(ropes) {
  * A pose as saved, made whole: every joint listed and within its ranges
  * (older or partial poses, e.g. from an import, open like this). One saved
  * before the body had a shape gets the in-between one, its ropes moved
- * onto it.
- * @param {Partial<Pose>} saved
+ * onto it. A format 1 pose's hips are turned to match how they turn
+ * now (hip-order.js), the leg where it was.
+ * @param {Partial<Pose> | Record<string, any>} older
  * @returns {Pose}
  */
-export function readPose(saved) {
+export function readPose(older) {
+  /** @type {Partial<Pose>} */
+  const saved = /** @type {any} */ (older).v === 1 ? withNewerHips(older) : older;
   const fresh = newPose();
   const joints = restJoints();
   for (const j of JOINTS) {
@@ -354,11 +375,12 @@ export const isUpline = (rope) => !isCinch(rope) && rope.p.some(onUplineHardpoin
 
 /**
  * Whether a rope can be a see-saw: from the body over the ring or bamboo
- * and back to the body (on it once, not at either end).
+ * and back to the body (on it once, not at either end). An added rope can
+ * be one, from its spot on the other rope: that rope ties it to the body.
  * @param {Rope} rope
  */
 export function canSeesaw(rope) {
-  if (isCinch(rope) || isAdded(rope)) return false;
+  if (isCinch(rope)) return false;
   const tops = rope.p.flatMap((p, i) => (onUplineHardpoint(p) ? [i] : []));
   return tops.length === 1 && tops[0] > 0 && tops[0] < rope.p.length - 1;
 }
@@ -604,14 +626,16 @@ export function addPoint(rope, point) {
 /**
  * The pose with a rope added, if it has at least two points (a single tap
  * isn't a rope). One over the ring or bamboo and back is a see-saw to
- * begin with.
+ * begin with; every new rope has its lengths locked (`f`), so what it ties
+ * together stays tied, until its lock is tapped off.
  * @param {Pose} pose
  * @param {Rope} rope
  * @returns {Pose}
  */
 export function finishRope(pose, rope) {
   if (rope.p.length < 2) return pose;
-  return { ...pose, ropes: [...pose.ropes, canSeesaw(rope) ? { ...rope, s: true } : rope] };
+  const locked = { ...rope, f: /** @type {true} */ (true) };
+  return { ...pose, ropes: [...pose.ropes, canSeesaw(rope) ? { ...locked, s: true } : locked] };
 }
 
 /**
@@ -636,7 +660,94 @@ export const onBody = (rope, k) => !isCinch(rope) && !!rope.p[k] && rope.p[k][0]
 export function movePoint(pose, index, k, point) {
   const rope = pose.ropes[index];
   if (!rope || !onBody(rope, k)) return pose;
-  return { ...pose, ropes: pose.ropes.map((r, i) => (i === index ? { ...r, p: r.p.map((p, n) => (n === k ? point : p)) } : r)) };
+  // Moved, it keeps its layer.
+  const moved = withLayer(point, layerOf(rope.p[k]));
+  return { ...pose, ropes: pose.ropes.map((r, i) => (i === index ? { ...r, p: r.p.map((p, n) => (n === k ? moved : p)) } : r)) };
+}
+
+/** A point's layer: 0 on the skin (and anywhere not on the body). @param {RopePoint} point */
+export const layerOf = (point) => point[4] ?? 0;
+
+/**
+ * A point on the body at a layer (none kept for 0).
+ * @param {RopePoint} point @param {number} layer
+ * @returns {RopePoint}
+ */
+export function withLayer(point, layer) {
+  const [bone, x, y, z] = point;
+  const n = clamp(Math.round(layer), [...LAYERS]);
+  return n ? [bone, x, y, z, n] : [bone, x, y, z];
+}
+
+/**
+ * A rope's point on the body brought forward (a layer out) or sent back.
+ * @param {Pose} pose @param {number} index the rope's @param {number} k the point's
+ * @param {number} layer 0 to 4
+ * @returns {Pose}
+ */
+export function setLayer(pose, index, k, layer) {
+  const rope = pose.ropes[index];
+  if (!rope || !onBody(rope, k)) return pose;
+  return { ...pose, ropes: pose.ropes.map((r, i) => (i === index ? { ...r, p: r.p.map((p, n) => (n === k ? withLayer(p, layer) : p)) } : r)) };
+}
+
+/**
+ * A rope drawn see-through, or solid again.
+ * @param {Pose} pose @param {number} index @param {boolean} on
+ * @returns {Pose}
+ */
+export function setSeeThrough(pose, index, on) {
+  return {
+    ...pose, ropes: pose.ropes.map((r, i) => {
+      if (i !== index) return r;
+      const { t: _t, ...solid } = r;
+      return on ? { ...solid, t: /** @type {true} */ (true) } : solid;
+    }),
+  };
+}
+
+/**
+ * A rope's lengths locked (moving the body keeps them, keepLocked), or free again.
+ * @param {Pose} pose @param {number} index @param {boolean} on
+ * @returns {Pose}
+ */
+export function setLocked(pose, index, on) {
+  return {
+    ...pose, ropes: pose.ropes.map((r, i) => {
+      if (i !== index) return r;
+      const { f: _f, ...free } = r;
+      return on ? { ...free, f: /** @type {true} */ (true) } : free;
+    }),
+  };
+}
+
+/**
+ * A point added to a rope between two of its points: at `j`, splitting the
+ * stretch from point j − 1 to point j, `fraction` of the way along it.
+ * What's tied to the rope stays where it is: a cinch's or added rope's
+ * spot on a later stretch moves up one, and one on the stretch split goes
+ * to the half it's on.
+ * @param {Pose} pose @param {number} index the rope's
+ * @param {number} j where it goes, 1 to the rope's last point
+ * @param {RopePoint} point
+ * @param {number} fraction 0 to 1
+ * @returns {Pose}
+ */
+export function insertPoint(pose, index, j, point, fraction) {
+  const rope = pose.ropes[index];
+  if (!rope || isCinch(rope) || j < 1 || j >= rope.p.length || rope.p.length >= MAX_ROPE_POINTS) return pose;
+  const f = Math.min(0.95, Math.max(0.05, fraction));
+  const split = j - 1;
+  /** @param {RopePoint} p @returns {RopePoint} */
+  const moved = (p) => {
+    if (p[0] !== ROPE || p[1] !== index || p[2] < split) return p;
+    if (p[2] > split) return [ROPE, index, p[2] + 1, p[3]];
+    const along = p[3] / 1000;
+    return along < f ? ropeSpot(index, split, along / f) : ropeSpot(index, split + 1, (along - f) / (1 - f));
+  };
+  return {
+    ...pose, ropes: pose.ropes.map((r, i) => (i === index ? { ...r, p: [...r.p.slice(0, j), point, ...r.p.slice(j)] } : { ...r, p: r.p.map(moved) })),
+  };
 }
 
 /**
@@ -695,7 +806,8 @@ export function cantCinch(pose, points) {
 
 /**
  * The pose with a cinch added through its points, as long as given (taut,
- * when it's the length of its line: pose-cinch.js).
+ * when it's the length of its line: pose-cinch.js), its lengths locked as a
+ * new rope's are.
  * @param {Pose} pose
  * @param {{ c: Color, w: Width }} look
  * @param {RopePoint[]} points
@@ -703,7 +815,7 @@ export function cantCinch(pose, points) {
  * @returns {Pose}
  */
 export const addCinch = (pose, { c, w }, points, length) =>
-  ({ ...pose, ropes: [...pose.ropes, { c, w, p: points.map((p) => /** @type {RopePoint} */ ([...p])), l: clamp(length, CINCH_RANGE) }] });
+  ({ ...pose, ropes: [...pose.ropes, { c, w, p: points.map((p) => /** @type {RopePoint} */ ([...p])), l: clamp(length, CINCH_RANGE), f: true }] });
 
 /**
  * Why a rope can't be added to this one, or null if it can.

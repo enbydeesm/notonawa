@@ -12,6 +12,7 @@ import { choose } from "./dialog.js";
 import { errorMessage } from "./api.js";
 import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { presetList } from "./preset-list.js";
+import { FORWARD_FIRST } from "./hip-order.js";
 import { savedPresets, savePreset, renamePreset, overwritePreset, deletePreset, presetLabel } from "./pose-presets.js";
 import { askPresetName } from "./pose-presets-ui.js";
 import { MAX_PRESETS, inPreset, bodyPresetFrom, armsPresetFrom } from "./figure-rig.js";
@@ -75,7 +76,8 @@ export function pickPreset({ kind, builtIn, posture, apply }) {
   /** The figure's angles now, as a preset of a kind (without a name). */
   const now = (/** @type {"body" | "arms"} */ k = kind) => {
     const { name: _name, ...data } = k === "body" ? bodyPresetFrom(posture(k), "") : armsPresetFrom(posture(k), "");
-    return data;
+    // A body preset says its hips turn Forward first; older ones, without, are turned when read (pose-presets.js).
+    return k === "body" ? { ...data, v: FORWARD_FIRST } : data;
   };
   const matches = (/** @type {Record<string, any>} */ data) => inPreset(kind, posture(kind), /** @type {any} */ (data), { liftWithin: 1 });
 
