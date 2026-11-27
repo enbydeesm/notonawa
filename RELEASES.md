@@ -16,7 +16,6 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.
 - Rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
 - New body and arms presets: strappado, sitting with legs open, closed or crossed, chair pose, and more.
-- Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
 - People on ties and workshops stay in the order you entered them, with you last on cards.
 
 
