@@ -444,10 +444,22 @@ export const ARMS_PRESETS = Object.freeze(/** @type {ArmsPreset[]} */ ([
   },
   // The elbows back, the forearms folded forward beside the chest.
   { name: "Tenshi", joints: { l_shoulder: [-48, 5, -2], l_elbow: [150], r_shoulder: [-48, 5, -2], r_elbow: [150] } },
+  // The arms straight down behind the back, drawn in, the hands together.
+  {
+    name: "Strappado", joints: {
+      l_shoulder: [-35, -20, 0], l_elbow: [0, 40], l_wrist: [-25, 0], r_shoulder: [-35, -20, 0], r_elbow: [0, 40], r_wrist: [-25, 0],
+    },
+  },
   // The forearms across the front of the chest, the hands crossing, as in a hug.
   {
     name: "Crossed (hug)", joints: {
       l_shoulder: [30, 3, -65], l_elbow: [133], l_wrist: [13, 14], r_shoulder: [30, 3, -65], r_elbow: [133], r_wrist: [9, 11],
+    },
+  },
+  // The forearms crossed lower than the hug's, across the bottom of the chest.
+  {
+    name: "Crossed (low)", joints: {
+      l_shoulder: [40, -25, -95], l_elbow: [90, 35], l_wrist: [40, 15], r_shoulder: [40, -25, -95], r_elbow: [90, 35], r_wrist: [40, 15],
     },
   },
   // For the body presets of the same names: straight down to the floor
