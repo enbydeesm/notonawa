@@ -15,7 +15,7 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 - Rope now locks tied body parts! By default rope that spans two body parts or body to hardpoint start 'locked' to their drawn length. Select a rope and tap the lock icon to unlock rope and allow it to stretch when the body moves. Position presets will ignore the lock and stretch rope automatically.
 - Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.
 - Rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.
-- New body presets: sitting with legs open, closed or crossed, chair pose, and more.
+- New body and arms presets: strappado, sitting with legs open, closed or crossed, chair pose, and more.
 - Poser: uplines on other ropes get a Length, and see-saws a Start ◀ ▶ End slider.
 - People on ties and workshops stay in the order you entered them, with you last on cards.
 
