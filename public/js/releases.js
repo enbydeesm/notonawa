@@ -1,7 +1,7 @@
 // Made by scripts/releases.mjs from VERSION and RELEASES.md. Don't edit it: rebuild.
 
 /** The app's version: when it was deployed (scripts/deploy.mjs). */
-export const APP_VERSION = "2026.11.20.0129";
+export const APP_VERSION = "2026.11.27.0312";
 
 /**
  * Newest first. A note is its words, or its words and sub-bullets; intro
@@ -9,6 +9,17 @@ export const APP_VERSION = "2026.11.20.0129";
  * @type {{ version: string, intro?: string[], notes: (string | { text: string, sub: string[] })[] }[]}
  */
 export const RELEASES = [
+  {
+    "version": "2026.11.27.0312",
+    "notes": [
+      "Join the nōtonawa Discord from the menu, under Tutorial.",
+      "Rope now locks tied body parts! By default rope that spans two body parts or body to hardpoint start 'locked' to their drawn length. Select a rope and tap the lock icon to unlock rope and allow it to stretch when the body moves. Position presets will ignore the lock and stretch rope automatically.",
+      "Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.",
+      "Rope now follows the skin as the body bends, and crosses straight between parts, as in a futomomo.",
+      "New body and arms presets: strappado, sitting with legs open, closed or crossed, chair pose, and more.",
+      "People on ties and workshops stay in the order you entered them, with you last on cards."
+    ]
+  },
   {
     "version": "2026.11.19.1829",
     "notes": [

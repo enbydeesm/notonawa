@@ -10,7 +10,7 @@ before its first bullet are an intro (a blank line between paragraphs), and
 a `- ` indented under a bullet is a sub-bullet of it. Every deploy gets a
 new version, notes or not. After editing, run `node scripts/releases.mjs`.
 
-## Next
+## 2026.11.27.0312
 - Join the nōtonawa Discord from the menu, under Tutorial.
 - Rope now locks tied body parts! By default rope that spans two body parts or body to hardpoint start 'locked' to their drawn length. Select a rope and tap the lock icon to unlock rope and allow it to stretch when the body moves. Position presets will ignore the lock and stretch rope automatically.
 - Rope can be layered to model frictions more accurately. After selecting a rope, tap a point to change it's layer, 0-4. Tap the arrows to add a new point.
