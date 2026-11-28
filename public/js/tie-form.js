@@ -21,6 +21,7 @@ import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
 import { workshopLink } from "./workshop-link.js";
 import { plusIcon } from "./plus-icon.js";
+import { labelWithOpenLink } from "./open-link.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -96,7 +97,9 @@ function showTieForm(tie, start, fromWorkshop) {
     const addPlanButton = addButton("tie-add-plan", "Add plan", () => addPlanRow());
     const tagList = h("div", { className: "tag-row", id: "tie-tags" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "tie-save" }, tie ? "Save changes" : "Save tie");
-    const visuals = visualSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie" });
+    const visuals = visualSection({ item: tie ? { tie_id: tie.id } : null, idPrefix: "tie", hint: false });
+    // "Open Album", once a saved tie has one.
+    const albumLabel = labelWithOpenLink({ htmlFor: "tie-album_url", label: "Album link", link: "Open Album" });
 
     const form = h("form", { id: "tie-form", onsubmit: save },
       h("label", { htmlFor: "tie-title" }, "Title"),
@@ -132,7 +135,7 @@ function showTieForm(tie, start, fromWorkshop) {
       h("label", { htmlFor: "tie-notes" }, "Notes"),
       privateField(h("textarea", { id: "tie-notes", name: "notes", placeholder: "What happened, what changed, what to try next" })),
       // Encrypted like the notes (crypto/fields.js).
-      h("label", { htmlFor: "tie-album_url" }, "Album link"),
+      albumLabel.element,
       privateField(h("input", {
         id: "tie-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
@@ -362,6 +365,7 @@ function showTieForm(tie, start, fromWorkshop) {
       set("tie-duration_minutes", t.duration_minutes);
       set("tie-notes", t.notes);
       set("tie-album_url", t.album_url);
+      albumLabel.show(t.album_url);
       if (t.unreadable?.length) {
         showMessage(message, "This tie's notes or album link can't be decrypted. Saving replaces them.", true);
       }

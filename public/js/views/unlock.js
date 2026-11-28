@@ -14,6 +14,7 @@ import { reloadIfOutdated, watchVersion } from "../version-check.js";
 import {
   signInAndUnlock, takeSignInResult, unlockWithCode, recoveryCodeWasReplaced, setUpKey, forgetPending,
 } from "../key-flows.js";
+import { APP_VERSION } from "../releases.js";
 
 /** @typedef {import("../key-flows.js").UnlockResult} UnlockResult */
 
@@ -34,6 +35,7 @@ export async function mount(_root, { unlocked, signal }) {
   // A deploy while the page was open: reload into the new version now,
   // while there's nothing unlocked to lose.
   watchVersion(signal);
+  $("#unlock-version").textContent = `Version ${APP_VERSION}`;
 
   /** @param {string} name */
   function show(name) {

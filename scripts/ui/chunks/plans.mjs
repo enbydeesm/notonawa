@@ -91,14 +91,16 @@ export default async function () {
       [link?.textContent, link?.href, link?.target], !(await plainOnServer("photos.app.goo.gl/hip")), stored.tags, !!document.querySelector("#plan-dialog[open]")];`),
     [["–", "Suspension", "Partial suspension", "Floor", "Hashira"], true, ["plan-tag"], "Floor harness",
       ["plan-tag"], ["Open album", "https://photos.app.goo.gl/hip", "_blank"], true, ["plan-tag"], false]);
-  check("editing a plan fills in its tie type, tags and album; + after Cancel starts empty", await run(`
+  check("editing a plan fills in its tie type, tags and album, with Open Album by its label; + after Cancel starts empty, without it", await run(`
     await clickIn("Hip harness", "Edit");
-    const editing = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
+    const open = () => $("#plan-album_url-open");
+    const editing = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags"),
+      [open().hidden, open().textContent, open().getAttribute("href"), open().target, open().closest(".label-row")?.querySelector("label")?.textContent]];
     $("[data-cancel-edit]").click(); await calm(200);
-    ${addPlan} const fresh = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags")];
+    ${addPlan} const fresh = [$("#plan-tie_type").value, $("#plan-album_url").value, tagChips("#plan-tags"), open().hidden];
     $("[data-cancel-edit]").click(); await calm(200);
     return [editing, fresh];`),
-    [["floor", "https://photos.app.goo.gl/hip", ["plan-tag"]], ["", "", []]]);
+    [["floor", "https://photos.app.goo.gl/hip", ["plan-tag"], [false, "Open Album", "https://photos.app.goo.gl/hip", "_blank", "Album link"]], ["", "", [], true]]);
   // Back as it was: the plan search's tag picker below lists only tags on plans.
   await run(`
     await clickIn("Hip harness", "Edit"); $("#plan-add-tags").click(); await calm(400);

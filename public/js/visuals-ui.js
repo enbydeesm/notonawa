@@ -67,10 +67,12 @@ const CHOICES = /** @type {const} */ ([["media", "photo", "Photo/video"], ["draw
 const KEY = /** @type {const} */ ([["photo", "Photo", "teal"], ["video", "Video", "purple"], ["drawing", "Drawing", "coral"], ["pose", "Pose", "yellow"]]);
 
 /**
- * @param {{ item: Item | null, idPrefix: string }} options item: what's
- *   being edited, or null for a new one (visuals wait for savePending)
+ * @param {{ item: Item | null, idPrefix: string, hint?: boolean }} options
+ *   item: what's being edited, or null for a new one (visuals wait for
+ *   savePending); hint: whether the "Drag visuals into order…" line is
+ *   under them (not on the tie form)
  */
-export function visualSection({ item, idPrefix }) {
+export function visualSection({ item, idPrefix, hint = true }) {
   /** Every visual, first to last. @type {{ kind: VisualKind, ref: any }[]} */
   let visuals = [];
   let busyCount = 0;
@@ -151,9 +153,9 @@ export function visualSection({ item, idPrefix }) {
     h("div", { className: "label-row" }, h("label", {}, "Visuals"), addButton, key),
     photos.extra ?? null,
     grid,
-    h("p", { className: "hint" }, item
+    hint ? h("p", { className: "hint" }, item
       ? "Drag visuals into order and caption them to describe a sequence."
-      : "Drag visuals into order and caption them to describe a sequence. They're saved when you save this form."),
+      : "Drag visuals into order and caption them to describe a sequence. They're saved when you save this form.") : null,
     status);
 
   async function load() {

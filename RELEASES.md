@@ -13,6 +13,8 @@ new version, notes or not. After editing, run `node scripts/releases.mjs`.
 ## Next
 - New hand-drawn icons across the top navigation bar.
 - The + at the top right of the nav is gone: add a tie from the "Add a Tie" card at the top of Ties. If you hate it, let me know using the feedback button or via the discord.
+- Photo albums and event links now have hyperlinks next to labels in saved forms.
+- Various UI tweaks
 
 ## 2026.11.27.0312
 - Join the nōtonawa Discord from the menu, under Tutorial.

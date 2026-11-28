@@ -59,14 +59,15 @@ export default async function () {
     await openItem("Hotel"); const buttons = headerIcons("#location-dialog");
     $("[data-cancel-edit]").click(); await calm(200); set("#show-archived", false); await calm(600);
     return [archived, buttons];`), [["Hotel"], ["Delete location", "Restore location", "Close"]]);
-  check("'Default on new ties' sits on the Name row, at the right, and isn't offered when archiving now", await run(`
+  check("'Default' sits on the Name row, at the right, on one line, and isn't offered when archiving now", await run(`
     $("#add-location").click(); await calm(300);
     const flag = $("#location-default-flag"); const mid = (el) => { const r = el.getBoundingClientRect(); return (r.top + r.bottom) / 2; };
-    const placed = [Math.abs(mid(flag) - mid($("label[for=location-name]"))) < 3, flag.getBoundingClientRect().right > $("#location-name").getBoundingClientRect().right - 4];
+    const placed = [Math.abs(mid(flag) - mid($("label[for=location-name]"))) < 3, flag.getBoundingClientRect().right > $("#location-name").getBoundingClientRect().right - 4,
+      flag.innerText.trim(), flag.getBoundingClientRect().height < 30];
     set("#location-is_default", true); set("[name=archive_now]", true); const archiving = [flag.hidden, $("#location-is_default").checked];
     set("[name=archive_now]", false); const back = flag.hidden;
     $("[data-cancel-edit]").click(); await calm(200);
-    return [placed, archiving, back];`), [[true, true], [true, false], false]);
+    return [placed, archiving, back];`), [[true, true, "Default", true], [true, false], false]);
   check("one location is the default, kept at the top; ticking another asks to replace it, and Cancel unticks it", await run(`
     const dialogButton = (text) => [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent === text);
     await openItem("Studio"); $("#location-is_default").click(); await calm(400);

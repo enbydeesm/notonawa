@@ -31,6 +31,7 @@ import {
   recentOnTies, listItems, listWorkshops, getWorkshop, saveWorkshop, deleteWorkshop, linkToWorkshop,
 } from "./store/index.js";
 import { plusIcon } from "./plus-icon.js";
+import { labelWithOpenLink } from "./open-link.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -136,6 +137,9 @@ function showWorkshopForm(workshop, start) {
     const addLinkedButton = addButton("workshop-add-linked", "Add a tie or plan", addLinked);
     const saveButton = h("button", { type: "submit", className: "primary", id: "workshop-save" }, workshop ? "Save changes" : "Save workshop");
     const visuals = visualSection({ item: workshop ? { workshop_id: workshop.id } : null, idPrefix: "workshop" });
+    // "Open Album", once a saved workshop has one.
+    const albumLabel = labelWithOpenLink({ htmlFor: "workshop-album_url", label: "Album link", link: "Open Album" });
+    const eventLabel = labelWithOpenLink({ htmlFor: "workshop-event_url", label: "Event link", link: "Open Event" });
     const startInput = privateField(h("input", {
       id: "workshop-start_date", name: "start_date", type: "date", value: today(), required: true,
       onchange: () => { endInput.min = startInput.value; },
@@ -188,7 +192,7 @@ function showWorkshopForm(workshop, start) {
       // Both sealed (crypto/fields.js); the link is checked as the album's is.
       h("div", { className: "row" },
         h("div", {},
-          h("label", { htmlFor: "workshop-event_url" }, "Event link"),
+          eventLabel.element,
           privateField(h("input", {
             id: "workshop-event_url", name: "event_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
             placeholder: "https://…", title: "A web address, starting with https://",
@@ -211,7 +215,7 @@ function showWorkshopForm(workshop, start) {
       h("label", { htmlFor: "workshop-notes" }, "Notes"),
       privateField(h("textarea", { id: "workshop-notes", name: "notes", placeholder: "Your takeaways, how it went" })),
       // Encrypted like the notes (crypto/fields.js).
-      h("label", { htmlFor: "workshop-album_url" }, "Album link"),
+      albumLabel.element,
       privateField(h("input", {
         id: "workshop-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
@@ -482,6 +486,8 @@ function showWorkshopForm(workshop, start) {
       set("workshop-notes", w.notes);
       set("workshop-album_url", w.album_url);
       set("workshop-event_url", w.event_url);
+      albumLabel.show(w.album_url);
+      eventLabel.show(w.event_url);
       const cost = readCost(w.cost);
       if (cost) {
         currencySelect.value = cost.currency;

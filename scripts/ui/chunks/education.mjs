@@ -178,7 +178,8 @@ export default async function () {
     $(".workshop-card .tie-title").click(); await calm(1200);
     const editing = [$("#workshop-form-heading").textContent, $("#workshop-title").value, $("#workshop-description").value,
       $("#workshop-end_date").value, tagChips("#workshop-tags"), lastBox("#workshop-educators").value, !!$("#workshop-delete"),
-      $("#workshop-cost_currency").value + " " + $("#workshop-cost_amount").value, $("#workshop-more-ratings").open];
+      $("#workshop-cost_currency").value + " " + $("#workshop-cost_amount").value, $("#workshop-more-ratings").open,
+      ...["#workshop-album_url-open", "#workshop-event_url-open"].map((id) => [$(id).hidden, $(id).textContent, $(id).getAttribute("href"), $(id).target])];
     set("#workshop-title", "Intro to floor, day one"); $("#workshop-save").click(); await calm(1500);
     const renamed = titles();
     // Tapping the card, not just its title, opens it too.
@@ -188,7 +189,8 @@ export default async function () {
     [...[...document.querySelectorAll("dialog[open]")].pop().querySelectorAll("button")].find((b) => b.textContent === "Delete workshop").click();
     await calm(1500);
     return [editing, renamed, flat($("#education-panel"))];`),
-    [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true, "EUR 180.00", true], ["Intro to floor, day one"],
+    [["Edit workshop", "Intro to floor", "Gote basics", "2026-03-02", ["floor"], "Sam", true, "EUR 180.00", true,
+      [false, "Open Album", "https://example.com/album", "_blank"], [false, "Open Event", "https://example.com/intro", "_blank"]], ["Intro to floor, day one"],
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above."]);
   check("a workshop's roles add Audit; picking someone without a usual role keeps the role chosen, someone with one sets it", await run(`
     $("#add-workshop").click(); await wait(800);

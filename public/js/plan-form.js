@@ -27,6 +27,7 @@ import { editTie } from "./tie-card.js";
 import { PLAN_TYPE_NAMES, variationsOf } from "./plans-view.js";
 import { workshopLink } from "./workshop-link.js";
 import { plusIcon } from "./plus-icon.js";
+import { labelWithOpenLink } from "./open-link.js";
 
 /** @typedef {import("./plans-view.js").LinkedTie} LinkedTie */
 
@@ -88,6 +89,8 @@ function showPlanForm(plan, start, fromWorkshop) {
       h("summary", { id: "plan-variations-label" }, "Variations ", variationsCount),
       variationsList);
     const visuals = visualSection({ item: plan ? { plan_id: plan.id } : null, idPrefix: "plan" });
+    // "Open Album", once a saved plan has one.
+    const albumLabel = labelWithOpenLink({ htmlFor: "plan-album_url", label: "Album link", link: "Open Album" });
     const saveButton = h("button", { type: "submit", className: "primary", id: "plan-save" }, plan ? "Save changes" : "Add plan");
 
     const form = h("form", { id: "plan-form", onsubmit: save },
@@ -117,7 +120,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       h("label", { htmlFor: "plan-notes" }, "Notes"),
       privateField(h("textarea", { id: "plan-notes", name: "notes" })),
       // Encrypted like the notes, so the page checks it (links.js).
-      h("label", { htmlFor: "plan-album_url" }, "Album link"),
+      albumLabel.element,
       privateField(h("input", {
         id: "plan-album_url", name: "album_url", type: "url", inputMode: "url", pattern: WEB_LINK_PATTERN,
         placeholder: "https://photos.app.goo.gl/…", title: "A web address, starting with https://",
@@ -267,6 +270,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       for (const el of fields()) {
         if (el.name in p && el.name !== "variation_of") el.value = p[el.name] ?? "";
       }
+      albumLabel.show(p.album_url);
       difficulty.set(p.est_difficulty ?? null);
       workshop.set(p.workshop_id ?? null, p.workshop_title);
       showLinkedTies(p.linked_ties ?? []);

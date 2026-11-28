@@ -272,11 +272,12 @@
         <button type="button" class="icon-button" id="location-close" data-cancel-edit aria-label="Close" title="Close"></button>
       </div>
       <form id="form">
-        <!-- Only one location is the default; ticking another asks whether
-             to replace it (locations.js). Not for one archived now. -->
+        <!-- "Default": where new ties start. Only one location is the
+             default; ticking another asks whether to replace it
+             (locations.js). Not for one archived now. -->
         <div class="name-row">
           <label for="location-name">Name</label>
-          <label class="self-flag" id="location-default-flag"><input type="checkbox" name="is_default" id="location-is_default"> Default on new ties</label>
+          <label class="self-flag" id="location-default-flag" title="New ties start at this location"><input type="checkbox" name="is_default" id="location-is_default"> Default</label>
         </div>
         <input id="location-name" name="name" required autocomplete="off" spellcheck="false">
 
@@ -633,7 +634,7 @@
 
   <!-- Sign in (/signin) -->
   <template id="view-signin">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
+    <h1 class="app-title spaced"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card" id="choose" hidden>
       <h2>Sign in</h2>
@@ -715,7 +716,7 @@
 
   <!-- In place of any view that needs the key, while the journal is locked -->
   <template id="view-unlock">
-    <h1 class="app-title"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
+    <h1 class="app-title spaced"><span class="logo" role="img" aria-label="nōtonawa"></span></h1>
 
     <section class="card" id="unlock-choose" hidden>
       <h2>Your journal is locked</h2>
@@ -761,6 +762,8 @@
 
     <button type="button" class="link" id="unlock-sign-out">Sign out</button>
     <p class="hint help-line">Trouble signing in?<br>Email <a href="mailto:contact@notonawa.app">contact@notonawa.app</a> for assistance.</p>
+    <!-- Filled in by views/unlock.js (public/js/releases.js) -->
+    <p class="hint app-version" id="unlock-version"></p>
   </template>
 
   <!-- Any other address -->

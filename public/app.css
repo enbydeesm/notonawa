@@ -107,6 +107,8 @@ nav .nav-poser:disabled { opacity: 0.4; }
 @media (forced-colors: active) { .logo::before, .logo::after { forced-color-adjust: none; background-color: CanvasText; } }
 .app-title { text-align: center; }
 .app-title .logo { width: 280px; }
+/* Sign in and Unlock: a gap under the logo about as tall as their buttons. */
+.app-title.spaced { padding-bottom: 48px; }
 .menu-title .logo { width: 240px; }
 
 .card {
@@ -807,6 +809,9 @@ button.switch { flex: none; padding: 4px; border: none; border-radius: 999px; }
   font-size: 0.95rem; font-weight: 600; border-radius: 20%;
 }
 .label-add::after { content: ""; position: absolute; inset: -12px; }
+/* "Open Album" or "Open Event" after a link field's label, once the saved
+   item has one (open-link.js). */
+.open-link { font-size: 0.85rem; font-weight: 600; color: var(--accent-ink); }
 
 /* An "i" in a circle after a label: tapping it shows or hides an
    explanation under the label (a disclosure, so it works on touch screens
@@ -1178,7 +1183,7 @@ button.primary.save-changes[aria-disabled="true"] { background: transparent; col
 
 /* People: a checkbox at the right of a row: "Educator" on the Name label's
    row, and "This is me" under the dialog's heading row, only on my own
-   profile, greyed out as it can't be changed. Locations' "Default on new ties" too. */
+   profile, greyed out as it can't be changed. Locations' "Default" too. */
 .name-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0 4px; }
 .name-row label { margin: 0; }
 /* The People dialog's "This is me", or a connection's link, under the

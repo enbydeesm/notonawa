@@ -1,6 +1,7 @@
 // The walkthrough's lock chunk. Locking and unlocking: the passkey, the recovery code, setting up a key, and after the operator's reset.
 
 import { FORMAT, HELP_LINE, account, check, freshAccount, go, run, script, send, sleep, sql } from "../harness.mjs";
+import { APP_VERSION } from "../../../public/js/releases.js";
 
 export default async function () {
   const recoveryCode = await freshAccount();
@@ -27,6 +28,11 @@ export default async function () {
   check("Unlock shows the logo", await run(`return logo("#view h1 .logo");`), [true, "nōtonawa", ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"], ["rgb(254, 199, 98)", "rgb(238, 238, 238)"]]);
   check("Unlock says who to email for help, on its own centred line", await run(HELP_LINE),
     ["Trouble signing in?\nEmail contact@notonawa.app for assistance.", "mailto:contact@notonawa.app", true, "center"]);
+  check("Unlock shows the app's version at the bottom, and a gap under the logo about as tall as its button", await run(`
+    const v = $("#unlock-version");
+    const gap = $("#unlock-choose").getBoundingClientRect().top - $("#view h1 .logo").getBoundingClientRect().bottom;
+    const button = $("#unlock-passkey").getBoundingClientRect().height;
+    return [v.textContent, v === $("#view").lastElementChild, gap >= button, gap < button + 40];`), [`Version ${APP_VERSION}`, true, true, true]);
   check("unlocking with the passkey shows the page, and sends no PRF output anywhere", await run(`
     const sent = []; const realFetch = window.fetch;
     window.fetch = (url, options) => { sent.push([String(url), options?.body ?? ""]); return realFetch(url, options); };

@@ -181,7 +181,7 @@ function openMenu() {
       h("button", {
         type: "button", className: "menu-item menu-feedback", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openFeedback(); },
-      }, feedbackIcon(), h("span", {}, "Bug and feedback")),
+      }, drawnIcon("feedback"), h("span", {}, "Bug and feedback")),
       h("button", {
         type: "button", className: "menu-item menu-whats-new", "aria-haspopup": "dialog",
         onclick: () => { dialog.close(); openWhatsNew(); },
@@ -189,7 +189,7 @@ function openMenu() {
       // The same page sign-up links to. It isn't part of the app, so it
       // opens in a new tab and leaves the app (and its unlocked key) as it is.
       h("a", { href: "/privacy", target: "_blank", rel: "noopener", className: "menu-item menu-privacy" },
-        privacyIcon(), h("span", {}, "Privacy Policy")),
+        drawnIcon("privacy"), h("span", {}, "Privacy Policy")),
       h("button", { type: "button", className: "menu-item menu-sign-out", onclick: signOut },
         signOutIcon(), h("span", {}, "Sign Out")),
       signOutMessage,
@@ -297,11 +297,6 @@ function sparkleIcon() {
   return icon;
 }
 
-/**
- * A speech bubble with a small bug over its bottom-left corner, for Bug and
- * feedback. The bubble's outline stops short of the bug, so the two don't
- * cross.
- */
 /** A lightbulb with a question mark inside it. */
 function tutorialIcon() {
   const icon = lineIcon();
@@ -329,32 +324,6 @@ function discordIcon() {
     transform: "translate(2 4.42) scale(0.15792)", fill: "currentColor", stroke: "none",
     d: "M81.15,0c-1.2376,2.1973-2.3489,4.4704-3.3591,6.794-9.5975-1.4396-19.3718-1.4396-28.9945,0-.985-2.3236-2.1216-4.5967-3.3591-6.794-9.0166,1.5407-17.8059,4.2431-26.1405,8.0568C2.779,32.5304-1.6914,56.3725.5312,79.8863c9.6732,7.1476,20.5083,12.603,32.0505,16.0884,2.6014-3.4854,4.8998-7.1981,6.8698-11.0623-3.738-1.3891-7.3497-3.1318-10.8098-5.1523.9092-.6567,1.7932-1.3386,2.6519-1.9953,20.281,9.547,43.7696,9.547,64.0758,0,.8587.7072,1.7427,1.3891,2.6519,1.9953-3.4601,2.0457-7.0718,3.7632-10.835,5.1776,1.97,3.8642,4.2683,7.5769,6.8698,11.0623,11.5419-3.4854,22.3769-8.9156,32.0509-16.0631,2.626-27.2771-4.496-50.9172-18.817-71.8548C98.9811,4.2684,90.1918,1.5659,81.1752.0505l-.0252-.0505ZM42.2802,65.4144c-6.2383,0-11.4159-5.6575-11.4159-12.6535s4.9755-12.6788,11.3907-12.6788,11.5169,5.708,11.4159,12.6788c-.101,6.9708-5.026,12.6535-11.3907,12.6535ZM84.3576,65.4144c-6.2637,0-11.3907-5.6575-11.3907-12.6535s4.9755-12.6788,11.3907-12.6788,11.4917,5.708,11.3906,12.6788c-.101,6.9708-5.026,12.6535-11.3906,12.6535Z",
   }));
-  return icon;
-}
-
-function feedbackIcon() {
-  const icon = lineIcon();
-  icon.setAttribute("stroke-linejoin", "round");
-  icon.append(
-    // The bubble: a rounded box with its tail at the bottom right.
-    svg("path", { d: "M11 16h3l4 3.5V16h.5a2.5 2.5 0 0 0 2.5-2.5v-8A2.5 2.5 0 0 0 18.5 3h-12A2.5 2.5 0 0 0 4 5.5V11" }),
-    // The bug: a solid body and head, with legs and feelers.
-    svg("ellipse", { cx: 6, cy: 18, rx: 2.6, ry: 3.2, fill: "currentColor", stroke: "none" }),
-    svg("circle", { cx: 6, cy: 13.6, r: 1.4, fill: "currentColor", stroke: "none" }),
-    svg("path", { d: "M2 16l1.6.8M10 16l-1.6.8M1.8 19.5h1.6M10.2 19.5H8.6M2.5 22.5l1.4-1M9.5 22.5l-1.4-1M4.8 12.5L4 11M7.2 12.5L8 11", "stroke-width": 1.4 })
-  );
-  return icon;
-}
-
-/** A solid person with a padlock by their shoulder, for the privacy policy. */
-function privacyIcon() {
-  const icon = lineIcon();
-  icon.append(
-    svg("circle", { cx: 9, cy: 7, r: 4, fill: "currentColor", stroke: "none" }),
-    svg("path", { d: "M2 21a7 7 0 0 1 11.5-5.4V21z", fill: "currentColor", stroke: "none" }),
-    svg("path", { d: "M16 15.5v-2a2.5 2.5 0 0 1 5 0v2", "stroke-width": 1.8 }),
-    svg("rect", { x: 14.5, y: 15.5, width: 8, height: 6, rx: 1, fill: "currentColor", stroke: "none" })
-  );
   return icon;
 }
 

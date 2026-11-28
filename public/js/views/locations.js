@@ -14,7 +14,7 @@ import { placeText } from "../list-order.js";
  * @param {{ signal: AbortSignal }} context signal: fires when the view is left
  */
 export function mount(_root, { signal }) {
-  // "Default on new ties": one location at most. Ticking it when another is
+  // "Default" (where new ties start): one location at most. Ticking it when another is
   // the default asks first; the server moves it from that one on saving.
   // Not offered for a location being archived as it's added.
   /** @type {string | null} */

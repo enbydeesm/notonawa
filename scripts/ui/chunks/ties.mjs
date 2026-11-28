@@ -131,6 +131,16 @@ export default async function () {
     const c = document.querySelector(".tie-card"), album = c.querySelector(".tie-album").getBoundingClientRect();
     return [c.querySelector(".tie-date").textContent.includes(","), c.querySelector(".tie-visuals").innerText.replace(/\\s+/g, " "),
       album.left - c.querySelector(".tie-photos").getBoundingClientRect().right < 20];`), [false, "1 plan Open album", true]);
+  check("the saved tie's form has Open Album by its album link's label; a new tie's doesn't", await run(`
+    $(".tie-card .tie-title").click(); await calm(1000);
+    const open = $("#tie-album_url-open");
+    const saved = [open.hidden, open.textContent, open.getAttribute("href"), open.target, open.rel, open.closest(".label-row")?.querySelector("label")?.textContent];
+    await closeDiscarding("#tie-close"); await calm(300);
+    $("#add-tie").click(); await calm(600);
+    const fresh = $("#tie-album_url-open").hidden;
+    await closeDiscarding("#tie-close"); await calm(300);
+    return [saved, fresh, !!document.querySelector("dialog[open]")];`),
+    [[false, "Open Album", "https://photos.app.goo.gl/floor", "_blank", "noopener noreferrer", "Album link"], true, false]);
   check("the nav stays pinned at the top while the list scrolls under it, and the people filter has no hint under it", await run(`
     const filler = document.createElement("div"); filler.className = "ui-filler"; filler.textContent = "x".repeat(20000);
     $("#view").append(filler); scrollTo(0, 2000); await wait(100);

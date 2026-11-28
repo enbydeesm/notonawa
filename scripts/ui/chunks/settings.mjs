@@ -82,8 +82,9 @@ export default async function () {
     await openMenu();
     return [parts, opened, closed];`), [[3, 1], [true, true, "Welcome to nōtonawa"], true]);
   check("Bug and feedback's icon is a speech bubble with a small bug at its bottom left", await run(`
-    const icon = $(".menu-feedback svg"); const bug = icon.querySelector("ellipse");
-    return [icon.querySelectorAll("path").length, Number(bug.getAttribute("cx")) < 12 && Number(bug.getAttribute("cy")) > 12];`), [2, true]);
+    const icon = $(".menu-feedback svg"); const bug = [...icon.querySelectorAll("path")].filter((p) => p.getAttribute("fill") !== "none");
+    const body = bug[0].getBBox();
+    return [icon.querySelectorAll("path").length, bug.length, body.x + body.width / 2 < 12 && body.y + body.height / 2 > 12];`), [4, 2, true]);
   check("Bug and feedback opens its form in place of the menu: a warning, a blank kind to choose, the message, an email link", await run(`
     $(".menu-feedback").click(); await calm(400);
     const d = $("dialog.feedback[open]");
