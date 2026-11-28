@@ -214,10 +214,11 @@ video.photo-full { width: 100%; background: var(--bg); }
 .visual-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .visual-choice { display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left; font-size: 1rem; }
 .visual-choice .visual-icon { flex: none; width: 28px; height: 28px; }
-/* The pose icon is a file: its shape, filled with the color around it. */
+/* The pose icon is a file: its shape, filled with the color around it. A
+   new drawing needs a new file name (images are cached for a week, _headers). */
 .pose-icon {
   display: inline-block; background-color: currentColor;
-  mask: url("/img/poser-icon.svg") center / contain no-repeat;
+  mask: url("/img/poser-icon-v2.svg") center / contain no-repeat;
 }
 /* The details dialogs: Save caption beside the caption's label, muted
    until the caption changes; rows of two buttons; Edit outlined in the

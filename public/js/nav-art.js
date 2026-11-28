@@ -3,7 +3,7 @@
 // 24 × 24 box, each a list of paths in currentColor, filled, stroked or
 // both. nav.js draws them, and the Analytics map's pins are the Locations
 // carabiner (world-map.js). The poser's button has the pose icon
-// (/img/poser-icon.svg), as everywhere else.
+// (/img/poser-icon-v2.svg), as everywhere else.
 
 const SVG = "http://www.w3.org/2000/svg";
 

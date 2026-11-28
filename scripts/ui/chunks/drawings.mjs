@@ -69,8 +69,8 @@ export default async function () {
   ["Add a visual from…", [["Photo/video", true], ["Drawing", true], ["Model poser", true]], []]);
   check("the pose icon is its file's shape in the text color, 28px in the chooser and 16px in the key", await run(`
     const icon = $("#tie-add-pose .pose-icon"), style = getComputedStyle(icon), keyIcon = $("#tie-form .visual-key .pose-icon");
-    const file = await fetch("/img/poser-icon.svg");
-    return [style.maskImage.includes("/img/poser-icon.svg"), style.backgroundColor === getComputedStyle($("#tie-add-pose")).color,
+    const file = await fetch("/img/poser-icon-v2.svg");
+    return [style.maskImage.includes("/img/poser-icon-v2.svg"), style.backgroundColor === getComputedStyle($("#tie-add-pose")).color,
       icon.getBoundingClientRect().width, keyIcon.getBoundingClientRect().width, file.status, file.headers.get("content-type")];`),
   [true, true, 28, 16, 200, "image/svg+xml"]);
   check("Drawing opens the drawing pad, filling the screen, on light paper even in dark mode", await run(`

@@ -1,6 +1,6 @@
 // Icons for the kinds of visual, drawn in currentColor like the nav's: a
 // camera (photos), a play button (videos), a pencil (drawings) and a
-// figure high-kicking (poses, from /img/poser-icon.svg). The "Add a visual
+// figure with a knee raised (poses, from /img/poser-icon-v2.svg). The "Add a visual
 // from…" chooser and the Visuals section's color key use them.
 
 const SVG = "http://www.w3.org/2000/svg";

@@ -8,8 +8,8 @@
 // hashira post), a › and the Body and Arms positions' figures. Each button using one says what
 // it does in its aria-label and title.
 //
-// The figures are outlines, as the poser's high-kicking icon is
-// (/img/poser-icon.svg): each limb a thick line in currentColor with a
+// The figures are outlines, as the poser's icon is
+// (/img/poser-icon-v2.svg): each limb a thick line in currentColor with a
 // thinner one in the button's own color on top (.tool-icon-under in
 // app.css), so where limbs cross they read as one shape, and a limb drawn
 // later sits in front.

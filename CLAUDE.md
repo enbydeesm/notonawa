@@ -870,7 +870,7 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   drawn from `nav-art.js`: hand-drawn icons flattened to a 24 × 24 box;
   the Locations carabiner is also the Analytics map's pins, `world-map.js`;
   `CAP_PATHS`, the old cap, is still on People's educators),
-  then the poser's button (the pose icon, `/img/poser-icon.svg`; the poser
+  then the poser's button (the pose icon, `/img/poser-icon-v2.svg`; the poser
   on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
   sized to fit one row down to 320px wide, pinned to the top (sticky); then the menu button and its panel: Settings, Account, Your
