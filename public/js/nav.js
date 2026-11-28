@@ -1,8 +1,7 @@
 // The view links at the top of the app, as icons (each named for screen
 // readers and in its tooltip), the poser's button after them (the poser on
-// its own, over the view: it asks where to save what it makes), then the + button
-// and the menu button (☰),
-// which opens a side panel: Settings (light/dark mode and role names, in
+// its own, over the view: it asks where to save what it makes), then the menu
+// button, which opens a side panel: Settings (light/dark mode and role names, in
 // their own dialog), the account and "Your data" links, Install app (until
 // it's installed, where the browser can), Tutorial (the
 // welcome tour), Join the nōtonawa Discord (our community's invite link, in
@@ -12,7 +11,6 @@
 // Drawn once by app.js; setCurrent() marks the view being shown.
 
 import { h, $ } from "./dom.js";
-import { openTieForm } from "./tie-form.js";
 import { navigate } from "./navigate.js";
 import { openSettings } from "./settings-dialog.js";
 import { openWhatsNew } from "./whats-new.js";
@@ -26,6 +24,7 @@ import { lock, isUnlocked } from "./vault.js";
 import { wipeCaches } from "./cache/db.js";
 import { ICONS as VISUAL_ICONS } from "./visual-icons.js";
 import { HANK_PATH } from "./rope-rating.js";
+import { drawnIcon } from "./nav-art.js";
 
 /** The nōtonawa Discord's invite (the menu's Join the nōtonawa Discord). */
 export const DISCORD_INVITE = "https://discord.gg/5tqpYntYvM";
@@ -33,12 +32,12 @@ export const DISCORD_INVITE = "https://discord.gg/5tqpYntYvM";
 /** The tabs: address, name and icon, in order. */
 export const PAGES = /** @type {const} */ ([
   ["/", "Ties", hankShapeIcon],
-  ["/plans", "Plans", planIcon],
-  ["/education", "Education", capIcon],
-  ["/people", "People", personIcon],
-  ["/locations", "Locations", pinIcon],
-  ["/calendar", "Calendar", calendarIcon],
-  ["/analytics", "Analytics", chartIcon],
+  ["/plans", "Plans", () => drawnIcon("plans")],
+  ["/education", "Education", () => drawnIcon("education")],
+  ["/people", "People", () => drawnIcon("people")],
+  ["/locations", "Locations", () => drawnIcon("locations")],
+  ["/calendar", "Calendar", () => drawnIcon("calendar")],
+  ["/analytics", "Analytics", () => drawnIcon("analytics")],
 ]);
 
 /**
@@ -82,14 +81,6 @@ let poserButton = null;
 
 /** Draws the nav at the top of <main>, once, hidden until showNav. */
 export function renderNav() {
-  // For now + always logs a tie. Later it will ask what to add (see
-  // roadmap.md).
-  async function add() {
-    if (!(await openTieForm())) return;
-    if (current === "/") document.dispatchEvent(new CustomEvent(TIE_SAVED));
-    else navigate("/");
-  }
-
   // The poser, loaded only once it's wanted (three.js is big). Opened
   // here, Save pose and Add to visuals ask which tie, plan or workshop
   // they're for (standalone-poser.js).
@@ -107,11 +98,10 @@ export function renderNav() {
     {},
     PAGES.map(([href, label, icon]) => h("a", { href, className: "nav-tab", "aria-label": label, title: label }, icon())),
     poserButton,
-    h("button", { type: "button", className: "nav-add", "aria-label": "Add a tie", title: "Add a tie", onclick: add }, "+"),
     h("button", {
       type: "button", className: "nav-icon nav-menu", "aria-label": "Menu", title: "Menu",
       "aria-haspopup": "dialog", onclick: openMenu,
-    }, menuIcon())
+    }, drawnIcon("menu"))
   );
   // Hidden until the first view that has it is shown (showNav): a page
   // loading, still locked, mustn't show it before Unlock is drawn.
@@ -248,13 +238,6 @@ export const CAP_PATHS = [
   "M22 9.5v5",
 ];
 
-/** Education: a graduation cap. */
-function capIcon() {
-  const icon = lineIcon();
-  icon.append(...CAP_PATHS.map((d) => svg("path", { d })));
-  return icon;
-}
-
 /** A blank line-drawn icon to draw in. */
 function lineIcon() {
   return svg("svg", {
@@ -263,60 +246,10 @@ function lineIcon() {
   });
 }
 
-/** Three lines (☰), for the menu button. */
-function menuIcon() {
-  const icon = lineIcon();
-  for (const y of [6, 12, 18]) icon.append(svg("line", { x1: 4, y1: y, x2: 20, y2: y }));
-  return icon;
-}
-
 /** The ratings' rope hank, for Ties: a filled shape, not lines, in the text color. */
 function hankShapeIcon() {
   const icon = lineIcon();
   icon.append(svg("path", { d: HANK_PATH, fill: "currentColor", stroke: "none" }));
-  return icon;
-}
-
-/** A sheet of paper with a pencil writing on it, for Plans. */
-function planIcon() {
-  const icon = lineIcon();
-  icon.setAttribute("stroke-linejoin", "round");
-  icon.append(
-    svg("path", { d: "M13 3H5.5A1.5 1.5 0 0 0 4 4.5v15A1.5 1.5 0 0 0 5.5 21h11a1.5 1.5 0 0 0 1.5-1.5V14" }),
-    svg("path", { d: "M7.5 8h5M7.5 12h3M7.5 16h4" }),
-    svg("path", { d: "M19.2 3.3a1.6 1.6 0 0 1 2.3 2.3L14.8 12.3l-3.2.9.9-3.2z" })
-  );
-  return icon;
-}
-
-/** A map pin, for Locations. */
-function pinIcon() {
-  const icon = lineIcon();
-  icon.setAttribute("stroke-linejoin", "round");
-  icon.append(
-    svg("path", { d: "M12 21.5s-6.5-5.9-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.6-6.5 11.5-6.5 11.5z" }),
-    svg("circle", { cx: 12, cy: 10, r: 2.3 })
-  );
-  return icon;
-}
-
-/** A page of a calendar, for Calendar. */
-function calendarIcon() {
-  const icon = lineIcon();
-  icon.append(
-    svg("rect", { x: 3.5, y: 5, width: 17, height: 15.5, rx: 2 }),
-    svg("path", { d: "M3.5 10h17M8 3v4M16 3v4" })
-  );
-  return icon;
-}
-
-/** Three bars on a baseline, for the Analytics tab. */
-function chartIcon() {
-  const icon = lineIcon();
-  icon.append(
-    svg("path", { d: "M4 20h16" }),
-    svg("path", { d: "M7 16v-5M12 16V6M17 16v-8" })
-  );
   return icon;
 }
 

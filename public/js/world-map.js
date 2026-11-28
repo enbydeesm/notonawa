@@ -14,6 +14,7 @@ import { h } from "./dom.js";
 import { svg } from "./charts.js";
 import { tiesWord } from "./chart-parts.js";
 import { COUNTRIES } from "./world-shapes.js";
+import { NAV_ART, CARABINER_OUTLINE, CARABINER_GROUP_LINES } from "./nav-art.js";
 import {
   ASPECT, WORLD_VIEW, ZOOM_STEP, fitView, zoomView, panView, canZoomIn, canZoomOut, groupPlaces,
 } from "./map-geo.js";
@@ -31,17 +32,20 @@ const PIN_GAP = 30;
 const DRAG_START = 5;
 
 /**
- * A pin's outline, its point at 0, 0 and its round head `height` above.
- * @param {number} r the head's radius
- * @param {number} height
+ * A pin is the Locations tab's carabiner (nav-art.js), drawn on its 24 × 24
+ * grid and scaled to `height` pixels: yellow inside its own lines, its
+ * bottom point on the place. A group's carabiner has no ring: its count is
+ * where the ring would be. Hover and focus strokes (app.css) stay their CSS
+ * width at any size.
  */
-function pinPath(r, height) {
-  const cy = -(height - r);
-  return `M0 0C${-r * 0.35} ${cy * 0.5} ${-r} ${cy + r * 0.6} ${-r} ${cy}A${r} ${r} 0 1 1 ${r} ${cy}`
-    + `C${r} ${cy + r * 0.6} ${r * 0.35} ${cy * 0.5} 0 0Z`;
-}
-const PLACE_PIN = { r: 8, height: 26 };
-const GROUP_PIN = { r: 11, height: 32 };
+const CARABINER_LINES = /** @type {string} */ (NAV_ART.locations[0].d);
+/** The carabiner's bottom point and its ring's centre, on its grid. */
+const CARABINER_TIP = { x: 12, y: 22.7 };
+const CARABINER_RING = { x: 12, y: 7.3 };
+/** The carabiner is 22.15 units tall, top to tip. */
+const CARABINER_HEIGHT = 22.15;
+const PLACE_PIN = { height: 26 };
+const GROUP_PIN = { height: 32 };
 
 /**
  * One pin: a button for keyboards and screen readers too. A group shows
@@ -51,14 +55,17 @@ const GROUP_PIN = { r: 11, height: 32 };
  */
 function pinElement(pin, pick) {
   const grouped = pin.places.length > 1;
-  const { r, height } = grouped ? GROUP_PIN : PLACE_PIN;
+  const { height } = grouped ? GROUP_PIN : PLACE_PIN;
+  const scale = height / CARABINER_HEIGHT;
   const label = `${pin.label}: ${tiesWord(pin.tieIds.length)}`;
   const el = svg("g", { class: grouped ? "map-pin grouped" : "map-pin", tabindex: 0, role: "button", "aria-label": label },
     svg("title", {}, label),
-    svg("path", { d: pinPath(r, height), class: "map-pin-head" }),
-    grouped
-      ? svg("text", { x: 0, y: -(height - r) + 4, class: "map-pin-count" }, String(pin.tieIds.length))
-      : svg("circle", { cx: 0, cy: -(height - r), r: 3, class: "map-pin-dot" }));
+    svg("g", { transform: `scale(${scale}) translate(${-CARABINER_TIP.x} ${-CARABINER_TIP.y})` },
+      svg("path", { d: CARABINER_OUTLINE, class: "map-pin-head", "vector-effect": "non-scaling-stroke" }),
+      svg("path", { d: grouped ? CARABINER_GROUP_LINES : CARABINER_LINES, class: "map-pin-dot", "vector-effect": "non-scaling-stroke" })),
+    ...(grouped
+      ? [svg("text", { x: (CARABINER_RING.x - CARABINER_TIP.x) * scale, y: (CARABINER_RING.y - CARABINER_TIP.y) * scale + 4, class: "map-pin-count" }, String(pin.tieIds.length))]
+      : []));
   el.addEventListener("click", () => pick(pin));
   el.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(pin, true); }

@@ -865,14 +865,19 @@ tested), database queries (`db.js`) and HTTP handlers (`routes.js`).
   (pure: the Plans search, done on the device over the loaded plans and
   kept only in memory, and a plan's tie count and average rating),
   `nav.js` (the tabs, as icons with their
-  names in `aria-label` and `title`: Ties, Plans, Education (`CAP_PATHS`,
-  the cap, also on People's educators), People, Locations, Calendar,
-  Analytics,
-  then the poser's button (the poser on its own, `standalone-poser.js`:
+  names in `aria-label` and `title`: Ties, Plans, Education, People,
+  Locations, Calendar, Analytics (Plans to Analytics and the menu button
+  drawn from `nav-art.js`: hand-drawn icons flattened to a 24 × 24 box;
+  the Locations carabiner is also the Analytics map's pins, `world-map.js`;
+  `CAP_PATHS`, the old cap, is still on People's educators),
+  then the poser's button (the pose icon, `/img/poser-icon.svg`; the poser
+  on its own, `standalone-poser.js`:
   Add to visuals and Save pose ask where; disabled while locked),
-  sized to fit one row down to 320px wide, pinned to the top (sticky); the + button and the ☰ menu panel: Settings, Account, Your
+  sized to fit one row down to 320px wide, pinned to the top (sticky); then the menu button and its panel: Settings, Account, Your
   data, Install app (where it can be), Tutorial (the welcome tour), Join the nōtonawa Discord (`DISCORD_INVITE`, a new tab), Bug and feedback, What's new, Privacy Policy, Sign Out and the version; drawn once,
-  `setCurrent` marks the view), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
+  `setCurrent` marks the view), `plus-icon.js` (the bold + in the "Add a…"
+  cards', the "Edit tags" dialog's and the forms' small yellow + buttons; index.html's own are
+  written out), `tie-form.js` (the "Log a tie" dialog), `plan-form.js` (the plan
   form, a dialog of its own like the tie form's, opened from the Plans
   view and from anywhere else (the poser on its own): Delete (asking about
   linked ties), Archive or Restore, Share and ✕ on its heading's row,

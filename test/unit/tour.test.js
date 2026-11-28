@@ -8,19 +8,18 @@ const TAB_HREFS = [...NAV.slice(NAV.indexOf("export const PAGES"), NAV.indexOf("
   .matchAll(/\["(\/[a-z]*)", "/g)].map((m) => m[1]);
 
 describe("the tour's stops", () => {
-  it("goes through the tabs in the nav's order, then the poser, +, the menu and Account Recovery", () => {
+  it("goes through the tabs in the nav's order, then the poser, the menu and Account Recovery", () => {
     expect(STOPS.map((s) => s.title)).toEqual([
       "Ties", "Plans", "Education", "People", "Locations", "Calendar", "Analytics",
-      "Model Poser", "Add a tie", "Menu", "Account Recovery",
+      "Model Poser", "Menu", "Account Recovery",
     ]);
     expect(TAB_HREFS).toHaveLength(7);
     expect(STOPS.slice(0, 7).map((s) => s.target)).toEqual(TAB_HREFS.map((href) => `nav a[href="${href}"]`));
-    expect(STOPS.slice(7).map((s) => s.target)).toEqual(["#nav-poser", "nav .nav-add", "nav .nav-menu", null]);
+    expect(STOPS.slice(7).map((s) => s.target)).toEqual(["#nav-poser", "nav .nav-menu", null]);
   });
 
   it("points only at things nav.js draws", () => {
     expect(NAV).toContain('id: "nav-poser"');
-    expect(NAV).toContain('className: "nav-add"');
     expect(NAV).toContain('className: "nav-icon nav-menu"');
   });
 
@@ -39,18 +38,18 @@ describe("the tour's stops", () => {
   });
 
   it("numbers the stops from 1, after the welcome, with the wrap-up after the last", () => {
-    expect(FINISH).toBe(12);
+    expect(FINISH).toBe(11);
     expect(stepAt(0)).toEqual({ kind: "welcome", step: 0 });
-    expect(stepAt(1)).toMatchObject({ kind: "stop", step: 1, count: "1 of 11", last: false, stop: { title: "Ties" } });
-    expect(stepAt(10)).toMatchObject({ count: "10 of 11", last: false, stop: { title: "Menu" } });
-    expect(stepAt(11)).toMatchObject({ count: "11 of 11", last: true, stop: { title: "Account Recovery" } });
-    expect(stepAt(12)).toEqual({ kind: "finish", step: 12 });
+    expect(stepAt(1)).toMatchObject({ kind: "stop", step: 1, count: "1 of 10", last: false, stop: { title: "Ties" } });
+    expect(stepAt(9)).toMatchObject({ count: "9 of 10", last: false, stop: { title: "Menu" } });
+    expect(stepAt(10)).toMatchObject({ count: "10 of 10", last: true, stop: { title: "Account Recovery" } });
+    expect(stepAt(11)).toEqual({ kind: "finish", step: 11 });
   });
 
   it("keeps a step out of range to the ends", () => {
     expect(stepAt(-3).kind).toBe("welcome");
     expect(stepAt(Number.NaN).kind).toBe("welcome");
-    expect(stepAt(40)).toEqual({ kind: "finish", step: 12 });
+    expect(stepAt(40)).toEqual({ kind: "finish", step: 11 });
     expect(stepAt(2.7)).toMatchObject({ step: 2 });
   });
 

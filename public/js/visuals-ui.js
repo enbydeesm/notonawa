@@ -24,6 +24,7 @@ import { ICONS } from "./visual-icons.js";
 import { photoKind } from "./photos-ui.js";
 import { drawingKind } from "./drawings-ui.js";
 import { poseKind } from "./poses-ui.js";
+import { plusIcon } from "./plus-icon.js";
 
 /** @typedef {{ tie_id: string } | { plan_id: string } | { workshop_id: string }} Item */
 /** @typedef {import("./visual-order.js").VisualKind} VisualKind */
@@ -141,7 +142,7 @@ export function visualSection({ item, idPrefix }) {
 
   const addButton = h("button", {
     type: "button", className: "label-add", id: `${idPrefix}-add-visual`, "aria-label": "Add visual", title: "Add visual", onclick: choose,
-  }, "+");
+  }, plusIcon());
   const key = h("div", {
     className: "visual-key", role: "img",
     "aria-label": `Outline colors: ${KEY.map(([, name, color]) => `${color} ${name.toLowerCase()}`).join(", ")}`,

@@ -25,7 +25,7 @@ export default async function () {
     await calm(500);
     return [new TextDecoder().decode(await file.arrayBuffer()).includes("SECRET-GPS"),
       document.querySelectorAll("#${prefix}-visuals .photo-tile img").length, $("#${prefix}-visuals-message").textContent];`);
-  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Photo test"); set("#tie-tie_type", "floor");`);
+  await run(`$("#add-tie").click(); await calm(600); set("#tie-title", "Photo test"); set("#tie-tie_type", "floor");`);
   check("a new tie's photo is prepared and waits for the tie to be saved",
     await pickPhoto("tie", 3000, 1000, "camera.jpg"), [true, 1, ""]);
   check("…and is uploaded when it's saved, counted on the card", await run(`
@@ -260,7 +260,7 @@ export default async function () {
   await go("/");
   check("a camera-like clip holds its secrets before it's added",
     await makeClip({ seconds: 2, width: 1280, height: 720, fps: 30, sound: true }), true);
-  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Video test"); set("#tie-tie_type", "floor");
+  await run(`$("#add-tie").click(); await calm(600); set("#tie-title", "Video test"); set("#tie-tie_type", "floor");
     $("#tie-save").click(); await calm(2000); await settle(); ${openVideoTie}`);
   check("the + takes videos, and one added to a saved tie is prepared and uploaded, marked ▶",
     await pickClip(), [1, ""]);

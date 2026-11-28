@@ -9,6 +9,7 @@ import { h, showMessage } from "./dom.js";
 import { choose } from "./dialog.js";
 import { filterTags, findTag, deleteTagWarning, MAX_TAGS, MAX_TAG_LENGTH } from "./tags.js";
 import { listTags, deleteTag } from "./store/index.js";
+import { plusIcon } from "./plus-icon.js";
 
 /** @typedef {import("./tags.js").Tag} Tag */
 
@@ -51,7 +52,7 @@ export function pickTags(chosen, { forSearch = false, noun = "tie" } = {}) {
       h("div", { className: "tag-search-row" },
         searchBox,
         forSearch ? null
-          : h("button", { type: "button", className: "tag-add", id: "tags-add", "aria-label": "Add tag", title: "Add tag", onclick: addTyped }, "+")),
+          : h("button", { type: "button", className: "tag-add", id: "tags-add", "aria-label": "Add tag", title: "Add tag", onclick: addTyped }, plusIcon())),
       list,
       message,
       h("div", { className: "dialog-footer" },

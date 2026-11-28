@@ -2,9 +2,9 @@
 // Pure, so the order and wording are easy to test.
 //
 // The tour is a welcome card, then one stop for each of the nav's tabs, the
-// poser, + and the menu (a ring round its button, the card under the nav),
+// poser and the menu (a ring round its button, the card under the nav),
 // then Account Recovery (a card in the middle, pointing at nothing), then
-// "That's a wrap!". Stops are numbered from 1 ("3 of 11"); the welcome is 0
+// "That's a wrap!". Stops are numbered from 1 ("3 of 10"); the welcome is 0
 // and the wrap-up is after the last.
 
 /**
@@ -57,10 +57,6 @@ export const STOPS = Object.freeze([
     title: "Model Poser", target: "#nav-poser",
     body: [["AKA the Sick Flip Simulator. A 3D figure you can pose, tie up and suspend. "
       + "Save a screenshot or pose to any tie, plan or workshop."]],
-  },
-  {
-    title: "Add a tie", target: "nav .nav-add",
-    body: [["Quickly log a tie from wherever you are in the app."]],
   },
   {
     title: "Menu", target: "nav .nav-menu",

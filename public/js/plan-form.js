@@ -26,6 +26,7 @@ import { startEntry } from "./new-entry-start.js";
 import { editTie } from "./tie-card.js";
 import { PLAN_TYPE_NAMES, variationsOf } from "./plans-view.js";
 import { workshopLink } from "./workshop-link.js";
+import { plusIcon } from "./plus-icon.js";
 
 /** @typedef {import("./plans-view.js").LinkedTie} LinkedTie */
 
@@ -124,7 +125,7 @@ function showPlanForm(plan, start, fromWorkshop) {
       h("div", { "data-photos": "" }, visuals.element),
       h("div", { className: "label-row" },
         h("label", { id: "plan-tags-label" }, "Tags"),
-        h("button", { type: "button", className: "label-add", id: "plan-add-tags", "aria-label": "Edit tags", title: "Edit tags", onclick: chooseTags }, "+")),
+        h("button", { type: "button", className: "label-add", id: "plan-add-tags", "aria-label": "Edit tags", title: "Edit tags", onclick: chooseTags }, plusIcon())),
       tagList,
       linked,
       variations,

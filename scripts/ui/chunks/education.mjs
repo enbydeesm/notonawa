@@ -17,11 +17,11 @@ export default async function () {
     // On one row: every item overlaps every other top to bottom (they're centered, and not all the same height).
     const oneRow = Math.max(...shown.map((r) => r.top)) < Math.min(...shown.map((r) => r.bottom));
     return [oneRow, nav.scrollWidth <= nav.clientWidth, shown[shown.length - 1].right <= nav.getBoundingClientRect().right + 1];`;
-  check("the nav has Education third, between Plans and People, the poser's button after Analytics before +, Education marked as the current tab", await run(`
+  check("the nav has Education third, between Plans and People, the poser's button after Analytics before the menu, Education marked as the current tab", await run(`
     const tabs = [...document.querySelectorAll("nav .nav-tab")].map((a) => a.getAttribute("aria-label"));
     const poser = $("#nav-poser");
     return [tabs, poser.tagName, poser.previousElementSibling.getAttribute("href"), !!poser.querySelector(".pose-icon"),
-      poser.nextElementSibling.classList.contains("nav-add"), $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
+      poser.nextElementSibling.classList.contains("nav-menu"), $("nav a[aria-current=page]")?.getAttribute("aria-label"), document.title];`),
     [["Ties", "Plans", "Education", "People", "Locations", "Calendar", "Analytics", "Poser"], "BUTTON", "/analytics", true, true,
       "Education", "Education · nōtonawa"]);
   check("all of the nav fits on one row at this width", await run(navFits), [true, true, true]);
@@ -41,7 +41,7 @@ export default async function () {
     return [flat(cards[0]), cards[1].getAttribute("aria-label"), tabs.map((t) => t.textContent), chosen.textContent,
       getComputedStyle(chosen).borderBottomColor === accentRgb, getComputedStyle(tabs[1]).borderBottomColor === accentRgb,
       flat($("#education-panel")), leakyFields()];`),
-    ["+ | Add a Workshop", "Search workshops", ["Attended", "Taught", "Summary"], "Attended", true, false,
+    ["Add a Workshop", "Search workshops", ["Attended", "Taught", "Summary"], "Attended", true, false,
       "Workshops attended | 0 workshops | No workshops yet. Add one with the + above.", []]);
 
   check("+ opens the form: educators are only people marked Educator, and a ? beside them says how to log one I taught", await run(`

@@ -55,7 +55,7 @@ export default async function () {
   const openTie = `[...document.querySelectorAll(".tie-title")].find((b) => b.textContent === "Drawing test").click(); await calm(1500);`;
   const topDialog = `[...document.querySelectorAll("dialog[open]")].pop()`;
 
-  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Drawing test"); set("#tie-tie_type", "floor");`);
+  await run(`$("#add-tie").click(); await calm(600); set("#tie-title", "Drawing test"); set("#tie-tie_type", "floor");`);
   check("the tie form has Visuals, with a + to add one and a key to the outline colors", await run(`
     const labels = [...document.querySelectorAll("#tie-form .label-row label")].map((l) => l.textContent);
     const key = $("#tie-form .visual-key");

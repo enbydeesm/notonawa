@@ -121,24 +121,24 @@ export default async function () {
     return [tc.querySelector("h2").textContent, $(".tour-count").textContent, tc.classList.contains("at-nav"), ringRound('nav a[href="/"]'),
       $("progress.tour-progress").value, $("progress.tour-progress").max, [...tc.querySelectorAll("button")].map((b) => b.textContent),
       document.activeElement?.textContent];`),
-    ["Ties", "1 of 11", true, [5, 5, 5, 5, true, true, 9], 1, 11, ["Skip tour", "Back", "Next"], "Next"]);
-  check("Next goes round the nav: each tab, the poser, + and the menu in turn, the ring on each", await run(`
+    ["Ties", "1 of 10", true, [5, 5, 5, 5, true, true, 9], 1, 10, ["Skip tour", "Back", "Next"], "Next"]);
+  check("Next goes round the nav: each tab, the poser and the menu in turn, the ring on each", await run(`
     ${tour}
     const stops = [];
     for (const sel of ['nav a[href="/plans"]', 'nav a[href="/education"]', 'nav a[href="/people"]', 'nav a[href="/locations"]',
-      'nav a[href="/calendar"]', 'nav a[href="/analytics"]', "#nav-poser", "nav .nav-add", "nav .nav-menu"]) {
+      'nav a[href="/calendar"]', 'nav a[href="/analytics"]', "#nav-poser", "nav .nav-menu"]) {
       await press(".tour-next");
       stops.push([tourCard().querySelector("h2").textContent, $(".tour-count").textContent, ringRound(sel).slice(0, 6).join()]);
     }
     return stops;`),
-    [["Plans", "2 of 11"], ["Education", "3 of 11"], ["People", "4 of 11"], ["Locations", "5 of 11"], ["Calendar", "6 of 11"],
-      ["Analytics", "7 of 11"], ["Model Poser", "8 of 11"], ["Add a tie", "9 of 11"], ["Menu", "10 of 11"]].map((s) => [...s, "5,5,5,5,true,true"]));
+    [["Plans", "2 of 10"], ["Education", "3 of 10"], ["People", "4 of 10"], ["Locations", "5 of 10"], ["Calendar", "6 of 10"],
+      ["Analytics", "7 of 10"], ["Model Poser", "8 of 10"], ["Menu", "9 of 10"]].map((s) => [...s, "5,5,5,5,true,true"]));
   check("then Account Recovery, in the middle with no ring, its warning in italics, and Finish", await run(`
     ${tour}
     await press(".tour-next"); const tc = tourCard();
     return [tc.querySelector("h2").textContent, $(".tour-count").textContent, tc.classList.contains("centered"), ringRound("nav"),
       $(".tour-pointer").hasAttribute("hidden"), tc.querySelector("em").textContent, tc.querySelectorAll(".tour-body p").length, $(".tour-next").textContent];`),
-    ["Account Recovery", "11 of 11", true, "no ring", true, "we cannot restore your data if you lose it", 2, "Finish"]);
+    ["Account Recovery", "10 of 10", true, "no ring", true, "we cannot restore your data if you lose it", 2, "Finish"]);
   check("Finish shows the wrap-up: our email linked, Done, Back, and the coffee link on its own line, opening a new tab", await run(`
     ${tour}
     await press(".tour-next"); const tc = tourCard(); const coffee = tc.querySelector(".tour-coffee a");
@@ -151,13 +151,13 @@ export default async function () {
     ${tour}
     const headings = [];
     await press(".tour-back"); headings.push(tourCard().querySelector("h2").textContent);
-    for (let i = 0; i < 11; i++) { await press(".tour-buttons .tour-back"); headings.push(tourCard().querySelector("h2").textContent); }
+    for (let i = 0; i < 10; i++) { await press(".tour-buttons .tour-back"); headings.push(tourCard().querySelector("h2").textContent); }
     return headings;`),
-    ["Account Recovery", "Menu", "Add a tie", "Model Poser", "Analytics", "Calendar", "Locations", "People", "Education", "Plans", "Ties", "Welcome to nōtonawa"]);
+    ["Account Recovery", "Menu", "Model Poser", "Analytics", "Calendar", "Locations", "People", "Education", "Plans", "Ties", "Welcome to nōtonawa"]);
   check("Done at the end closes it and remembers it on the account", await run(`
     ${tour}
     await press("#tour-start");
-    for (let i = 0; i < 11; i++) await press(".tour-next");
+    for (let i = 0; i < 10; i++) await press(".tour-next");
     await press("#tour-done"); await calm(500);
     return [$("dialog.tour") === null, await seen()];`), [true, true]);
   check("…then What's new opens as from the menu, the recent releases newest first, and closing it marks them seen", await run(`
@@ -190,15 +190,15 @@ export default async function () {
   check("on a 320px-wide phone, every stop's ring and card stay on screen, the ring round its icon", await run(`
     ${tour}
     const open = await tourOpen(); await press("#tour-start"); const out = [];
-    for (let i = 0; i < 10; i++) {
-      const sel = [...'nav a[href="/"]|nav a[href="/plans"]|nav a[href="/education"]|nav a[href="/people"]|nav a[href="/locations"]|nav a[href="/calendar"]|nav a[href="/analytics"]|#nav-poser|nav .nav-add|nav .nav-menu'.split("|")][i];
+    for (let i = 0; i < 9; i++) {
+      const sel = [...'nav a[href="/"]|nav a[href="/plans"]|nav a[href="/education"]|nav a[href="/people"]|nav a[href="/locations"]|nav a[href="/calendar"]|nav a[href="/analytics"]|#nav-poser|nav .nav-menu'.split("|")][i];
       const ring = ["x", "y", "width", "height"].map((n) => Number($(".tour-ring").getAttribute(n)));
       const t = $(sel).getBoundingClientRect(); const c = tourCard().getBoundingClientRect();
       out.push(ring[0] >= 0 && ring[0] + ring[2] <= 320 && ring[0] <= t.left && ring[0] + ring[2] >= t.right && c.left >= 0 && c.right <= 320 && c.bottom <= 640);
       await press(".tour-next");
     }
     await press(".tour-skip");
-    return [open, out];`), [true, Array(10).fill(true)]);
+    return [open, out];`), [true, Array(9).fill(true)]);
   await send("Emulation.clearDeviceMetricsOverride");
   for (const pagePath of ["/plans", "/people", "/locations"]) {
     await go(pagePath);
@@ -225,7 +225,7 @@ export default async function () {
     return [location.pathname + location.search, $("#sort").getAttribute("aria-pressed"), window.marker === 1];`), ["/?sort=oldest", "true", true]);
   check("Back with a dialog open closes it", await run(`
     $("nav a[href='/']").click(); await calm(800); $("nav a[href='/locations']").click(); await calm(800);
-    $(".nav-add").click(); await calm(600); const open = $("dialog[open] #tie-form") !== null;
+    $("#add-location").click(); await calm(600); const open = $("dialog[open]") !== null;
     history.back(); await calm(800); return [open, $("dialog[open]") === null, location.pathname];`), [true, true, "/"]);
   check("the privacy policy opens in a new tab, leaving the app as it is", await run(`
     await openMenu(); const link = $(".menu-privacy"); const out = [link.target, link.rel]; $("dialog.menu-panel").close(); return out;`),

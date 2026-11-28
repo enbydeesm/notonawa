@@ -8,11 +8,11 @@ export default async function () {
   await go("/people");
   check("nav marks the current page", await run(`return [...document.querySelectorAll("nav a.nav-tab")].map((a) => a.getAttribute("aria-label") + (a.getAttribute("aria-current") ? "*" : ""));`),
     ["Ties", "Plans", "Education", "People*", "Locations", "Calendar", "Analytics"]);
-  check("the tabs are icons, all on one row with + and ☰ at the right", await run(`
-    const tabs = [...document.querySelectorAll("nav a.nav-tab")]; const add = $(".nav-add"), menu = $(".nav-menu");
+  check("the tabs are icons, all on one row with the menu at the right", await run(`
+    const tabs = [...document.querySelectorAll("nav a.nav-tab")]; const menu = $(".nav-menu");
     const top = (el) => { const r = el.getBoundingClientRect(); return Math.round((r.top + r.bottom) / 2 / 4); };
     return [tabs.every((a) => a.querySelector("svg") && a.textContent.trim() === "" && a.title === a.getAttribute("aria-label")),
-      new Set([...tabs, add, menu].map(top)).size, menu.getBoundingClientRect().right > $("nav").getBoundingClientRect().right - parseFloat(getComputedStyle($("nav")).paddingRight) - 4];`),
+      new Set([...tabs, menu].map(top)).size, menu.getBoundingClientRect().right > $("nav").getBoundingClientRect().right - parseFloat(getComputedStyle($("nav")).paddingRight) - 4];`),
     [true, 1, true]);
   check("a new journal starts with 'Me'; add people from the + card, one with a default role", await run(`
     const first = [personNames(), personCard("Me"), !!document.querySelector(".name-title .badge")];

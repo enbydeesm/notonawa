@@ -1,4 +1,4 @@
-// The walkthrough's ties chunk. Logging a tie: the form, its pickers and tags, and + from another tab.
+// The walkthrough's ties chunk. Logging a tie: the form, its pickers and tags, from the Add a Tie card.
 
 import { check, freshAccount, go, run, sleep } from "../harness.mjs";
 import { seedJournal } from "../seed.mjs";
@@ -8,8 +8,8 @@ export default async function () {
   await seedJournal();
   console.log("Ties: logging");
   await go("/");
-  check("+ opens the log-a-tie dialog; pickers leave out archived items", await run(`
-    $(".nav-add").click(); await calm(600);
+  check("the Add a Tie card's + opens the log-a-tie dialog; pickers leave out archived items", await run(`
+    $("#add-tie").click(); await calm(600);
     $("#tie-add-participant").click(); $("#tie-add-plan").click();
     const firstPerson = [lastBox("#tie-participants").value, $(".role").value];
     const hiddenAtFirst = $("#tie-location").offsetParent === null;
@@ -139,23 +139,23 @@ export default async function () {
     return [Math.abs(top) < 1, bg === getComputedStyle(document.body).backgroundColor,
       $("#people-filter").nextElementSibling?.classList.contains("hint") ?? false];`), [true, true, false]);
   check("a tie needs a date: the form won't save without one", await run(`
-    $(".nav-add").click(); await calm(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
+    $("#add-tie").click(); await calm(600); set("#tie-title", "Dateless"); set("#tie-tie_date", "");
     $("#tie-save").click(); await calm(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_date").validity.valueMissing];
     await closeDiscarding("#tie-close"); await calm(300);
     return [stayed, titles()];`), [[true, true], ["Floor session"]]);
   check("a tie needs a type: the form won't save on –", await run(`
-    $(".nav-add").click(); await calm(600); set("#tie-title", "Typeless");
+    $("#add-tie").click(); await calm(600); set("#tie-title", "Typeless");
     $("#tie-save").click(); await calm(600);
     const stayed = [!!document.querySelector("dialog[open] #tie-form"), $("#tie-tie_type").value, $("#tie-tie_type").validity.valueMissing];
     await closeDiscarding("#tie-close"); await calm(300);
     return [stayed, titles()];`), [[true, "", true], ["Floor session"]]);
   check("✕ asks before throwing away what's typed: Keep editing stays, Discard changes closes without saving", await run(`
-    $(".nav-add").click(); await calm(600);
+    $("#add-tie").click(); await calm(600);
     const top = () => [...document.querySelectorAll("dialog[open]")].pop();
     $("#tie-close").click(); await calm(300);
     const untouched = !document.querySelector("dialog[open]");
-    $(".nav-add").click(); await calm(600); set("#tie-title", "Not saved");
+    $("#add-tie").click(); await calm(600); set("#tie-title", "Not saved");
     $("#tie-close").click(); await calm(300);
     const asked = [top().querySelector("h2").textContent, [...top().querySelectorAll("button")].map((b) => b.textContent)];
     [...top().querySelectorAll("button")].find((b) => b.textContent === "Keep editing").click(); await calm(300);
@@ -167,7 +167,7 @@ export default async function () {
 
   check("saving the tie created and linked its tags", await run(`return tagsJson();`), ["Floor:1", "Futomomo:1"]);
   check("deleting a tag asks first, saying which ties use it", await run(`
-    $(".nav-add").click(); await calm(600); $("#tie-add-tags").click(); await calm(600);
+    $("#add-tie").click(); await calm(600); $("#tie-add-tags").click(); await calm(600);
     const before = tagBubbles();
     [...document.querySelectorAll("#tags-list .tag")].find((t) => t.querySelector(".tag-toggle").textContent === "Floor").querySelector(".tag-x").click();
     await calm(300);
@@ -183,16 +183,14 @@ export default async function () {
     await closeDiscarding("#tie-close"); await calm(300);
     return [kept, !!document.querySelector("dialog")];`), [[], false]);
 
-  console.log("+ on other tabs");
-  await go("/plans");
-  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Logged from Plans"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
+  await run(`$("#add-tie").click(); await calm(600); set("#tie-title", "Logged again"); set("#tie-tie_type", "floor"); $("#tie-save").click();`);
   await sleep(1500);
-  check("saving from another tab goes to the Ties list", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged from Plans"]);
+  check("saving a tie lists it first", await run(`return [location.pathname, titles()[0]];`), ["/", "Logged again"]);
   check("tapping a tie's card, not just its title, opens it", await run(`
     $(".tie-card .tie-date").click(); await calm(1000);
     const opened = [$("#tie-form-heading")?.textContent, $("#tie-title")?.value, getComputedStyle($(".tie-card")).cursor];
     await closeDiscarding("#tie-close"); await calm(300);
-    return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged from Plans", "pointer"], false]);
+    return [opened, !!document.querySelector("dialog[open]")];`), [["Edit tie", "Logged again", "pointer"], false]);
 
   console.log("Ties: the Add a Tie card");
   check("Ties starts with a small \"Add a Tie\" card, then the search, snug at its top and bottom", await run(`
@@ -201,7 +199,7 @@ export default async function () {
     const more = $("#search-more > summary").getBoundingClientRect();
     return [flat(cards[0]), cards[0].getBoundingClientRect().height < 80, cards[1].getAttribute("aria-label"),
       label.top - search.top <= 16, search.bottom - more.bottom <= 20];`),
-    ["+ | Add a Tie", true, "Search ties", true, true]);
+    ["Add a Tie", true, "Search ties", true, true]);
   check("its + opens the \"Add a tie\" dialog, and saving lists the new tie", await run(`
     $("#add-tie").click(); await calm(600);
     const heading = $("#tie-form-heading").textContent;

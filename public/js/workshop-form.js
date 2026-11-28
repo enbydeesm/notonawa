@@ -30,6 +30,7 @@ import { startEntry } from "./new-entry-start.js";
 import {
   recentOnTies, listItems, listWorkshops, getWorkshop, saveWorkshop, deleteWorkshop, linkToWorkshop,
 } from "./store/index.js";
+import { plusIcon } from "./plus-icon.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -259,7 +260,7 @@ function showWorkshopForm(workshop, start) {
      * @param {() => void} onclick
      */
     function addButton(id, label, onclick) {
-      return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, "+");
+      return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, plusIcon());
     }
 
     // The box stays: clearing it is all removing does.

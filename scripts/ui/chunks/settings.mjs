@@ -25,10 +25,10 @@ export default async function () {
   // The device's own setting no longer matters: a light device starts dark.
   await deviceMode("light");
   await go("/");
-  check("the menu button sits in the corner, after the +", await run(`
+  check("the menu button sits in the corner, after the poser's button", await run(`
     const nav = [...document.querySelector("nav").children];
-    return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg line").length, $("dialog") === null];`),
-    [["nav-add", "nav-icon nav-menu"], 3, true]);
+    return [nav.slice(-2).map((el) => el.className), document.querySelectorAll(".nav-menu svg path").length, $("dialog") === null];`),
+    [["nav-tab nav-poser", "nav-icon nav-menu"], 3, true]);
   check("once unlocked, the logo and the other views' code load ahead, before the menu or a view is opened", await run(`
     const ready = () => ["/img/logo-mark-v4.svg", "/img/logo-word-v4.svg"].every((f) => fetched(f) || loadedImage(f)) && ["plans", "people", "locations", "calendar", "analytics", "education", "account", "data"]
       .every((v) => fetched("/js/views/" + v + ".js"));
@@ -173,7 +173,8 @@ export default async function () {
     // Saving redraws the view, which closes any dialog: wait for it to finish
     // before opening the tie form, then for the form's first role box.
     await calm(1500);
-    $(".nav-add").click(); await calm(600);
+    // The tie form, from the Ties page's Add a Tie card.
+    $("nav a[href='/']").click(); await calm(800); $("#add-tie").click(); await calm(600);
     // A person row (with its role box) appears once one is added.
     $("#tie-add-participant").click();
     for (let i = 0; i < 50 && !document.querySelector("dialog[open] .role"); i++) await wait(100);

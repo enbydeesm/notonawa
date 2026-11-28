@@ -78,7 +78,7 @@ export default async function () {
     return [focused, ...result, !!document.querySelector("dialog.pose-editor")];`),
   ["pose-heading", false, false, "Close", true, "Allow collisions", true, true, [], false]);
 
-  await run(`$(".nav-add").click(); await calm(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
+  await run(`$("#add-tie").click(); await calm(600); set("#tie-title", "Pose test"); set("#tie-tie_type", "suspension");`);
   check("the Visuals + offers the model poser", await run(`
     $("#tie-add-visual").click(); await calm(300);
     return $("#tie-add-pose").textContent;`), "Model poser");

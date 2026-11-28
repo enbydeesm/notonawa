@@ -63,7 +63,7 @@ export const SHARED = [
   "public/index.html", "public/app.css", "public/_headers",
   "public/js/app.js", "public/js/api.js", "public/js/dom.js", "public/js/dialog.js", "public/js/dialog-icons.js",
   "public/js/form-changes.js", "public/js/router.js",
-  "public/js/navigate.js", "public/js/nav.js", "public/js/format.js", "public/js/vault.js",
+  "public/js/navigate.js", "public/js/nav.js", "public/js/nav-art.js", "public/js/plus-icon.js", "public/js/format.js", "public/js/vault.js",
   "public/js/crypto-worker.js", "public/js/crypto/fields.js", "public/js/crypto/keys.js",
   "public/js/crypto/vault-core.js", "public/js/key-flows.js", ".npmrc", "public/js/store/index.js",
   // The cache and the journal in memory: opened at every unlock (format 2).

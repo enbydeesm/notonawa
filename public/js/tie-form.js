@@ -20,6 +20,7 @@ import { dialogHeader, iconButton } from "./dialog-icons.js";
 import { watchChanges, guardClose } from "./form-changes.js";
 import { startEntry } from "./new-entry-start.js";
 import { workshopLink } from "./workshop-link.js";
+import { plusIcon } from "./plus-icon.js";
 
 /** @type {Promise<boolean> | null} */
 let openDialog = null;
@@ -179,7 +180,7 @@ function showTieForm(tie, start, fromWorkshop) {
      * @param {() => void} onclick
      */
     function addButton(id, label, onclick) {
-      return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, "+");
+      return h("button", { type: "button", className: "label-add", id, "aria-label": label, title: label, onclick }, plusIcon());
     }
 
     /** @param {HTMLElement} row */

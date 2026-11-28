@@ -13,14 +13,14 @@ export default async function () {
   const planCard = `const cardOf = (t) => [...document.querySelectorAll(".plan-card")].find((c) => c.querySelector(".tie-title").innerText === t);
     const parts = (c) => [c.querySelector(".tie-place").innerText,
       c.querySelectorAll(".tie-rating .hank.filled").length, c.querySelector(".tie-photos")?.innerText ?? "", c.querySelectorAll("button").length];`;
-  check("Plans starts with a small \"Add a Plan\" card, its yellow + first at the left, then the search, then the list", await run(`
+  check("Plans starts with a small \"Add a Plan\" card, its yellow + icon first at the left, then the search, then the list", await run(`
     const cards = [...document.querySelectorAll("#view > section.card")];
-    const plus = $("#add-plan"), navPlus = $("nav .nav-add"), label = $("#add-plan-label");
-    return [flat(cards[0]), getComputedStyle(plus).backgroundColor === getComputedStyle(navPlus).backgroundColor,
+    const plus = $("#add-plan"), label = $("#add-plan-label");
+    return [flat(cards[0]), getComputedStyle(plus).backgroundColor === "rgb(254, 199, 98)" && !!plus.querySelector("svg.plus-icon"),
       plus.getBoundingClientRect().left - cards[0].getBoundingClientRect().left < 40,
       label.getBoundingClientRect().left - plus.getBoundingClientRect().right < 24, cards[0].getBoundingClientRect().height < 80,
       cards[1].getAttribute("aria-label"), !!document.querySelector("#plan-dialog[open]")];`),
-    ["+ | Add a Plan", true, true, true, true, "Search plans", false]);
+    ["Add a Plan", true, true, true, true, "Search plans", false]);
   check("+ opens the form in a dialog; add plans with a variation, each closing it", await run(`
     ${addPlan}
     // A new plan has no linked ties or variations, and no Workshop row (that link is made from a workshop).

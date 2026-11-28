@@ -12,7 +12,7 @@ export default async function () {
     await type("#q", "SMOOTH transitions"); const found = titles(); $("#clear").click(); await calm(800); return found;`),
     ["Floor session"]);
   check("capitals don't matter in any language: Ö finds ö", await run(`
-    $(".nav-add").click(); await calm(600); set("#tie-title", "Knot test"); set("#tie-tie_type", "floor"); set("#tie-notes", "  Öse knot, tied twice  ");
+    $("#add-tie").click(); await calm(600); set("#tie-title", "Knot test"); set("#tie-tie_type", "floor"); set("#tie-notes", "  Öse knot, tied twice  ");
     $("#tie-save").click(); await calm(1200);
     await type("#q", "öse"); const lower = titles(); await type("#q", "ÖSE KNOT"); const upper = titles();
     $("#clear").click(); await calm(800); return [lower, upper];`),

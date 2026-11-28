@@ -87,9 +87,10 @@ export default async function () {
     await search(""); $(".sort-button[data-sort=name]").click(); await wait(50);
     return [inCard, found, personNames()];`), ["locations-search", [["Studio"], ["Studio"], ["Old flat"], []], ["Old flat", "Studio"]]);
   check("a new tie starts at the default location (not a change: ✕ closes it without asking); then it's unset again", await run(`
-    $("nav .nav-add").click(); await calm(1200);
+    $("nav a[href='/']").click(); await calm(800); $("#add-tie").click(); await calm(1200);
     const start = [$("#tie-location").offsetParent !== null, $("#tie-location").value, $("#tie-location-show").hidden];
     $("#tie-close").click(); await calm(300); start.push(!document.querySelector("dialog[open]"));
+    $("nav a[href='/locations']").click(); await calm(800);
     await openItem("Old flat"); $("#location-is_default").click(); await submit();
     return [start, !!$("#list .item .badge")];`), [[true, "Old flat", true, true], false]);
   check("tapping a location's row, not just its name, opens it", await run(`
